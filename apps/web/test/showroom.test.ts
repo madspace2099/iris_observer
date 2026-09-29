@@ -24,6 +24,7 @@ import {
 import { syntheticRepository } from "@observer/synthetic";
 import { VIEWERS } from "@observer/synthetic";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * The guards that keep the Showroom Intelligence refocus from eroding.
  *
@@ -37,6 +38,7 @@ const QUERY = {
   tenantSlug: "alpha",
   projectSlug: "northgate",
   period: "quarter_to_date" as const,
+  language: DEFAULT_LANGUAGE,
 };
 
 async function overview() {
@@ -143,11 +145,16 @@ describe("association, never cause", () => {
   });
 
   it("shows both sample sizes on every stated difference", async () => {
-    const view = await syntheticRepository.getPresentationIntelligence(QUERY, {
-      mode: "agents",
-      left: "agt_monika",
-      right: "agt_akhilesh",
-    });
+    /*
+     * Year to date, not the shared quarter: quarter to date is 19 and 22
+     * meetings, under the agent floor, where the read model now withholds
+     * every difference and this loop would pass over nothing.
+     */
+    const view = await syntheticRepository.getPresentationIntelligence(
+      { ...QUERY, period: "year_to_date" },
+      { mode: "agents", left: "agt_monika", right: "agt_akhilesh" },
+    );
+    expect(view.comparison?.differences.length ?? 0, "nothing to measure").toBeGreaterThan(0);
     for (const d of view.comparison?.differences ?? []) {
       expect(d.sampleLeft).toBeGreaterThan(0);
       expect(d.sampleRight).toBeGreaterThan(0);
@@ -279,6 +286,7 @@ describe("unknown is never rendered as zero", () => {
       tenantSlug: "alpha",
       projectSlug: "northgate",
       meetingId: "mtg_ng0001" as never,
+      language: DEFAULT_LANGUAGE,
     });
     expect(replay.gaps.length).toBeGreaterThan(0);
     for (const gap of replay.gaps) expect(gap.length).toBeGreaterThan(20);
@@ -311,6 +319,7 @@ describe("source classification", () => {
       tenantSlug: "alpha",
       projectSlug: "northgate",
       meetingId: "mtg_ng0100" as never,
+      language: DEFAULT_LANGUAGE,
     });
     const outcome = replay.steps.find((s) => s.kind === "outcome");
     expect(outcome?.sources).toEqual(["IRIS_SHOWROOM_OBSERVED"]);
@@ -413,6 +422,7 @@ describe("projections", () => {
         baselineClipped: false,
       },
       generatedAt: "2030-01-02T00:00:00.000Z",
+      language: DEFAULT_LANGUAGE,
       sessionsDelivered: false,
     } as never;
 

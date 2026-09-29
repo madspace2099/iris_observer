@@ -3,7 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 
-import { NotPermittedError } from "@observer/readmodels";
+import { NotPermittedError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 
 import { currentAccount, currentViewer } from "@/lib/session";
 import { repository } from "@/lib/repository";
@@ -329,6 +329,7 @@ export async function gate(rawBody: unknown, request: Request): Promise<GateResu
       tenantSlug: body.data.tenantSlug,
       projectSlug: body.data.projectSlug,
       period: body.data.period,
+      language: DEFAULT_LANGUAGE,
     });
     agentIds = agents.map((a) => a.agentId);
   } catch (error) {

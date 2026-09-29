@@ -18,10 +18,10 @@ import { signInAs } from "./sign-in";
  * property is worth keeping … `DataColumn.label` is a string and cannot hold
  * a control, so the definitions are stated once beneath the table instead —
  * reported as a gap in the shared layer rather than worked around by
- * hand-rolling a second table." The current register has thirteen real
+ * hand-rolling a second table." The current register has twelve real
  * columns (Unit, Status, Rooms, Floor, Area m², Price, Meetings, Views,
- * Shortlisted, Plans opened, Comparisons, Demand · derived, Verified
- * outcome) and a static "How to read this register" list beneath the table
+ * Shortlisted, Plans opened, Comparisons, Demand · derived) and a static
+ * "How to read this register" list beneath the table
  * that defines every measured one — always present, so a reader (and a
  * screen reader) never has to find and activate a control to read it, which
  * is a stronger claim than the popover it replaced, not a weaker one.
@@ -44,7 +44,6 @@ const DEFINED_COLUMNS = [
   "Plans opened",
   "Comparisons",
   "Demand · derived",
-  "Verified outcome",
 ] as const;
 
 /** The full set of column headers the table itself renders. */
@@ -61,7 +60,6 @@ const HEADERS = [
   "Plans opened",
   "Comparisons",
   "Demand · derived",
-  "Verified outcome",
 ] as const;
 
 test("every measured column on the unit register states what it measures", async ({ page }) => {

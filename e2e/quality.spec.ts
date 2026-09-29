@@ -220,7 +220,10 @@ test.describe("the chart vocabulary", () => {
 
     // A control that does not move the number it labels is decoration.
     expect(year).not.toBe(today);
-    await expect(page.locator(".iris-kpi")).toHaveCount(4);
+    // Four figures. Since the approved regrouping (12a586f) the two groups
+    // nothing measures stand in `.iris-kpi` boxes too, saying what is missing.
+    await expect(page.locator(".iris-kpi-value")).toHaveCount(4);
+    await expect(page.locator(".iris-kpi-missing")).toHaveCount(2);
   });
 
   test("a window too small to read says so instead of asserting a trend", async ({ page }) => {
@@ -269,12 +272,29 @@ test.describe("the chart vocabulary", () => {
     await page.goto("/alpha/northgate/agents");
 
     // The ring and the radar read different slices once, and disagreed by one.
-    const ring = await page.locator(".iris-ring-card").first().locator(".iris-ring-figure").textContent();
+    const card = page.locator(".iris-ring-card").first();
+    const name = ((await card.locator("h3").textContent()) ?? "").trim();
+    const ring = await card.locator(".iris-ring-figure").textContent();
     const fromRing = Number((ring ?? "").replace(/\D/g, ""));
     expect(fromRing).toBeGreaterThan(0);
 
-    const radarLabel = await page.locator(".iris-radars .iris-ring-key li").first().textContent();
-    expect(radarLabel).toContain(String(fromRing));
+    /*
+     * The same agent's radar card, by name. The radar's label used to be a
+     * key inside the chart (`.iris-ring-key li`); a key for one shape was a
+     * caption in the wrong place, so the label is the card's own now - a
+     * `<figcaption>` under the shape, or the note that stands in for the
+     * shape below the sample floor. This waited for the key for two rounds
+     * after it went: a guard standing where its subject no longer was.
+     */
+    const radarLabel = await page
+      .locator(".iris-radars .iris-radar-card", { hasText: name })
+      .first()
+      .locator("figcaption, .iris-radar-note")
+      .first()
+      .textContent();
+    expect(radarLabel, `${name}'s radar card does not carry the count the ring does`).toContain(
+      String(fromRing),
+    );
   });
 
   test("no surface scrolls sideways on a phone", async ({ page }, testInfo) => {

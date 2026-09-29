@@ -1,9 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /**
  * THE PROJECT DIRECTORY, ASKED OF POSTGRES ITSELF.
@@ -22,7 +25,6 @@ import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support
 afterEach(closeTestDatabases);
 afterAll(closeSuiteDatabases);
 
-const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const BEFORE = [
   "20260902090000_observer_source_identity_spine.sql",
   "20260902093000_observer_activation_and_credentials.sql",
@@ -48,8 +50,6 @@ const TABLES = ["observer.tenants", "observer.project_viewers", "observer.projec
 
 const ESTATE = "acct_estate_one";
 const OTHER = "acct_estate_two";
-
-const sql = (name: string): string => readFileSync(join(MIGRATIONS, name), "utf8");
 
 let db: PGlite;
 
@@ -88,14 +88,8 @@ function settle(
 }
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of BEFORE) await db.exec(sql(name));
-  await db.exec(sql(MIGRATION));
+  db = await openDatabase("suite", "hosted");
+  await applyMigrations(db, [...BEFORE, MIGRATION]);
 });
 
 describe("who may use the directory's doors", () => {
@@ -467,10 +461,16 @@ describe("the names of the people who present", () => {
 });
 
 describe("the migration can be applied again", () => {
+  /*
+   * Through the window, as on the host. The file hands every façade it recreates to the ingest
+   * owner, which needs CREATE on `public` at that moment; with the window closed the host refuses
+   * with `permission denied for schema public`. The superuser runner never showed it, and
+   * `docs/18-deployment.md` says so: open, apply, close, check — every time.
+   */
   it("over itself, twice, keeping what it holds and restating its grants", async () => {
     const developer = await tenant(ESTATE, "Kept", "kept");
-    await expect(db.exec(sql(MIGRATION))).resolves.toBeDefined();
-    await expect(db.exec(sql(MIGRATION))).resolves.toBeDefined();
+    await expect(applyMigrations(db, [MIGRATION])).resolves.toBeUndefined();
+    await expect(applyMigrations(db, [MIGRATION])).resolves.toBeUndefined();
     expect(
       await one<number>(
         `select count(*)::int as value from observer.tenants where tenant_id = $1`,

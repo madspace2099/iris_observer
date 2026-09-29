@@ -141,6 +141,12 @@ export interface PresentationTransition {
   readonly count: number;
   /** Share of all transitions out of `from`. */
   readonly share: number;
+  /**
+   * Every move out of `from` in the same set — the denominator of `share`. It
+   * is different on every row, so a screen prints it beside the share rather
+   * than leaving two bars to be read against one another as if it were not.
+   */
+  readonly outOf: number;
 }
 
 /**
@@ -158,6 +164,30 @@ export interface PresentationComparison {
   readonly transitionsLeft: readonly PresentationTransition[];
   readonly transitionsRight: readonly PresentationTransition[];
   readonly differences: readonly PresentationDifference[];
+  /**
+   * Why `differences` is empty and no finding is drawn: a side with fewer
+   * meetings than the agent floor (`AGENT_MIN_SAMPLE`). The lanes stay, as raw
+   * figures with their counts in their headers; the comparative claims do not.
+   * Null when both sides reach the floor — an empty `differences` then means
+   * nothing cleared the reporting threshold, which is a different statement.
+   */
+  readonly verdictRefusal: string | null;
+  /**
+   * Behaviours not compared because fewer than the floor's meetings on a side
+   * could answer them — a timing question on a timing-blind source, say. One
+   * sentence each, naming the behaviour and both counts. Empty when every
+   * behaviour was answerable, and always empty under `verdictRefusal`, which
+   * says the same thing once for all of them.
+   */
+  readonly withheld: readonly string[];
+  /**
+   * Meetings in scope that stand on neither side, in a sentence: for the
+   * outcome cohorts, those with no recorded outcome. Null where every meeting
+   * in scope is on one side or the other, and where the sides are named people
+   * and the rest are simply other people.
+   */
+  readonly excluded: string | null;
+  /** The meetings on the two sides — the same count the finding's n is drawn from. */
   readonly evidence: EvidenceRef;
   /** Always stated: an association at this sample size is not a cause. */
   readonly disclaimer: string;
@@ -170,6 +200,12 @@ export interface PresentationDifference {
   readonly rightDisplay: string;
   /** Absolute gap, for ordering. Never shown as a p-value. */
   readonly magnitude: number;
+  /**
+   * The meetings that could answer this behaviour, per side — the rates'
+   * denominators. Equal to the lane's meeting count unless the behaviour
+   * excludes meetings that cannot answer it, in which case `note` says so and
+   * the screen prints these beside the row.
+   */
   readonly sampleLeft: number;
   readonly sampleRight: number;
   readonly sources: readonly InsightSource[];
@@ -182,6 +218,12 @@ export interface PresentationIntelligence {
   readonly transitions: readonly PresentationTransition[];
   readonly teamBenchmark: PresentationLane;
   readonly comparison: PresentationComparison | null;
+  /**
+   * Why `comparison` is null, in a sentence a screen can print. A side with no
+   * meetings at all is not a small sample but an absence, and 0% of nothing is
+   * not a rate anybody presented. Null whenever a comparison is drawn.
+   */
+  readonly noComparison: string | null;
   readonly findings: readonly ShowroomFinding[];
   readonly evidence: EvidenceRef;
 }
@@ -214,10 +256,131 @@ export interface ReplayStep {
   readonly evidence: EvidenceRef | null;
 }
 
+/**
+ * What the catalogue and the session together say about the units this meeting
+ * opened.
+ *
+ * ## Why this is joined in the read model and nowhere else
+ *
+ * A replay carries unit codes; rooms, orientation and price are catalogue
+ * attributes. The sentence a reviewer wants — "three two-room flats opened, two
+ * shortlisted" — needs both, and ADR-0012 forbids a component from joining two
+ * read models to get it. So the join lives here, beside the replay it is about,
+ * with the same inputs `getMeetingReplay` already holds.
+ *
+ * ## Three counts that are not one count
+ *
+ * `opened` is every code the showroom recorded. A code the catalogue does not
+ * hold — a legacy import, a flat withdrawn since — is still a unit somebody
+ * looked at, so it stays in `opened` and is named in `notInCatalogue` rather
+ * than dropped or folded into a room band it does not belong to. A code the
+ * catalogue holds without a room count is a third thing again. The bands sum to
+ * `opened` only with those two beside them, and a reader is owed all three.
+ *
+ * `shortlisted` at nought is an answer. One meeting in five on the smallest
+ * scheme shortlists nothing, and "nothing was shortlisted" is what happened,
+ * not what could not be measured.
+ */
+export interface UnitsViewedSummary {
+  /** Units opened in this meeting, catalogue or not. The denominator. */
+  readonly opened: number;
+  /** Opened units by the room count the catalogue states, ascending. */
+  readonly byRooms: readonly { readonly rooms: number; readonly count: number }[];
+  /** Opened units the catalogue holds without a room count. */
+  readonly roomsUnstated: number;
+  /** Opened codes the catalogue does not hold. Named, never folded into a band. */
+  readonly notInCatalogue: number;
+  /** Shortlisted in this meeting. Nought is an answer, not an absence. */
+  readonly shortlisted: number;
+  /** Both facts in words, singular and nought included. */
+  readonly sentence: string;
+  /** Where the looking time went, by aspect. See {@link OrientationInterest}. */
+  readonly interest: OrientationInterest;
+}
+
+/**
+ * Which way the buyer's attention leaned, and the five shapes that answer can
+ * take.
+ *
+ * ## The measure, and why it is not raw dwell
+ *
+ * The index is P2-07's at meeting scope: a group's share of the looking time
+ * divided by its share of what was opened. Six units facing south and one
+ * facing west win on raw seconds by construction; the denominator is what lets
+ * the one west-facing unit's forty minutes mean something. It is always the
+ * whole set of opened units with a stated aspect — what this buyer saw — never
+ * the groups alone.
+ *
+ * ## A group is two units
+ *
+ * The sentence compares aspects as sets. One unit is a unit, and the journey
+ * below already speaks of it by code; calling it a group would make "the
+ * south-facing units" true of a single flat. So an aspect qualifies with two
+ * opened units, and the qualification decides which group the sentence is
+ * ABOUT, never whether there is a sentence.
+ *
+ * ## One band, applied twice
+ *
+ * Twenty per cent. Between two groups it separates a leader from a split;
+ * for a lone group it separates leaning from following, against 1.0, with
+ * 1/1.2 as the lower edge so the band is symmetric on a ratio. Measured before
+ * it was fixed: a near-tie named as a leader reaches a pricing decision, a
+ * leader left unnamed costs a reader one look at the journey.
+ *
+ * ## The upper edge has a ceiling; the lower edge does not
+ *
+ * A group holding share `s` of the opened units can index at most `1/s`, when
+ * every second went to it. So `above_share` is unreachable once `s` exceeds
+ * 1/1.2 — a group that is more than five of six opened units can only ever
+ * "follow", however hard it was looked at. The lower edge has no such limit:
+ * dwell can fall to nought. This is not a defect — where a group is that much
+ * of what was opened, its drawing the attention is not news — but a reader
+ * counting `above_share` must know the shape can vanish by construction.
+ * Measured on the fixtures' 159 single-group meetings: none exceeds 5/6, one
+ * sits exactly on it (ceiling 1.20), seven sit at 4/5 (ceiling 1.25).
+ *
+ * ## `one_orientation` is not a shortfall
+ *
+ * A scheme whose every unit faces the same way — one exists in the fixtures —
+ * can never compare aspects, and that is the catalogue's fact, not a gap in
+ * the measurement. It gets its own shape and its own sentence, not the
+ * "below minimum" one.
+ */
+export type OrientationInterestShape =
+  /** Two or more groups; the first leads the second by at least the band. */
+  | "leader"
+  /** Two or more groups, too close to name a leader. */
+  | "split"
+  /** One group, and it drew more than its share by at least the band. */
+  | "above_share"
+  /** One group, and it drew less than its share by at least the band. */
+  | "below_share"
+  /** One group, inside the band: attention followed supply. */
+  | "followed"
+  /** Aspects were opened, none more than once: no group to speak of. */
+  | "no_group"
+  /** Every opened unit shares one aspect. The catalogue's fact. */
+  | "one_orientation"
+  /** No opened unit has a stated aspect. */
+  | "unknown";
+
+export interface OrientationInterest {
+  readonly shape: OrientationInterestShape;
+  /** The qualified groups, descending by index. Empty for the last three shapes. */
+  readonly groups: readonly {
+    readonly orientation: string;
+    readonly units: number;
+    readonly index: number;
+  }[];
+  readonly sentence: string;
+}
+
 export interface MeetingReplay {
   readonly context: ViewContext;
   readonly meetingId: string;
   readonly headline: string;
+  /** Joined here, never in a component. See {@link UnitsViewedSummary}. */
+  readonly unitsViewed: UnitsViewedSummary;
   readonly agentName: string;
   /**
    * Where this agent's own detail screen is, or `null` when the session's
@@ -362,6 +525,39 @@ export interface EnvironmentUsage {
   }[];
   readonly meetingsUsingEnvironment: number;
   readonly meetingsTotal: number;
+  /**
+   * How much of the presentation time went to Time & weather.
+   *
+   * ## One definition, the one the agent lane already states
+   *
+   * The denominator is the sum of every step's dwell — "the time the source
+   * could time" — exactly as `AgentSectionUse.timeShare` defines it, and not
+   * the meeting's length: a meeting's length holds time outside any section,
+   * and a share against it would leave the sections adding up to less than
+   * one with nobody told where the rest went. Against step time they add up
+   * to one, which is what makes the figure checkable.
+   *
+   * ## The set is stated, and a null dwell is not a nought
+   *
+   * A step the source could not time carries a null dwell — never inferred —
+   * and a meeting with such a step is outside this figure entirely, on both
+   * sides. Measured before this was written: sixteen meetings on the largest
+   * scheme reach the section without a timed dwell. `timedMeetings` of
+   * `meetingsTotal` says how many the share stands on, so the reader is never
+   * shown a share of an implied whole.
+   *
+   * `null` when no meeting was fully timed: nothing to stand on is not nought
+   * per cent.
+   */
+  readonly timeShare: {
+    /** Environment seconds over all-section seconds, both across the timed meetings only. */
+    readonly share: number;
+    readonly environmentSeconds: number;
+    readonly timedSeconds: number;
+    /** Meetings every step of which the source could time. The set the share stands on. */
+    readonly timedMeetings: number;
+    readonly meetingsTotal: number;
+  } | null;
 }
 
 export interface StorytellingIntelligence {

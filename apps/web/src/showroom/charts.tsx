@@ -187,6 +187,8 @@ export function OutcomeKey({ slices }: { slices: readonly OutcomeSlice[] }) {
 interface Bucket {
   readonly id: string;
   readonly label: string;
+  /** False where the selected period does not hold the bucket: it has no count to draw. */
+  readonly inPeriod: boolean;
   readonly meetings: number;
   readonly medianDurationDisplay: string;
   readonly progressed: number;
@@ -221,7 +223,9 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
               <div className="iris-step" key={p.id}>
                 <span
                   className="iris-step-bar"
-                  title={`${p.meetings} meetings · ${p.progressed} progressed`}
+                  {...(p.inPeriod
+                    ? { title: `${p.meetings} meetings · ${p.progressed} progressed` }
+                    : {})}
                 >
                   {/*
                     `--w` alongside `height`: the desktop column reads its
@@ -250,9 +254,12 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
                     }
                   />
                 </span>
-                <span className="iris-step-figure">{p.meetings}</span>
+                {/* Outside the period: a dash and the reason, never a zero. */}
+                <span className="iris-step-figure">{p.inPeriod ? p.meetings : "—"}</span>
                 <span className="iris-step-label">{p.label}</span>
-                <span className="iris-step-meta">{p.medianDurationDisplay}</span>
+                <span className="iris-step-meta">
+                  {p.inPeriod ? p.medianDurationDisplay : "Not in this period"}
+                </span>
               </div>
             ))}
           </div>
@@ -275,6 +282,7 @@ export function PairedRates({
   rows,
   leftLabel,
   rightLabel,
+  of,
 }: {
   rows: readonly {
     readonly id: string;
@@ -285,6 +293,12 @@ export function PairedRates({
   }[];
   leftLabel: string;
   rightLabel: string;
+  /**
+   * What the rates are shares of, printed once under the head — the product's
+   * `of …` qualifier at the chart's scale. A row's `note` is a tooltip and a
+   * tooltip states nothing; a chart whose rates have a set says it here.
+   */
+  of?: string;
 }) {
   return (
     <div className="iris-paired">
@@ -298,6 +312,7 @@ export function PairedRates({
         <span className="iris-code">{leftLabel}</span>
         <span className="iris-code">{rightLabel}</span>
       </div>
+      {of === undefined ? null : <p className="iris-paired-of">{of}</p>}
       {rows.map((row) => {
         const lo = Math.min(row.left, row.right);
         const hi = Math.max(row.left, row.right);
@@ -400,8 +415,24 @@ export function QuadrantMatrix({
                   {inCell.map((r) => (
                     <li key={r.id}>
                       <a href={r.href}>{r.label}</a>
+                      {/*
+                       * WHAT THE MULTIPLIER IS A MULTIPLE OF.
+                       *
+                       * The conversion half of this line already carries both
+                       * the thing it is measured against and its denominator —
+                       * "34% converted against 29% · n = 61". The attention
+                       * half carried neither, and it is the half that needs it
+                       * most: the index is a share of LOOKING TIME divided by a
+                       * share of STOCK, two different kinds of measure, and
+                       * "1.41× attention" on its own reads as a comparison with
+                       * other segments rather than with its own supply.
+                       *
+                       * The segment panel says it in full and the parity scale
+                       * says it per row. This was the third place and the only
+                       * one that did not.
+                       */}
                       <span>
-                        {r.index.toFixed(2)}× attention ·{" "}
+                        {r.index.toFixed(2)}× attention for its share of stock ·{" "}
                         {r.share === null ? "—" : pct.format(r.share)} converted
                         {r.projectShare === null ? "" : ` against ${pct.format(r.projectShare)}`} ·
                         n = {r.decided}
@@ -421,8 +452,8 @@ export function QuadrantMatrix({
         <ul className="iris-quad-withheld">
           {withheld.map((r) => (
             <li key={r.id}>
-              <a href={r.href}>{r.label}</a>: {r.index.toFixed(2)}× attention, not placed.{" "}
-              {r.withheld}
+              <a href={r.href}>{r.label}</a>: {r.index.toFixed(2)}× attention for its share of
+              stock, not placed. {r.withheld}
             </li>
           ))}
         </ul>
@@ -449,7 +480,16 @@ export function ParityScale({
     <div className="iris-parity">
       {rows.map((row) => (
         <div className="iris-parity-row" key={row.id}>
-          <span className="iris-parity-label">{row.label}</span>
+          <span className="iris-parity-label">
+            {row.label}
+            {/*
+             * The two shares the index is a quotient of, printed under the
+             * label. This was the marker's `title`: a denominator that lives
+             * only in a tooltip on an empty element is not stated, and the
+             * repository's first-page rule is about the screen, not the DOM.
+             */}
+            <em className="iris-parity-note">{row.note}</em>
+          </span>
           <span className="iris-parity-track">
             <em style={{ left: place(1) }} />
             <i
@@ -459,7 +499,7 @@ export function ParityScale({
                 width: place(Math.abs(row.index - 1)),
               }}
             />
-            <b style={{ left: place(row.index) }} title={row.note} />
+            <b style={{ left: place(row.index) }} />
           </span>
           <span className="iris-parity-value" data-over={row.index >= 1 ? "true" : undefined}>
             {row.index.toFixed(2)}×

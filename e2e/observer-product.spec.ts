@@ -35,9 +35,13 @@ import { signInAs } from "./sign-in";
  * capture is a photograph of the sign-in screen.
  */
 
-const OUT =
-  process.env["OBSERVER_PRODUCT_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/8eba7212-1d04-4994-b6ca-c0d2830338c5/scratchpad/observer-product";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_PRODUCT_SHOTS"] ?? "_review/observer-product";
 
 /** Next's development overlay, hidden for the capture only. */
 const HIDE_DEV_OVERLAY = `

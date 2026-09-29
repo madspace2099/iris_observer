@@ -1,3 +1,4 @@
+import type { Role } from "@observer/metrics";
 import type {
   EvidenceTier,
   InsightSource,
@@ -15,6 +16,7 @@ import type {
 } from "./metric-value";
 import type { MeetingSummary, ShowroomFinding, UnitAttentionRow } from "./showroom";
 import type { AgentProfile, OutcomeSlice } from "./views3";
+import { DEFAULT_LANGUAGE, type Language } from "./language";
 
 /**
  * The drill-down surfaces, as read models.
@@ -60,12 +62,35 @@ import type { AgentProfile, OutcomeSlice } from "./views3";
  * sentence a reader sees is produced by `visitorLabel` from those two values,
  * so a caller cannot pass prose through instead.
  *
- * What it does *not* say is which contact this is, because nothing in this
- * repository can say it yet: `ContactPii.fullName` is declared in the contracts
- * and has no producer, no store and no consumer. When that changes, the name
- * arrives as a field beside this label rather than inside its `display`, so the
- * guarantee above survives the feature that ends the silence.
+ * What it does *not* say is which contact this is. The name arrives as
+ * `MeetingRow.visitorName`, a field beside this label and never inside its
+ * `display` — joined per render from the contact directory, behind
+ * `AGENT_REGISTER_ROLES` and the contact's own consent — so the guarantee
+ * above survives the feature that ended the silence (`docs/22` §5, decision B).
  */
+/**
+ * WHO MAY READ AN AGENT'S REGISTER OF MEETINGS.
+ *
+ * The register beside an agent's figures lists their meetings one by one —
+ * the meeting drill-down's own material, row by row — and `docs/22` §5's
+ * decision (B) narrows that region to the drill-down's three roles: the sales
+ * agent, the agency manager and MADSPACE. The developer keeps every figure on
+ * the agent's screen and loses the rows, exactly as they cannot open a
+ * meeting (ADR-0018 keeps what is about one buyer on the sales team's
+ * surfaces). The same gate is the one a buyer's name will stand behind, so it
+ * is declared once, here, where the read model can apply it before anything
+ * reaches a screen.
+ *
+ * The web declares the drill-down's roles on its route (`SURFACES`,
+ * `[meetingId]`); a test holds the two lists equal, because two copies of a
+ * role list are how a gate comes to guard different things on two surfaces.
+ */
+export const AGENT_REGISTER_ROLES: readonly Role[] = [
+  "sales_agent",
+  "agency_manager",
+  "madspace_admin",
+];
+
 export const VISITOR_LABEL_KINDS = [
   /** No contact was ever linked. A walk-in has no history to have. */
   "unlinked",
@@ -95,38 +120,83 @@ function ordinal(n: number): string {
   return `${n}${unit === 1 ? "st" : unit === 2 ? "nd" : unit === 3 ? "rd" : "th"}`;
 }
 
+/*
+ * The label's words in each language a report can be printed in. Slovak and
+ * Hungarian write an ordinal as the number and a full stop, "3. stretnutie",
+ * "3. találkozó". Drafts for review (P2-17).
+ */
+const VISITOR_WORDS: Readonly<
+  Record<
+    Language,
+    {
+      readonly unlinked: string;
+      readonly first: string;
+      readonly returning: (nth: number) => string;
+    }
+  >
+> = {
+  en: {
+    unlinked: "Not linked to a contact",
+    first: "First meeting",
+    returning: (nth) => `Returning · ${ordinal(nth)} meeting`,
+  },
+  sk: {
+    unlinked: "Nie je prepojené s kontaktom",
+    first: "Prvé stretnutie",
+    returning: (nth) => `Opakovaná návšteva · ${String(nth)}. stretnutie`,
+  },
+  hu: {
+    unlinked: "Nincs kapcsolathoz kötve",
+    first: "Első találkozó",
+    returning: (nth) => `Visszatérő · ${String(nth)}. találkozó`,
+  },
+};
+
 /**
  * The only supported way to build a `VisitorLabel`.
  *
- * A pure function of a closed enum and an integer, which is what makes the
+ * A pure function of two closed enums and an integer, which is what makes the
  * privacy guarantee structural: there is no parameter a name, an email or a
  * phone number could be passed in, so no call site can leak one by accident.
+ * The language is one of three literals, like the kind, and carries nothing
+ * else.
  */
-export function visitorLabel(kind: VisitorLabelKind, priorMeetings: number | null): VisitorLabel {
+export function visitorLabel(
+  kind: VisitorLabelKind,
+  priorMeetings: number | null,
+  language: Language = DEFAULT_LANGUAGE,
+): VisitorLabel {
+  const words = VISITOR_WORDS[language];
   if (kind === "unlinked") {
-    return { kind, priorMeetings: null, display: "Not linked to a contact" };
+    return { kind, priorMeetings: null, display: words.unlinked };
   }
   if (kind === "known_first_meeting" || priorMeetings === null || priorMeetings <= 0) {
-    return { kind, priorMeetings: priorMeetings ?? 0, display: "First meeting" };
+    return { kind, priorMeetings: priorMeetings ?? 0, display: words.first };
   }
   return {
     kind,
     priorMeetings,
-    display: `Returning · ${ordinal(priorMeetings + 1)} meeting`,
+    display: words.returning(priorMeetings + 1),
   };
 }
 
 /* --- 1. the meeting list --------------------------------------------------- */
 
 /**
- * Whether anybody is owed a follow-up, and whether that can be known.
+ * Whether anybody is owed a follow-up, as the recorded outcome says.
  *
- * Four states, and the fourth is the point. Observer sees the outcome the agent
- * recorded at the end of the meeting; it does not see the call that came
- * afterwards, and no source in this phase does. "Follow-up needed" and
- * "follow-up done" are therefore different questions with different answers,
- * and a screen that renders the first as the second turns a reminder into a
- * report of work that may never have happened.
+ * Three states. Observer sees the outcome the agent recorded at the end of the
+ * meeting — a showroom fact (`docs/06-ownership.md`) — and it does not see the
+ * call that came afterwards; no source in this phase does. "Follow-up needed"
+ * and "follow-up done" are therefore different questions with different
+ * answers, and a screen that renders the first as the second turns a reminder
+ * into a report of work that may never have happened.
+ *
+ * There was a fourth, `unavailable`, "no CRM is connected, so the meeting has
+ * no outcome to read". The outcome is recorded in the room and a CRM adds
+ * nothing to it; the state said the CRM produced a fact the showroom had, and
+ * every register on a project without a CRM printed "No CRM" over follow-ups
+ * the agent had recorded. It is gone rather than documented.
  */
 export const FOLLOW_UP_STATES = [
   /** The recorded outcome says one is owed. */
@@ -135,8 +205,6 @@ export const FOLLOW_UP_STATES = [
   "not_required",
   /** The meeting ended without an outcome being recorded at all. */
   "not_recorded",
-  /** No CRM is connected, so the meeting has no outcome to read. */
-  "unavailable",
 ] as const;
 export type FollowUpState = (typeof FOLLOW_UP_STATES)[number];
 
@@ -144,7 +212,6 @@ export const FOLLOW_UP_LABELS: Record<FollowUpState, string> = {
   required: "Follow-up recorded as needed",
   not_required: "No follow-up recorded as needed",
   not_recorded: "Outcome not recorded",
-  unavailable: "No CRM connected",
 };
 
 /**
@@ -166,6 +233,19 @@ export interface MeetingRow extends MeetingSummary {
   readonly channelLabel: string;
   /** Never a name, an email or a phone number. See `VisitorLabel`. */
   readonly visitor: VisitorLabel;
+  /**
+   * The buyer's name, joined per render from the contact directory and
+   * stored nowhere. Null for a walk-in, for an erased contact, for one whose
+   * behavioural-linking consent is withdrawn, for one with no name recorded,
+   * for every viewer outside `AGENT_REGISTER_ROLES`, and on every row that is
+   * not an agent's register's — the read model withholds it before a row
+   * leaves the repository, so the meetings list and a unit's related meetings
+   * never carry a name a component would have to remember to withhold. It
+   * stands BESIDE the
+   * label and never inside it: "third meeting" is information whether or not
+   * the person is named. `docs/22-visitor-name-display.md` §5 (B), §6.
+   */
+  readonly visitorName: string | null;
   /**
    * Units opened in this meeting, in the order they were first opened.
    *
@@ -432,6 +512,7 @@ export interface UnitDetailView {
   /** What the timeline cannot say. Stated, never implied by a gap. */
   readonly timelineNote: string;
   readonly funnel: readonly UnitFunnelStage[];
+  /** Every meeting in the period that opened the unit, never a cut of them. */
   readonly relatedMeetings: readonly MeetingRow[];
   readonly relatedAgents: readonly UnitAgentInterest[];
   readonly trend: UnitInterestTrend;
@@ -486,16 +567,23 @@ export interface AgentFollowUp {
 }
 
 /**
- * An outcome a system of record stands behind.
+ * An outcome the agent recorded at the end of the meeting, by its commercial word.
+ *
+ * What the agent entered on the showroom's outcome widget — not a reservation
+ * and not a sale, as the replay says of the same fact. No system of record
+ * stands behind it: no deal is linked to a meeting (ADR-0039, ADR-0011), so a
+ * CRM cannot confirm it and its presence changes nothing here. This used to be
+ * called a verified outcome, carried `CRM_OUTCOME_CONTEXT` and the attributed
+ * tier, and was withheld without a CRM — the same count, labelled as though a
+ * second source had produced it, which was the register's removed "Verified
+ * outcome" column on a second surface.
  *
  * Kept separate from the outcome mix, which is every outcome including the ones
- * nobody recorded. These are the commercial results, they carry
- * `CRM_OUTCOME_CONTEXT`, and on a project with no CRM every one of them is
- * unavailable rather than nil (ADR-0023: outcome context is never the subject
- * of a primary insight, which is why they sit beside the presentation figures
- * and not above them).
+ * nobody recorded, so the two commercial words can be read on their own; and
+ * beside the presentation figures, never above them (ADR-0023: a recorded
+ * outcome is context, not the subject of a primary insight).
  */
-export interface AgentVerifiedOutcome {
+export interface AgentRecordedOutcome {
   readonly outcome: MeetingOutcome;
   readonly label: string;
   readonly metric: MetricValue;
@@ -561,7 +649,7 @@ export interface AgentDetailView {
   readonly recentMeetings: readonly MeetingRow[];
   readonly commonUnits: readonly AgentUnitInterest[];
   readonly followUp: AgentFollowUp;
-  readonly verifiedOutcomes: readonly AgentVerifiedOutcome[];
+  readonly recordedOutcomes: readonly AgentRecordedOutcome[];
   readonly outcomeMix: readonly OutcomeSlice[];
   readonly sessionsOverTime: TrendSeries;
   /** Meetings, units opened, shortlisted, outcome recorded, progressed. */
@@ -574,16 +662,24 @@ export interface AgentDetailView {
 /* --- 4. attention ---------------------------------------------------------- */
 
 /**
- * The six things worth a person's attention, named once.
+ * The things worth a person's attention, named once.
  *
  * They are states rather than alerts in the monitoring sense: each is a
  * question the product asks of the period, and the answer is raised, clear, or
  * unanswerable. A dashboard that only ever shows the raised ones cannot tell a
  * quiet project from a project whose checks never ran.
+ *
+ * A missing recorded outcome and an outcome no CRM verifies are two checks
+ * with two counters (decided 2026-09-27): what the agent recorded in the room
+ * and what a system of record confirms are independent facts, and one check
+ * with two branches could only ever report one of them. Lateness is declared
+ * so that it is asked — and answered Not evaluated — rather than left out.
  */
 export const ATTENTION_KINDS = [
   "high_interest_no_follow_up",
+  "follow_up_lateness",
   "demand_dropping",
+  "outcome_not_recorded",
   "crm_verification_missing",
   "source_offline",
   "analytics_queue_pressure",
@@ -623,16 +719,28 @@ export const ATTENTION_KIND_DEFINITIONS: readonly AttentionKindDefinition[] = [
     maxSeverity: "warning",
   },
   {
+    kind: "follow_up_lateness",
+    label: "Lateness",
+    question: "Is a follow-up past the deadline it was given?",
+    maxSeverity: "warning",
+  },
+  {
     kind: "demand_dropping",
     label: "Demand falling",
     question: "Is any unit drawing materially less attention than in the baseline period?",
     maxSeverity: "warning",
   },
   {
+    kind: "outcome_not_recorded",
+    label: "Outcome not recorded",
+    question: "Are presentations ending without an outcome recorded in the room?",
+    maxSeverity: "critical",
+  },
+  {
     kind: "crm_verification_missing",
     label: "Outcomes not verified",
-    question: "Are meetings ending without an outcome the CRM can confirm?",
-    maxSeverity: "critical",
+    question: "Can a CRM confirm what the presentations ended in?",
+    maxSeverity: "warning",
   },
   {
     kind: "source_offline",
@@ -674,6 +782,41 @@ export interface AttentionState {
   readonly sources: readonly InsightSource[];
   /** 1-based, severity first and size second. Stated so two surfaces agree. */
   readonly rank: number;
+}
+
+/**
+ * The one state a summary surface leads with, for every surface that leads with one.
+ *
+ * ## Why this is here and not in a builder
+ *
+ * `AttentionState.rank` already says "1-based, severity first and size second.
+ * Stated so two surfaces agree" — the contract anticipated two readers before
+ * there were two. There were: **What needs attention** listed the ranked states,
+ * and **Briefing** scanned presenters for an outcome flag of its own and called
+ * the first one "the one thing worth acting on". Two computations over the same
+ * period, agreeing only by luck, which is the shape a checklist requirement
+ * exists to prevent.
+ *
+ * So the selection lives beside the definitions rather than inside either
+ * builder. A builder importing another builder would tie two synthetic
+ * implementations together and the tie would not survive the first of them
+ * being replaced; a rule in the contract is read by whatever implements it.
+ *
+ * Returns null when nothing is raised, which is the honest answer and the one
+ * the Briefing already draws as "Clear".
+ */
+export function actionWorthTaking(view: AttentionView): AttentionState | null {
+  /*
+   * `states` is documented as ranked, and `rank` is 1-based, so position and
+   * rank should agree. They are checked against each other rather than trusted:
+   * a builder that ranked correctly but emitted out of order would otherwise
+   * hand the two surfaces different leads while both looked right in isolation.
+   */
+  let best: AttentionState | null = null;
+  for (const state of view.states) {
+    if (best === null || state.rank < best.rank) best = state;
+  }
+  return best;
 }
 
 export const ATTENTION_CHECK_STATES = ["raised", "clear", "unavailable"] as const;

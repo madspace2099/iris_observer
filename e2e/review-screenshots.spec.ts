@@ -4,25 +4,32 @@ import { signInAs } from "./sign-in";
 /**
  * Review artefacts.
  *
- * Not assertions — these produce the images a human looks at. They are written
- * outside the repository on purpose: a screenshot committed without a visual
- * baseline policy is a binary nobody updates and everybody ignores.
+ * Not assertions — these produce the images a human looks at. They are kept
+ * out of version control on purpose: a screenshot committed without a visual
+ * baseline policy is a binary nobody updates and everybody ignores. `_review/`
+ * is where the repository puts that kind of thing, and `.gitignore` says so.
  *
  * Set OBSERVER_SHOTS to change the destination.
  *
- * ## The default used to point at a different repository
+ * ## Where the default has been, twice
  *
- * `C--Users-42191-Documents-webiris` — WEB IRIS, a separate product on its own
- * remote (`madspace2099/web_iris_saas`), not this one. A default landing there
- * meant a review run with `OBSERVER_SHOTS` unset would write Observer's own
- * screenshots into another project's session scratchpad, or fail outright once
- * that session's temp directory was gone. Every other screenshot spec in this
- * directory already points at this session's own scratchpad; this file had
- * drifted from that convention rather than ever having a reason to differ.
+ * It once pointed at `C--Users-42191-Documents-webiris` — WEB IRIS, a separate
+ * product on its own remote (`madspace2099/web_iris_saas`), not this one. A
+ * review run with `OBSERVER_SHOTS` unset wrote Observer's screenshots into
+ * another project's session scratchpad.
+ *
+ * Correcting that moved it to *this* session's scratchpad, which was the
+ * convention every screenshot spec here followed and which had the same defect
+ * one level in: an absolute path into one machine's temp directory. The
+ * convention itself was the problem, and it is `_review/` now.
  */
-const OUT =
-  process.env["OBSERVER_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/8eba7212-1d04-4994-b6ca-c0d2830338c5/scratchpad/review";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_SHOTS"] ?? "_review/review";
 
 
 async function shoot(page: Page, name: string, project: string) {

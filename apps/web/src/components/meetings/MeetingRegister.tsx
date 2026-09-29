@@ -1,15 +1,17 @@
 import Link from "next/link";
 import {
   FOLLOW_UP_LABELS,
+  type MeetingFilters,
   type MeetingRow,
   type PeriodPreset,
   type UnitReference,
 } from "@observer/readmodels";
 
-import { DataTable, Unavailable, type DataColumn, type DataRow } from "@/components/product";
+import { DataTable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { Chip } from "./Chip";
+import { withMeetingFilters } from "./filters";
 import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
 
 /**
@@ -34,8 +36,12 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * rather than "Outcome" so the qualification survives a reader who scrolled
  * past the sentence.
  *
- * ## The visitor column carries no person today
+ * ## The visitor column carries no person on this surface
  *
+ * The list is open to every role, the developer included, and prints the
+ * label alone: `MeetingRow.visitorName` is produced for an agent's register
+ * only, behind `AGENT_REGISTER_ROLES`, and the rows this list receives never
+ * carry it — the read model withholds it, not this component.
  * `VisitorLabel` is privacy-safe by construction rather than by review: the
  * type has no field a name, an email or a phone number could sit in, and its
  * `display` is produced from a closed vocabulary and a count of previous
@@ -43,16 +49,33 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * component renders that string and never assembles one, so there is no call
  * site here through which a contact detail could reach the screen.
  *
- * ## Follow-up, and the state that belongs to the region rather than the row
+ * ## Follow-up is the recorded outcome's, on every project
  *
- * `FollowUpState` has four members and three of them are facts about the
- * meeting: a follow-up was recorded as needed, was recorded as not needed, or
- * no outcome was recorded at all. The fourth, `unavailable`, is not about the
- * meeting — it says no CRM is connected to the project, which is true of every
- * row at once. It is therefore stated ONCE, in a band above the table, and each
- * cell carries only the terse missing mark. Four dozen rows each repeating "No
- * CRM connected" is the defect `docs/12-visual-autopsy.md` §9 records, at
- * table scale.
+ * `FollowUpState` has three members and every one is a fact about the meeting:
+ * a follow-up was recorded as needed, was recorded as not needed, or no outcome
+ * was recorded at all. There used to be a fourth, "no CRM is connected", drawn
+ * as a band above the table and a terse mark in every cell; the outcome is the
+ * room's own record and a CRM adds nothing to it, so the band said the CRM
+ * produced a fact the showroom had, over follow-ups the agent had recorded.
+ *
+ * ## It draws every row it is given, and that is the answer rather than a gap
+ *
+ * There is no page size and no "show the remaining N". Unfiltered, the longest
+ * register in the fixtures is 187 rows; the unit register caps at twenty and
+ * offers the rest behind a control, so the absence here is a difference worth
+ * stating rather than an omission.
+ *
+ * The difference is what the two screens are for. This one's own purpose,
+ * stated below, is to get to one record, and the way a reader gets there is the
+ * filter bar: measured across every combination of agent, channel and outcome
+ * on the two largest projects, the longest narrowed register is seventeen rows,
+ * against a median of three. Paging that would divide a list nobody is looking
+ * at into pages nobody asked for — and it would put an interactive control at
+ * the foot of the page, which is the one thing the Ask dock may never cover.
+ *
+ * Narrowing is the paging. If a reader is looking at a hundred rows, the answer
+ * is a filter they have not used, or a filter this bar does not offer, and a
+ * page number would hide which of the two it is.
  *
  * ## There are no sort controls, and that is deliberate
  *
@@ -135,10 +158,10 @@ export const MEETINGS_NOT_OPENABLE =
 export function MeetingRegister({
   rows,
   period,
+  filters,
   caption,
   canOpen,
   emptyState,
-  crmConnected,
 }: {
   /**
    * Every route a row needs (`href`, each `unitsViewed[].href`) arrives
@@ -148,6 +171,12 @@ export function MeetingRegister({
    */
   readonly rows: readonly MeetingRow[];
   readonly period: PeriodPreset;
+  /**
+   * The filters this register was narrowed by. Written into every row's link
+   * so the replay can return the reader to this register rather than to the
+   * whole period (P2-16).
+   */
+  readonly filters: MeetingFilters;
   /** What this register lists, in a sentence, including its ordering. */
   readonly caption: string;
   /**
@@ -168,14 +197,12 @@ export function MeetingRegister({
   readonly canOpen: boolean;
   /** The read model's own words for an empty result. Never composed here. */
   readonly emptyState: string;
-  /** Whether the project has a CRM at all. Governs the band above the table. */
-  readonly crmConnected: boolean;
 }) {
   const data: readonly DataRow[] = rows.map((row) => ({
     key: row.meetingId,
     cells: {
       when: canOpen ? (
-        <Link href={dynamicRoute(withPeriod(row.href, period))}>
+        <Link href={dynamicRoute(withPeriod(withMeetingFilters(row.href, filters), period))}>
           {row.label}
           <span className="ox-sr"> — open this meeting</span>
         </Link>
@@ -209,44 +236,16 @@ export function MeetingRegister({
           {row.outcomeLabel}
         </Chip>
       ),
-      followUp:
-        row.followUp === "unavailable" ? (
-          /*
-           * The terse mark, and the reason only on hover. The band above the
-           * table carries it in full; repeating it here would be the same
-           * sentence forty times in one viewport.
-           */
-          <span className="ox-value" data-missing="true" title={row.followUpLabel}>
-            Unavailable
-          </span>
-        ) : (
-          <Chip tone={FOLLOW_UP_TONES[row.followUp]} title={row.followUpLabel}>
-            {FOLLOW_UP_LABELS[row.followUp]}
-          </Chip>
-        ),
+      followUp: (
+        <Chip tone={FOLLOW_UP_TONES[row.followUp]} title={row.followUpLabel}>
+          {FOLLOW_UP_LABELS[row.followUp]}
+        </Chip>
+      ),
     },
   }));
 
   return (
     <>
-      {crmConnected ? null : (
-        /*
-         * Inside the plate rather than above it, deliberately.
-         *
-         * This states why one COLUMN cannot be answered, so it belongs beside
-         * the column and not in the graphite band with the screen's
-         * conclusions. There is no action: a developer looking at a project
-         * whose CRM belongs to the agency cannot connect it, and a control that
-         * sent them somewhere they cannot act would be worse than none.
-         */
-        <Unavailable
-          what="Follow-up state"
-          why="no CRM is connected to this project, so no meeting on it carries a verified follow-up"
-          action={null}
-          period={period}
-        />
-      )}
-
       <DataTable
         caption={canOpen ? caption : `${caption} ${MEETINGS_NOT_OPENABLE}`}
         columns={COLUMNS}

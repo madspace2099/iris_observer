@@ -2,7 +2,13 @@ import type { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { openDatabase, closeTestDatabases, closeSuiteDatabases } from "./support/pglite";
+import { installCronStandIn } from "./support/cron-stand-in";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /*
  * CLOSE WHAT THE FIXTURES OPEN.
@@ -67,72 +73,21 @@ interface Row {
   readonly verdict: string;
 }
 
+/**
+ * The whole chain but the contract, applied by the hosted runner behind the
+ * shared pg_cron stand-in (`support/cron-stand-in.ts`). Its `cron.schedule`
+ * deliberately does not upsert by name — the migration must converge on its own
+ * — and its `cron.job_run_details` carries only the columns this verifier reads.
+ */
 async function installed(): Promise<PGlite> {
-  const db = await openDatabase();
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-
-  /*
-   * The pg_cron stand-in. `cron.job_run_details` carries only the columns this
-   * verifier reads, and `cron.schedule` deliberately does not upsert by name —
-   * the migration must converge on its own.
-   */
-  await db.exec(`
-    set allow_system_table_mods = on;
-    insert into pg_extension (oid, extname, extowner, extnamespace, extrelocatable, extversion)
-    values (99999, 'pg_cron', 10, 'pg_catalog'::regnamespace, false, '1.6.4');
-    reset allow_system_table_mods;
-
-    create schema cron;
-
-    create table cron.job (
-      jobid    bigserial primary key,
-      schedule text    not null,
-      command  text    not null,
-      nodename text    not null default 'localhost',
-      nodeport integer not null default 5432,
-      database text    not null default current_database(),
-      username text    not null default current_user,
-      active   boolean not null default true,
-      jobname  text
-    );
-
-    create table cron.job_run_details (
-      jobid          bigint,
-      runid          bigserial primary key,
-      database       text,
-      username       text,
-      command        text,
-      status         text,
-      return_message text,
-      start_time     timestamptz,
-      end_time       timestamptz
-    );
-
-    create function cron.schedule(p_name text, p_schedule text, p_command text)
-    returns bigint language sql as $fn$
-      insert into cron.job (schedule, command, jobname)
-      values (p_schedule, p_command, p_name) returning jobid;
-    $fn$;
-
-    create function cron.unschedule(p_jobid bigint)
-    returns boolean language sql as $fn$
-      delete from cron.job where jobid = p_jobid returning true;
-    $fn$;
-
-    revoke all on schema cron from anon, authenticated, public;
-    revoke all on all tables in schema cron from anon, authenticated, public;
-  `);
-
-  for (const file of readdirSync(MIGRATIONS)
-    .filter((f) => f.endsWith(".sql"))
-    .sort()) {
-    if (file === CONTRACT) continue;
-    await db.exec(readFileSync(join(MIGRATIONS, file), "utf8"));
-  }
+  const db = await openDatabase("test", "hosted");
+  await installCronStandIn(db);
+  await applyMigrations(
+    db,
+    readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql") && f !== CONTRACT)
+      .sort(),
+  );
   return db;
 }
 

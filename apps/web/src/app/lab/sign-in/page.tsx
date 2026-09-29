@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { ProfilePicker, type Profile, type ProfileGroup } from "@/showroom/ProfilePicker";
 import { LAB_PROFILES } from "@/lib/session";
 
+import { labGate } from "../gate";
+
 export const metadata: Metadata = { title: "Profile picker (laboratory)" };
 
 /**
@@ -41,7 +43,8 @@ const LABEL_BY_ROLE: Record<string, string> = {
   madspace_admin: "Administrator",
 };
 
-export default function LabSignIn() {
+export default async function LabSignIn() {
+  await labGate();
   const profiles: readonly Profile[] = LAB_PROFILES.map(({ key, viewer, blurb }) => ({
     key,
     name: viewer.displayName,

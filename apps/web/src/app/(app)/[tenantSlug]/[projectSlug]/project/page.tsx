@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { nothingReceivedYet, type PeriodPreset } from "@observer/readmodels";
+import { nothingReceivedYet, type PeriodPreset, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -52,6 +52,7 @@ export default async function ProjectPage({
     tenantSlug,
     projectSlug,
     period: presetFrom(search.period) as PeriodPreset,
+    language: DEFAULT_LANGUAGE,
   };
 
   const [view, charts, report] = await Promise.all([
@@ -65,7 +66,22 @@ export default async function ProjectPage({
   const qs = (segment: string) =>
     `${root}?${new URLSearchParams({ period: presetFrom(search.period), segment }).toString()}`;
   const segment = view.selectedSegment;
+  /* The frames place a segment by its index; one with none is stated under them instead. */
+  const indexed = view.segments.filter(
+    (s): s is (typeof view.segments)[number] & { readonly index: number } => s.index !== null,
+  );
+  const unindexed = view.segments.filter((s) => s.index === null);
   const unmet = view.demand.filter((d) => d.matches === 0);
+  /*
+   * The search register's two count heads, each built once: the column head
+   * on a desk, and every cell's `data-label` on a phone, where the head is
+   * hidden and the record layout paints the label in front of the number.
+   * Two literals drifted apart - the head learnt the set, the label kept the
+   * short word, and a count stood without its set on the one view nobody
+   * had photographed.
+   */
+  const applicationsHead = `Times applied, of ${view.meetingCount} presentations`;
+  const matchesHead = `Units matching, of ${view.availableUnits} available now`;
   const peakPlace = view.places[0]?.totalDwellSeconds ?? 1;
 
   /*
@@ -127,7 +143,9 @@ export default async function ProjectPage({
         <p className="iris-meta iris-actions">
           <Link
             className="iris-action"
-            href={dynamicRoute(`/${tenantSlug}/${projectSlug}/presentation`)}
+            href={dynamicRoute(
+              withPeriod(`/${tenantSlug}/${projectSlug}/presentation`, query.period),
+            )}
           >
             Presentation DNA →
           </Link>
@@ -205,13 +223,28 @@ export default async function ProjectPage({
                 Does attention match supply?
               </p>
               <ParityScale
-                rows={view.segments.map((s) => ({
+                rows={indexed.map((s) => ({
                   id: s.id,
                   label: s.label,
                   index: s.index,
-                  note: `${Math.round(s.attentionShare * 100)}% of looking time on ${Math.round(s.stockShare * 100)}% of stock`,
+                  /* The read model's own display strings: locale, and "<1%" for a share that rounds away. */
+                  note: `${s.attentionShareDisplay} of looking time on ${s.stockShareDisplay} of the unsold stock`,
                 }))}
               />
+              {/*
+               * A segment with no index is named with the reason, never drawn at
+               * zero and never dropped without a word: all its units sold, or
+               * nobody looked at the unsold stock in the period.
+               */}
+              {unindexed.map((s) => (
+                <p
+                  key={s.id}
+                  className="iris-meta"
+                  style={{ marginTop: ".5rem", maxWidth: "70ch" }}
+                >
+                  {s.soWhat}
+                </p>
+              ))}
             </div>
 
             <hr className="iris-rule" />
@@ -228,7 +261,7 @@ export default async function ProjectPage({
               </p>
               <QuadrantMatrix
                 locale={view.context.project.locale}
-                rows={view.segments.map((s) => ({
+                rows={indexed.map((s) => ({
                   id: s.id,
                   label: s.label,
                   index: s.index,
@@ -293,8 +326,8 @@ export default async function ProjectPage({
                     label: e.label,
                     left: e.rate,
                     right: e.otherRate,
-                    note: "share of units opened that got this",
                   }))}
+                  of={`Each rate is of the unit openings in these meetings: ${segment.unitsOpened} openings of ${segment.label.toLowerCase()} units on the left, ${segment.otherUnitsOpened} of other units on the right.`}
                 />
               </div>
               <p className="iris-meta" style={{ marginTop: ".75rem" }}>
@@ -333,7 +366,7 @@ export default async function ProjectPage({
                     >
                       <i />
                     </span>
-                    <span className="iris-bar-value">{Math.round(a.share * 100)}%</span>
+                    <span className="iris-bar-value">{a.shareDisplay}</span>
                   </div>
                 ))}
               </div>
@@ -344,9 +377,12 @@ export default async function ProjectPage({
                 className="iris-action"
                 data-emphasis="primary"
                 href={dynamicRoute(
-                  segment.rooms === null
-                    ? `/${tenantSlug}/${projectSlug}/audience`
-                    : `/${tenantSlug}/${projectSlug}/audience?rooms=${String(segment.rooms)}`,
+                  withPeriod(
+                    segment.rooms === null
+                      ? `/${tenantSlug}/${projectSlug}/audience`
+                      : `/${tenantSlug}/${projectSlug}/audience?rooms=${String(segment.rooms)}`,
+                    query.period,
+                  ),
                 )}
                 style={{ marginTop: "1rem" }}
               >
@@ -367,8 +403,9 @@ export default async function ProjectPage({
               <div className="iris-matrix-head">
                 <span>Filter</span>
                 <span>Value</span>
-                <span style={{ textAlign: "right" }}>Times applied</span>
-                <span style={{ textAlign: "right" }}>Units matching</span>
+                {/* The column head is beside every figure in the column: the set is stated once, visibly. */}
+                <span style={{ textAlign: "right" }}>{applicationsHead}</span>
+                <span style={{ textAlign: "right" }}>{matchesHead}</span>
               </div>
               {view.demand.slice(0, 10).map((d) => (
                 <div
@@ -382,13 +419,13 @@ export default async function ProjectPage({
                   <span className="iris-bar-label" title={d.value} data-label="Value">
                     {d.value}
                   </span>
-                  <span className="iris-matrix-num" data-label="Times applied">
+                  <span className="iris-matrix-num" data-label={applicationsHead}>
                     {d.applications}
                   </span>
                   <span
                     className="iris-matrix-num"
                     data-zero={d.matches === 0 ? "true" : undefined}
-                    data-label="Units matching"
+                    data-label={matchesHead}
                   >
                     {d.matches}
                   </span>
@@ -422,7 +459,7 @@ export default async function ProjectPage({
                   >
                     <i />
                   </span>
-                  <span className="iris-bar-value">{Math.round(c.share * 100)}%</span>
+                  <span className="iris-bar-value">{c.shareDisplay}</span>
                 </div>
               ))}
             </div>
@@ -483,7 +520,13 @@ export default async function ProjectPage({
         <hr className="iris-rule" />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} plane />
+          <Finding
+            key={finding.id}
+            finding={finding}
+            period={query.period}
+            lead={index === 0}
+            plane
+          />
         ))}
 
         <Gaps

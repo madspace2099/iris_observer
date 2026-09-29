@@ -32,6 +32,18 @@ import { LAST_PROJECT_COOKIE } from "@/lib/cookie-names";
  * labs, framework internals) and treats anything else with at least two
  * segments as a candidate. A path that turns out not to be a real project
  * costs one wasted cookie write; `resolveLandingPath` refuses to use it.
+ *
+ * ## Navigation state, not a preference (P2-16)
+ *
+ * P2-16's third clause allows no new notes or preference write without an
+ * existing save, and this is the one write the application makes on every
+ * project navigation, so it was measured against that clause. It is not a
+ * preference: no control sets it and nobody chooses it — it records the last
+ * project address the reader went to, the way history records a page — and
+ * `resolveLandingPath` uses it only after re-checking the account's grants.
+ * Decided on 2026-09-23, so the next reader need not measure it again. A value
+ * the reader sets on purpose (a default project, say) would be a preference,
+ * and would need a save of its own.
  */
 const EXCLUDED =
   /^\/(sign-in|projects|settings|madspace|design-lab|lab|iris|api|_next|favicon\.ico|brand)(\/|$)/;

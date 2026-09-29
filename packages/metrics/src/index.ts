@@ -6,6 +6,7 @@
  * calculates. See ADR-0006.
  */
 
+export * from "./attention-index";
 export * from "./definition";
 export * from "./policy";
 export * from "./requirements";

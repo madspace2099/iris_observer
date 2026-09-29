@@ -2,7 +2,12 @@ import type { PGlite } from "@electric-sql/pglite";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, afterEach, describe, expect, it } from "vitest";
-import { openDatabase, closeTestDatabases, closeSuiteDatabases } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /*
  * CLOSE WHAT THE FIXTURES OPEN.
@@ -68,18 +73,13 @@ function query(floor: string | null): string {
 }
 
 async function database(): Promise<PGlite> {
-  const db = await openDatabase();
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const file of readdirSync(MIGRATIONS)
-    .filter((f) => f.endsWith(".sql"))
-    .sort()) {
-    if (file === CONTRACT || file === RETENTION) continue;
-    await db.exec(readFileSync(join(MIGRATIONS, file), "utf8"));
-  }
+  const db = await openDatabase("test", "hosted");
+  await applyMigrations(
+    db,
+    readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql") && f !== CONTRACT && f !== RETENTION)
+      .sort(),
+  );
   return db;
 }
 

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -17,6 +15,7 @@ import {
   closeSuiteDatabases,
   closeTestDatabases,
   openDatabase,
+  applyMigrations,
 } from "../../../supabase/test/support/pglite";
 
 afterEach(closeTestDatabases);
@@ -31,8 +30,6 @@ afterAll(closeSuiteDatabases);
  * exchange, and the peppers are synthetic phrases `describePepper` accepts only
  * because `VITEST` is set.
  */
-
-const MIGRATIONS = resolve(import.meta.dirname, "../../../supabase/migrations");
 
 /* Named rather than globbed: the spine, the credentials, the event table whose rows are counted, the operations the facades join, and the directory that holds the names. */
 const FILES = [
@@ -66,13 +63,8 @@ let deps: HandlerDeps;
 const query: SqlQuery = (sql, params) => pg.query(sql, [...params]);
 
 beforeAll(async () => {
-  pg = await openDatabase("suite");
-  await pg.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of FILES) await pg.exec(readFileSync(join(MIGRATIONS, name), "utf8"));
+  pg = await openDatabase("suite", "hosted");
+  await applyMigrations(pg, FILES);
   db = pgliteDb(query);
   deps = { db, env: ENV, now: () => NOW };
 });

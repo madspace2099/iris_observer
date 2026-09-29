@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { MeetingReplay, ReplayStep } from "@observer/readmodels";
-import { Coverage, Gaps, SourceChips } from "./parts";
+import { Coverage, EvidencePill, Gaps, SourceChips } from "./parts";
 
 /**
  * Meeting Replay.
@@ -97,11 +97,11 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
                   {step.evidence === null ? (
                     <span className="iris-code">no separate evidence record</span>
                   ) : (
-                    <a className="iris-evidence" href={step.evidence.href}>
+                    <EvidencePill href={step.evidence.href}>
                       <i />
                       {step.evidence.observationCount} records ·{" "}
                       {step.evidence.tier.replace(/_/g, " ")}
-                    </a>
+                    </EvidencePill>
                   )}
                 </div>
               ) : null}

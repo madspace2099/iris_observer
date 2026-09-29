@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CORE_SECTION_IDS, SHOWROOM_SECTIONS } from "@observer/contracts";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { nothingReceivedYet } from "@observer/readmodels";
+import { nothingReceivedYet, DEFAULT_LANGUAGE } from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
 import { repository } from "@/lib/repository";
@@ -124,7 +124,13 @@ export default async function FeaturesPage({
   const chosenOrder: RegisterOrder | null = orderFrom(query.sort);
   const direction: OrderDirection = directionFrom(query.dir);
 
-  const view = await repository.getStorytelling({ viewer, tenantSlug, projectSlug, period });
+  const view = await repository.getStorytelling({
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period,
+    language: DEFAULT_LANGUAGE,
+  });
 
   /*
    * THE DENOMINATOR OF THE WHOLE SCREEN, AND WHERE IT COMES FROM.
@@ -394,6 +400,7 @@ export default async function FeaturesPage({
                 sections={view.sections}
                 meetingsTotal={meetingsTotal}
                 periodLabel={view.context.period.label}
+                period={period}
               />
             ) : null}
 

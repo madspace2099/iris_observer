@@ -69,7 +69,7 @@ export const OUTCOME_TONES: Readonly<Record<MeetingOutcome, ChipTone>> = {
  * the reason on every row, which is the exact defect `docs/12-visual-autopsy.md`
  * §9 records.
  */
-export const FOLLOW_UP_TONES: Readonly<Record<Exclude<FollowUpState, "unavailable">, ChipTone>> = {
+export const FOLLOW_UP_TONES: Readonly<Record<FollowUpState, ChipTone>> = {
   required: "watch",
   not_required: "settled",
   not_recorded: "none",

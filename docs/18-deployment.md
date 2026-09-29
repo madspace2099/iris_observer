@@ -1,6 +1,6 @@
 # Deployment runbook
 
-**Status:** deployed and verified · **Last updated:** 2026-08-24
+**Status:** deployed and verified · **Last updated:** 2026-09-24
 
 Everything a future session needs to maintain this deployment without asking for an identifier
 twice. **No secret value appears in this file, and none may be added to it.**
@@ -44,17 +44,31 @@ Never force-push. Never rewrite remote history. If the remote has diverged, push
 
 ### Supabase
 
-|                    |                                     |
-| ------------------ | ----------------------------------- |
-| Organization       | `sekhesnlqiutdovgcoqw`              |
-| Project name       | `IRIS OBSERVER`                     |
-| Project ref        | `tfcchobwobpadenampyh`              |
-| Region             | `eu-west-1`                         |
-| Created            | 2026-08-24                          |
-| Status             | `ACTIVE_HEALTHY`                    |
-| Postgres           | 17.6                                |
-| Cost               | €0/month                            |
-| Tables in `public` | **none** — three RPC functions only |
+|                    |                                             |
+| ------------------ | ------------------------------------------- |
+| Organization       | `sekhesnlqiutdovgcoqw`                      |
+| Project name       | `IRIS OBSERVER`                             |
+| Project ref        | `tfcchobwobpadenampyh`                      |
+| Region             | `eu-west-1`                                 |
+| Created            | 2026-08-24                                  |
+| Status             | `ACTIVE_HEALTHY`                            |
+| Postgres           | 17.6                                        |
+| Cost               | €0/month                                    |
+| Tables in `public` | **none** — five RPC functions, listed below |
+| Migrations applied | 5 of 22, listed below                       |
+
+**`public`, measured 2026-09-24** by a read-only catalogue query: no table and no view, and five
+functions — `admit_ai_request` (13 arguments), `complete_ai_request` (14), `consume_ai_quota` (7),
+`record_ai_request` (13) and `observer_whoami` (none). The first four are the façades, the fifth is
+the diagnostic. An earlier edition said three.
+
+**Migrations, measured 2026-09-24.** Five of the twenty-two files in `supabase/migrations/` are
+applied, and the history table says the same: `supabase_migrations.schema_migrations` holds exactly
+the five `20260825*` versions (`121909`, `121927`, `154900`, `173000`, `205000`). The seventeen from
+`20260826090000` on are not applied — none of their objects exists on the host. The history was
+recorded that day by `supabase migration repair --status applied`, at about 09:47 UTC. The table
+stores no time; the witness is the CLI's login role, whose `valid_until` reads 09:52:22 UTC — the
+CLI issues it for minutes at each sign-in (see `cli_login_postgres` below).
 
 **This is the project the Vercel Preview reaches.** It was not the first choice.
 `iris-observer-staging` (`jtvqecusxzogqubxpoyf`, eu-central-1) was provisioned for this and holds
@@ -66,6 +80,16 @@ deleted.
 **The old project is deliberately not reused.** `asboth.mate@madspace.co.uk's Project`
 (`vrhrzlvhyxrkxxcjxmaf`, `eu-west-1`, `INACTIVE`) belongs to the obsolete MVP and previously served
 rows to unauthenticated callers. It is left alone: not deleted, not modified, not connected.
+
+**UNVERIFIED 2026-09-24 — what the two paragraphs above say about the other two projects.** The
+organization `sekhesnlqiutdovgcoqw` lists three projects today: `IRIS OBSERVER`,
+`madspace-portal-staging` and `webiris-production`. Neither `jtvqecusxzogqubxpoyf` nor
+`vrhrzlvhyxrkxxcjxmaf` is among them. That is not evidence that either was deleted — the listing was
+made with this organization's access only — and their region, state and migrations were not read.
+
+**`cli_login_postgres` is the Supabase CLI's expected trace, not debris, and is not to be
+deleted.** The CLI signs in through it (`Initialising login role...`): LOGIN, a member of
+`postgres`, its password valid for minutes and long expired between runs.
 
 ### Vercel
 
@@ -79,6 +103,7 @@ rows to unauthenticated callers. It is left alone: not deleted, not modified, no
 | Region            | `fra1`                                                         |
 | Live URL          | `https://iris-observer.vercel.app`                             |
 | Branch alias      | `https://iris-observer-git-main-madspaces-projects.vercel.app` |
+| Project alias     | `https://iris-observer-madspaces-projects.vercel.app`          |
 
 **It deployed to Production, not to Preview.** `create_git_project` deploys from the linked
 repository's production branch, and `main` is that branch, so the deployment took the `target:
@@ -107,7 +132,7 @@ Determined from the workspace, not assumed:
 | Install command  | Vercel default                | it reads `packageManager: pnpm@11.23.0` and the committed `pnpm-lock.yaml`, and installs frozen                            |
 | Build command    | Vercel default (`next build`) | the same path `pnpm --filter @observer/web build` runs locally                                                             |
 | Output directory | Vercel default (`.next`)      |                                                                                                                            |
-| Node             | 22.x                          | root `package.json` declares `engines.node >= 22`                                                                          |
+| Node             | 24.x                          | the project's setting, read 2026-09-24; root `package.json` declares `engines.node >= 22.0.0`                              |
 
 **Do not** set an explicit install command. The five `@observer/*` packages are consumed as TypeScript
 source (ADR-0003, `transpilePackages`), so the build needs the whole workspace present — which is
@@ -122,24 +147,26 @@ log, a screenshot or a chat message.
 
 ### Preview environment
 
-| Variable                               | Scope           | Sensitive | Value                                                             |
-| -------------------------------------- | --------------- | --------- | ----------------------------------------------------------------- |
-| `OBSERVER_DATA_SOURCE`                 | build + runtime | no        | `synthetic`                                                       |
-| `OBSERVER_ENVIRONMENT`                 | build + runtime | no        | `staging`                                                         |
-| `NEXT_PUBLIC_SUPABASE_URL`             | build + runtime | no        | from the staging project                                          |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build + runtime | no        | from the staging project                                          |
-| `SUPABASE_URL`                         | runtime         | no        | from the staging project                                          |
-| `SUPABASE_SECRET_KEY`                  | runtime         | **yes**   | from the staging project                                          |
-| `FAL_KEY`                              | runtime         | **yes**   | optional; without it Ask Observer uses the deterministic provider |
-| `OBSERVER_LLM_PROVIDER`                | runtime         | no        | `fal-openrouter`                                                  |
-| `OBSERVER_LLM_MODEL`                   | runtime         | no        | `google/gemini-2.5-flash` (ADR-0024)                              |
+| Variable                               | Scope           | Sensitive | Value                                                                                                                                   |
+| -------------------------------------- | --------------- | --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `OBSERVER_DATA_SOURCE`                 | build + runtime | no        | `synthetic`                                                                                                                             |
+| `OBSERVER_ENVIRONMENT`                 | build + runtime | no        | `staging`                                                                                                                               |
+| `NEXT_PUBLIC_SUPABASE_URL`             | build + runtime | no        | from the staging project                                                                                                                |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build + runtime | no        | from the staging project                                                                                                                |
+| `SUPABASE_URL`                         | runtime         | no        | from the staging project                                                                                                                |
+| `SUPABASE_SECRET_KEY`                  | runtime         | **yes**   | from the staging project                                                                                                                |
+| `OBSERVER_SESSION_SECRET`              | runtime         | **yes**   | 64 random bytes; **required** — staging and production refuse to start without it                                                       |
+| `DEVICE_CREDENTIAL_PEPPER`             | runtime         | **yes**   | 32+ random bytes, the same value in every environment that must see one viewer as one viewer; **required** — refused at boot without it |
+| `FAL_KEY`                              | runtime         | **yes**   | optional; without it Ask Observer uses the deterministic provider                                                                       |
+| `OBSERVER_LLM_PROVIDER`                | runtime         | no        | `fal-openrouter`                                                                                                                        |
+| `OBSERVER_LLM_MODEL`                   | runtime         | no        | `google/gemini-2.5-flash` (ADR-0024)                                                                                                    |
 
 Rules that are not negotiable:
 
 - never prefix a secret with `NEXT_PUBLIC_`;
 - never use the legacy `anon` / `service_role` names on this project — it was created under the
   publishable/secret key model, and the names say which is which;
-- mark `SUPABASE_SECRET_KEY` and `FAL_KEY` **sensitive** in Vercel;
+- mark `SUPABASE_SECRET_KEY`, `FAL_KEY`, `OBSERVER_SESSION_SECRET` and `DEVICE_CREDENTIAL_PEPPER` **sensitive** in Vercel;
 - do not copy a local `.env` file into Vercel;
 - if the Vercel–Supabase integration creates these variables itself, verify and use those rather than
   creating conflicting duplicates.
@@ -242,6 +269,26 @@ quietly exempted because its id was supplied.
 
 ## 7. Verification before any deploy
 
+**Where the rollout stands — MEASURED 2026-09-24.** The sequence in this section has been partly
+walked, and a reader who starts it at step 1 restarts a half-run process. Every row below is a
+read-only measurement taken that day: the host's catalogue and audit rows through read-only SQL,
+Vercel through its deployment API, and GitHub's deployment records. Nothing was changed to take them.
+
+| Step         | On 2026-09-24              | Evidence                                                                                                                                                                                                                                                                                                                                                          |
+| ------------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 (i)        | taken, and not completable | GitHub holds 111 deployment records for the repository (105 Preview, 6 Production); every SHA was classified from its own source: 22 call an old façade, `3f298a6` reaches thirteen-argument admission, `1ee5d2d` twelve, 78 fifteen, 8 no RPC. A deployment made from the CLI leaves no such record, and the Vercel listing could be read only to its first page |
+| 1 (ii), 2, 3 | UNVERIFIED 2026-09-24      | the environment metadata — pepper presence, type and scope, and the server-side Supabase mapping — was not read                                                                                                                                                                                                                                                   |
+| 4            | ran                        | `dpl_4AH2EBfKhyWma45mERPhs1a9qWHQ` is a `redeploy` of `3f298a6`, created 2026-09-06 08:06:50 UTC, READY. Whether steps 1–3 preceded it: UNVERIFIED 2026-09-24                                                                                                                                                                                                     |
+| 5            | not completed              | the original `3f298a6` build, `dpl_ETZbUdf4Jkb7cHR7xFeRaRz2AHZ5` (created 2026-08-25 23:06:41 UTC), is still READY; and no audit row has been written since 2026-08-25 19:53:02 UTC, so no smoke reached admission                                                                                                                                                |
+| 6–7          | not run                    | `pg_cron` is not installed; 1.6.4 is available                                                                                                                                                                                                                                                                                                                    |
+| 8–9          | not run                    | the migration history holds five rows, the `20260825*` versions, and `admit_ai_request` still takes 13 arguments                                                                                                                                                                                                                                                  |
+| 10–11        | RETIRED 2026-09-24         | see RETIRED 2026-09-24 before the sequence. Measured: they follow Migrations 3–4, which are not applied; no audit row has been written since 2026-08-25                                                                                                                                                                                                           |
+| 12–13        | not run                    | their subject — the schema of Migrations 3–4 and the scheduled job — does not exist on the host                                                                                                                                                                                                                                                                   |
+| 14           | UNVERIFIED 2026-09-24      | which branch "the corrected release branch" names, and whether that push happened, was not established                                                                                                                                                                                                                                                            |
+| 15–17        | not run                    | `observer.ai_requests` holds 133 rows, every one `audit_version = 1`; no row that a scoped or live-model proof writes exists                                                                                                                                                                                                                                      |
+| 18           | not run                    | the 22 deployments that call an old façade and both `3f298a6` builds are READY                                                                                                                                                                                                                                                                                    |
+| 19           | not run                    | `consume_ai_quota` and `record_ai_request` both exist in `public`                                                                                                                                                                                                                                                                                                 |
+
 ```bash
 pnpm verify        # format:check, lint, typecheck, unit tests, production build
 pnpm exec playwright test
@@ -259,6 +306,10 @@ OBSERVER_BASE_URL=https://… OBSERVER_EXPECT_LIVE_MODEL=1 pnpm exec playwright 
 ```
 
 ### The rollout order, and why the application comes first
+
+**RETIRED 2026-09-24.** The order argued for below — the application before the migrations — no
+longer binds; see _RETIRED 2026-09-24_ before the sequence. The argument stays as the record of why
+it existed.
 
 Two orderings here were discovered by audit, not by design, and both would have wasted database
 mutations before anybody noticed the application could not answer.
@@ -535,6 +586,99 @@ The retirement gate must:
 what was written, never what can be written. It remains honestly INCONCLUSIVE, and the external gate
 is a person's enumeration.
 
+#### Beside step 18, a stronger control: rotate the `service_role` key
+
+Step 18 rests on an enumeration. On 2026-09-24 that enumeration could not be completed:
+
+- a deployment made from the CLI leaves no GitHub record, and this team has one — project `deploy`,
+  `dpl_5Dn42tcF6hPrRWHMQj5Kr1CN2sdT`, 2026-08-28, by its file tree a different site;
+- the Vercel listing pages only with a numeric cursor, which the tooling used could not send, so it
+  read one page per project;
+- a key copied into a log or a shell history is not a deployment at all.
+
+What an old build needs in order to write is measured, and it is narrow:
+
+- EXECUTE on the five functions in `public` is held by `postgres` and `service_role` only; `anon`
+  can execute none of them, and neither can `authenticated`;
+- USAGE on the `observer` schema is held by `postgres` alone;
+- both `observer` tables have row-level security on and no policy;
+- the security advisor reports no ERROR — one WARN, a mutable `search_path` on
+  `public.observer_whoami`, and two INFO for the two tables without a policy.
+
+So a build reaches the façades only if its baked environment holds a key that authenticates as
+`service_role` and still works.
+
+**Matthew rotates every key that authenticates as `service_role` on `tfcchobwobpadenampyh`, before
+the migration round.** Rotation closes every build at once, enumerated or not. Step 18 still runs
+after it, as clean-up of builds the rotation has already disarmed; it no longer carries the
+guarantee alone.
+
+The cost today, as measured: the current build's admission does not resolve on this host (see
+_RETIRED 2026-09-24_ below), so rotation breaks no write that works now. Every environment that must
+keep reaching the project needs the new key before its next deployment.
+
+**UNVERIFIED 2026-09-24:**
+
+- which keys authenticate as `service_role` on this project — the secret API keys, and whether the
+  legacy JWT keys are still enabled — was not read;
+- whether anything outside these deployments holds one was not read either.
+
+#### RETIRED 2026-09-24 — the legacy-compatibility phase, and the order that served it
+
+What no longer binds in the sequence below is listed here, once, in a form a test can read.
+`supabase/test/rollout-order.test.ts` parses this block: a `step` line retires every ordering check
+involving that step, and an `order` line retires every check that puts a step of the first range
+before a step of the second. Any other line fails the test.
+
+```retired-rules
+step 10 — the controlled request through the fresh legacy Preview
+step 11 — legacy 13/13
+order 1-5 before 8-9 — "the application comes first": steps 1–5 before Migrations 3–4
+```
+
+Nothing is deleted. The steps keep their text and their numbers.
+
+**What it protected.** That the builds already deployed keep writing version-1 rows through
+Migrations 3 and 4. That is 22 deployments whose source calls an old façade, and `3f298a6` — one
+SHA, two READY builds — which reaches thirteen-argument admission.
+
+**What was measured, 2026-09-24.**
+
+- **No version-1 row for 29 days.** The newest audit row is 2026-08-25 19:53:02 UTC, and every one
+  of the 133 is `audit_version = 1`.
+- **The current code cannot write an audit row on this host.** HEAD sends two arguments the host's
+  function does not have: `p_audit_client_hash` at `apps/web/src/lib/ai/quota.ts:337` and
+  `p_pseudonym_version` at `:338`. The host's `admit_ai_request` takes thirteen parameters, and
+  neither of those is among them. PostgREST matches a call to a function by its argument names, so
+  this call has no function to reach.
+
+**What it blocked.** Migrations 3 and 4 — exactly what would let the current code write. Migration 3
+gives `admit_ai_request` both missing parameters:
+
+- `p_audit_client_hash` at
+  `supabase/migrations/20260826120000_observer_exact_retry_and_pseudonym_scope.sql:242`;
+- `p_pseudonym_version` at `:247`.
+
+The phase kept 22 builds that have written nothing for 29 days able to write, at the price of the
+current build writing nothing at all.
+
+**What returns it.** If anybody proves that an old deployment is in live use, the phase returns as
+written, before Migration 3.
+
+**What is not retired.**
+
+- steps 1–3, the preflight and the pepper;
+- step 5's deletion of the original `3f298a6` build;
+- step 18's deletion of every version-1-capable build;
+- step 19's gate, with the contract migration last;
+- the scoped proof, steps 15–16.
+
+Step 4's fresh `3f298a6` Preview existed only to carry the retired proof. It is one of the builds step
+18 deletes.
+
+**Part A is not retired with step 10.** It now stands in step 15's own row, where the scoped proof
+runs it.
+
 #### The sequence
 
 Steps 1–2 are read-only; nothing external is mutated before explicit operator approval.
@@ -555,7 +699,7 @@ Steps 1–2 are read-only; nothing external is mutated before explicit operator 
 | 12  | Schema, Cron-health and rollback-protected behavioural verification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | no                                   |
 | 13  | Wait through the scheduled hourly run and require **Cron-health 26/26**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | no                                   |
 | 14  | **Push** the corrected release branch                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Git                                  |
-| 15  | Capture the scoped Preview's exact `X-Observer-Request-Id` from the response                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 1–2 audit rows                       |
+| 15  | Run **Part A** of `observer-http-compat-proof.sql`, then make the scoped request and capture the Preview's exact `X-Observer-Request-Id` from the response — in that order, so the floor step 16 counts from is this request's own                                                                                                                                                                                                                                                                                                                                                                                    | 1–2 audit rows                       |
 | 16  | Require **scoped 13/13** with `pseudonym_version = 2`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | no                                   |
 | 17  | Separately run the corrected **live-model readiness** proof                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | no                                   |
 | 18  | Record `retirement_floor_ts`; **DELETE every version-1-capable deployment** — the fresh `3f298a6` proof Preview included; delete **or** protect legacy-façade-only builds; then **re-enumerate to exhaustion** and prove no READY version-1-capable deployment remains                                                                                                                                                                                                                                                                                                                                                | Vercel                               |
@@ -595,6 +739,10 @@ from the rendered answer sheet.
 
 ### Database migrations, once the application is proven
 
+**RETIRED 2026-09-24, in part.** "Once the application is proven" meant the legacy proof, which no
+longer gates Migrations 3–4; see _RETIRED 2026-09-24_ before the sequence. The expand–contract order
+below still holds.
+
 The Supabase MCP tools are write-blocked from the authoring session, so every migration is
 applied by hand through the SQL Editor. The audit change ships in two halves and the order
 is the whole point.
@@ -616,8 +764,9 @@ A timestamp inside the last day means something is still writing through the old
 or delete the deployments that are.
 
 `_sql-to-paste/` holds the generated block and the read-only verification query. It is
-gitignored — the migrations under `supabase/migrations/` are the version-controlled source,
-and those copies are generated from them.
+gitignored. The migrations under `supabase/migrations/`, and the verifiers, prerequisites and
+release evidence beside them, are the version-controlled sources; every copy is generated from
+them, so a fresh clone has none until it runs the command below.
 
 Generated, now, rather than kept in step by hand:
 
@@ -835,6 +984,67 @@ So the ownership rule is narrow and the failure is loud:
 Row 11 of the health verifier reports the same condition read-only, and reports
 is all it does.
 
+### Owner roles, and the window on `public`
+
+The cron prerequisite has a sibling. From `20260829173000` on, fourteen
+migrations give what they build to one of three NOLOGIN owner roles —
+`alter table … owner to observer_credentials_owner` — and on this project they
+run as `postgres`, which is not a superuser. `… OWNER TO` then needs two things a
+superuser is excused from: `postgres` must be able to `SET ROLE` to the new
+owner, and the owner must hold CREATE on the object's schema — `observer` for the
+tables, `public` for the façades. Without them the first transfer stops the
+migration:
+
+```text
+ERROR:  must be able to SET ROLE "observer_credentials_owner"
+```
+
+The test suite never met it, because PGlite applies every migration as a
+superuser.
+
+`supabase/prerequisites/observer-role-prerequisite.sql` creates the three roles
+exactly as the migrations declare them, grants each to `postgres`, and gives each
+CREATE on `observer`. Those stay. It also gives each CREATE on `public`, and that
+one is a **window, not a state**: `public` is the schema PostgREST serves, and the
+owners run the code behind 61 `security definer` façades, so a standing CREATE
+there would let a flaw in any one of them add a new callable object to the API.
+The transfer needs it only while it happens; a façade keeps its owner, and keeps
+answering, once it is revoked.
+
+Four steps, in this order:
+
+1. **Open.** Run `supabase/prerequisites/observer-role-prerequisite.sql`. Its
+   last query returns three rows, every column true.
+2. **Apply.** The migrations, in order, one transaction per file. The window
+   covers `20260829173000` to `20260918100000`, the fourteen that hand objects to
+   an owner role.
+3. **Close.** The operator runs the revoke by hand:
+
+   ```sql
+   revoke create on schema public
+     from observer_credentials_owner, observer_budget_owner, observer_ingest_owner;
+   ```
+
+4. **Check.** Run `supabase/prerequisites/observer-role-window-closed.sql`. It
+   raises an exception while any owner can still create in `public`, and answers
+   `observer role window: CLOSED — no owner role can create in schema public`
+   when none can.
+
+**Applying the migrations is not finished until step 4 is green.** A green step 2
+with the window still open is half a job.
+
+The revoke lives here and not in the prerequisite on purpose: the prerequisite
+opens, it does not close. A migration that recreates its façades —
+`20260917100000` and `20260918100000` apply over themselves — needs the window
+again: open, apply, close, check.
+
+The four were proved together in PGlite, under a non-superuser `postgres` with
+this project's attributes: without the prerequisite the chain stops in
+`20260829173000` at line 121; with it, every pending file except `20260826140000`
+(Cron) and `20260826090000` (the contract) applies; the check fails while the
+window is open and passes after the revoke; and the façades still answer
+`service_role` afterwards.
+
 ### Rotation is a maintenance operation
 
 Rotating the pepper **changes every pseudonymous identifier** and therefore
@@ -885,3 +1095,42 @@ both are recorded.
 
 It is a record, not a guard: nothing refuses to start on a changed key id,
 because that would turn a legitimate rotation into an outage.
+
+---
+
+## 12. Unverified on 2026-09-24, and what would settle it
+
+This edition corrected only what it measured. What it could not measure is marked **UNVERIFIED
+2026-09-24** where it stands, and listed here with the measurement that would settle it. Nothing
+unmeasured was rewritten or removed.
+
+**Marked UNVERIFIED, and how to measure it**
+
+| Where                  | What                                                                      | How to measure                                                                                                                           |
+| ---------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| §2 Supabase            | the two other projects, `jtvqecusxzogqubxpoyf` and `vrhrzlvhyxrkxxcjxmaf` | the owner's list of organizations and projects, or each ref opened in the dashboard                                                      |
+| §7, steps 1 (ii), 2, 3 | pepper presence, type and scope; the server-side Supabase mapping         | step 1 (ii) as written: metadata only, read by Matthew if the tooling cannot isolate it                                                  |
+| §7, step 4             | whether steps 1–3 preceded the redeploy of 2026-09-06                     | the same metadata, set against that build's creation time                                                                                |
+| §7, step 14            | which branch "the corrected release branch" is, and whether it was pushed | the branch's name from whoever wrote the step, then `git ls-remote`                                                                      |
+| §7, rotation           | which keys authenticate as `service_role`, legacy JWT keys included       | the project's API-key settings in the dashboard                                                                                          |
+| §7, rotation           | whether anything outside these deployments holds such a key               | a list of every place the key was ever put                                                                                               |
+| §1 and §8              | whether the deployment was ever promoted to Production                    | GitHub holds 6 Production deployment records; whether any was a promotion rather than a push to `main` needs Vercel's deployment history |
+
+**Measured on 2026-09-24 and at odds with this document, not corrected in this edition**
+
+- §1, "A Supabase staging project, empty on purpose": the project holds 133 audit rows and 78 rate
+  buckets.
+- §2 GitHub, "pushed — 15 commits": `origin/main` has 393 commits.
+- §7, "Expected: 455 unit tests, 495 Playwright tests": `playwright test --list` counts 1,552 tests
+  in 50 files. The unit count was not recorded here.
+- §10 lists pushing, the Vercel project and its first deployment as blocked. Pushing works, and the
+  project exists with 111 deployments on GitHub's record.
+- §11, "Enabling it is rollout step 1": the sequence table puts it at step 6.
+
+**Open, and a decision rather than a measurement**
+
+- The owner-role steps say "the migrations, in order". In version order the contract migration
+  `20260826090000` comes before Migrations 3–4 and before the fourteen owner-role files. Step 19
+  applies it last, and the fourteen have no step in §7.
+- The header of `supabase/verifiers/observer-contract-readiness.sql` still names the enumeration as
+  the contract migration's precondition. The rotation beside step 18 is recorded here, not there.

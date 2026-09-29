@@ -1,4 +1,10 @@
-import type { InsightSource, MeetingOutcome, PlaceCategory, SectionId } from "@observer/contracts";
+import type {
+  InsightSource,
+  MeasurementAvailability,
+  MeetingOutcome,
+  PlaceCategory,
+  SectionId,
+} from "@observer/contracts";
 import type { ViewContext } from "./context";
 import type { AssistedSales, DealLadder } from "./deal-source";
 import type { EvidenceRef } from "./metric-value";
@@ -23,9 +29,12 @@ import type { ShowroomFinding } from "./showroom";
  * Whether things are going well.
  *
  * Three states, not a score. A number between 0 and 100 invites the reader to
- * watch it move by a point; a word makes them ask why.
+ * watch it move by a point; a word makes them ask why. And a fourth that is not
+ * a state of the showroom at all: `no_verdict`, below the minimum sample or
+ * with nothing earlier to compare against, where any of the three would be a
+ * verdict the figures cannot carry.
  */
-export type ShowroomSignal = "good" | "attention" | "poor";
+export type ShowroomSignal = "good" | "attention" | "poor" | "no_verdict";
 
 export interface HomeFigure {
   readonly id: string;
@@ -58,8 +67,26 @@ export interface ShowroomHome {
   readonly because: string;
   /** Three figures. Never more — the registry holds eighty-two. */
   readonly figures: readonly HomeFigure[];
-  /** The one thing worth acting on today, if there is one. */
-  readonly alert: { readonly text: string; readonly href: string } | null;
+  /**
+   * The one thing worth acting on today, if anything is raised at all.
+   *
+   * Null means the checks found nothing, and nothing else. It used to mean
+   * "nothing that can be opened", which let a project with four raised states
+   * print "Nothing in this period is waiting on a decision from you" because
+   * the highest-ranked one happened to have no route of its own — an absent
+   * link rendered as an absent problem, which is the absence-as-zero rule
+   * applied to a sentence rather than a figure.
+   *
+   * `actionLabel` exists because the two cases do not look alike and must not
+   * read alike: the state's own action goes where the state is, and the
+   * fallback goes to the list, and a reader told "Look at it" who lands on a
+   * register has been misled by one word.
+   */
+  readonly alert: {
+    readonly text: string;
+    readonly href: string;
+    readonly actionLabel: string;
+  } | null;
   readonly doors: readonly ShowroomDoor[];
   readonly meetingCount: number;
   readonly sources: readonly InsightSource[];
@@ -78,6 +105,13 @@ export interface ShowroomHome {
 export interface FlowPeriod {
   readonly id: "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month";
   readonly label: string;
+  /**
+   * Whether the selected period holds the whole bucket. The buckets count back
+   * from today, so a period can leave one out — last month, before the last 28
+   * days began; every bucket, after a completed quarter ended. A bucket outside
+   * the period has no count, and its zero below is never drawn as one.
+   */
+  readonly inPeriod: boolean;
   readonly meetings: number;
   /** Median, not mean. One long meeting must not move it. */
   readonly medianDurationSeconds: number | null;
@@ -107,7 +141,16 @@ export interface AgentOutcomeRing {
   readonly agentId: string;
   readonly name: string;
   readonly meetings: number;
+  /**
+   * Of `meetings`, the ones with an outcome recorded — the denominator of
+   * `progressedShare`, which is NOT `meetings`: the ring's centre says every
+   * meeting, the rate stands on the decided ones, and a card that printed the
+   * rate beside the centre count invited the reader to multiply the wrong two
+   * numbers. Carried here so the screen prints it rather than counts it.
+   */
+  readonly decidedMeetings: number;
   readonly slices: readonly OutcomeSlice[];
+  /** Of `decidedMeetings`. Nought where none was decided, which the screen must read as no rate. */
   readonly progressedShare: number;
   /**
    * Set only when the pattern is worth a conversation, never as a score.
@@ -122,6 +165,12 @@ export interface AgentOutcomeRing {
     readonly severity: "watch" | "concern";
     readonly text: string;
     readonly sampleSize: number;
+    /**
+     * What `text` counts, so a finding sets it against the team's figure for
+     * the same thing: meetings with no outcome recorded, "not interested"
+     * among the decided ones, or progression among the decided ones.
+     */
+    readonly measure: "unrecorded" | "not_interested" | "progressed";
   } | null;
   readonly href: string;
 }
@@ -171,17 +220,32 @@ export interface SegmentInterest {
   readonly availableUnits: number;
   readonly stockShare: number;
   readonly attentionShare: number;
+  /**
+   * The two shares as the reader sees them: a whole percent in the project's
+   * locale, and "<1%" for a share that rounds away but is not nothing. The
+   * page prints these; it rounded the numbers itself, without the locale and
+   * without that guard, which ADR-0012 forbids.
+   */
+  readonly stockShareDisplay: string;
+  readonly attentionShareDisplay: string;
   readonly favouriteShare: number;
   readonly compareShare: number;
   readonly shareShare: number;
-  /** Attention share over stock share. Above one is disproportionate interest. */
-  readonly index: number;
+  /**
+   * Attention share over stock share, both taken over the stock the period
+   * ends with unsold (`attentionIndex` in `@observer/metrics`). Above one is
+   * disproportionate interest. Null where the segment holds no unsold unit or
+   * nobody looked at the unsold stock: an index of nothing is not zero.
+   */
+  readonly index: number | null;
   readonly meetings: number;
   /** What buyers looking at this segment attended to, in order. */
   readonly attendedTo: readonly {
     readonly label: string;
     readonly category: string;
     readonly share: number;
+    /** `share` as the reader sees it, in the project's locale. */
+    readonly shareDisplay: string;
   }[];
   /** The sections these meetings spent longest in. */
   readonly sections: readonly {
@@ -198,6 +262,13 @@ export interface SegmentInterest {
    * the floor plan" call for different campaigns, and averaging them into
    * "engagement" loses exactly that.
    */
+  /**
+   * The sets `examinedHow`'s two rates stand on: openings of this segment's
+   * units in these meetings, and openings of every other unit. A rate with
+   * no set beside it is a percentage of nothing in particular.
+   */
+  readonly unitsOpened: number;
+  readonly otherUnitsOpened: number;
   readonly examinedHow: readonly {
     readonly id: string;
     readonly label: string;
@@ -266,10 +337,18 @@ export interface ProjectView {
     readonly category: PlaceCategory;
     readonly label: string;
     readonly share: number;
+    /** `share` as the reader sees it, in the project's locale. */
+    readonly shareDisplay: string;
     readonly meetings: number;
   }[];
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;
+  /**
+   * Available units in the catalogue now: what "units matching" a search is
+   * a count of. "Now" is honest — a search recorded earlier matched the
+   * stock of its day, and the read model keeps its latest count.
+   */
+  readonly availableUnits: number;
   readonly evidence: EvidenceRef;
 }
 
@@ -282,7 +361,12 @@ export interface ProjectView {
  * project whose meetings are all first meetings is not building a pipeline.
  */
 export interface RepeatDistribution {
-  readonly visits: number;
+  /**
+   * Meetings the buyer had here before, 3 for three or more. Null for the
+   * meetings not linked to a contact: a walk-in has no history, so it is
+   * neither a first meeting nor a return, and is counted apart.
+   */
+  readonly visits: number | null;
   readonly label: string;
   readonly meetings: number;
   readonly share: number;
@@ -306,9 +390,24 @@ export interface AgentSectionUse {
   readonly medianDwellSeconds: number | null;
   /** Ready to print: "1m 24s", or "—" when the source cannot say. */
   readonly dwellDisplay: string;
-  /** Share of this agent's total presentation time. */
+  /**
+   * Share of the presentation time the source could time for this agent.
+   *
+   * Not "total presentation time". A step the source could not time carries
+   * a null dwell — never a nought, never inferred — and is outside this
+   * figure entirely: it is skipped on both sides of the share, and the
+   * meetings that had no such step are counted in `AgentProfile.timedMeetings`
+   * so the reader knows what set the share stands on. This used to say
+   * "total", while the builder zeroed every unknown into the denominator; the
+   * fixtures' unknowns happen to be whole meetings and moved nothing, and the
+   * ingest path's need not be.
+   */
   readonly timeShare: number;
-  /** Share of the team's time in the same section, for contrast. */
+  /**
+   * Share of the team's timed presentation time in the same section, for
+   * contrast. The same rule, the same skipped nulls, and the set is
+   * `AgentsView.timedMeetingCount`.
+   */
   readonly teamShare: number;
   /** The team's median seconds in the same section, so the agent's has a scale. */
   readonly teamDwellDisplay: string;
@@ -331,6 +430,12 @@ export interface AgentProfile {
   readonly organisationName: string;
   readonly meetings: number;
   /**
+   * Of `meetings`, the ones every step of which the source could time. The
+   * section shares below stand on these and no others; the difference is
+   * meetings the source could not time, not meetings that did not happen.
+   */
+  readonly timedMeetings: number;
+  /**
    * `meetings < AGENT_MIN_SAMPLE` (docs/10-policies.md §6), carried on the
    * profile itself rather than left for the card to compute — the same rule
    * `AgentDetailView` already states, applied where the roster shows a
@@ -340,6 +445,14 @@ export interface AgentProfile {
   readonly belowMinimum: boolean;
   /** Null when the sample clears the minimum. Never an empty string. */
   readonly suppressionNote: string | null;
+  /**
+   * Why no habit is read for this presenter although the meetings held clear
+   * the floor: the habit stands on `timedMeetings`, and that set is under it.
+   * Null above the floor, and null under `belowMinimum`, whose
+   * `suppressionNote` speaks for the whole card. The screen prints this where
+   * "leans on" would stand; the signature finding's gate reads the same set.
+   */
+  readonly signatureNote: string | null;
   readonly medianDurationDisplay: string;
   readonly ring: AgentOutcomeRing;
   readonly repeats: readonly RepeatDistribution[];
@@ -363,6 +476,16 @@ export interface AgentsView {
   readonly findings: readonly ShowroomFinding[];
   readonly showRatings: boolean;
   readonly meetingCount: number;
+  /** Of `meetingCount`, the ones every step of which the source could time. The team's section shares stand on these. */
+  readonly timedMeetingCount: number;
+  /**
+   * The team's own rows, one per section anyone reached, built on every
+   * meeting. The report's section table reads these — not the first agent's
+   * `sections`, which pass that agent's own reach filter and drop a section
+   * they never opened. The team's fields on those rows equal these; the
+   * array did not.
+   */
+  readonly teamSections: readonly AgentSectionUse[];
   readonly evidence: EvidenceRef;
 }
 
@@ -373,9 +496,11 @@ export interface AgentsView {
  *
  * The product case: a nursery is being built nearby, so find the buyers who
  * shortlisted a two-room flat and spent their time on family places. The result
- * is a count, the criteria in words, and the meetings behind it — the agent
- * opens those to reach the contacts, which keeps identity on the surface that
- * already governs it rather than in a list.
+ * is a count, the criteria in words, and the meetings behind it. It names no
+ * contact and routes to none: a meeting's replay carries no contact either, and
+ * Observer has no contact page (ADR-0033). Until 2026-09-23 this comment and the
+ * builder's own caveat promised the agent would "open a meeting to reach the
+ * contact"; nothing on the other side of that link ever named one (P2-16).
  */
 export interface AudienceCriteria {
   readonly rooms: number | null;
@@ -392,6 +517,28 @@ export interface AudienceMatch {
   /** Why this meeting matched, in words. */
   readonly because: string;
   readonly href: string;
+  /**
+   * What `because` stands on, row by row. The contract says of an unrecorded
+   * place that "every surface reading them says so"; one chip over the whole
+   * list did not say which row stood on what.
+   */
+  readonly source: InsightSource;
+  /**
+   * `legacy_available` — its units are recorded — unless a place the row names
+   * states another availability of its own; then that one.
+   */
+  readonly availability: MeasurementAvailability;
+}
+
+/**
+ * Why there is no list, when the kind of place asked for has no recorded point
+ * of interest behind it. Not "nothing matched", which says the criteria were too
+ * tight: what is missing is the input, and this names it.
+ */
+export interface AudienceUnavailable {
+  readonly headline: string;
+  /** What would have to exist for there to be a list. */
+  readonly missing: string;
 }
 
 export interface AudienceView {
@@ -403,6 +550,8 @@ export interface AudienceView {
   readonly matches: readonly AudienceMatch[];
   readonly total: number;
   readonly ofMeetings: number;
+  /** Null whenever a list stands: on recorded places, or on units alone. */
+  readonly unavailable: AudienceUnavailable | null;
   readonly caveats: readonly string[];
   readonly evidence: EvidenceRef;
 }

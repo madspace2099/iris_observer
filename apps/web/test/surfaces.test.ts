@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { AGENT_REGISTER_ROLES } from "@observer/readmodels";
 import { PRIMARY_NAV, PROJECT_NAV, SURFACES } from "../src/lib/routes";
 
 const appDir = resolve(import.meta.dirname, "../src/app");
@@ -19,6 +20,17 @@ describe("surface audience", () => {
     // ADR-0018. Nothing in Observer is buyer-facing, and the first surface
     // that is must be added here deliberately rather than by a route appearing.
     expect(SURFACES.filter((s) => s.audience === "buyer_facing")).toEqual([]);
+  });
+
+  it("gates an agent's register with the meeting drill-down's own roles", () => {
+    /*
+     * The read model applies the gate before a row reaches a screen; the web
+     * declares the same roles on the drill-down's route. Two copies of a role
+     * list are how a gate comes to guard different things on two surfaces,
+     * so the two are held equal here.
+     */
+    const drilldown = SURFACES.find((s) => s.route.endsWith("/meetings/[meetingId]"));
+    expect([...AGENT_REGISTER_ROLES].sort()).toEqual([...(drilldown?.requiresRole ?? [])].sort());
   });
 
   it("keeps the pre-meeting brief off every buyer-visible surface", () => {

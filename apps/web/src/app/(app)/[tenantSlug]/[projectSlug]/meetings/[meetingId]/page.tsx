@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import { NotFoundError, NotPermittedError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { MeetingId } from "@observer/contracts";
 
 import { repository } from "@/lib/repository";
@@ -7,7 +7,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { BriefView } from "@/showroom/BriefView";
-import { MeetingReplayView } from "@/components/meetings";
+import { MeetingReplayView, parseMeetingFilters, type MeetingSearch } from "@/components/meetings";
 
 export const metadata: Metadata = { title: "Meeting" };
 
@@ -51,12 +51,14 @@ export default async function MeetingPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string; meetingId: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<MeetingSearch & { period?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug, meetingId } = await params;
-  const { period: periodParam } = await searchParams;
-  const period = presetFrom(periodParam);
+  const search = await searchParams;
+  const period = presetFrom(search.period);
+  /* The register the reader came from, carried here by the row's link, so both ways back return to it. */
+  const filters = parseMeetingFilters(search);
   const base = `/${tenantSlug}/${projectSlug}`;
   /*
    * The role list quoted above, enforced rather than only described.
@@ -77,10 +79,11 @@ export default async function MeetingPage({
       tenantSlug,
       projectSlug,
       meetingId: meetingId as MeetingId,
+      language: DEFAULT_LANGUAGE,
     });
     const report = await repository.getReportScope(
-      { viewer, tenantSlug, projectSlug, period },
-      meetingId,
+      { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
+      { meetingId },
     );
 
     return (
@@ -88,6 +91,7 @@ export default async function MeetingPage({
         replay={replay}
         period={period}
         base={base}
+        filters={filters}
         report={report}
         /*
          * Read from the project's own declared sources on the replay's context,
@@ -104,6 +108,13 @@ export default async function MeetingPage({
   } catch (error) {
     if (!(error instanceof NotFoundError) && !(error instanceof NotPermittedError)) throw error;
     // No showroom session against this id, so it is a meeting that has not run.
-    return <BriefView tenantSlug={tenantSlug} projectSlug={projectSlug} meetingId={meetingId} />;
+    return (
+      <BriefView
+        tenantSlug={tenantSlug}
+        projectSlug={projectSlug}
+        meetingId={meetingId}
+        period={period}
+      />
+    );
   }
 }

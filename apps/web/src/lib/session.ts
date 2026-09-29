@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import type { Viewer } from "@observer/readmodels";
 import { VIEWERS, type ViewerKey } from "@observer/synthetic";
 import { accountById, viewerForAccount, type Account } from "@/lib/accounts";
+import { signingSecretFrom } from "@/lib/session-secret";
 
 /**
  * The scenario session adapter.
@@ -40,20 +41,21 @@ const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 /**
  * The signing secret.
  *
- * `OBSERVER_SESSION_SECRET` when it is set. Otherwise a value derived from the
- * deployment id, which is **not secret** — and that is stated rather than
- * hidden, because of what a forged token would actually buy: the ability to
- * pick a profile from a screen where every profile is already freely
- * selectable, over data that is entirely synthetic.
+ * `OBSERVER_SESSION_SECRET` when it is set. Otherwise — in development only —
+ * a stand-in derived from the deployment id, which is **not secret** and is
+ * therefore refused outside development: staging and production stop at boot
+ * with the variable named (`session-secret.ts`, `instrumentation.ts`), and a
+ * signing call that somehow ran without it throws the same way. Until
+ * 2026-09-23 the stand-in applied everywhere, on the reasoning that a forged
+ * token bought only a profile from a screen where every profile was freely
+ * selectable, over synthetic data; that reasoning ends where the data does.
  *
  * Real authentication is a pre-production gate (`docs/11-preproduction-gates.md`).
- * Until it lands, signing is defence in depth against a *shape* of mistake, not
- * protection of anything.
+ * Until it lands, signing is defence in depth against a *shape* of mistake —
+ * and on a real key, or not at all.
  */
 function signingSecret(): string {
-  const configured = process.env["OBSERVER_SESSION_SECRET"];
-  if (configured !== undefined && configured.length > 0) return configured;
-  return `observer-dev.${process.env["VERCEL_DEPLOYMENT_ID"] ?? process.env["VERCEL_GIT_COMMIT_SHA"] ?? "local"}`;
+  return signingSecretFrom(process.env);
 }
 
 function sign(payload: string): string {

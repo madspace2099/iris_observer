@@ -41,15 +41,21 @@ test.describe("executive overview", () => {
     }
   });
 
-  test("links every generated sentence to its records", async ({ page }) => {
+  test("ties every generated sentence to its records", async ({ page }) => {
     await openExecutiveOverview(page, "Petra Novák");
     const briefing = page.getByRole("region", { name: /What changed this quarter/i });
     const statements = briefing.getByRole("listitem");
     const count = await statements.count();
     expect(count).toBeGreaterThan(0);
+    // A link where a page lists the records, and the records named in text where
+    // none does (the follow-up sentence since bd8e59a): an evidence id either way.
     for (let i = 0; i < count; i += 1) {
-      await expect(statements.nth(i).getByRole("link")).toHaveAttribute("data-evidence-id", /^evd_/);
+      await expect(statements.nth(i).locator("[data-evidence-id]")).toHaveAttribute(
+        "data-evidence-id",
+        /^evd_/,
+      );
     }
+    await expect(briefing.getByText(/with a link where a page lists them/)).toBeVisible();
   });
 
   test("says a source is missing rather than showing a zero", async ({ page }) => {

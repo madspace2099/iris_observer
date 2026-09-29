@@ -1,13 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import { NotFoundError, NotPermittedError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { MeetingId } from "@observer/contracts";
-import { SyntheticObserverRepository, VIEWERS, VIKTORIA_MEETING_ID } from "../src/index";
+import {
+  PROJECTS,
+  SyntheticObserverRepository,
+  TENANTS,
+  VIEWERS,
+  VIKTORIA_MEETING_ID,
+} from "../src/index";
+import { sessionsForProject } from "../src/showroom/sessions";
 
 const repo = new SyntheticObserverRepository();
-const NORTHGATE = { tenantSlug: "alpha", projectSlug: "northgate" } as const;
-const KINGSFORD = { tenantSlug: "beta", projectSlug: "kingsford" } as const;
-const RIVERSIDE = { tenantSlug: "alpha", projectSlug: "riverside" } as const;
-const ISTER_TOWER = { tenantSlug: "alpha", projectSlug: "ister-tower" } as const;
+/* Where each request is addressed, and in which language its words are asked for. */
+const NORTHGATE = {
+  tenantSlug: "alpha",
+  projectSlug: "northgate",
+  language: DEFAULT_LANGUAGE,
+} as const;
+const KINGSFORD = {
+  tenantSlug: "beta",
+  projectSlug: "kingsford",
+  language: DEFAULT_LANGUAGE,
+} as const;
+const RIVERSIDE = {
+  tenantSlug: "alpha",
+  projectSlug: "riverside",
+  language: DEFAULT_LANGUAGE,
+} as const;
+const ISTER_TOWER = {
+  tenantSlug: "alpha",
+  projectSlug: "ister-tower",
+  language: DEFAULT_LANGUAGE,
+} as const;
 
 describe("tenant and project scoping", () => {
   it("lists only the tenants a viewer holds", async () => {
@@ -148,6 +172,140 @@ describe("tenant and project scoping", () => {
     await expect(isterTower).rejects.toThrow(/ister tower/i);
   });
 
+  /*
+   * THE BRIEF IS THE SAME SCENARIO, ONE FUNCTION FURTHER DOWN.
+   *
+   * `buildPreMeetingBrief` recognised the scripted meeting by its id alone, so
+   * every project a brief reader held served Northgate's brief under its own
+   * name with its own links stapled on — photographed on 2026-09-23 under
+   * ISTER TOWER, and under Kingsford, which is another developer. Every
+   * project every brief reader holds is asked, not one, because the leak
+   * crossed tenants as well as projects.
+   */
+  it("never serves Northgate's pre-meeting brief under another project", async () => {
+    // Northgate keeps its brief: a refusal everywhere would also pass below.
+    const own = await repo.getPreMeetingBrief({
+      viewer: VIEWERS.salesAgent,
+      ...NORTHGATE,
+      meetingId: VIKTORIA_MEETING_ID,
+    });
+    expect(own.context.project.slug).toBe("northgate");
+
+    const readers = Object.values(VIEWERS).filter((v) =>
+      ["sales_agent", "agency_manager", "madspace_admin"].includes(v.role),
+    );
+    let asked = 0;
+    for (const viewer of readers) {
+      for (const project of PROJECTS) {
+        if (project.slug === "northgate" || !viewer.projectIds.includes(project.id)) continue;
+        const tenant = TENANTS.find((t) => t.id === project.tenantId);
+        if (tenant === undefined) throw new Error(`${project.slug} has no tenant`);
+        asked += 1;
+        await expect(
+          repo.getPreMeetingBrief({
+            viewer,
+            tenantSlug: tenant.slug,
+            projectSlug: project.slug,
+            meetingId: VIKTORIA_MEETING_ID,
+            language: DEFAULT_LANGUAGE,
+          }),
+          `${viewer.displayName} was served the brief on ${project.slug}`,
+        ).rejects.toBeInstanceOf(NotFoundError);
+      }
+    }
+    expect(asked, "no brief reader holds a second project, so nothing was asked").toBeGreaterThan(
+      0,
+    );
+  });
+
+  /*
+   * The report and the replay were already scoped (`getReportScope`,
+   * `getMeetingReplay`): measured on 2026-09-23, another project's meeting
+   * under ISTER TOWER draws the not-found boundary. Kept beside the brief so
+   * the two halves of the meeting route cannot drift apart again.
+   */
+  it("never replays or reports another project's meeting under this one", async () => {
+    const meeting = sessionsForProject("prj_northgate01")[0]?.meetingId as MeetingId | undefined;
+    if (meeting === undefined) throw new Error("Northgate has no meeting to borrow");
+
+    // Found at home, so a refusal below is about the project and not the id.
+    await expect(
+      repo.getMeetingReplay({ viewer: VIEWERS.salesAgent, ...NORTHGATE, meetingId: meeting }),
+    ).resolves.toMatchObject({ meetingId: meeting });
+
+    const elsewhere = {
+      viewer: VIEWERS.salesAgent,
+      ...ISTER_TOWER,
+      period: "quarter_to_date" as const,
+    };
+    await expect(
+      repo.getMeetingReplay({ ...elsewhere, meetingId: meeting }),
+      "the replay",
+    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      repo.getReportScope(elsewhere, { meetingId: meeting }),
+      "the meeting report",
+    ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  /*
+   * THE THIRD INSTANCE: THE SCRIPTED ASK SESSION.
+   *
+   * `buildAskSession` is Northgate's scenario — its figures, its unit A-505,
+   * its buyer, its "south-facing, floors 4 to 6" framing — and every
+   * synthetic project was served it. A crawl on 2026-09-24 found 31 surface
+   * pairs across Riverside, Kingsford and ISTER TOWER, every one from this
+   * source. Every account and every project it holds are asked here, not the
+   * two that were known.
+   */
+  it("never serves Northgate's scripted Ask session under another project", async () => {
+    const NORTHGATE_WORDS = [
+      "Viktória",
+      "Halász",
+      "A-505",
+      "A-402",
+      "viewings held at 46",
+      "Offers fell from 17 to 12",
+      "South-facing units draw",
+      "the two-room finding",
+      "three stalled offers",
+      "Intent signals expire after 21 days",
+    ];
+    // Northgate keeps its scenario: the computed session everywhere would also pass below.
+    const own = await repo.getAskSession(
+      { viewer: VIEWERS.salesAgent, ...NORTHGATE, period: "quarter_to_date" },
+      null,
+    );
+    expect(own.suggestions).toContain("Prepare me for Viktória's meeting.");
+
+    const leaked = new Set<string>();
+    let asked = 0;
+    for (const viewer of Object.values(VIEWERS)) {
+      for (const project of PROJECTS) {
+        if (project.slug === "northgate" || !viewer.projectIds.includes(project.id)) continue;
+        const tenant = TENANTS.find((t) => t.id === project.tenantId);
+        if (tenant === undefined) throw new Error(`${project.slug} has no tenant`);
+        const session = await repo.getAskSession(
+          {
+            viewer,
+            tenantSlug: tenant.slug,
+            projectSlug: project.slug,
+            period: "quarter_to_date",
+            language: DEFAULT_LANGUAGE,
+          },
+          null,
+        );
+        asked += 1;
+        const text = JSON.stringify(session);
+        for (const word of NORTHGATE_WORDS) {
+          if (text.includes(word)) leaked.add(`${project.slug}: "${word}"`);
+        }
+      }
+    }
+    expect(asked, "no account holds a project besides Northgate").toBeGreaterThan(0);
+    expect([...leaked], [...leaked].join("\n")).toEqual([]);
+  });
+
   it("clips the baseline when the current period is still running", async () => {
     const overview = await repo.getExecutiveOverview({
       viewer: VIEWERS.developer,
@@ -221,7 +379,13 @@ describe("evidence integrity", () => {
     expect(overview.verdict.evidence).not.toBeNull();
     for (const statement of overview.briefing.statements) {
       expect(statement.evidence, statement.text).not.toBeNull();
-      expect(statement.evidence?.href.length ?? 0).toBeGreaterThan(1);
+      /*
+       * A route, or explicitly none. This asserted a non-empty route, and the
+       * follow-up statement's `/people` satisfied it while leading to the
+       * agents roster. Since P2-16 records no page lists carry an empty route
+       * (`EvidenceRef.href`) — the evidence is still attached and counted.
+       */
+      expect(statement.evidence?.href ?? "", statement.text).toMatch(/^$|^\/./);
       expect(statement.evidence?.observationCount ?? 0).toBeGreaterThan(0);
     }
   });
@@ -378,7 +542,19 @@ describe("the verdict is explainable, not an opinion", () => {
       ...NORTHGATE,
       period: "quarter_to_date",
     });
-    expect(overview.verdict.state).toBe("attention_needed");
+    /*
+     * The state follows the components, not the scenario: it was a fixed
+     * attention_needed over typed figures. Any fail needs attention; all
+     * passing is positive; anything else is not enough to say.
+     */
+    const outcomes = overview.verdict.components.map((c) => c.outcome);
+    expect(overview.verdict.state).toBe(
+      outcomes.includes("fail")
+        ? "attention_needed"
+        : outcomes.every((o) => o === "pass")
+          ? "positive"
+          : "insufficient_data",
+    );
     expect(overview.verdict.components.length).toBeGreaterThan(2);
     for (const component of overview.verdict.components) {
       // A component without a rule or a value is decoration; the point of

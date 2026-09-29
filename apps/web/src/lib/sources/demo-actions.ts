@@ -33,6 +33,7 @@ import { CONTROL_PLANE_ACCOUNT, controlPlane, runningLocally } from "./control-p
 import { observerLocalDirectory } from "./local-db";
 import { DEMONSTRATION_PROJECT_SLUG, DEMONSTRATION_SOURCE_TYPE, demonstrationEstate } from "./seed";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * WALKING THE SOURCE LIFECYCLE, THROUGH THE REAL PATH AND NOTHING ELSE.
  *
@@ -910,6 +911,7 @@ async function catalogueCodes(
           tenantSlug: tenant.slug,
           projectSlug: DEMONSTRATION_PROJECT_SLUG,
           period: "quarter_to_date",
+          language: DEFAULT_LANGUAGE,
         },
         null,
       );

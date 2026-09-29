@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { switcherButton } from "./switcher";
+import { gateRefusal } from "./secrets";
 
 /**
  * ACCOUNT → PROJECTS → OBSERVER, THROUGH THE VISIBLE USER INTERFACE.
@@ -271,6 +272,11 @@ test.describe("a project nobody granted is refused by the server", () => {
         period: "quarter_to_date",
       },
     });
+    const refused = await gateRefusal(held);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether Ask Observer answers the project she holds and refuses the ones she does not`,
+    );
     expect(held.status(), "the project she holds").toBe(200);
 
     for (const [tenantSlug, projectSlug] of [

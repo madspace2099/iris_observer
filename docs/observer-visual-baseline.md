@@ -121,6 +121,23 @@ per project (`mtg_0131` → `mtg_ng0132`). This is the contamination correction 
 one project must never show another's sessions. Thirty-three checks in
 `packages/synthetic/test/isolation.test.ts` hold it.
 
+### Sales Flow rearranged under explicit approval (R05-a)
+
+2026-09-24 and 25. Not a defect fix. Máté approved it on 2026-09-24 under the
+fourth reason in _The rule_ below (`:280`, explicit user approval for that
+specific change), for three items of the v3 plan's R05 chapter and nothing else:
+
+- item 2 — the summary row regrouped into Volume, Progress, Conversion and
+  Cycle time. The two groups nothing on the page measures are printed empty with
+  what is missing, and Typical length stays in the row outside the groups;
+- item 8 — long lists show five rows and Show all, only where no hidden row
+  carries a denominator;
+- the target layout's order (`v3 :1039`) — the deal ladder and stalled deals
+  directly under the groups.
+
+`12a586f`, `54d67f2`, `74c7784`, `9454a8e`. The figures on the page are the same
+multiset before and after. R01, R02, R06 and R12 were not approved.
+
 ## Ask Observer
 
 ### Answer anatomy

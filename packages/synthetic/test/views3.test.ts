@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { CrmDeal, ShowroomSession } from "@observer/contracts";
 import type { ViewContext } from "@observer/readmodels";
-import { buildSalesFlow, bucketBounds, trend, DEADBAND } from "../src/showroom/views3";
+import { buildSalesFlow, bucketBounds, sliceSpan, trend, DEADBAND } from "../src/showroom/views3";
 import { provideCatalogue, type RawUnit } from "../src/pulse";
 
 /**
@@ -48,17 +48,25 @@ function session(startedAt: Date, outcome: ShowroomSession["outcome"]): Showroom
   };
 }
 
-// `tenant.slug`, `project.slug`, `project.locale` and `period.to` are the
-// fields `buildSalesFlow` reads; everything else here is a type-satisfying
-// stand-in. `period.to` is year 9999 on purpose: every test below places
-// sessions around its own `today` and exercises the week/month recency
-// path (`stillRunning`), so the period must outlast any `today` used here
-// without needing a per-test value. The closed-period path (`period.to` in
-// the past) has its own describe block further down, with its own context.
+// `tenant.slug`, `project.slug`, `project.locale`, `period.from` and
+// `period.to` are the fields `buildSalesFlow` reads; everything else here is a
+// type-satisfying stand-in. `period.to` is year 9999 on purpose: every test
+// below places sessions around its own `today` and exercises the week/month
+// recency path (`stillRunning`), so the period must outlast any `today` used
+// here without needing a per-test value — and `period.from` is 1970 for the
+// same reason, so the period holds every bucket those tests compare. The
+// closed-period path (`period.to` in the past) has its own describe block
+// further down, with its own context.
 const CONTEXT = {
   tenant: { slug: "test-tenant" },
-  project: { slug: "test-project", locale: "en-GB" },
-  period: { to: utc(9999, 0, 1).toISOString(), label: "the period", baselineLabel: "before" },
+  /* The dates below are UTC days, so the project keeps UTC days: today ends where it does. */
+  project: { slug: "test-project", locale: "en-GB", timeZone: "UTC" },
+  period: {
+    from: utc(1970, 0, 1).toISOString(),
+    to: utc(9999, 0, 1).toISOString(),
+    label: "the period",
+    baselineLabel: "before",
+  },
 } as unknown as ViewContext;
 
 describe("trend — classification immediately below, at, and above every cutoff", () => {
@@ -140,19 +148,19 @@ describe("buildSalesFlow verdict — every reachable state", () => {
     const today = utc(2027, 5, 20); // a Sunday, so "last week" is a full, unclipped 7 days
     const lastWeekStart = new Date(today.getTime() - 7 * DAY);
     const sessions = [
-      ...Array.from({ length: 4 }, () => session(lastWeekStart, "purchase")),
-      ...Array.from({ length: 6 }, () => session(lastWeekStart, "not_interested")),
-      ...Array.from({ length: 6 }, () => session(today, "purchase")),
-      ...Array.from({ length: 4 }, () => session(today, "not_interested")),
+      ...Array.from({ length: 8 }, () => session(lastWeekStart, "purchase")),
+      ...Array.from({ length: 12 }, () => session(lastWeekStart, "not_interested")),
+      ...Array.from({ length: 12 }, () => session(today, "purchase")),
+      ...Array.from({ length: 8 }, () => session(today, "not_interested")),
     ];
     const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
-      "Meetings are holding up and progressing well: 10 meetings this week against 10 last week, and 60% of recorded meetings progressed, against 40% before.",
+      "Meetings are holding up and progressing well: 20 meetings this week against 20 last week, and 60% of recorded meetings progressed, against 40% before.",
     );
   });
 
   it("good, deadbanded, does not claim the figure went up when it actually dipped", () => {
-    // This is the case the live fixture surfaced: the ratio (6/13 ≈ 0.46
+    // This is the case the live fixture surfaced: the ratio (12/26 ≈ 0.46
     // against a baseline of 0.50) clears the 0.9 floor, so the deadband
     // correctly calls the *signal* "good" — but 46% is still less than 50%,
     // and printing "up from 50%" next to a true 46% would be a false
@@ -161,14 +169,14 @@ describe("buildSalesFlow verdict — every reachable state", () => {
     const today = utc(2027, 5, 20);
     const lastWeekStart = new Date(today.getTime() - 7 * DAY);
     const sessions = [
-      ...Array.from({ length: 5 }, () => session(lastWeekStart, "purchase")),
-      ...Array.from({ length: 5 }, () => session(lastWeekStart, "not_interested")),
-      ...Array.from({ length: 6 }, () => session(today, "purchase")),
-      ...Array.from({ length: 7 }, () => session(today, "not_interested")),
+      ...Array.from({ length: 10 }, () => session(lastWeekStart, "purchase")),
+      ...Array.from({ length: 10 }, () => session(lastWeekStart, "not_interested")),
+      ...Array.from({ length: 12 }, () => session(today, "purchase")),
+      ...Array.from({ length: 14 }, () => session(today, "not_interested")),
     ];
     const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
-      "Meetings are holding up and progressing well: 13 meetings this week against 10 last week, and 46% of recorded meetings progressed, against 50% before.",
+      "Meetings are holding up and progressing well: 26 meetings this week against 20 last week, and 46% of recorded meetings progressed, against 50% before.",
     );
     expect(view.verdict).not.toContain("up from");
   });
@@ -177,13 +185,13 @@ describe("buildSalesFlow verdict — every reachable state", () => {
     const today = utc(2027, 5, 20);
     const lastWeekStart = new Date(today.getTime() - 7 * DAY);
     const sessions = [
-      ...Array.from({ length: 5 }, () => session(lastWeekStart, "purchase")),
-      ...Array.from({ length: 5 }, () => session(lastWeekStart, "not_interested")),
-      ...Array.from({ length: 6 }, () => session(today, "not_interested")),
+      ...Array.from({ length: 20 }, () => session(lastWeekStart, "purchase")),
+      ...Array.from({ length: 20 }, () => session(lastWeekStart, "not_interested")),
+      ...Array.from({ length: 24 }, () => session(today, "not_interested")),
     ];
     const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
-      "Worth a look: 6 meetings this week against 10 last week, and 0% of recorded meetings progressed, against 50% before.",
+      "Worth a look: 24 meetings this week against 40 last week, and 0% of recorded meetings progressed, against 50% before.",
     );
   });
 
@@ -191,51 +199,86 @@ describe("buildSalesFlow verdict — every reachable state", () => {
     const today = utc(2027, 5, 20);
     const lastWeekStart = new Date(today.getTime() - 7 * DAY);
     const sessions = [
-      ...Array.from({ length: 5 }, () => session(lastWeekStart, "purchase")),
-      ...Array.from({ length: 5 }, () => session(lastWeekStart, "not_interested")),
-      ...Array.from({ length: 3 }, () => session(today, "purchase")),
-      ...Array.from({ length: 7 }, () => session(today, "not_interested")),
+      ...Array.from({ length: 10 }, () => session(lastWeekStart, "purchase")),
+      ...Array.from({ length: 10 }, () => session(lastWeekStart, "not_interested")),
+      ...Array.from({ length: 6 }, () => session(today, "purchase")),
+      ...Array.from({ length: 14 }, () => session(today, "not_interested")),
     ];
     const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toBe(
-      "A mixed signal: 10 meetings this week against 10 last week, and 30% of recorded meetings progressed, against 50% before.",
+      "A mixed signal: 20 meetings this week against 20 last week, and 30% of recorded meetings progressed, against 50% before.",
     );
   });
 
   it("one meeting's difference does not flip good to poor (the deadband)", () => {
-    // Identical to the "good" case above, but last week had one more meeting
-    // (11 instead of 10): the raw ratio (10/11 ≈ 0.91) is still comfortably
+    // Identical to the "good" case above, but last week had two more meetings
+    // (22 instead of 20): the raw ratio (20/22 ≈ 0.91) is still comfortably
     // "up" by the 0.8 floor, so this is really checking the boundary case
     // sits where intended, not a regression risk on its own — the meaningful
     // guard is the next test, where the ratio actually lands in the band.
     const today = utc(2027, 5, 20);
     const lastWeekStart = new Date(today.getTime() - 7 * DAY);
     const sessions = [
-      ...Array.from({ length: 4 }, () => session(lastWeekStart, "purchase")),
-      ...Array.from({ length: 7 }, () => session(lastWeekStart, "not_interested")),
-      ...Array.from({ length: 6 }, () => session(today, "purchase")),
-      ...Array.from({ length: 4 }, () => session(today, "not_interested")),
+      ...Array.from({ length: 8 }, () => session(lastWeekStart, "purchase")),
+      ...Array.from({ length: 14 }, () => session(lastWeekStart, "not_interested")),
+      ...Array.from({ length: 12 }, () => session(today, "purchase")),
+      ...Array.from({ length: 8 }, () => session(today, "not_interested")),
     ];
     const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toContain("Meetings are holding up and progressing well");
   });
 
   it("a ratio inside the deadband reads as attention, not a flipped verdict", () => {
-    // 10 this week against 13 last week: 10/13 ≈ 0.769, which is below the
+    // 20 this week against 26 last week: 20/26 ≈ 0.769, which is below the
     // 0.8 floor but inside the 0.05 band around it (>= 0.75) — a swing this
     // small must not tip an otherwise-good progression reading to "poor".
     const today = utc(2027, 5, 20);
     const lastWeekStart = new Date(today.getTime() - 7 * DAY);
     const sessions = [
-      ...Array.from({ length: 5 }, () => session(lastWeekStart, "purchase")),
-      ...Array.from({ length: 8 }, () => session(lastWeekStart, "not_interested")),
-      ...Array.from({ length: 6 }, () => session(today, "purchase")),
-      ...Array.from({ length: 4 }, () => session(today, "not_interested")),
+      ...Array.from({ length: 10 }, () => session(lastWeekStart, "purchase")),
+      ...Array.from({ length: 16 }, () => session(lastWeekStart, "not_interested")),
+      ...Array.from({ length: 12 }, () => session(today, "purchase")),
+      ...Array.from({ length: 8 }, () => session(today, "not_interested")),
     ];
     const view = buildSalesFlow(CONTEXT, sessions, today, []);
     expect(view.verdict).toContain("A mixed signal");
     expect(view.verdict).not.toContain("Worth a look");
     expect(view.verdict).not.toContain("holding up");
+  });
+
+  /*
+   * Decided 2026-09-27 for the Briefing, and the same rule here: short of
+   * AGENT_MIN_SAMPLE recorded outcomes on either side there is no call, and
+   * a baseline with meetings but no recorded outcome is not "0% before".
+   */
+  it("below the floor: the figures, and no call", () => {
+    const today = utc(2027, 5, 20);
+    const lastWeekStart = new Date(today.getTime() - 7 * DAY);
+    const sessions = [
+      ...Array.from({ length: 4 }, () => session(lastWeekStart, "purchase")),
+      ...Array.from({ length: 6 }, () => session(lastWeekStart, "not_interested")),
+      ...Array.from({ length: 5 }, () => session(today, "purchase")),
+      ...Array.from({ length: 3 }, () => session(today, "not_interested")),
+    ];
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
+    expect(view.verdict).toBe(
+      "Too few to call: 8 meetings this week against 10 last week, and 63% of recorded meetings progressed, against 40% before. Recorded outcomes this week: 8; 20 are needed for a verdict.",
+    );
+  });
+
+  it("a baseline with no recorded outcome is nothing to compare against, not 0%", () => {
+    const today = utc(2027, 5, 20);
+    const lastWeekStart = new Date(today.getTime() - 7 * DAY);
+    const sessions = [
+      ...Array.from({ length: 10 }, () => session(lastWeekStart, "skipped")),
+      ...Array.from({ length: 12 }, () => session(today, "purchase")),
+      ...Array.from({ length: 8 }, () => session(today, "not_interested")),
+    ];
+    const view = buildSalesFlow(CONTEXT, sessions, today, []);
+    expect(view.verdict).toBe(
+      "Too early to call: 20 meetings this week against 10 last week, and 60% of recorded meetings progressed this week. No meeting last week has a recorded outcome to compare against.",
+    );
+    expect(view.verdict).not.toContain("0% before");
   });
 
   it("falls back to month when the week is too thin, and last month is clipped to match", () => {
@@ -251,21 +294,56 @@ describe("buildSalesFlow verdict — every reachable state", () => {
     // comparison; if the clip were not applied they would change the reading.
     const today = utc(2027, 3, 12); // 12 April 2027
     const sessions = [
-      session(utc(2027, 3, 12), "purchase"), // this week (= today)
-      session(utc(2027, 3, 5), "purchase"), // last week
-      ...Array.from({ length: 4 }, (_, i) => session(utc(2027, 3, 1 + i), "purchase")), // this month, 1-4 Apr
-      ...Array.from({ length: 4 }, (_, i) => session(utc(2027, 3, 8 + i), "not_interested")), // this month, 8-11 Apr
-      ...Array.from({ length: 3 }, () => session(utc(2027, 2, 2), "purchase")), // last month, 2 Mar (inside the clip)
-      ...Array.from({ length: 7 }, (_, i) => session(utc(2027, 2, 5 + i), "not_interested")), // last month, 5-11 Mar (inside the clip)
+      ...Array.from({ length: 2 }, () => session(utc(2027, 3, 12), "purchase")), // this week (= today)
+      ...Array.from({ length: 2 }, () => session(utc(2027, 3, 5), "purchase")), // last week
+      ...Array.from({ length: 8 }, (_, i) => session(utc(2027, 3, 1 + (i % 4)), "purchase")), // this month, 1-4 Apr
+      ...Array.from({ length: 8 }, (_, i) => session(utc(2027, 3, 8 + (i % 4)), "not_interested")), // this month, 8-11 Apr
+      ...Array.from({ length: 6 }, () => session(utc(2027, 2, 2), "purchase")), // last month, 2 Mar (inside the clip)
+      ...Array.from({ length: 14 }, (_, i) => session(utc(2027, 2, 5 + (i % 7)), "not_interested")), // last month, 5-11 Mar (inside the clip)
       ...Array.from({ length: 15 }, () => session(utc(2027, 2, 20), "purchase")), // last month, 20 Mar — outside the clip, must be excluded
     ];
     const view = buildSalesFlow(CONTEXT, sessions, today, []);
-    // This month: 1+1+4+4 = 10 meetings, 6 progressed (purchase) = 60%.
-    // Last month, clipped to 1-12 March: 3+7 = 10 meetings, 3 progressed = 30%.
+    // This month: 2+2+8+8 = 20 meetings, 12 progressed (purchase) = 60%.
+    // Last month, clipped to 1-12 March: 6+14 = 20 meetings, 6 progressed = 30%.
     // The 15 sessions on 20 March are outside the clip and must not appear.
     expect(view.verdict).toBe(
-      "Meetings are holding up and progressing well: 10 meetings this month against 10 last month, first 12 days, and 60% of recorded meetings progressed, against 30% before.",
+      "Meetings are holding up and progressing well: 20 meetings this month against 20 last month, first 12 days, and 60% of recorded meetings progressed, against 30% before.",
     );
+  });
+});
+
+/*
+ * A running period ends at the end of today WHERE THE PROJECT IS. It ended at
+ * the UTC end of the day: west of UTC that falls in the local afternoon, so at
+ * noon in New York the windows that end tonight — today, this week, this
+ * month — were not held whole by the period and read "Not in this period".
+ */
+describe("a running period's end of today", () => {
+  const westContext = (timeZone: string) =>
+    ({ ...CONTEXT, project: { ...CONTEXT.project, timeZone } }) as unknown as ViewContext;
+
+  it("is the project's own midnight, west and east of UTC", () => {
+    const noonInNewYork = new Date("2026-08-24T16:00:00Z");
+    expect(
+      new Date(sliceSpan(westContext("America/New_York"), noonInNewYork).to).toISOString(),
+    ).toBe("2026-08-25T03:59:59.999Z");
+    expect(
+      new Date(sliceSpan(westContext("Europe/Bratislava"), noonInNewYork).to).toISOString(),
+    ).toBe("2026-08-24T21:59:59.999Z");
+  });
+
+  it("holds today's window whole at noon in New York", () => {
+    const noonInNewYork = new Date("2026-08-24T16:00:00Z");
+    const thisMorning = new Date("2026-08-24T14:00:00Z"); // 10:00 in New York
+    const view = buildSalesFlow(
+      westContext("America/New_York"),
+      [session(thisMorning, "purchase")],
+      noonInNewYork,
+      [],
+    );
+    const today = view.periods.find((p) => p.id === "today");
+    expect(today?.inPeriod).toBe(true);
+    expect(today?.meetings).toBe(1);
   });
 });
 
@@ -313,16 +391,16 @@ describe("buildSalesFlow verdict — a closed period, viewed after it ended", ()
 
   it("compares the whole selected period against the whole baseline period, by label, not by week or month", () => {
     const sessions = Array.from(
-      { length: 10 },
-      (_, i) => session(utc(2027, 2, 1 + i), i < 6 ? "purchase" : "not_interested"), // 60% progressed
+      { length: 20 },
+      (_, i) => session(utc(2027, 2, 1 + i), i < 12 ? "purchase" : "not_interested"), // 60% progressed
     );
     const previous = Array.from(
-      { length: 10 },
-      (_, i) => session(utc(2027, 0, 1 + i), i < 3 ? "purchase" : "not_interested"), // 30% progressed
+      { length: 20 },
+      (_, i) => session(utc(2027, 0, 1 + i), i < 6 ? "purchase" : "not_interested"), // 30% progressed
     );
     const view = buildSalesFlow(CLOSED_CONTEXT, sessions, TODAY, previous);
     expect(view.verdict).toBe(
-      "Meetings are holding up and progressing well: 10 meetings the selected quarter against 10 the quarter before, and 60% of recorded meetings progressed, against 30% before.",
+      "Meetings are holding up and progressing well: 20 meetings the selected quarter against 20 the quarter before, and 60% of recorded meetings progressed, against 30% before.",
     );
   });
 });

@@ -183,7 +183,13 @@ test.describe("Meeting Detail links to the agent who presented", () => {
     await row.click();
     await page.waitForURL(/\/meetings\/[^/]+$/);
 
-    const lede = page.locator(".ox-lede");
+    /*
+     * The head's own lede, not every `.ox-lede` on the page: the replay view
+     * prints two more paragraphs under that class - the units opened and the
+     * interest they drew - and a bare `.ox-lede` resolved to three. The test
+     * asks about the one under the title, where the presenter is named.
+     */
+    const lede = page.locator(".ox-head .ox-lede");
     await expect(lede).toContainText("Presented by");
     const agentLink = lede.getByRole("link");
     /*
@@ -227,6 +233,8 @@ test.describe("the demoted CRM-led surface is reachable, as ADR-0023 said it wou
   test("it is not a primary-nav item, which is what demotion meant", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto(`${NORTHGATE}/attention`);
+    // On a phone the primary nav is inside the Menu; closed, there is no nav to read.
+    await openMobileMenuIfPresent(page);
     await expect(page.getByRole("navigation", { name: "Sections" })).not.toContainText("Overview");
   });
 });

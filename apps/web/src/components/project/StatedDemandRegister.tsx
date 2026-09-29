@@ -1,7 +1,7 @@
-import type { MeasurementAvailability } from "@observer/contracts";
 import type { EvidenceRef, PeriodPreset, StatedDemand } from "@observer/readmodels";
 
 import { DataTable, Evidence } from "@/components/product";
+import { AVAILABILITY_WORDS } from "@/showroom/parts";
 import { Plate } from "./Section";
 
 /**
@@ -96,24 +96,3 @@ export function StatedDemandRegister({
     </Plate>
   );
 }
-
-/**
- * `MeasurementAvailability`, in the reader's words.
- *
- * The contract declares five machine tokens and no display strings for them,
- * so the words are written here. Reported as a gap: this is the same shape as
- * `INSIGHT_SOURCE_LABELS`, which does live beside its union in
- * `packages/contracts/src/provenance.ts`, and a second screen rendering these
- * tokens would have to guess the same five sentences again.
- *
- * The two states this screen cannot currently receive are still mapped. A
- * partial map is a map that renders a raw token the day a read model widens,
- * and a raw token on a customer screen is worse than a verbose constant.
- */
-const AVAILABILITY_WORDS: Readonly<Record<MeasurementAvailability, string>> = {
-  legacy_available: "Recorded today",
-  partially_derivable: "Partly derivable today",
-  requires_ue5_v2_event: "Needs a UE5 v2 event",
-  crm_outcome_context: "Comes from the CRM",
-  webiris_context: "Comes from WEBIRIS",
-};

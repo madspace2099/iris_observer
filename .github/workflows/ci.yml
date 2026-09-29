@@ -14,7 +14,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # The release suites resolve historical commits (scripts/release/facts.ts),
+      # so the whole history is needed, not the default single commit.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
         with:
@@ -36,9 +40,15 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      # Before the tests: the secret audit scans the browser bundle and refuses
+      # without one (scripts/secret-audit.mjs), and no-secret-recipes.test.ts runs it.
+      - name: Build
+        run: pnpm build
+
+      # _sql-to-paste/ is generated and never tracked; the paste-wrapper tests read it.
+      - name: Release wrappers
+        run: pnpm release:wrappers
+
       # Data tests run against PGlite, so no database service is needed. See ADR-0008.
       - name: Tests
         run: pnpm test
-
-      - name: Build
-        run: pnpm build

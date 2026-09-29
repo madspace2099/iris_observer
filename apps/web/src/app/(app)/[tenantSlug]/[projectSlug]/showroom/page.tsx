@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { defineMeasurement, type ShowroomSignal } from "@observer/readmodels";
+import { defineMeasurement, type ShowroomSignal, DEFAULT_LANGUAGE } from "@observer/readmodels";
 
 import {
   Evidence,
@@ -92,12 +92,14 @@ const SIGNAL_LABELS: Readonly<Record<ShowroomSignal, string>> = {
   good: "On course",
   attention: "Needs a look",
   poor: "Going the wrong way",
+  no_verdict: "No verdict",
 };
 
 const SIGNAL_TONES: Readonly<Record<ShowroomSignal, string>> = {
   good: "good",
   attention: "watch",
   poor: "poor",
+  no_verdict: "none",
 };
 
 export default async function BriefingPage({
@@ -114,7 +116,7 @@ export default async function BriefingPage({
   requireSurface(viewer, "showroom", root);
   const period = presetFrom((await searchParams).period);
 
-  const query = { viewer, tenantSlug, projectSlug, period };
+  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
   const [home, pulse] = await Promise.all([
     repository.getHome(query),
     repository.getProjectPulse(query),
@@ -189,7 +191,7 @@ export default async function BriefingPage({
                 href={dynamicRoute(withPeriod(home.alert.href, period))}
                 data-weight="primary"
               >
-                Look at it
+                {home.alert.actionLabel}
               </Link>
             </div>
           )}

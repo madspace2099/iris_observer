@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn, signInAs } from "./sign-in";
+import { gateRefusal } from "./secrets";
 
 /**
  * WHAT A SALES AGENT MAY SEE, AND WHERE THAT STOPS.
@@ -207,6 +208,11 @@ test.describe("the project she does not hold", () => {
         period: "quarter_to_date",
       },
     });
+    const refused = await gateRefusal(held);
+    test.skip(
+      refused !== null,
+      `${refused ?? ""} — not measured: whether Ask Observer answers the project the agent holds and refuses the two she does not`,
+    );
     expect(held.status(), "the project she holds").toBe(200);
 
     for (const target of [ISTER, THIRD]) {

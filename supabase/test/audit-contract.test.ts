@@ -3,6 +3,8 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 import {
+  applyMigrations,
+  asPlatform,
   openDatabase,
   closeTestDatabases,
   closeSuiteDatabases,
@@ -59,27 +61,23 @@ function sql(file: string): string {
 }
 
 /**
- * A database with Supabase's three roles and the migrations up to `stopBefore`.
+ * A database with the migrations up to `stopBefore`, applied by the hosted runner.
  *
- * The roles matter: the migrations revoke from and grant to them by name, and a
- * database without them would silently skip the half of this schema that is
- * access control.
+ * That runner brings Supabase's three roles, and they matter: the migrations
+ * revoke from and grant to them by name, and a database without them would
+ * silently skip the half of this schema that is access control.
  */
 async function database(
   stopBefore: string = RETENTION,
   scope: DatabaseScope = "test",
 ): Promise<PGlite> {
-  const db = await openDatabase(scope);
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const file of migrationFiles()) {
-    if (file === stopBefore) break;
-    if (file === CONTRACT) continue;
-    await db.exec(sql(file));
-  }
+  const db = await openDatabase(scope, "hosted");
+  const files = migrationFiles();
+  const end = files.indexOf(stopBefore);
+  await applyMigrations(
+    db,
+    files.slice(0, end === -1 ? files.length : end).filter((file) => file !== CONTRACT),
+  );
   return db;
 }
 
@@ -1602,10 +1600,14 @@ describe("the scheduled job, continued [STAND-IN]", () => {
      */
     const d = await database();
     await installCronStandIn(d);
-    await d.exec(`
+    /* The extension's own function, so only the platform can break it — as on the host. */
+    await asPlatform(
+      d,
+      `
       create or replace function cron.schedule(p_name text, p_schedule text, p_command text)
       returns bigint language sql as $fn$ select 0::bigint $fn$;
-    `);
+    `,
+    );
 
     await expect(d.exec(sql(RETENTION))).rejects.toThrow(/exactly one active job/);
     expect(

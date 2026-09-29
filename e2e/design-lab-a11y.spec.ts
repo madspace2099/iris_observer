@@ -66,7 +66,7 @@ test.describe("design lab: the accessibility contract", () => {
       const where = `${variant}/${screen}`;
 
       test(`${where}: one h1, no overflow, and every state carries a word`, async ({ page }) => {
-        test.skip(test.info().project.name !== "desktop", "checked once, at the review width");
+        test.skip(test.info().project.name !== "lab", "checked once, at the review width");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
 
@@ -129,7 +129,7 @@ test.describe("design lab: the accessibility contract", () => {
       test(`${where}: a keyboard can reach every control, and can see where it is`, async ({
         page,
       }) => {
-        test.skip(test.info().project.name !== "desktop", "checked once");
+        test.skip(test.info().project.name !== "lab", "checked once");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 1440, 900);
 
@@ -168,7 +168,7 @@ test.describe("design lab: the accessibility contract", () => {
       });
 
       test(`${where}: the phone reading order is the visual order`, async ({ page }) => {
-        test.skip(test.info().project.name !== "desktop", "checked once");
+        test.skip(test.info().project.name !== "lab", "checked once");
         await signIn(page, "MADSPACE Operations");
         await open(page, variant, screen, 390, 844);
 
@@ -227,7 +227,7 @@ test.describe("design lab: the accessibility contract", () => {
     test(`${variant}/activation: the panel traps, closes on Escape, and gives focus back`, async ({
       page,
     }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 
@@ -274,12 +274,25 @@ test.describe("design lab: the accessibility contract", () => {
      * control that describes its own result.
      */
     test(`${variant}/activation: the copy control can announce what it did`, async ({ page }) => {
-      test.skip(test.info().project.name !== "desktop", "checked once");
+      test.skip(test.info().project.name !== "lab", "checked once");
       await signIn(page, "MADSPACE Operations");
       await open(page, variant, "activation", 1440, 900);
 
       const copy = page.getByRole("button", { name: /copy/i });
-      const present = (await copy.count()) > 0;
+      /*
+       * Waited for, not counted at once. On a cold dev server the control
+       * renders after the root, and a bare `count()` skipped this check as "no
+       * copy control" — once in three runs of c/activation, measured
+       * 2026-09-27 — which reads as not applicable rather than as not checked.
+       * A direction that truly has none still skips, after the wait.
+       */
+      const present = await copy
+        .first()
+        .waitFor({ state: "visible", timeout: 10_000 })
+        .then(
+          () => true,
+          () => false,
+        );
       test.skip(!present, "this direction offers no copy control");
 
       const announces = await page.evaluate(() => {

@@ -23,6 +23,7 @@ import {
   NotPermittedError,
   type PeriodPreset,
   type Viewer,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 
 export const metadata: Metadata = { title: "Ask IRIS" };
@@ -242,7 +243,10 @@ async function Openings({
   root,
   periodParam,
 }: Read & { readonly root: string; readonly periodParam: string }) {
-  const session = await repository.getAskSession({ viewer, tenantSlug, projectSlug, period }, null);
+  const session = await repository.getAskSession(
+    { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
+    null,
+  );
   return <AskOpeningList suggestions={session.suggestions} root={root} periodParam={periodParam} />;
 }
 
@@ -265,7 +269,10 @@ async function Answer({
   readonly scope: AskScope;
   readonly otherProjects: readonly AskScopeProject[];
 }) {
-  const session = await repository.getAskSession({ viewer, tenantSlug, projectSlug, period }, null);
+  const session = await repository.getAskSession(
+    { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
+    null,
+  );
 
   /*
    * `findAnswer` is skipped entirely outside `current` scope — not called and
@@ -324,7 +331,13 @@ async function otherProjectsFor(
 }
 
 async function History({ viewer, tenantSlug, projectSlug, period }: Read) {
-  const history = await repository.getAskHistory({ viewer, tenantSlug, projectSlug, period });
+  const history = await repository.getAskHistory({
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period,
+    language: DEFAULT_LANGUAGE,
+  });
   return <AskHistoryPanel history={history} />;
 }
 

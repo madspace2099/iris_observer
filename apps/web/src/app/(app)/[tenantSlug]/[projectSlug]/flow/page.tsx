@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { KPI_WINDOWS, type KpiWindowId, type PeriodPreset } from "@observer/readmodels";
+import {
+  KPI_WINDOWS,
+  type KpiWindowId,
+  type PeriodPreset,
+  DEFAULT_LANGUAGE,
+} from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -81,6 +86,7 @@ export default async function FlowPage({
     tenantSlug,
     projectSlug,
     period: presetFrom(period) as PeriodPreset,
+    language: DEFAULT_LANGUAGE,
   };
   const kpiWindow = windowFrom(windowParam);
 
@@ -113,6 +119,29 @@ export default async function FlowPage({
     return qs === "" ? base : `${base}?${qs}`;
   };
 
+  /* One summary figure as a card, wherever the groups place it. */
+  const kpiCard = (id: string) => {
+    const figure = charts.kpis.figures.find((f) => f.id === id);
+    return figure === undefined ? null : (
+      <KpiCard
+        key={figure.id}
+        label={figure.label}
+        info={
+          figure.measurementId === null ? (
+            figure.label
+          ) : (
+            <Measure id={figure.measurementId} label={figure.label} />
+          )
+        }
+        value={figure.value}
+        qualifier={figure.qualifier}
+        delta={figure.delta}
+        tone={figure.tone}
+        points={figure.points.length < 2 ? undefined : figure.points}
+      />
+    );
+  };
+
   return (
     <div className="iris-one">
       <section className="iris-plane iris-stack">
@@ -140,25 +169,46 @@ export default async function FlowPage({
             </div>
           </div>
 
-          <div className="iris-kpis" style={{ marginTop: "1rem" }}>
-            {charts.kpis.figures.map((figure) => (
-              <KpiCard
-                key={figure.id}
-                label={figure.label}
-                info={
-                  figure.measurementId === null ? (
-                    figure.label
-                  ) : (
-                    <Measure id={figure.measurementId} label={figure.label} />
-                  )
-                }
-                value={figure.value}
-                qualifier={figure.qualifier}
-                delta={figure.delta}
-                tone={figure.tone}
-                points={figure.points.length < 2 ? undefined : figure.points}
-              />
-            ))}
+          {/*
+           * The plan's four groups (R05 item 2), named and defined, and every
+           * word of them the read model's. A group nothing measures is printed
+           * empty with what is missing, never dropped. "Typical length" stands
+           * in the row outside any group.
+           */}
+          <div className="iris-kpi-groups" style={{ marginTop: "1rem" }}>
+            {[
+              ...charts.kpis.groups.filter((group) => group.missing === null),
+              ...charts.kpis.ungrouped.map((id) => ({ id, ungrouped: true as const })),
+              ...charts.kpis.groups.filter((group) => group.missing !== null),
+            ].map((item) =>
+              "ungrouped" in item ? (
+                <div className="iris-kpi-group" key={item.id}>
+                  <div className="iris-kpis">{kpiCard(item.id)}</div>
+                </div>
+              ) : (
+                <div
+                  className="iris-kpi-group"
+                  key={item.id}
+                  role="group"
+                  aria-labelledby={`kpi-group-${item.id}`}
+                  data-empty={item.missing === null ? undefined : "true"}
+                >
+                  <p className="iris-kicker iris-kicker-measured" id={`kpi-group-${item.id}`}>
+                    {item.label}
+                  </p>
+                  <p className="iris-meta iris-meta-measured">{item.definition}</p>
+                  <div className="iris-kpis">
+                    {item.missing === null ? (
+                      item.figureIds.map(kpiCard)
+                    ) : (
+                      <div className="iris-kpi">
+                        <p className="iris-kpi-missing">{item.missing}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ),
+            )}
           </div>
 
           {charts.kpis.caveat === null ? null : (
@@ -170,17 +220,121 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
+        {/*
+         * The order from here is the plan's (v3 :1039, R05's target layout,
+         * approved 2026-09-24): the groups above, then the current pipeline,
+         * stalled deals, and the details last. IRIS-assisted sales stay with the
+         * deal blocks beside which they already stood. The plan's first-showing-
+         * to-sale block is not built (P2-06 is blocked), and Cycle time says so.
+         */}
+        {/*
+         * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
+         * connector delivered, every rung verified because the CRM stated it,
+         * and where none did the sentence says so rather than six rungs at zero.
+         */}
+        <div>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+            The deal ladder, as the CRM states it
+          </h2>
+          {view.ladder.source === "crm" ? (
+            <>
+              <FlowLadder
+                stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
+                noun="deals"
+              />
+              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                {view.ladder.note}
+              </p>
+              <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+            </>
+          ) : (
+            <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
+          )}
+        </div>
+
+        {/*
+         * WHAT IS STUCK, AND FOR HOW LONG (docs/02-views.md §4.1: deals grouped
+         * by stage, sorted by time stuck). Time in stage sits on the ladder's
+         * own rungs above; this is the same deals one by one, longest on
+         * their rung first, each opening the unit it is about. The list is
+         * ordered by time and never by outcome, and an undated deal is
+         * counted beside it rather than drawn at zero days.
+         */}
+        {view.ladder.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <div>
+              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+                Stalled deals, longest on their rung first
+              </h2>
+              {view.ladder.stalled.length === 0 ? (
+                <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
+              ) : (
+                <>
+                  <RankedBars
+                    period={query.period}
+                    rows={view.ladder.stalled.map((deal) => ({
+                      id: deal.externalId,
+                      label:
+                        deal.unitCode === null
+                          ? deal.externalId
+                          : `${deal.unitCode} · ${deal.externalId}`,
+                      sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
+                      value: deal.daysInStage,
+                      display: deal.daysDisplay,
+                      href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
+                    }))}
+                    measured
+                    // R05 item 8. No row carries a denominator; the count sits in the note below.
+                    collapseAfter={5}
+                  />
+                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                    {view.ladder.stalledNote}
+                  </p>
+                  <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+                </>
+              )}
+            </div>
+          </>
+        ) : null}
+
+        {/*
+         * IRIS-ASSISTED SALES (ADR-0039). Drawn only where a CRM is connected,
+         * for the ladder's reason: no deal, no sale to place against a showing.
+         */}
+        {view.assisted.source === "crm" ? (
+          <>
+            <hr className="iris-rule iris-section-rule" />
+            <AssistedSales assisted={view.assisted} period={query.period} />
+          </>
+        ) : null}
+
+        <hr className="iris-rule iris-section-rule" />
+
         <div className="iris-band">
           <div>
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Meetings, and how many progressed
             </h2>
-            <PeriodSteps periods={view.periods} />
-            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-              The lighter column is every meeting; the solid part is those that reached a follow-up
-              or better. Beneath each is the median length — a part-week is compared against the
-              same days of the week before, never against a whole one.
-            </p>
+            {view.periods.some((p) => p.inPeriod) ? (
+              <>
+                <PeriodSteps periods={view.periods} />
+                <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                  The lighter column is every meeting; the solid part is those that reached a
+                  follow-up or better. Beneath each is the median length — a part-week is compared
+                  against the same days of the week before, never against a whole one.
+                </p>
+              </>
+            ) : (
+              /* Six columns of "not in this period" would be a chart with nothing on it. */
+              <p className="iris-meta iris-meta-measured">
+                Today, this week and this month count back from today, and{" "}
+                {view.context.period.label.toLowerCase()} holds none of them.
+                {view.meetingCount === 0
+                  ? null
+                  : ` Its ${view.meetingCount} ${view.meetingCount === 1 ? "meeting is" : "meetings are"} counted by outcome beside this.`}
+              </p>
+            )}
           </div>
 
           <div className="iris-band-side">
@@ -222,7 +376,10 @@ export default async function FlowPage({
                     {change.deltaDisplay}
                   </p>
                   <p className="iris-change-detail">{change.detail}</p>
-                  <Link className="iris-action" href={dynamicRoute(change.href)}>
+                  <Link
+                    className="iris-action"
+                    href={dynamicRoute(withPeriod(change.href, query.period))}
+                  >
                     Look at it
                   </Link>
                 </article>
@@ -283,8 +440,15 @@ export default async function FlowPage({
               measured
             />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
-              The marked week is the largest single change in the series. What moved it is not in
-              this data.
+              {charts.trend.annotation === null
+                ? null
+                : "The marked week is the largest single change in the series. What moved it is not in this data. "}
+              {/* The line needs two points; below that the heading stood over a caption alone. */}
+              {charts.trend.points.length < 2
+                ? "Too few whole weeks with meetings in this period to draw a line. "
+                : null}
+              Only the weeks the period holds whole are drawn: a week still running, or one the
+              period cuts, is not set against a full one.
             </p>
           </div>
 
@@ -321,7 +485,10 @@ export default async function FlowPage({
                     {ring.flag.text}
                   </p>
                 )}
-                <Link className="iris-action" href={dynamicRoute(ring.href)}>
+                <Link
+                  className="iris-action"
+                  href={dynamicRoute(withPeriod(ring.href, query.period))}
+                >
                   How they present
                 </Link>
               </article>
@@ -370,99 +537,25 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
-        {/*
-         * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
-         * connector delivered, every rung verified because the CRM stated it,
-         * and where none did the sentence says so rather than six rungs at zero.
-         */}
-        <div>
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-            The deal ladder, as the CRM states it
-          </h2>
-          {view.ladder.source === "crm" ? (
-            <>
-              <FlowLadder
-                stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
-                noun="deals"
-              />
-              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                {view.ladder.note}
-              </p>
-              <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
-            </>
-          ) : (
-            <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
-          )}
-        </div>
-
-        {/*
-         * WHAT IS STUCK, AND FOR HOW LONG (docs/02-views.md §4.1: deals grouped
-         * by stage, sorted by time stuck). Time in stage sits on the ladder's
-         * own rungs above; this is the same deals one by one, longest on
-         * their rung first, each opening the unit it is about. The list is
-         * ordered by time and never by outcome, and an undated deal is
-         * counted beside it rather than drawn at zero days.
-         */}
-        {view.ladder.source === "crm" ? (
-          <>
-            <hr className="iris-rule iris-section-rule" />
-            <div>
-              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-                Stalled deals, longest on their rung first
-              </h2>
-              {view.ladder.stalled.length === 0 ? (
-                <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
-              ) : (
-                <>
-                  <RankedBars
-                    rows={view.ladder.stalled.map((deal) => ({
-                      id: deal.externalId,
-                      label:
-                        deal.unitCode === null
-                          ? deal.externalId
-                          : `${deal.unitCode} · ${deal.externalId}`,
-                      sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
-                      value: deal.daysInStage,
-                      display: deal.daysDisplay,
-                      href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
-                    }))}
-                    measured
-                  />
-                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                    {view.ladder.stalledNote}
-                  </p>
-                  <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
-                </>
-              )}
-            </div>
-          </>
-        ) : null}
-
-        {/*
-         * IRIS-ASSISTED SALES (ADR-0039). Drawn only where a CRM is connected,
-         * for the ladder's reason: no deal, no sale to place against a showing.
-         */}
-        {view.assisted.source === "crm" ? (
-          <>
-            <hr className="iris-rule iris-section-rule" />
-            <AssistedSales assisted={view.assisted} period={query.period} />
-          </>
-        ) : null}
-
-        <hr className="iris-rule iris-section-rule" />
-
         <div className="iris-band">
           <div>
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
-            <RankedBars rows={charts.longestMeetings} measured />
+            {/* R05 item 8: a date, a length and a line of context per row, no denominator. */}
+            <RankedBars
+              period={query.period}
+              rows={charts.longestMeetings}
+              measured
+              collapseAfter={5}
+            />
           </div>
           <div className="iris-band-side">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations given
             </h2>
-            <RankedBars rows={charts.rankedAgents} measured />
+            {/* Never collapsed: every row carries its own denominator, "N of M meetings". */}
+            <RankedBars period={query.period} rows={charts.rankedAgents} measured />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.
             </p>
@@ -472,14 +565,28 @@ export default async function FlowPage({
         <hr className="iris-rule iris-section-rule" />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} measured />
+          <Finding
+            key={finding.id}
+            finding={finding}
+            period={query.period}
+            lead={index === 0}
+            measured
+          />
         ))}
 
         <Gaps
           gaps={[
             "An outcome is what the agent recorded at the end of the meeting. Meetings with none are excluded from every rate here rather than counted as a failure.",
             "A flag is a prompt to look at how a meeting is run. It is not a ranking.",
-            "The summary cards read the whole dataset over the window you pick. Everything below them reads the period in the bar at the top.",
+            /*
+             * Measured on 2026-09-25, rendering the page under four periods: the
+             * three deal blocks were byte-identical under all four, and every
+             * section listed as reading the period moved with it. "Everything
+             * below them reads the period" was false for three blocks, and since
+             * R05-a those three stand right under the cards. A new section is
+             * added to one list or the other, not claimed by either.
+             */
+            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
           ]}
           title="How to read this"
         />

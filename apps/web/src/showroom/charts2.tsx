@@ -21,7 +21,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import type { PeriodPreset } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
+import { withPeriod } from "@/lib/period";
 
 /* --- a figure with its history -------------------------------------------- */
 
@@ -206,7 +208,8 @@ export function TrendLine({
             x={x(i)}
             y={height - 8}
             className="iris-trend-tick"
-            textAnchor="middle"
+            /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
+            textAnchor={i === points.length - 1 ? "end" : "middle"}
           >
             {p.label}
           </text>
@@ -587,15 +590,24 @@ export function Radar({
           );
         })}
       </svg>
-      <ul className="iris-ring-key">
-        {series.map((s) => (
-          <li key={s.id}>
-            <i style={{ background: s.tone }} />
-            {s.label}
-            <b />
-          </li>
-        ))}
-      </ul>
+      {/*
+       * A key tells shapes apart. One shape has nothing to tell apart, and
+       * its label is the card's caption, drawn by the card under the shape.
+       * The roster hands one profile per cell, and each cell was getting a
+       * key for one shape — a swatch beside the one name — standing where
+       * the caption belongs.
+       */}
+      {series.length > 1 ? (
+        <ul className="iris-ring-key">
+          {series.map((s) => (
+            <li key={s.id}>
+              <i style={{ background: s.tone }} />
+              {s.label}
+              <b />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }
@@ -604,9 +616,11 @@ export function Radar({
 
 export function RankedBars({
   rows,
+  period,
   valueSuffix = "",
   measured = false,
   peak: scale,
+  collapseAfter,
 }: {
   rows: readonly {
     readonly id: string;
@@ -616,6 +630,13 @@ export function RankedBars({
     readonly display: string;
     readonly href?: string | null;
   }[];
+  /**
+   * The reader's period, carried by every row that links. Required, not
+   * optional: six of ten callers handed read-model routes through raw, and a
+   * reader on "Last 28 days" who opened a ranked agent or meeting was
+   * returned to the quarter (P2-16).
+   */
+  period: PeriodPreset;
   valueSuffix?: string;
   /**
    * Opt-in only: Sales Flow's two lists pass this, Sales Agents' does not.
@@ -631,34 +652,55 @@ export function RankedBars({
    * each other. Absent, the longest row fills the track as before.
    */
   peak?: number;
+  /**
+   * Opt-in, and Sales Flow's only (R05 item 8): show this many rows and the
+   * rest behind "Show all". The hidden rows keep their places and the shared
+   * scale, so opening the list changes nothing a row says. A list whose rows
+   * carry their own denominator must not pass this: a denominator stays on
+   * screen. Absent, every row is drawn as before.
+   */
+  collapseAfter?: number;
 }) {
   const peak = scale ?? Math.max(1, ...rows.map((r) => r.value));
+  const className = `iris-ranked${measured ? " iris-ranked-measured" : ""}`;
+  const cut =
+    collapseAfter !== undefined && rows.length > collapseAfter ? collapseAfter : rows.length;
 
+  const item = (row: (typeof rows)[number], place: number) => (
+    <li key={row.id}>
+      <span className="iris-ranked-place">{place}</span>
+      <span className="iris-ranked-name">
+        {row.href === undefined || row.href === null ? (
+          row.label
+        ) : (
+          <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>
+        )}
+        {/* Truncated visibly, and never unreachable: the full line is the
+            element's own title. */}
+        {row.sub === null ? null : <em title={row.sub}>{row.sub}</em>}
+      </span>
+      <span className="iris-ranked-track">
+        <i style={{ width: `${(row.value / peak) * 100}%` }} />
+      </span>
+      <span className="iris-ranked-value">
+        {row.display}
+        {valueSuffix}
+      </span>
+    </li>
+  );
+
+  const shown = <ol className={className}>{rows.slice(0, cut).map((r, i) => item(r, i + 1))}</ol>;
+  if (cut === rows.length) return shown;
   return (
-    <ol className={`iris-ranked${measured ? " iris-ranked-measured" : ""}`}>
-      {rows.map((row, i) => (
-        <li key={row.id}>
-          <span className="iris-ranked-place">{i + 1}</span>
-          <span className="iris-ranked-name">
-            {row.href === undefined || row.href === null ? (
-              row.label
-            ) : (
-              <Link href={dynamicRoute(row.href)}>{row.label}</Link>
-            )}
-            {/* Truncated visibly, and never unreachable: the full line is the
-                element's own title. */}
-            {row.sub === null ? null : <em title={row.sub}>{row.sub}</em>}
-          </span>
-          <span className="iris-ranked-track">
-            <i style={{ width: `${(row.value / peak) * 100}%` }} />
-          </span>
-          <span className="iris-ranked-value">
-            {row.display}
-            {valueSuffix}
-          </span>
-        </li>
-      ))}
-    </ol>
+    <>
+      {shown}
+      <details className="iris-ranked-more">
+        <summary className="iris-action">Show all</summary>
+        <ol className={className} start={cut + 1}>
+          {rows.slice(cut).map((r, i) => item(r, cut + i + 1))}
+        </ol>
+      </details>
+    </>
   );
 }
 
@@ -679,6 +721,7 @@ export function RankedBars({
 export function SectionSequence({
   rows,
   agentLabel,
+  showTeam,
 }: {
   rows: readonly {
     readonly sectionId: string;
@@ -692,6 +735,13 @@ export function SectionSequence({
     readonly availability: string;
   }[];
   agentLabel: string;
+  /**
+   * Whether the team's median is printed beside each stop. The page decides,
+   * from the sample floor: the team's figure is a comparison, and below the
+   * floor no comparison is made — the same rule the page applies to the
+   * project's rate two charts up.
+   */
+  showTeam: boolean;
 }) {
   const peak = Math.max(1, ...rows.map((r) => r.medianDwellSeconds ?? 0));
 
@@ -720,7 +770,7 @@ export function SectionSequence({
           </span>
           <span className="iris-sequence-time">
             {row.dwellDisplay}
-            <em>team {row.teamDwellDisplay}</em>
+            {showTeam ? <em>team {row.teamDwellDisplay}</em> : null}
           </span>
         </li>
       ))}

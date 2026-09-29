@@ -8,9 +8,13 @@ import { signInAs } from "./sign-in";
  * a chart that renders as an empty box or a flat line is caught by looking
  * rather than by a selector that only proves the element exists.
  */
-const OUT =
-  process.env["OBSERVER_CHART_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/charts";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_CHART_SHOTS"] ?? "_review/charts";
 
 
 async function shoot(page: Page, name: string, project: string) {

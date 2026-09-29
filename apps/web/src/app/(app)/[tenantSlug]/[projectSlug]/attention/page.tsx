@@ -9,6 +9,7 @@ import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Attention" };
 
 /**
@@ -73,7 +74,13 @@ export default async function AttentionPage({
   requireSurface(viewer, "attention", root);
   const period = presetFrom((await searchParams).period);
 
-  const view = await repository.getAttention({ viewer, tenantSlug, projectSlug, period });
+  const view = await repository.getAttention({
+    viewer,
+    tenantSlug,
+    projectSlug,
+    period,
+    language: DEFAULT_LANGUAGE,
+  });
 
   const raised = view.states.length;
   const asked = view.checks.length;

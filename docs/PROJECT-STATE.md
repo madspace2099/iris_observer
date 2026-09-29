@@ -3,8 +3,14 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-18 · **Branch:** `feature/observer-reference-parity`, **pushed to
-`origin` through `cc26720` on 2026-09-18** · **PR #1 open. Not merged.** Latest: **phase 7 is built** (2026-09-18): a project created in MADSPACE administration
+**Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
+`origin`; the last code commit is `8cbda0e`, the last commit `7138e0e`** · Latest: **Máté's fifteen decisions of 2026-09-27,
+built** — one attention index over the unsold stock on every surface (the gate's failing clause now
+holds), R04's two outcome checks, R12's unknown visitors, the Briefing's one window and no verdict
+below the sample, the report formatted by its language. **Phase 2 is still not accepted**
+(`docs/23-phase2-acceptance.md`; the last section of this file). Before it the same day: **P2-17 —
+the report prints in Slovak, English and Hungarian**; its text awaits approval. Earlier, on 2026-09-18, on
+`feature/observer-reference-parity` (PR #1, not merged): **phase 7 is built**: a project created in MADSPACE administration
 becomes a customer dashboard with no change to code or fixtures, shows only what its own sources
 delivered, and names the presenter of every meeting, whom a showroom can now report itself
 (`PD-30`). Before it, the 2026-09-17 afternoon run made ingested UE5 events reach the customer's
@@ -2810,3 +2816,2398 @@ say what was recorded, that it was wrong, and where the correction lives. **No c
 no assertion changed — the only executable lines touched were comments.**
 
 Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §19.
+
+## 2026-09-21 — P2-03: the history register already keeps its promises, and two findings that belong elsewhere
+
+**R03 passes all three DoD clauses, and the mechanisms were checked rather than read.** That
+distinction is the week's lesson: a docblock is reliable about intent and unreliable about state, and
+the ones that name their mechanism are both the strongest claims and the cheapest to verify.
+
+**Pin, rename and delete.** `ThreadList` draws none of them — no button, no click handler, no write
+icon in its imports — and the refusal is stated **once for the whole region** by an `Unavailable`
+with no action, because "the writing is not built, not merely out of this account's reach". That is
+`docs/12-visual-autopsy.md` §9 applied correctly: one statement of what is missing, once, in place of
+the region it affects.
+
+**Absent metadata is not invented.** `selectionLabel === null` renders nothing, consistently in all
+four places that read it. The title is the opening question, and the promise that the list and the
+thread show the same string "by construction" is true: one private `plans()` function feeds both
+`buildAskHistory` and `buildAskThread`.
+
+**Premium cannot take a short cut through the list.** There is no per-method redaction that could
+diverge: `entitled()` is a Proxy over every member, so the summary read and the detail read pass
+through the same walker. Nothing is priced above FREE today either, so nothing redacts at all.
+
+**A guard, because a mechanism verified once is only verified once.** `apps/web/test/history-read-only.test.ts`
+holds the two named mechanisms: no interactive element and no write icon in a row, and exactly one
+`<Unavailable>` on the page. Counted rather than merely found, because a test asserting the sentence
+exists would pass on the screen that repeats it per row — which is the failure the autopsy recorded.
+Proved by three mutations: a pin button, a pencil import, and a second refusal each fail their own
+assertion and nothing else.
+
+**Two findings that are not R03's.** The Ask landing page (R01) renders the same conversations with
+**five disabled controls per row** — an inline rename, then a menu of share, rename, pin and delete,
+so the rename is drawn twice — where R03 renders none. Corrected: this entry first said four, which
+was a miscount of the same markup. The sibling page anticipates three (`history/page.tsx:44`), so
+three numbers were in circulation for one fact, and the committed one was wrong. Its own sibling argues against it in words: the history page records that
+drawing disabled controls per row "would satisfy the letter of that and break its purpose". One
+product, one fact, two opposite answers. It is another route, so it is recorded rather than bundled.
+
+The second is latent: `ask-history.ts:369` falls back to `title: first?.question ?? "Ask Observer"`,
+which is a generated label standing in for a title — the thing the line's own comment argues against
+two lines above. No plan literal has zero answers, so it is unreachable today, and the type is what
+permits it. Named rather than patched, because an unreachable fallback cannot be mutation-proved and
+a guard nobody can break is the shape this week keeps finding.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §25.
+
+## 2026-09-22 — P2-04: a warning nobody can open, and a sentence that outran its own condition
+
+**The numbers did not move, and that is measured rather than asserted.** Every figure, rank,
+severity, sample size, tier and subject count the attention read model produces, for three projects,
+dumped before and after: twenty-nine lines, byte identical. The round changed what is claimed, not
+what is counted.
+
+**The main correction is a sentence that knew more than its branch.** The no-CRM state's detail said
+"None of the N presentations in this period has a recorded outcome, and no CRM is connected to
+supply one." Its branch condition is `!crm`, which establishes only the second half. Outcomes are
+recorded in the room, not by the CRM — Ister Tower has a CRM connected and eleven of eighty-two
+presentations unrecorded — so the two facts are independent, and they coincide on Riverside because
+the fixture happens to pair them. A claim true by coincidence reads exactly like a claim that
+follows. It now says what the branch knows: no CRM is connected, so nothing can confirm what the
+presentations ended in. The title was already right; verification is what is missing.
+
+**And a category error in the affected list.** `subjects` is rendered under the accessible name
+"What this is about", and it held `Connect a CRM` — which is what to do about it. One item, and a
+reader could not tell what it was one of. It names the scope now: every presentation in the period.
+
+**Lateness is not claimed anywhere, and that was checked rather than assumed.** Searched the builder,
+the contract and the component for `overdue`, `late`, `waiting`, `chasing`, `days since`, `deadline`,
+`still not`, `too long`, `should have` and `behind`. No hits outside comment prose. The follow-up
+state says "ended without an outcome that asks for a follow-up" — what was recorded, not what is
+late — and its clear-state question asks whether a meeting ended without a follow-up being recorded.
+
+**OPEN ITEM, and it is mine.** On Riverside the Briefing prints "Nothing in this period is waiting on
+a decision from you" while What needs attention raises four states, one of them a warning at rank 1.
+P2-02 set out to close exactly this contradiction and narrowed it instead: the Briefing leads with
+the highest-ranked state only when that state has an `actionHref`, and the no-CRM branch has nowhere
+to send a reader and so carries none. The parity test asserts the fallback, which means it currently
+describes the gap rather than catching it; the assertion is now marked as a known gap rather than
+left to read as an endorsement. Closing it is a Briefing question — what to say when the thing worth
+acting on cannot be opened — and it belongs to R02's own round.
+
+**Two raised states have no openable affected list**, which is the DoD's first clause unmet and
+recorded rather than papered over: the no-CRM outcome state, and `source_offline`, whose subjects are
+the quiet installations. Neither has anywhere to send this reader that exists and is permitted.
+`StateList` already refuses to draw a dead link — a subject without a route renders as plain text,
+because "a chip that looks identical to its neighbours and does nothing when pressed is the
+control-that-does-nothing the doctrine forbids". So there is no false door; there is an absent one,
+and making it real is route work rather than naming.
+
+**The four refusal inconsistencies deferred by the P1-12 gate were checked against this route.**
+`BriefView`, `ask/[threadId]`, `report/page.tsx` and `madspace/projects/[projectId]` — none is R04.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §26.
+
+## 2026-09-22 — The Briefing gap is closed: "Clear" is a claim about the checks, not about the links
+
+**Yesterday's open item is closed.** Riverside printed "Nothing in this period is waiting on a
+decision from you" over four raised states because the highest-ranked one carried no route of its
+own. It now leads with that state's title and sends the reader to the register of warnings.
+
+**The rule, and it is the one worth quoting later.** The Briefing leads with the rank-1 state's title
+whenever any state is raised. Its button is the state's own action when the state has one, and
+`/attention` when it does not. "Clear" only when no check is raised at all. A missing route is a fact
+about one state; it was being reported as a fact about the period, and the period is what the
+sentence is about.
+
+**The fallback door was checked before it was offered.** Every role that can open the Briefing can
+open the register: `SURFACES` declares
+`["developer", "agency_manager", "sales_agent", "madspace_admin"]` on both, identically, and that is
+the complete role vocabulary — `ROLE_WORDS` is typed `Record<Viewer["role"], string>`, so the
+compiler requires it to name every member and it names four. Neither surface carries an entitlement
+key either, so both inherit the FREE default. Without that check the fix would have reintroduced one
+level up exactly the locked door P1-11 removed one level down.
+
+**The button names where it goes.** A reader told "Look at it" who lands on a list has been misled by
+one word, so the fallback says "Open what needs attention" and the read model carries the label
+rather than the page assuming it.
+
+**What moved, measured.** The Briefing's full output for three projects, before and after: three of
+thirty-six lines differ, all of them the leading alert. Signal, verdict, because, every figure, every
+door, sources and evidence are byte identical, and the two projects whose leading state already had
+an action kept the same text and the same href.
+
+**What the new expectation allows, written down so it can be argued with.** A leading state with no
+action of its own may send the reader to `/attention` rather than to itself. The previous expectation
+allowed something nobody would sign — that a project with four raised states including a rank-1
+warning may correctly say nothing needs a decision, provided that warning has no link — and it
+survived because a mutation proved the test could fail, which was read as proof that it guarded the
+right thing. It does not follow. The guard now fails on exactly that case: restoring the old
+behaviour breaks it on Riverside with "expected null not to be null".
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §27.
+
+## 2026-09-22 — P2-05: the rule that reached one figure out of four
+
+**The board's example was real and I found it by measuring, not by reading.** Northgate shows
+"Presentations 41" in the summary row and 74 presentations everywhere below it — the board's "41 vs
+74", exactly. Both are correct: the summary answers to a window the reader picks, everything below
+answers to the page period.
+
+**What was missing is why a reader could not tell.** `Progressing` has named its own window since
+somebody worked out that it had to, and left the reasoning in a comment: the chip row that sets the
+window is several lines away, and a reader comparing two figures needs the span on the card rather
+than up the page. That reasoning was right and it reached **one figure out of four**. The other
+three carried a comparison — "36 before" — and never said before what. A rule applied to one of four
+places is not a rule yet.
+
+All four name their window now, and a guard says so: it fails with the offending figure and its
+qualifier printed, because the next figure added to that row will not read the comment.
+
+**No value moved.** Values, deltas and tones for three projects across all three windows, diffed
+before and after: identical. Only the qualifiers changed.
+
+**The other two clauses were checked and hold, with the mechanisms verified rather than read.** Deal
+conversion is not a meeting ratio: the ladder is built from `deals.deals` filtered by stage, drawn
+with `noun="deals"` under the heading "The deal ladder, as the CRM states it" and a CRM source chip,
+and the registry defines it over contacts reaching a stage. The meeting figures are named as
+meetings — "Meetings, and how many progressed". And the 74-vs-39 pair on the same screen is
+explained by the ladder's own note: 60 deals as they stand now, a rung counting deals at that stage
+or further along, where each deal stands rather than the path it took, 21 lost beside it.
+
+**Two figures that used to make this worse are already gone**, and that was verified rather than
+assumed: a page-computed "N of M had an outcome recorded" and a per-agent "X% progressed" over a
+different denominator than the ring above it. The only trace left is the docblock recording their
+removal.
+
+**A guard from the round before this one**: the Briefing's fallback destination is now declared with
+its reason, and a narrowing of `/attention` fails with the excluded role named. Twenty of the
+forty-three declared surfaces carry a narrower role list than the Briefing, so the fallback pointed
+at one of the safe twenty-three by luck rather than by construction.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §28.
+
+## 2026-09-22 — P2-06: the calculator is built and proven; the data it needs is not there
+
+**UI_READY and runtime BLOCKED, which is what the board asked to be told apart.** The shared
+calculator exists, lives in the contract layer so four routes read one formula rather than four, and
+every one of the seven cases the board enumerated has its own test named after the board's own word.
+Nothing on this deployment can feed it.
+
+**One reason checked, and a second that was asserted and is corrected below.** The metric's required facts are
+`meeting.attended`, `online.session.observed` and `deal.stage.changed`. The online half has **no
+producer at all** — `OnlineSession` appears nowhere under `packages/synthetic/src` — so "the buyer's
+first recorded interaction, online or in the showroom" cannot include the online side.
+
+**Correction, and it is the failure this phase keeps naming.** The first version of this entry gave
+a second reason as a universal: that every read on the port takes an `OverviewQuery`. That is
+false. Of the interface’s 33 members 26 do, and seven do not — `listTenants`, `listProjects` and
+`resolveProject` take a `Viewer`; `resolvePeriod` takes a `ProjectId` and produces periods rather
+than escaping them; `getPreMeetingBrief` and `getMeetingReplay` take a `BriefQuery` carrying a
+single `meetingId`; `getEvidence` resolves one reference. None of the seven returns a unit’s
+opening history: four are directory or resolution reads, two answer for one meeting, one resolves
+one reference. The conclusion survives — the original opening time across the full accessible
+history is not reachable — but it survives as a list rather than as a universal, which is the form
+the rule written two rounds earlier asks for. The block therefore rests on the first reason, which
+was checked; this one supports it without carrying it.
+
+**What exists and what it answers.** `AssistedSales` already pairs a CRM-stated sale date with a
+showing, and already carries `dateBasis` to say which record the date came from. But it measures the
+**last** opening before the sale, because its question is proximity — did a showing precede this sale
+within seventy-two hours. A cycle measured from the last opening would shrink as a unit drew more
+attention, which is backwards, so the two cannot share an implementation even though they share
+inputs.
+
+**The interval sits on two clocks and the summary says so.** One end is observed by a showroom
+installation, the other is a date a CRM states. Different precision, possibly different time zone,
+and one is somebody else's record of an event rather than an observation of it. `clocks` is carried
+on every summary rather than assumed, because a duration between two clocks is not wrong but is
+uninterpretable unless the reader is told.
+
+**Four of the seven cases describe data no fixture produces** — a sale dated before the showing that
+led to it does not occur in a world written to be plausible — so the cases are built from
+constructed input. That is the point of them: they are the shapes a calculator must not answer with a
+number. A negative interval is not zero and not its absolute value; a sale the CRM has not dated is
+not an instant sale; an opening at the edge of the data is a floor, not a fact.
+
+**No existing figure moved, and by construction rather than by comparison**: no builder was touched.
+The only edits outside the new files are one barrel export.
+
+**What is still needed before the runtime can be unblocked**, in the order it would have to arrive:
+a per-unit first-opening timestamp reachable across the full history rather than one period slice;
+online session observations, or an explicit decision that the cycle starts at the first showroom
+opening and says so; and the CRM's Sold transition timestamp, which the deals path already carries.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §29.
+
+## 2026-09-22 — P2-07: reach and time-share, told apart on the figure
+
+**Project Overview's segment figures are three different kinds of measure behind one suffix.**
+`stockShare` divides units by units, `attentionShare` divides seconds by seconds, and
+`favouriteShare` / `compareShare` / `shareShare` divide counts of unit-touches by counts of
+unit-touches — plus `index`, which is the second of those divided by the first. The enumeration is
+the deliverable; the arithmetic was already right.
+
+**The rule was applied in two of the three places that draw it.** The segment panel names the kind
+and the denominator on every figure, and the parity scale says both per row. The quadrant matrix
+drew `1.41× attention` bare, on a line whose conversion half already carried its comparison and its
+sample size. It now reads `1.41× attention for its share of stock`. No figure moved: a before-and-
+after dump of every share, index, count and denominator on R06 came back identical.
+
+**No path exists from the place-of-interest demo to a real recipient list**, established four
+independent ways rather than by reading the page: `AudienceMatch`
+(`packages/readmodels/src/views3.ts:405-412`) has no field that could carry a recipient — its six are
+`meetingId`, `startedDisplay`, `agentName`, `outcomeLabel`, `because`, `href`, and `agentName` is
+staff; the audience page has no send or export of any kind; `getAudience` has one non-test consumer;
+and the live showroom connector does not populate place interactions at all
+(`packages/connectors/src/supabase-showroom.ts:72-76`).
+
+**Correction, recorded because of where it landed rather than how large it was.** The review log
+first cited that type at `views3.ts:236-243`, which is `SEGMENT_QUADRANTS` and `SegmentConversion` —
+a different type, with different fields, in the same file. A reader following the reference arrives
+somewhere that does not support the claim and has to decide whether the claim is false or the pointer
+is. The mechanism is worth naming: 236-243 is where `decided`, `share` and `projectShare` live, which
+is what the same round was reading for the quadrant matrix's conversion half, so the second clause's
+line range was carried onto the third clause's claim. The one reference in the round that could
+mislead about something off-screen is the one that was wrong; the other six checked out. A citation
+is a claim about a location and needs reading back at that location, not recalling.
+
+**The guard's own expectation was wrong, and the mutation is what proved it.** The test enumerates
+R06's figures and asserts each names its denominator. Searching for the denominator's _words_ passed
+a mutation that removed `of` from the one figure the type system does not protect — a `Count`, whose
+`note` carries the same words but is drawn _instead of_ `of`, and only when the value is zero. A
+non-zero count would have rendered bare. The assertion now looks at the `of` prop. Five of the six
+figures are `Ratio`, whose `of` is required, so the compiler already guards them; the guard earns its
+place on the sixth and on the matrix's free text.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §30.
+
+## 2026-09-22 — P2-08: the register a reader built, and what "verified" was standing on
+
+**Everything R07 draws about status or sale is one field**, `status`, with three values. It is drawn
+five times across the two surfaces, and twice under a label that promises something else: the
+register's thirteenth column and the unit page's second tally item are both `VerifiedOutcome`, both
+fed the catalogue's own state, and both marked with the tone this system reserves for "a person
+decided this". In two of the three states the two chips print the same word. A pre-reservation
+collapses to `reserved` on the delivered-catalogue path, so it reaches that column as a confirmed
+reservation.
+
+**The column's note denied a fact the same route draws.** It read "no offer, contract or CRM fact
+reaches this product against a single flat". `AssistedSale` is keyed by `unitCode` and carries the
+CRM's stage, its stage date and its `dateBasis`; the unit's own page renders a finding from it whose
+baseline is "the … date the CRM states". A per-unit CRM fact reaches this product — it does not
+reach that column, which is what the note now says. **Whether a column labelled "Verified outcome"
+should draw the catalogue's state at all is left open**: the code documents the duplication as
+deliberate, and overriding a recorded decision is not a correction.
+
+**The one genuine sale figure R07 was missing is now drawn.** `ProjectPulse.totals` carries
+`soldInPeriod` beside the lifetime `available`/`reserved`/`sold`, and the Briefing and the Project
+overview both state it. The register did not, so a lifetime stock count sat in a sentence on a screen
+where every other number is period-scoped, and "3 sold" read as three sales this quarter. Null is
+still not nought: an unobserved period says so in words.
+
+**The register survives opening a unit and coming back.** Its whole state is the query string, but
+the row's link carried only the period and the "Units" crumb — the only Back this screen draws —
+returned the reader to an unfiltered register. Both now go through `registerHref`. **The browser's
+own Back button is not tested and is not claimed**: what a browser restores is a runtime behaviour,
+and the filter living in the URL is a reason to expect it, not evidence of it.
+
+**No time-to-sell panel exists on R07**, so P2-06's blocked calculator has no second formula
+competing with it. `sale-cycle.ts` has two importers measured two ways: the barrel and its own test.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §31.
+
+## 2026-09-22 — The thirteenth column is gone, and what its docblock had assumed
+
+**The register's "Verified outcome" column is removed.** It was drawn from `row.status` — the same
+field the Status column two places from the left already draws — so it was never a second source
+agreeing with the first. It was the first source, printed again eleven columns away, wearing the tone
+this system reserves for "a person decided this". In two of its three states the two cells printed
+the same word, and a `pre_reserved` unit, which the contract layer folds into `reserved`
+(`packages/contracts/src/catalogue.ts:152-157`), arrived in it as a confirmed reservation.
+
+**The decisive argument is not redundancy.** A reader who meets Status=Sold beside Verified=Sold is
+entitled to conclude that two systems agree, and no two systems did. An empty space makes no claim;
+that column made a false one. It is the inverse of the contradiction P2-02 fixed: there, two surfaces
+said different things about one state — here one source was dressed as two.
+
+**This overrides a recorded decision, and the record deserves to say which part gave way.**
+`UnitStatus.tsx` argued the duplication at length. Its load-bearing sentence was that the verified
+column "is the only column on that table a system of record stands behind". That was not a
+preference; it was a factual premise, and it was false — a column fed the identical field stands on
+the same source as its neighbour, not a stronger one. The same docblock also stated "there is no
+per-unit CRM fact anywhere in the read models", which is false in the other direction: `AssistedSale`
+(`packages/readmodels/src/deal-source.ts:133-151`) is keyed by `unitCode` and carries the CRM's
+stage, its stage date and its `dateBasis`, and the unit's own page already draws a finding from it.
+So this is not a deliberate decision being overruled. It is a decision whose reasons stopped being
+true, measured rather than argued.
+
+**Twelve, not thirteen, and the count was stated in five places.** `UnitRegister.tsx` said it three
+times, `units/page.tsx` and `components/units/index.ts` once each. The same shape this repository
+keeps meeting: a number stated in one place is a number that drifts everywhere it was also stated.
+
+**Open — a real verified-sale column, and the three things it needs.** `AssistedSale` is the right
+content for such a column and it is not free. Before it can be drawn it needs: both clocks named, as
+`dateBasis` distinguishes the CRM's own stage instant from the sync that first witnessed the move; a
+denominator, because coverage is partial; and the flats it has no sale for told apart from the flats
+it records a zero for. Half of that would be worse than none, and would be exactly the "rule applied
+to one place in four" this programme has now corrected three times.
+
+**Open — the same pair survives one click away.** `VerifiedOutcome` now has a single caller: the unit
+page, where it sits in a tally directly beside a `StatusChip` reading the same `unit.status`. That is
+the removed column's argument at closer range. It is left standing and recorded rather than quietly
+fixed, because the column's removal was a product decision and this is the same decision.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §31.10.
+
+**Correction to the entry above, from the same day.** It was written alongside a review note claiming
+no test depended on the removed column. That was measured in vitest and stated about every test:
+`e2e/units-register.spec.ts` carried "Verified outcome" in both its header list and its
+definitions list, and its column test would have failed. Both lists are corrected and the whole
+repository was swept rather than the `e2e/` directory alone. The Playwright suite is still not run,
+so the spec is now consistent with the source without that consistency having been observed. This is
+the third appearance of one shape: a measurement taken through one filter, reported as a claim about
+everything the filter did not cover.
+
+## 2026-09-22 — The E2E layer, measured rather than assumed
+
+**Correction first, because it shaped the round.** A report described Playwright as never having run
+in this programme. That is false: it ran at the Phase 1 gate with 315 product tests passing and 130
+failures, all in the three `design-lab-*` specs. What is true is narrower and more useful — it had
+not run in any of Phase 2's eight rounds. A known-green starting point is a different situation from
+an unknown one.
+
+**The desktop project now: 321 passed, 130 failed, 80 skipped, 25.3 minutes.** Every one of the 130
+failures is in `design-lab-a11y` (60), `design-lab` (42) and `design-lab-stress` (28), and none is
+anywhere else. The mechanism matches the record as well as the count: 44, 43 and 43 waits for
+`.dla-root`, `.dlb-root` and `.dlc-root`, the three roots that do not exist because the lab route
+calls `notFound()` unless the local control plane is on, which needs a non-production `NODE_ENV`
+while the harness builds and starts. The spec says so itself. It is the wrong command, not a defect.
+The product count moved 315 → 321 since the Phase 1 gate and the six were not investigated.
+
+**`units-register.spec.ts` passes.** That was the round's first item: the branch carried a spec
+edited in P2-08 to expect twelve columns, and nobody had run it. Both of its tests are green, so the
+column removal is confirmed at runtime and not only in source.
+
+**The browser settled what source was not allowed to claim.** Three new cases in
+`e2e/register-filter-navigation.spec.ts`: the browser's Back restores the narrowed register, the
+"Units" crumb does too, and submitting the filter bar puts every axis it changed into the address.
+Reverting P2-08's crumb fix and rebuilding fails the crumb case with `Expected: 4, Received: 20` —
+the defect as a number — while the browser-Back case stays green, which is the proof that the two
+measure different things.
+
+**Two of the three new cases were wrong before they were right, and the runs said so.** The filter
+combination the last one used, `q=A` with `status=reserved`, is empty in this fixture — northgate's
+four reserved flats are B-601, B-602, C-701 and C-702 — so it failed against a register behaving
+correctly. And the crumb case's URL assertions passed against the mutation, because `click()`
+resolves on the click rather than the navigation and the unit page's address carries those same
+parameters. They now wait for the register and retry, and name the axis that was dropped.
+
+**A fourth instance of one shape.** A sweep reported as covering the whole repository missed
+"Verified outcome" where the phrase wrapped across two comment lines. Line-range filter, single
+runner, single-line grep: three times the tool chose the scope while the claim was written about
+everything the tool could not see.
+
+**Not run:** the `wide` and `mobile` projects, the full `pnpm test`, and no screenshot of any
+surface. The 80 skips were counted by spec but not explained.
+
+Evidence: `_review/ROUTE_MAP_AUDIT_VERIFIED_2026-09-21.md` §32.
+
+## 2026-09-22 — Presentation DNA: measured, then floored
+
+**What the measuring round found, on 60 cells (5 projects × 4 presets × 3 modes, the page's default
+selection).** The aggregated path exists and is drawn: the team benchmark lane is first on the plane
+(`packages/synthetic/src/showroom/project.ts`, `buildLane("team", …)`). The comparison's two
+denominators are on the screen three times over — lane headers, `n = L and R meetings`, the finding's
+`against N and M meetings`. Four things were not right. **(a)** A side with no meetings printed as 0%
+on every behaviour, because `share()` divides by nought as 0: the review project's default view read
+"Changes time of day or weather: Monika Kováčová 78%, Akhilesh Undev 0%" about a colleague with no
+meetings on it, and the page's "No comparison is available" branch had fired on none of the 60 cells.
+**(b)** The `long_opening` note promised that timing-blind sessions are excluded from both sides; the
+code's `?? 0` kept them in the denominator as "did not". **(c)** The transitions list printed six
+percentages whose denominator — the moves out of each row's own `from` — was in a read-model docblock
+and nowhere on the screen, so two bars were read against each other as fractions of one whole.
+**(d)** No sample floor anywhere on the surface: 48 of 60 cells had a side under `AGENT_MIN_SAMPLE`,
+41 had a side of nought, and the finding "The largest observed difference in how the two present" was
+drawn on all of them.
+
+**Decision, and its cost measured before it was built.** The floor is on the verdict, not on the
+lanes: `AGENT_MIN_SAMPLE`'s own docblock says no agent figure is presented _as a verdict_ below it,
+and a lane is a description with its count in its header. Applied to the same 60 cells: 12 keep a
+"What differs", 41 fall to the null branch, 7 keep the two lanes with the refusal in place of rows.
+The pre-stated stop condition was "empty on more than 48"; it is empty on 48, so it was built.
+
+**Shipped.** A side with no meetings yields no comparison and `noComparison` says who or what was
+absent; under the floor, `verdictRefusal` replaces the rows and the finding in the floor's own
+sentence; a behaviour only some sessions can answer is rated over those sessions, with its own n on
+the row, and withheld by name when fewer than the floor could answer it on a side; every transition
+carries `outOf` and the screen prints `count of outOf` beneath the share, saying that the whole
+differs by row. The two Ask Observer comparison tools say the refusal rather than "measurably similar
+ways". `share()` is unchanged: its other callers print the denominator beside the rate, and the one
+place a zero denominator reached a displayed rate without it is now never called with one.
+
+**A false hypothesis, and the one that was not.** The measuring round's second task put two numbers
+on one cell (Northgate, quarter to date, 74 meetings all timed): Time & weather's share of presentation
+time is 3.24% as a ratio of sums and 1.93% as the median of per-meeting ratios — 5.88% over the 42
+meetings that reached it, which is what P2-11 had measured on a narrower set. The stated hypothesis,
+that longer meetings spend proportionally less on the section, was labelled a guess and then measured
+false: Pearson 0.030 on all 74. The gap is compositional — 32 of 74 never opened the section. The mean
+of ratios is 3.21%, so the ratio of sums is not skewed by a few long meetings either. One definition
+stays on the surface.
+
+**Seventeenth rule, from the same round.** A comment that names a failure mode is evidence that the
+author saw it, not that it is handled. `pick()`'s docblock described "a stranger who has no meetings
+on the project" for delivered projects, and the guard beside it (`!context.ownDataOnly`) protected only
+that path while the synthetic roster path fell to the stranger by default. Third instance in this
+programme, after `soldInPeriod`'s comment guarding the wrong edge and `Environment`'s docblock stating
+the denominator rule it did not apply.
+
+**Not run:** Playwright, any screenshot, the `mobile` and `wide` projects. The next round captures
+`02-presentation`. The transitions' new fraction column and the diff-row note are unobserved in a
+browser.
+
+Evidence: commits `8ff0ab2` and the one after it on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — One half-set, one number; and the fold, measured live
+
+**The cohorts finding read "74 records" beside "n = 65 meetings".** Measured through the port before
+touching anything: 74 was `sessions.length`, the whole quarter's slice, passed as the comparison's
+evidence count; 65 was `sampleLeft + sampleRight`, the two cohorts; the nine between them are the
+meetings whose outcome was never recorded (`skipped`), which `outcomeIsUnknown` puts in neither
+cohort. The same seam gave periods "74 records" beside "n = 109" — the current slice alone as
+evidence, both periods as the sample, evidence smaller than the sample. The evidence behind a
+comparison is now derived once, in `comparisonOf`, as the meetings on its two sides, and what stands
+on neither side is a sentence (`PresentationComparison.excluded`) printed on the finding's caveat, on
+the aside's n line and in the cohort tool's caveats: "9 meetings in the period have no recorded outcome
+and stand in neither cohort." Cohorts reads 65 and 65; periods 109 and 109; agents unchanged.
+
+**The fold, live, at four sizes (Northgate, cohorts, scroll 0; Playwright, boundingBox and
+`elementFromPoint`).** The Compare aside sits beside the plane only above the 90rem breakpoint
+(`packages/ui/src/showroom.css:985`): at 1920×1080 its top is at document y 184 and the first "What
+differs" row is on the first screen; at 1440 and 1366 it stacks under the plane at y 1361 — 461, 551
+and 593 px under the fold at 900, 810 and 768 — and the first row needs 950, 1040 and 1082 px of scroll
+to clear the dock. The first screen at 1440×900 holds the kicker, the title, the lede, the five lanes
+and 28% of the transitions block; at 1366×768 the lanes alone. The dock's box is 92 px tall but its
+hit area is 70: at 1440×900 it covers the denominator sentence at every probed point and not the first
+bar label (5 px below the hit area); at 1920×1080 it covers the third and fourth bar labels; at
+1440×810 and 1366×768 it covers the last lane's track — a figure, and a focusable region. Recorded,
+not changed: the layout decision is the board's.
+
+Evidence: the commit after `3a762f4` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — The comparison leads when the planes stack
+
+**The decision, from the fold numbers above.** Under the 90rem breakpoint the Compare plane comes
+first: in the DOM, so reading order, focus order and the single column agree, and the two-column
+branch places it on the right by grid column (`.iris-two[data-lead="aside"]`,
+`packages/ui/src/showroom.css`), so side by side nothing moved. The breakpoint stays where its
+docblock put it. The hairline between the stacked planes stays between them, on the plane that now
+comes second. Opted into by the page: `Replay.tsx` shares `.iris-two` and its raised plane is
+evidence, not a question.
+
+**Re-measured, same method, cohorts unless said.** First comparison row: 0 px of scroll at all four
+sizes (was 0 / 950 / 1,040 / 1,082 at 1920×1080 / 1440×900 / 1440×810 / 1366×768). The lanes, which
+were the whole first screen at 1366×768, are now entirely under the fold in one column (0 of 5, block
+at 1,357–1,734; 1,032–1,409 in agents mode); the first screen is the mode tabs, the two compact
+lanes and 92 / 72 / 63 % of "What differs" at 900 / 810 / 768. The dock's 70 px hit area now covers
+"What differs" rows — one at 1440×900 (Skips Amenities), two at 1440×810 and two at 1366×768 — and in
+agents mode the plane's kicker at 900 and the "What this source cannot say" block at 810; at 1920 the
+third and fourth transition labels and their values, as before. Nothing focusable or interactive is
+under it at any size now; before, the last lane's track (focusable) was, at 810 and 768. The dock is
+not changed here: the next decision.
+
+**Guard:** `e2e/presentation-order.spec.ts` asserts order, not pixels — document order and drawn order
+in one column, side-by-side placement in two. With the DOM order put back, the first two fail by name
+and the third still passes, which is the proof that they measure different things.
+
+Evidence: the commit after `3696bf6` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — Sales Agents: the provenance and the floor
+
+**Measured first (P2-14).** Both surfaces exist and cover activity, method and outcome. The roster
+draws four outcome rings, radars, a workload list and repeat bars — `TeamRegister`, whose docblock
+says it replaced the rings, is exported and rendered nowhere. Denominators missing from the screen:
+the roster's "% progressed" is over decided meetings while the only count on the card is every
+meeting (Monika, ISTER TOWER last quarter: 7 of 17 drawn as 41% beside 21); "× the team's share" on
+both surfaces stands on the timed meetings and neither says so; the repeat bars' whole is in the
+verdict sentence, not beside them. Under the floor: the radar shapes, the workload list's medians and
+the section sequence's team medians. Twenty cells, 46 agent-rows, 25 under `AGENT_MIN_SAMPLE`.
+
+**Two defects, fixed, in two commits.** The "Verified outcomes" region counted `session.outcome` —
+the agent's own entry — under a subhead and a sentence that said a system of record stood behind it,
+at the attributed tier with `CRM_OUTCOME_CONTEXT`, and only where a CRM was connected, which said the
+CRM produced the number. No deal is linked to a meeting (P2-13, ADR-0039), so none of it could be
+true: the register's removed "Verified outcome" column on a second surface, one source labelled as
+another. The region stays — the count is real — as `recordedOutcomes`, "Outcomes they recorded", at
+the observed tier, from the showroom, on every project. The tier vocabulary had the word:
+`observed_sequence`, "these facts were recorded; nothing beyond the record is claimed". And the
+roster's lead finding picked the largest over-index across every agent regardless of the floor, so on
+11 of 15 cells it said about a person what the card beside it had just refused to say. An agent under
+the floor is not a candidate; where nobody clears it, the refusal is a finding in the card's own
+words. After: 12 cells keep a signature finding, none under the floor; 3 carry the refusal; 0 are
+left with no finding.
+
+**Twentieth rule, and its sweep.** A defect removed from one surface is a class, not an instance, and
+the same claim is swept on the others before the item closes. The sweep found the same shape, not
+fixed here: the follow-up "recorded" figure and the funnel's two outcome stages are derived from
+`session.outcome` and withheld without a CRM (`packages/synthetic/src/showroom/screens.ts`,
+`followUpFor`, `funnelStep`); the meeting registers print "No CRM" for a follow-up state that is the
+outcome's; the unit page's timeline entry "Meeting ended: …" and its "asked for a follow-up" stage
+carry the attributed tier over the same recorded outcome; and `apps/web/src/lib/ai/agent.ts` upgrades
+any answer with `CRM_OUTCOME_CONTEXT` among its sources to the attributed tier. The replay's own
+region does it right — "what the agent entered — it is not a reservation and not a sale" — and is the
+wording reused here.
+
+**Recorded, next round:** the "% progressed" denominator and the "leans on" set; the radar, the
+workload medians and the section sequence's team medians under the floor; `TeamRegister`'s fate.
+
+Evidence: the two commits after `898bca5` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — The twentieth rule's sweep: one claim in five shapes, and a sixth of another class
+
+**Measured before fixing, on the doctrine.** `docs/06-ownership.md` gives the showroom "the recorded
+outcome" and the CRM "whether the deal later closed"; `meeting.outcome_set` is a showroom event
+(`docs/03-event-map.md`); `CRM_OUTCOME_CONTEXT` is "the CRM's account of what the commercial process
+concluded". In every one of the five places the number came from `session.outcome` alone and the
+CRM only gated or was credited: the agent page's follow-up figure and its two funnel outcome stages
+(with the unrecorded-outcome finding beside them), the registers' "No CRM" follow-up state — a
+fourth member of `FOLLOW_UP_STATES` whose own docblock said the CRM produced a fact the room had —
+the unit page's "Meeting ended" timeline entry and its follow-up stage (with the shortlist-without-
+follow-up finding beside them), and Ask's evidence bundles, which upgraded any answer carrying the
+CRM's chip to an attributed conversion in the words of the comment that forbade it. Zero good gates;
+the stop condition ("three or more") did not fire.
+
+**Fixed in one commit, on the `6ade758` pattern:** the number stays, the claim goes, the tier is the
+vocabulary's own word for a record. The `unavailable` state is deleted rather than documented, and
+the compiler found every consumer. Three tests that asserted the gates now assert the opposite; the
+meetings list's no-CRM finding keeps saying what a missing CRM takes away and now says it precisely.
+Through the port: Riverside's follow-up figure and outcome stages read `empty` — a real answer about
+the record — where they read `unavailable`; every register row reads "not recorded"; Northgate's
+A-402 timeline carries nine recorded outcomes at the observed tier from the showroom.
+
+**The sixth, separately.** The unit funnel's reserved and sold stages have the right provenance —
+`verified`, "stated by the unit catalogue" — and wore the wrong words: `attributed_conversion`, and
+the showroom's chips with the CRM's. The tier is `observed_sequence`, the vocabulary's word for a
+record. For the source there is no word: `INSIGHT_SOURCES` (frozen) has no catalogue, so the stages
+wear no chip rather than a false one, and the basis sentence carries the provenance. A `CATALOGUE`
+source is the contract change that would let a chip say it. The offer stage — `unavailable`, "the
+deal ladder is the CRM's" — keeps the attributed tier over a metric that does not exist; not touched.
+
+**A process defect, recorded.** The sixth's guard was pushed red once: it read a sold unit that no
+meeting had opened, so the port answered not-found, and the gate that should have stopped the commit
+piped vitest through `grep`, which returned the grep's status and not vitest's. The guard reads A-402
+now, the gate runs under `pipefail`, and the fix is its own commit.
+
+**Not run:** Playwright, screenshots, `mobile`/`wide`. Four regions' words changed on the agent
+pages since their last capture, and the meetings register lost its band; the next round photographs
+them.
+
+Evidence: the three commits after `3a1051d` on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — Sales Agents: the floor on three comparisons, the set, two denominators, and the first photographs
+
+**The line that could have refuted the round, run first.** `section-time.test.ts` asserted that a
+partly timed meeting alone gave residences a share of 0.25; one temporary line printed the same
+profile's `timedMeetings`: `0`. A 25% share on a stated set of nothing, exactly as claimed. The line
+was removed and the file's hash proved unchanged.
+
+**The floor, on the comparisons the roster and the agent page still drew (`37e92e1`).** The radar
+scales every axis against the strongest colleague — a ranking without numbers — and was drawn from
+four meetings; the workload list printed a median under every name; the section sequence printed the
+team's median beside every stop, twelve lines under the block that withholds the project's rate and
+says why. Below the floor the radar card prints the note and not the shape, the list's sub line is
+the note, the sequence takes `showTeam` from the page and its summary drops "team median" with it.
+One sentence, one builder: `suppressionNoteFor`. The sweep of `progressedShare` and
+`medianDurationDisplay` found every consumer — the roster (floored), the report's agents table
+(not), `TeamRegister` (unrendered, untouched), `AgentOutcomes` (deliberately not drawing it), the
+Flow page's docblock (removed it), and two period-level readers that are not per agent; the report
+was the one unfloored per-agent reader, fixed in the same commit.
+
+**The set, then the denominators (`90c2cf7`).** The agent lane's shares now stand on the fully
+timed meetings, as the Features page's did and three docblocks already claimed. Measured before and
+after on every share of every agent on every cell — 414 figures — nothing moved: the fixtures'
+unknowns are whole meetings. "Leans on … × the team's share" names its set on the roster, the agent
+page's head and both signature findings, in the Features page's form; the finding's n and records are
+that set. "41% progressed" was rounded in the roster component with a percent sign — the figure
+ADR-0012 forbids, the line the Flow page named when it removed it — beside a centre of 21 where the
+rate stood on 17. `AgentOutcomeRing.decidedMeetings` carries the denominator; the card draws the rate
+through `ShareFigure` with it in words; the report's header names it.
+
+**Measured, not fixed:** the report's team table reads the first agent's `sections`, which passed
+that agent's own `reachRate > 0` filter. On the 15 cells with agents, no section any agent reached
+is missing from the first agent's rows: 0 cells, 0 rows, 0.0 percentage points carried.
+
+**The first photographs of these pages since four regions changed** (`_review/views-p2-15/04-agents`,
+`05-agent-detail`, plus the showroom bundle in `_review/showroom-p2-15`). What is there: on the
+roster, three cards under the floor print the note where the rate stood and the fourth prints "26%
+progressed, of 19 meetings with an outcome · median 11m 42s" over three lines, then "Leans on Home —
+1.8× the team's share of presentation time, across the 22 of 22 meetings the source could time end
+to end"; the radar row keeps four cells, one shape and three notes, and the notes float at the top of
+cells three-quarters empty, each beginning "Monika Kováčová · 19 meetings — 19 meetings in this
+period", the count twice; the workload list's sub line truncates the note to "19 meetings in this
+period, 1 short o…", the reason on hover only. On the agent page the section sequence prints no team
+median and the reason stands under it. Two findings the photograph made: the activity tally's three
+`insufficient` figures each print "Fewer than 20 meetings for this agent — shown as a raw figure, not
+as a verdict" without wrapping, and the three sentences overlap across the cells into an unreadable
+line — a defect of `Figure`'s shortfall in a `TallyItem`, older than this round and never
+photographed; and at 1440×900, scroll 0, the roster's first card's "Agent detail →" link sits at the
+lower edge of the dock's hit area, read off the capture at ±5 px and not yet measured with
+`elementFromPoint`. Neither is fixed here.
+
+Evidence: `37e92e1`, `90c2cf7` and this entry's commit on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-22 — Sales Agents closed: the habit's set, the three photographed defects, a deletion, and the dock measured
+
+**The gate's set, measured before it moved.** Three agent-rows on the fixtures hold twenty meetings
+and fewer than twenty timed ones; of the twelve cells that carry a signature finding, one loses it
+under a timed gate (`alpha/northgate · last_quarter`); no cell has everyone clearing twenty held and
+nobody clearing twenty timed. The stop condition — more than six cells losing their finding — did
+not trigger.
+
+**The habit's gate reads the set the habit stands on (`915274c`, then `10f4130`).** "Leans on" was
+gated on the meetings held while its sentence named the meetings timed: fifteen of twenty-five, under
+a gate that counted twenty-five. The finding, the withheld branch, the roster's card and the agent
+page's head now all gate on `timedMeetings`, and under that floor the read model's own reason stands
+where the habit would: "15 meetings of the 25 held could be timed end to end, 5 short of the 20 a
+habit needs before it is read as a verdict." The first commit shipped with that reason never built.
+The mutation's reverse replacement found two occurrences of its key and reported "hash restored: NO",
+and nothing read the report — the twenty-second rule: a check whose answer the next step does not
+depend on is not a check. The fix is its own commit, and from that commit on the order is commit,
+then mutate, then `git checkout -- <file>`, with an empty `git status --porcelain` as the proof.
+
+**The roster's three photographed defects (`aeefdfd`).** The workload list's sub line was handed a
+three-line sentence and truncated it to "19 meetings in this period, 1 short o…"; the radar card's
+label carried the count and the note repeated it; the note stood at the top of a cell three-quarters
+empty beside a 190px shape. `suppressionNoteFor` gains a named short form, "19 of 20 meetings", for
+the one-line slot; below the floor the radar label is the name alone; the note fills the box the
+shape would, vertically centred, by a stylesheet rule in `packages/ui`.
+
+**`TeamRegister` is deleted (`eeffee1`).** Lost: `apps/web/src/components/agents/TeamRegister.tsx`,
+242 lines — a table of Agent, Presentations, Median presentation, Progressed, Outcome not recorded,
+Reporting sample, Leans on, Rates IRIS — and the barrel's export and docblock entry. Three reasons,
+each checked before the deletion: nothing rendered it; the barrel's docblock called it "the shape
+that replaced four outcome doughnuts" while the four rings are what the roster draws; and `Rates.tsx`
+says `ShareFigure` is to be deleted once `AgentProfile` carries `MetricValue`s, which a second,
+unreachable consumer only made dearer. `isDash` stays; the meeting register uses it.
+
+**The dock, measured with an instrument, not touched.** On the roster, for two viewers, at
+1920×1080, 1440×900, 1440×810 and 1366×768, at the top, the middle and the bottom of the page,
+`elementFromPoint` found the dock's hit area and `elementsFromPoint` listed every page element under
+it on a 24×6 px grid, with whether it or an ancestor is focusable. Twenty-four measurements; nine
+hold a focusable link under the hit area. At the top of the page, the first card's "Agent detail →"
+link sits under it at 1440×900 (137 grid points for Petra, 83 for Operations) and at 1440×810 (3
+points, Petra). In the middle of the page the workload list's name links sit under it at 1440×900,
+1440×810 and 1366×768. At 1920×1080 nothing focusable is under it at any position, and at the bottom
+of the page nothing is at any size. The rule stood: the dock reopens if a focusable element is
+measured under the hit area. It is measured. The dock is its own round; nothing here touched it.
+
+**The photograph (`_review/views-p2-16/04-agents`).** The radar row reads as four equal cells: one
+shape, three notes, each note centred at the height of the shape, the name once in bold and the count
+once in the note. The bold name stands on its own line and the dash opens the second — "Monika
+Kováčová / — 19 meetings in this period, 1 short of the 20 needed for a verdict" — because the name
+and the dash wrap at the note's 22rem. The workload list's sub lines read "median 11m 42s", "19 of 20
+meetings", "18 of 20 meetings", "15 of 20 meetings"; none is truncated. The shape's legend, "Akhilesh
+Undev · 22 meetings", is drawn below the row and not under his cell, which is the Radar component's
+legend and older than this round.
+
+**Not run:** `mobile`/`wide`, the full Playwright suite. The agent page's activity tally, whose three
+shortfall sentences overlap, and the report's `agents[0].sections` are the next round's sweep.
+
+Evidence: `915274c`, `10f4130`, `aeefdfd`, `eeffee1` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; `_review/views-p2-16/`.
+
+## 2026-09-22 — Two sweep items of one shape: a primitive that holds on one surface and folds on another
+
+**The primitive's scope, measured before the fix.** `Figure` prints a below-the-floor metric as its
+raw figure and a shortfall sentence in `.ox-shortfall`, which was `white-space: nowrap` for the
+sheet row's short form; inside a tally cell the read model's sentence could not wrap, and on the
+agent page three of them ran across their cells into one line. Because the defect is the
+primitive's, the scope was measured across the repository first — three search angles, then one
+adversarial reader per file, twelve duplicate claims refuted: (A) 32 sites draw absent-state text
+inside a `Tally`/`TallyItem`, in 8 files; 23 on 4 mounted surfaces, 9 in 4 components no page
+imports; `Figure` itself inside a `TallyItem` at 11 sites on 2 surfaces. (B) Agent detail 5, Unit
+detail 14, Report 3 (with its `?meeting=` variant), Briefing 1; unmounted: `components/project/
+Building.tsx` 6, `SegmentDetail.tsx` 1, `components/flow/OutcomeFigures.tsx` 1, `WindowFigures.tsx` 1.
+(C) The longest visible text is 80 characters, the `insufficient` state: "Fewer than 20 meetings for
+this agent — shown as a raw figure, not as a verdict." Two longer producer strings, 103 and 117
+characters, are hover titles behind the word "Unavailable". More than six, so the rule is the grid's
+(`9ca1333`): `.ox-tally .ox-shortfall` wraps. The test measures the rendered page — every shortfall
+inside a tally cell ends inside that cell — and with the rule dropped it reports three sentences each
+132 px past their cells.
+
+**The team's section list is the team's (`6869d97`).** The report's section table read the first
+agent's `sections`: the team's fields on an array the first agent's own `reachRate > 0` filter had
+thinned. `AgentsView.teamSections` is built on every meeting by `sectionUses`, one function at two
+scopes as `sectionSeconds` and `totalSeconds` are; the report reads it, and the docblock that
+defended the shortcut went with it. The constructed case — a first presenter who never opens Compare
+beside one who does — is red on the old code.
+
+**The radar's caption is the card's (`c8b30b6`).** The finding held: `Radar` itself drew a key under
+every drawing, and the roster, its one consumer, hands it one profile per cell, so each cell got a
+key for one shape — a swatch beside the one name, where the caption belongs. The component draws its
+key for two series or more; the card is a `figure` and captions its own shape under it; the card's
+rows pack at the top so a note beside a shape is centred on the shape's box, not on the box plus the
+caption.
+
+**The photographs (`_review/views-p2-17/04-agents`, `05-agent-detail`).** On the roster's radar row,
+"Akhilesh Undev · 22 meetings" stands as plain text directly under his shape, no swatch, and the three
+notes are centred at the shape's height; the caption is the lowest line of the row, under the one
+shape it names. The notes still break after the bold name with the dash opening the second line, as
+last round recorded. The workload list's sub lines are unchanged: "median 11m 42s", "19 of 20
+meetings", "18 of 20 meetings", "15 of 20 meetings". On the agent page's activity tally the three
+shortfall sentences wrap onto two lines inside their own cells — "Fewer than 20 meetings for this
+agent — shown as / a raw figure, not as a verdict." — beside "12m 42s", "4.1" and "87%", with
+"19 of 74 on this project" in the first cell; nothing overlaps.
+
+**The dock, answered, not touched.** Last round's twenty-four measurements found a focusable link
+under the hit area in nine positions on the roster, against a tracker sentence that had generalised
+one surface's measurement to the product. The decision offered — the dock in the document flow (A), a
+launcher (B), a per-viewer hide (C) — is answered in the round's report: (A). A fixed bar over a
+scrolling document covers something at some scroll position whatever its size, so (A) is the one
+option under which "it covers nothing" is a statement and not a hope until the next measurement. It
+is its own round.
+
+**Not run:** `mobile`/`wide`, the full Playwright suite.
+
+Evidence: `9ca1333`, `6869d97`, `c8b30b6` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; `_review/views-p2-17/`.
+
+## 2026-09-22 — The dock stands in the document, and the dead tree is surveyed
+
+**The dock, in the flow (`050f677`).** A fixed bar over a scrolling document covers something at some
+scroll position whatever its size, so a rule about what the docked composer covers could only be
+narrowed after each measurement. The dock is the last child of `<main>` now, after the page's
+content. What was looked at before each change: `.ask-dock` lost `position: fixed`, its offsets and
+`z-index: 5`; the `pointer-events` pair and the gradient fade had one reason each — clicks through
+the fade to the page beneath, a seam where a table scrolled under the bar — and nothing is beneath
+now, so both went, and the side padding with them; `overflow-x: clip` stays for the overhanging glow.
+`--ask-dock-safe-area` had five readers, all in `iris-shell.css` (the definition and its reader at
+372–373, the 140px pair at 405–406, the docblock at 361–371); none elsewhere; all gone, and the second
+reserve — `:root:not(:has(.ask-page)) .irs-main { padding-bottom: 132px }` with its 116px twin in
+`ask-iris.css` — went as the same reserve stated twice. The column keeps the 96px foot the Ask page
+cancels. `Shell.tsx`'s inert list keeps `.ask-dock` beside `#main` with its reason beside it: the
+composer inherits `#main`'s inertness, but `mobile-menu-containment.spec.ts` reads the element's own
+`inert` property. The header already carries ASK IRIS through `withPeriod`, on the desktop nav and
+the mobile sheet; nothing was added.
+
+**The guard the rule never had:** `e2e/fixed-covers-nothing.spec.ts` — on the roster, four sizes by
+three scroll positions by two viewers, the box of no `position: fixed` element intersects a
+focusable element outside it. Before the commit it reported 12 and 9 intersections; after, none, and
+the 24-position `elementFromPoint` instrument reports 0. Mutation, `position: fixed` back with its
+offsets: 13 and 9, red on "no fixed element covers a focusable one on the roster, for Petra Novák"
+and "… for MADSPACE Operations"; restored from the commit, porcelain empty. Measured on the build:
+the dock is `static`, the last child of `#main`, 1392px wide at 1440, the document no wider than the
+viewport, `display: none` on the Ask page.
+
+**Findings, not fixed.** `layout-integrity.spec.ts`'s "the Ask dock covers nothing" measured the
+dock's box against text at the page's end; with the dock in flow it cannot fail — a guard that has
+outlived its subject. The layout passes `periodParam=""` to `AskDock`, so the dock's form does not
+carry the period its own docblock says travels with the question.
+
+**The dead tree, surveyed, nothing deleted.** One agent per file answered three questions —
+reachable by import graph, whether the live page draws the same, which tests read it — and one
+adversarial reader per file tried to refute each answer. All eleven are unreachable: the project
+barrel has no importer in any form, the flow barrel is imported only by `flow/page.tsx:9`
+(`AssistedSales`, `FlowLadder`) and `report/page.tsx:22` (`FlowLadder`). The live page draws the same
+in full for one file (`WindowFigures`: `flow/page.tsx:125–168`, denominator on the card), not at all
+for two (`Building` on `/project` — the stock tally with its `of {units}` denominators and the
+presentations count with its floor are drawn on `units` and `showroom` instead; `Movement` — no
+change register anywhere, `PulseUnit.change` is a title only), and partly for eight, where the
+denominators the components print are, on `/project`, either hover-only (`ParityScale`'s "X% of
+looking time on Y% of stock", `PairedRates`' "share of units opened that got this") or absent
+(`StatedDemandRegister`'s bare "Times applied" and "Units matching"; the six-figure segment tally with
+`of=` and its sample floor, missing entirely). No test imports any of the eleven; ten whole-tree
+tripwires read their bytes without naming them; one test reads one of them by path —
+`project-overview-denominators.test.ts:29` reads `SegmentDetail.tsx` and asserts the P2-07 denominator
+doctrine on a file nothing renders. The rule for the next round is stated in the tracker.
+
+**Not run:** `mobile`/`wide`, the full Playwright suite.
+
+Evidence: `050f677` and this entry's commit on `feature/observer-ux-overhaul-phase2`.
+
+## 2026-09-23 — P2-07 reopened: the project page's denominators on screen, and the guard where the reader stands
+
+**The rule that opened it.** A denominator that lives only in a `title` attribute is not stated; the
+first-page rule is about the screen, not the DOM. And what the reader sees is decided by a render or
+a photograph, not by reading the source: every claim below about what is on screen came from the
+rendered page's `innerText` and from the photographs, before and after.
+
+**Before, rendered (the f0cc4e3 build, `/project?segment=rooms-2` at 1440×900).** The parity rows
+read "Two-room 1.41×" and "Three-room 0.59×"; "70% of looking time on 50% of stock" was a `title`
+on an empty `<b>`. The paired rows read "Balcony view 40% 38%"; "share of units opened that got
+this" was a `title` on the label. The register rows read "Rooms 2 37 18" under bare heads. The
+place shares read "6%", "27%", rounded by the page.
+
+**The dock carries the period (`2d9e2ee`).** The layout cannot know it — its own docblock says a
+layout does not receive `searchParams`, by design — so it passed `""` and the dock's docblock was
+false. The shell meets the same constraint by reading the URL in a client component; `PeriodField`
+is that solution at the size of one hidden field. Measured on the rendered form: before, no field on
+a page read over 28 days; after, `last_28_days`, and none on the default span. The first mutation run
+was a false green — the mutated build failed its typecheck and the old server kept serving — caught
+because the run's red was expected and did not come; redone with a mutation that compiles, the build
+exit gated and the server replaced by PID: red on "the dock's form carries the period the page is
+read in".
+
+**The outlived guard deleted, its uncovered claim moved (`9f43b9d`).** "The Ask dock covers nothing"
+measured the dock's box against text at the end of eight surfaces and could not fail. Of its four
+claims — the dock by name, text, the page's end, eight surfaces — the roster guard covered the first
+three generalised; the other seven surfaces and text as a target did not, and moved:
+`fixed-covers-nothing.spec.ts` now also asserts on every surface, at three positions, that no fixed
+element covers a focusable element or a leaf with text. Mutation, the dock fixed at the foot again:
+all ten red, by name.
+
+**The denominators on screen (`f646fde`).** The parity scale prints the two shares under each label
+(the label column widens to 14rem); the paired chart gains `of`, one line under its head, and the
+read model carries `unitsOpened` and `otherUnitsOpened` — unit openings, which is what the rates
+are of; the register's two heads read "Times applied, of 74 presentations" and "Units matching, of
+36 available now", with `ProjectView.availableUnits` behind the second and the count columns widened
+from 7rem to 13rem, the width at which the heads wrap to two lines — measured, after a first attempt
+that read the stylesheet instead of the render and wrote a duplicate rule under an existing one.
+The shares come as `*Display` strings from `shareDisplay`, in the project's locale and with "<1%"
+for a share that rounds away but is not nothing; the page rounds nothing. Chosen over `ShareFigure`
+because these shares carry no verdict and no floor, and its own docblock calls it a stopgap.
+
+**The guard where the reader stands (`3a8f5bc`).** `project-overview-denominators.test.ts` read
+`SegmentDetail.tsx` from disk — a component nothing renders — and is deleted. Its claim about the
+attention index moves to the rendered matrix; its claims about a six-figure tally have no subject on
+the live page and die with it. `e2e/project-denominators.spec.ts` reads the rendered page through
+`innerText` — the register's head is uppercase on screen, so the assertion is — five tests, one
+assertion each. Mutation, one printed denominator taken away: red on "the search register says what
+a count of applications is of".
+
+**After, photographed (`_review/views-p2-18/03-project`).** Under "Two-room": "70% of looking time
+on 50% of stock", the track, "1.41×"; under "Three-room": "30% of looking time on 50% of stock",
+"0.59×". Under the paired head: "Each rate is of the unit openings in these meetings: 201 openings of
+two-room units on the left, 82 of other units on the right." over two lines, then the five rows. The
+register's heads: "TIMES APPLIED, OF 74 / PRESENTATIONS" and "UNITS MATCHING, OF 36 AVAILABLE /
+NOW", two lines each, right-aligned over "37 18". The place shares read "6%, 5%, 5%, 4%" and "27%,
+20%, 13%" as before — the same numbers, from the read model now; no share on this fixture is under
+one percent, so the "<1%" case is proven by the unit test alone, not by the photograph.
+
+**Not run:** `mobile`/`wide` — the register's narrow-width variant was widened in step and not
+photographed; the rest of `layout-integrity.spec.ts`; the full Playwright suite.
+
+Evidence: `2d9e2ee`, `9f43b9d`, `f646fde`, `3a8f5bc` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; `_review/views-p2-18/`.
+
+## 2026-09-23 — The wide and mobile projects run for the first time; the first dead file goes; the register at 1199px and on a phone
+
+**Rule twenty-four, recorded.** A green mutation counts only when the same pipeline, in the same
+run, has shown red: last round's mutated build failed its typecheck, the old server kept serving
+the un-mutated code, and the green looked like evidence. Every mutation since gates on the build's
+exit and on the server being replaced by PID.
+
+**`WindowFigures` is deleted (`f39389c`).** The first item of the dwindling checklist: 162 lines,
+one export, a tally of the KPI panel with the qualifier beside each figure; the barrel's docblock
+entry and export. Checked before: imported by the barrel alone, the barrel by `flow/page.tsx:9` and
+`report/page.tsx:22` for other names; the live flow page draws the same group at 122–170; no test
+names it, the tree-walking tripwires pass without it. `OutcomeFigures` and `AgentOutcomes` stay in
+the barrel, unreachable, their rules not yet landed.
+
+**The `wide` project, first run — 548 declared, 230 passed, 13 failed, 285 skipped, 20 did not
+run (9.9 min).** 41 spec files; 29 ran at least one test; 9 of those carry a failure; 12 are
+entirely skipped by their own project gates ("captured once", "checked once" on desktop). The 20
+that did not run are `ask-iris-compare`'s serial group, skipped by project. The 13: seven are the
+Ask API answering 503 where 200, 400 or a stopped burst was expected (`account-login`,
+`agent-authorisation`, five in `ask-security`); three are a disabled `#budget-input` or
+`#key-openai` (`models-and-budget`, `settings-ai`, `settings-observer-parity`) — this machine has
+no credential key; one is `quality`'s "one agent has one meeting count on one page", waiting for
+`.iris-radars .iris-ring-key li`, the radar key that `c8b30b6` stopped drawing for one shape — a
+guard on a removed element; one is `nav-reachability`'s `.ox-lede` resolving to three elements; one
+is `views-screenshots` 06-audience timing out on `/sign-in` right after the 100-request burst. None
+of the thirteen is about the 1920px width.
+
+**The `mobile` project, first run — 548 declared, 216 passed, 22 failed, 292 skipped, 18 did not
+run (14.1 min).** 28 spec files ran a test; 10 carry a failure. Twelve of the 22 are the same
+failures as on wide, same first line, not phone findings. Of the other ten: seven are specs that
+assume a desktop affordance the phone deliberately puts in the sheet — the context band's Developer
+and Period switchers (`authorization` ×4), the Sections navigation (`authorization`,
+`nav-reachability`), the header's Settings link (`settings-ai`), and `getByText('Monika
+Kováčová').first()` resolving to the header's hidden account name (`authorization`); two are
+`page.goto /sign-in` aborted with "frame was detached" (`mobile-menu-containment`,
+`nav-reachability`) — not understood; and `settings-observer-parity`'s own phone test finds
+`#key-openai` disabled, the credential-key environment again. Two of twenty-two "do not know": the
+classification stands.
+
+**The register at 1199px and on a Pixel 7, photographed, untouched.** At 1199px the grid is
+`96px 647px 144px 144px`; the two heads wrap to two lines and fit (144×40 px); the counts stay in
+their columns; the document is 1199px wide, no horizontal scroll. On the Pixel 7 the head is
+hidden by the record layout and each row reads "Rooms 2 · Times applied 37 · Units matching 18";
+the document is 412px wide, no horizontal scroll. Not broken by any of the three criteria, so not
+touched. What the phone photograph also shows: the sets the heads carry — "of 74 presentations",
+"of 36 available now" — are absent on the phone, because the head that carries them is hidden and
+the cells' `data-label` values are the old short words. A count without its set, on the phone: a
+finding for the next round, not fixed here.
+
+**Not run:** nothing else; both projects ran whole. The `desktop` project was not run whole this
+round; the environment-class failures above (503, disabled inputs, the radar key) will show there
+too.
+
+Evidence: `f39389c` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the run logs
+in the session scratchpad; `test-results/` for the failures' page snapshots.
+
+## 2026-09-23 — Two fixes the measurement brought, and the whole `desktop` suite run for the first time
+
+**The count guard moved to its subject (`c37f795`).** `quality.spec.ts`'s "one agent has one
+meeting count on one page" waited for the radar's key item, which `c8b30b6` stopped drawing for one
+shape; it was red for two rounds on a project nobody ran whole. The locator now finds the radar card
+that names the ring card's agent and reads its caption or its note — the same assertion, on another
+element. Red before the change on the same server (30 s timeout on `.iris-ring-key li`), green
+after; mutation, the note's count off by one: red, "Monika Kováčová's radar card does not carry the
+count the ring does", expected "19", received "20 meetings in this period". A first mutation did not
+compile and the chain refused to run the test — rule twenty-four working as written.
+
+**The register's sets on the phone (`8491819`).** The head's words and the count cells'
+`data-label` are one string each now; on a Pixel 7 the record layout paints "Times applied, of 74
+presentations 37" and "Units matching, of 36 available now 18" on one line per cell (292×20 px, no
+wrap, no overflow, the document 412 px wide), photographed before and after. The guard runs on the
+mobile project and reads the pseudo-element's computed content on the rendered page; mutation, the
+short label back: red, "a count on the phone's register carries its set", received `"Times applied"`.
+
+**The `desktop` project, whole, for the first time — 549 declared, 312 passed, 143 failed, 81
+skipped, 13 did not run (24.7 min).** 42 spec files; 35 ran a test; 11 carry a failure (31% of
+those that ran, under the one-third line by two files); 143 of 549 tests. **130 of the 143 are the
+three design-lab specs** (`design-lab` 42, `design-lab-a11y` 60, `design-lab-stress` 28), every one
+"`.dla-root` not found": `apps/web/src/app/design-lab/layout.tsx:50` answers `notFound()` unless
+`localControlPlaneEnabled()`, which needs a non-production `NODE_ENV` and
+`OBSERVER_LOCAL_CONTROL_PLANE=1`; the suite's server is `next start` with neither. An environment
+gate, not a credential one and not a product defect. Of the other thirteen: eight are the
+credential class — the Ask API's 503 where 200, 400 or a stopped burst was expected
+(`account-login`, `agent-authorisation`, `ask-security` ×5, `settings-ai` "answers from evidence and
+offers the way to fix it"); three the disabled `#key-openai`/`#budget-input` and the transparent
+"Save budget" button (`models-and-budget` "spending on one account leaves the other untouched",
+`settings-observer-parity` ×2); one an obsolete locator, `nav-reachability`'s `.ox-lede` resolving
+to three paragraphs; and one whose cause is probable but not read to the end — `ask-iris-compare`
+"films the lap" asks for a screenshot clipped around `.ask-dock .ask-hero` and the clip has no
+height; the dock stands at the end of the document since `050f677`, below the fold where that spec
+looks. No failure in the (B) class was found in this run; the 130 do not prove the lab either way.
+
+**Across the three projects:** 158 distinct failing tests; nine fail on all three — the seven Ask
+API 503s, `nav-reachability`'s `.ox-lede`, `settings-observer-parity`'s save — the credential class
+but for the locator. Desktop-only: 134 (130 lab, the lap clip, three credential); mobile-only: 11
+(the sheet-affordance seven, the two aborted sign-in navigations, the phone settings test, the
+CRM-led nav item); wide-only: 2 (`settings-ai`'s request-named account, `views-screenshots`
+06-audience's timeout after the burst).
+
+**Not touched, as ordered:** the credential class, the design-lab gate, the (ii) mobile findings,
+the two obsolete specs.
+
+Evidence: `c37f795`, `8491819` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the three run logs in the session scratchpad; `test-results/` for each failure's page snapshot.
+
+## 2026-09-23 — The instrument closed: the lab measured, two guards moved, the "credential class" found to be the wrong server, the desktop suite run the config's way
+
+**The fifth instrument error, and it was mine.** The three whole runs — wide, mobile, desktop —
+reused a server started by hand (`OBSERVER_REUSE=1`), without the environment
+`playwright.config.ts` gives the server it starts itself: `OBSERVER_SUBJECT_PEPPER`,
+`OBSERVER_SYNTHETIC_HARNESS`, the demo accounts, the ask limits. Without a pepper the Ask gate
+refuses every question with 503 before it reads the body; without the harness the credential store
+is absent and the settings forms are disabled. That is the whole "credential class" of the last
+three reports: on the server the config starts, all thirteen pass as written — measured this round,
+before and after the change. The eight 503s were never a missing credential key; they were the
+pepper, missing from a server the suite did not start. Two guards broken by our own commits were
+real; the thirteen were the instrument.
+
+**Rule, stated:** a Playwright result counts only against the server the config starts, or a server
+started with the config's environment. `OBSERVER_REUSE=1` against a hand-started server measures
+that server, not the suite.
+
+**The design lab, measured (step 0).** (i) Not in `SURFACES`: the gate is the layout's own —
+`localControlPlaneEnabled()`, which needs a non-production `NODE_ENV` and
+`OBSERVER_LOCAL_CONTROL_PLANE=1`, and `madspace_admin`. (ii) Rendered, not read: under `pnpm dev`
+with the flag, as MADSPACE Operations, `/design-lab/projects/a` answers 200 with `.dla-root`, h1
+"Projects", "16 sources across 14 projects…" — three seconds after sign-in, the dev server ready in
+four; `/design-lab/a/projects` (variant first) is 404, which the first attempt at this measurement
+mistook for the lab being dead. (iii) `design-lab.spec.ts` photographs eighteen screens (six screens
+× three directions) at 1440, 390 and 1024 and asserts what a photograph hides; `design-lab-a11y`
+asserts a contract on all eighteen — one h1, no overflow, every state carries a word; a keyboard
+reaches every control and can see where it is; the phone reading order is the visual order; the
+activation panel traps, closes on Escape, gives focus back; the copy control announces — sixty
+assertions, none of which any other spec makes, and all of them about the lab's three prototypes,
+not a product surface; `design-lab-stress` renders the same eighteen against a fifty-installation
+fixture built in memory — holds at every width, long names, a missing measurement never a zero, a
+project with no sources still listed. Eleven other specs run axe on product surfaces; none runs a
+keyboard-reach, reading-order or focus-trap contract. (iv) Playwright takes a `webServer` array and a
+per-project `baseURL`: a `lab` project with `testMatch` on the three specs, `baseURL`
+`http://localhost:3211`, and a second `webServer` running `next dev --port 3211` with the flag and
+the same harness environment. Cost, measured: the dev server ready in four seconds, a lab page in
+about three on first render; the 130 tests took eleven minutes failing at five-second timeouts and
+would take roughly that or less passing. One port, 3211; no conflict with 3210. Under `next start`
+the route is `notFound()` by design, so no second server, no green. Not decided here.
+
+**The lap guard (`af5fcae`).** "films the lap" clipped around the docked bar and clamped to the
+viewport; the dock stands at the end of the document since `050f677`, so the clip was 0 px tall.
+The spec scrolls the bar to the middle of the viewport first and photographs what it always did.
+Red on today's HEAD, green after, same server; mutation, the scroll taken out: red, "films the lap".
+
+**The thirteen read the server (`63b7292`).** As decided: each reads its own first `/api/ask`
+response or the rendered `/settings/ai`, and skips with a sentence naming what is missing and what
+was not measured; none unconditionally. On the env-less server, twelve skip with those sentences
+(the thirteenth is gated to another project); on the config's server all thirteen run and pass. The
+budget spec's `afterAll` reset skips the same way — it was that hook's timeout the runs recorded.
+
+**The agent-link guard (`0719566`).** `.ox-lede` resolved to three: the head's, and two body
+sentences the replay view prints under the same class. The locator is `.ox-head .ox-lede`; not
+`.first()`. Mutation, the presenter's link removed: red, "the agent's name is a real link to their
+detail screen". The three ledes: the class is the head's opening paragraph and the replay view
+borrows it for the look — a copy, not a second intent; reported.
+
+**The desktop suite, the config's way — 549 declared, 338 passed, 130 failed, 81 skipped, 0 did
+not run (26.0 min).** 35 files ran; 3 carry a failure: the three lab specs, 130, all "`.dla-root`
+not found" under `next start`. Nothing else fails. Against last round's 143: −8 pepper (the wrong
+server), −3 credential store (the wrong server), −2 the two guards moved; and +13 passed that had
+"not run" behind the lap's failure in the serial group. 312 → 338 passed. (A) none left; (B) none;
+(C) none left; (D) none. The lab is its own class: the tool contradicting itself, until decided.
+
+**Across the three projects, corrected:** of the nine "in all three", the eight Ask/credential ones
+were the server; the ninth, `.ox-lede`, is fixed. The wide and mobile lists stand otherwise (the
+seven sheet-affordance (ii) findings, the two aborted sign-in navigations, the audience timeout) —
+and both were measured against the wrong server too, so their true counts are 13 − 7 = 6 and
+22 − 8 = 14 at most, to be re-measured the config's way when those projects are next run.
+
+**Not touched:** the lab's fate, the (ii) mobile findings. Next: P2-15.
+
+Evidence: `af5fcae`, `63b7292`, `0719566` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; the run logs in the session scratchpad.
+
+## 2026-09-23 — The instrument's last two pieces, and the P2-15 survey
+
+**Rule twenty-five, recorded.** The instrument must be verified, not only the reading: the server
+a Playwright result was measured against has to be proven the right one. Not as a convention —
+`e2e/reuse-guard.ts` now asks a reused server what it carries and refuses the run if it is the
+wrong one.
+
+**The lab has its own project and server (`e2e2d8a`).** A `lab` project (`testMatch` on the three
+design-lab specs, `baseURL` on port 3211) and a second `webServer`, `next dev --port 3211`, with
+`OBSERVER_LOCAL_CONTROL_PLANE=1` and the same harness environment the production server on 3210
+gets; the three specs left the other three projects (413 tests each; the lab 136), and their own
+"captured once" gates name the lab. First run, both servers started by the config: **134 passed, 2
+skipped, none failed, 6.4 minutes.** The line drawn with it: the lab's green is about three
+prototypes of the MADSPACE screens; its sixty accessibility assertions — one h1, keyboard reach,
+focus visibility, reading order, a focus trap, an announcement — stand on the prototypes alone,
+and no product surface is behind any of them. Costs, measured: every run now starts the lab's dev
+server too (four seconds, one port, a `next dev` process alongside), and `next dev` rewrites
+`apps/web/next-env.d.ts` on start (`.next/types` → `.next/dev/types`), restored by hand each time
+this round — a tracked file that every lab run dirties, to be decided.
+
+**The reuse guard (`e2e2d8a`, fixed in `81632e6`).** With `OBSERVER_REUSE=1`, the global setup —
+which Playwright runs after every server is started or reused — signs in to each reused server
+(the projects' `baseURL`s; `FullConfig.webServer` is null once the runner has made plugins of the
+array) as a demonstration account, posts one question and opens the settings page, with the same
+two readers the tests use, and refuses the run with the missing thing named. On this machine the
+split that fooled three whole runs is exact: `next start` reads `apps/web/.env.local` (the demo
+accounts, the local-control-plane flag) and not `.env.development.local` (the subject pepper, the
+credential key), so sign-in worked and every question was refused. Proved on two hand-started
+servers: without the pepper — "refusing to run against the reused server at http://localhost:3210:
+the Ask gate refuses every question on this server (503 before the body is read …) — it has no
+OBSERVER_SUBJECT_PEPPER, or no usage-ceiling store"; with the pepper and the harness flag but no
+store — refused on "Secure credential storage is not configured". The first version's store check
+navigated by a relative path from a page with no `baseURL` and threw instead of refusing; the
+mutation run after the commit showed it (the inverted pepper check fell through to the store check,
+which crashed), and the fix is its own commit. Mutation, the guard's own condition inverted: against
+the env-less server the run proceeded — two tests ran and passed — where it should have been
+refused.
+
+**P2-15, surveyed, nothing built.** The plan's definition of done is not in the tracked tree: it
+lives in the inbound package `_planning/observer-v3-package/OBSERVER_Claude_Code_Phase_1_2_3_v3.md`
+(excluded through `.git/info/exclude`), line 626, verbatim: "Kész, ha: Saját és menedzsment scope
+helyes; nevek látszanak. Riport drawer SK/EN/DE/HU opcióval nyílik. Ismeretlen follow-up nem
+késés." — with the R13 route checklist behind it (lines 1309–1339: activity, recorded outcomes,
+verified outcomes and follow-up kept apart with real denominators; the visitor name in the recent
+meetings; "Where else they present" from permitted projects only; the Report button opening the
+shared panel with agent and period preloaded, tagged P2-17). `ReportScope.kind` is `"project" |
+"meeting"` (`packages/readmodels/src/report.ts:59`); the port takes only a `meetingId`; the synthetic
+repository resolves it with a cross-project `NotFoundError`; the builder has two section lists, the
+project's eight and the meeting's two (`meeting-summary`, `evidence-appendix`); the dialog is
+mounted twice, on the meeting page's head aside and on the project page's action row, binary on
+`kind`; `pageHref` goes to `/report?meeting={id}` with the period. Rendered as Monika on
+`mtg_ng0132`: "Export meeting summary", Scope "24 Aug · 15:39 · Lucia Bartošová", Period, Audience
+"Internal", two sections both "Ready" with checkboxes, Format PDF / Shareable page / CSV, "Preview-
+ready … 2 of 2 writable sections", "Generate document" aria-disabled with "Nothing generates a
+document yet … scheduled for M4"; with "Shareable page" chosen, "Available now" and the link "Open
+the report page", which opens "Meeting summary" with a four-cell tally and the numbered sequence.
+An agent scope would need an `"agent"` member and an `agentId` on the scope, a way to ask the
+port, a repository branch with the not-found rule `getAgentDetail` already has, a builder whose
+inputs `AgentDetailView` already computes, a third dialog title, an `?agent=` branch on the report
+page, and a mount on the agent page — and three stale docblocks that say there are two kinds. Of
+the agent page's twelve regions, only the sales-agents row of the report carries counterparts, and
+those three are exact: meetings, median presentation, progressed of decided; nothing else on the
+page — follow-up, recorded outcomes, the funnel's middle steps, the outcome ring, buyer interest,
+running order, the trend, the apartments, where else they present, the agent's own recent meetings
+and findings — has a section.
+
+**The doctrine question, found and not decided.** `ReportSection` carries eight fields and no
+`MetricValue`: one `sampleSize` per section, one `reason` sentence, a three-state availability with
+no `insufficient`. The meeting scope carries no sample, no denominator and no floor at all — its
+withholdings are the `partial` flag and the legacy-import sentence, and its content is plain
+strings and null-dropped fragments. The one place the agent floor reaches a printed report is the
+project scope's sales-agents table, and it reaches it from the roster read model, through `Missing`
+and a page-built string, not through the section. The appendix promises "its sample size" per
+figure while the structure holds one per section. So today's structure would carry an agent's
+withholdings the way it carries the meeting's: as sentences beside sections, not as figures with
+their floor and denominator — unless the sections themselves changed shape.
+
+Evidence: `e2e2d8a`, `81632e6` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the run logs in the session scratchpad.
+
+## 2026-09-23 — P2-15: the generated file untracked, two must-items measured, the agent report scope built the other way round
+
+**The decision that turned the survey (`0624527`) around.** `ReportSection` is a manifest, not the
+content: the printed page's body has always come from the page's own `content[section.id]` map,
+drawn from other read models with the screens' own components. So "the structure cannot carry the
+floor" was true of the manifest and false of the document — and the agent scope is built the
+reverse of how the meeting scope was: the sections state what the document carries and what it
+does not, and the page draws `AgentDetailView` with `Figure`, `ShareFigure`, `StageFunnel` and the
+meeting register, the same components as the agent's screen. The plan's contradiction is resolved
+the same way: the entry point and the `agent` scope are P2-15's, the four languages are P2-17's.
+
+**`apps/web/next-env.d.ts` is untracked and ignored (`a6a0cde`).** Next generates it
+(`writeAppTypeDeclarations`, from `next typegen`, `next build` and `next dev`), and generates it
+differently: build and typegen import `.next/types/*`, the dev server `.next/dev/types/*`. Both are
+valid; tracking one made every lab run a dirty tree. Proved with the file deleted: `pnpm typecheck`
+exit 0 (`next typegen` wrote it back), `pnpm build` exit 0. Nothing in the tree depends on it except
+`tsconfig.json`'s include pattern.
+
+**Two must-items of the DoD, measured from render, not fixed.** (a) "The visitor name appears in
+the recent meetings table": on Monika's Northgate screen, as Tomáš and as Petra, all eight rows'
+Visitor column reads "Not linked to a contact"; on Lucia Horváth's and Martin's ISTER TOWER
+summaries the column reads "First meeting", "Returning · 2nd meeting", "Returning · 3rd meeting",
+"Not linked to a contact". No name. The read model cannot carry one — `MeetingRow.visitor` is a
+`VisitorLabel` of a closed kind, a prior-meeting count and a display string. **The finding is a
+contradiction between two sentences about the same column:** the screen's own note says "No buyer
+is named here and none can be" (`agents/[agentId]/page.tsx`, the meetings plate), while the
+register's docblock, corrected on 2026-09-21, says "No buyer reaches this table today … reopened
+and under design" — and P1-08b's record is that the name _may_ be displayed, that it is in design
+(`docs/22-visitor-name-display.md`), and that its §5 visibility question is the open decision.
+"None can be" is the claim P1-08b retired, still printed on the screen. Reported, not resolved.
+(b) "Where else they present is built from the permitted projects only": Monika's Northgate
+screen as Tomáš (holds Northgate, ISTER TOWER, Kingsford Yard) lists Northgate · This project and
+ISTER TOWER (23 meetings); as Petra (holds Northgate, Riverside Walk, ISTER TOWER) it lists
+Northgate · This project, Riverside Walk (17) and ISTER TOWER (23). Different grants, different
+lists; the rule is the repository's `projectsHeldHere`, one for the screen and the scope. No authz
+finding.
+
+**The agent report scope (`5fc0e50`).** `ReportScope.kind` gains `"agent"` and the scope an
+`agentId`; the port takes a `ReportScopeSelector` (one meeting or one agent, never both);
+`ReportSection` gains `sampleNoun`, because the frame printed "meetings" for every sample and the
+running order stands on the timed set — the noun is the section's now, on the page and in the
+dialog. `buildAgentReportScope` applies `getAgentDetail`'s not-found rule through the shared
+`projectsHeldHere`. Nine sections: activity, funnel, how they present (sample: timed meetings),
+what it met, the apartments, where else, most recent meetings (sample: meetings listed), findings,
+appendix. Below the floor every section of rates is `partial` with the read model's suppression
+sentence as its reason, the share columns are dropped as the screen drops them, and each caption
+says why. **What the document does not carry, said once in the presentation section's reason:**
+"Not in this document: the week-by-week series of their presentations, because a line is read as
+a direction whatever is written beneath it and paper cannot say otherwise; the outcome ring as a
+shape, whose slices are printed as a table under What it met; and the screen's reading guide.
+Everything else on their screen is here, from the same read model." The agent's screen mounts the
+dialog in its aside, "Export agent summary", whose shareable page is `/report?agent=`. One
+`agentAnswer` supplies the screen's and the summary's leading sentence.
+
+**The stop condition, before the commit, rendered on the config's own server and photographed.**
+Lucia Horváth (14 of 20): the head leads with "14 meetings in this period, 6 short of the 20
+needed for a verdict…"; the median, the mean and the coverage carry the registry's "Fewer than 20
+meetings for this agent — shown as a raw figure, not as a verdict"; every count carries "of 14
+meetings"; no share column anywhere; the cover reads "4 of 9 carry a stated gap". Martin Kováč
+(38): the head leads with the signature on "the 38 of 38 meetings the source could time end to
+end"; every percentage carries "of 38 timed meetings", "of their meetings", "of 38 meetings" or
+"of every meeting on the project". Five things were found by looking and fixed before the commit:
+a caption that promised a column the floor drops, an outcome table that repeated the shortfall
+five times, a project rate with its denominator only in a caption, a cover that counted blanks and
+not gaps, a funnel note printed twice.
+
+**Tests and mutations.** Manifest (`screens.test.ts`, five, one assertion each): the scope names
+the agent and no meeting; another project's agent is not found; an id that exists nowhere is not
+found; the running-order section's sample is the timed set in its own noun; below the floor the
+activity section is partial with the suppression sentence. Printed page (`e2e/agent-report.spec.ts`,
+three): below the floor no rate stands without its shortfall; above it every share names its
+denominator; the agent's screen offers the export and links to their own summary. Mutations after
+the commit, each restored with `git checkout` to an empty porcelain: the not-found rule replaced
+by a fall-back to the project scope — red on "an agent this project's meetings do not name is not
+found" and "an id that exists nowhere is not found"; the page forgetting the floor (0 and the
+column always printed), rebuilt on the config's server — red on "below the floor, no rate on the
+printed page stands without its shortfall", 25 bare percentages; the outcome mix's qualifier
+removed — red on "above the floor, every share on the printed page names its denominator", 7
+unqualified. The surface-guard test now lists `[agentId]` beside `[meetingId]` as the report
+page's legitimate foreign keys.
+
+**Not touched:** the four languages (P2-17), the (a) contradiction, the (ii) mobile findings.
+
+Evidence: `a6a0cde`, `5fc0e50` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the run logs and photographs in the session scratchpad.
+
+## 2026-09-23 — A false sentence on a screen, in three copies; the whole suite's first run with the agent report
+
+**The sentence (`e4dafe9`).** "No buyer is named here and none can be" stood in the note beside an
+agent's most recent meetings — rendered, read by the buyer's own agency, not a docblock — after
+P1-08b had been reopened on 2026-09-21 and `docs/22-visitor-name-display.md` had recorded that a
+real visitor name may be displayed and is in design, with §5 (who may see it) the one open product
+decision. The first half was true; the second claimed impossible what the board had decided
+possible. Two more copies said it for the author: the register's docblock and the barrel's line.
+Rendered before, on the current build: "No buyer is named here and none can be. The visitor
+column is a privacy-safe label built from a closed vocabulary and a count of previous meetings; the
+type it comes from has no field a name, an address or a telephone number could sit in." Rendered
+after, on the rebuilt server: "No buyer is named in this register today. …" — the rest unchanged.
+The two docblocks name P1-08b, docs/22 and the open §5 question and say which way it goes in
+neither direction. One source assertion holds all three copies to the present tense ("says no
+buyer is named today, and never that none can be"); mutation, the sentence put back: red on it,
+`expected [ 'page' ] to deeply equal []`. The class swept: the unit page's note reads "No buyer is
+named here." (present tense), the meeting register's docblock "carries no person today"; nothing
+else on a surface claims impossibility.
+
+**The visitor's name is not built in any direction.** `docs/22` §5 is Máté's decision — (A) the
+register stays nameless and the name appears only where the gate already narrows, (B) the
+register shows a name and gains a gate, (C) one column with two contents by viewer — and it has
+not been given; P2-15 closes with it.
+
+**The whole suite, the config's own servers, no `OBSERVER_REUSE`, all four projects in turn.**
+The lab's green counts prototypes, nothing else (see `LAB_PORT`). Traces of a run are cleared by
+the next run's start, so the desktop's were gone before they could be opened; re-runs in
+isolation stood in.
+
+| project | declared | passed | failed | skipped | did not run | time     |
+| ------- | -------- | ------ | ------ | ------- | ----------- | -------- |
+| desktop | 416      | 333    | 2      | 81      | 0           | 13.8 min |
+| lab     | 136      | 135    | 0      | 1       | 0           | 5.3 min  |
+| wide    | 416      | 265    | 0      | 151     | 0           | 10.0 min |
+| mobile  | 416      | 233    | 8      | 157     | 18          | 11.0 min |
+
+**Desktop, two failures, both the instrument — (A), mechanism (D).** `ask-iris-compare.spec.ts:118`
+"implementation at 1280" and `showroom.spec.ts:128` "the audience builder returns meetings, not
+people" both failed inside `signIn` at `page.goto("/sign-in")` — one `net::ERR_ABORTED; maybe
+frame was detached?`, one a 30-second timeout on the navigation — before any assertion about the
+product. The same two tests passed in the four previous whole runs, passed on wide the same
+afternoon ("implementation at 1280" is desktop-gated there), and passed three times each in
+isolation on the config's server afterwards (6 passed, 33 s). Not (B), not (C); the mechanism of a
+navigation that aborts once in four hundred is not shown, because the traces were cleared.
+
+**Mobile, eight failures, all one class — (C), the (ii) findings, untouched.** All eight are among
+the previous mobile run's twenty-two and are the sheet-affordance class: the specs address the
+desktop shell's controls, and the phone keeps them behind the Menu by design
+(`mobile-menu-containment.spec.ts` is the contract for that sheet). `authorization.spec.ts` :79,
+:90, :160, :178 wait on `.ox-context summary[aria-label="Developer"|"Period"]`, present and
+hidden ("element is not visible", 54 retries); :169 and `nav-reachability.spec.ts:233` wait on
+`navigation "Sections"`, which is not in the tree outside the Menu; `settings-ai.spec.ts:273`
+counts `link "Settings"` and finds none outside the Menu; `authorization.spec.ts:61`'s
+`getByText("Monika Kováčová").first()` resolves to the header's hidden `.irs-who-name` while the
+roster prints her as a level-3 heading beside "19 meetings" — the name is on the phone, the
+locator is not looking at it. The 18 that did not run are the rest of `settings-ai.spec.ts`,
+which is `mode: "serial"` from line 60, after its failure at :273. Nothing here is fixed: the
+(ii) findings belong to the P2-21 gate.
+
+**Two instrument incidents, both mine, both without product effect.** The first launch of the four
+runs was stopped for a timeout risk while its `next build` was still running; the relaunch failed
+in seconds ("Another next build process is already running", then `EADDRINUSE` on 3211) and left
+orphaned servers on both ports, killed by PID and relaunched from clean ports. And Playwright's
+`test-results` is cleared per run, so the desktop's error contexts and traces were gone once the
+lab run started; a per-project output directory would keep them, and is not this round's.
+
+**Not touched:** the visitor's name in any direction; the (ii) mobile findings; the four
+languages (P2-17).
+
+Evidence: `e4dafe9` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the run
+logs (`suite-desktop/lab/wide/mobile.log`, `rerun-two.log`) and the mobile error contexts in the
+session scratchpad.
+
+## 2026-09-23 — P2-15 closed: the buyer's name on the register, behind a gate; the evidence survives the next run
+
+**The decision, and its reading.** `docs/22` §5 is decided (B): the register shows a name and gains
+a gate — and the gate narrows the register REGION, not the agent's page. The agency manager keeps
+the page, the roster cards, the funnel, everything; only the block that carries a name is closed to
+the developer. Order by decision: gate first, name second, so no window exists in which an
+agency-wide surface shows names.
+
+**Step 0, the path, and it does not touch the frozen contracts.** A real name would reach the
+register from `ContactPii.fullName`, under `Lead.consent.behaviouralLinking` and `Contact.erasedAt`
+— all three already declared in `packages/contracts/src/identity.ts` and read, never edited. The
+join is the read model's (`buildMeetingRows`, `packages/synthetic/src/showroom/screens.ts`), the
+field is `MeetingRow.visitorName` beside `VisitorLabel` (`packages/readmodels/src/screens.ts`), and
+the synthetic phase's stand-in for the three records is `packages/synthetic/src/contacts.ts`, field
+for field, keyed to the 41 contacts the sessions already link by opaque id (`con_1000…1040`).
+`packages/sources/src` (frozen) is the control plane and is not on the path. `world.ts` has an
+older three-person list for the brief (`cnt_…`), untouched and named as docs/22 §7 step 6's
+business.
+
+**Commit 1, the gate (`c3ea848`).** `AGENT_REGISTER_ROLES` in the read model — the meeting
+drill-down's three roles — with a test holding it equal to the web's `[meetingId]` list; the
+manifest marks the printed page's register section blank for anyone else, with the reason; the
+agent's screen draws the table for the drill-down's roles and, for a reader outside them, no table
+in the document at all and a sentence in its place ("Kept for the sales team: the rows of this
+register are the meeting drill-down's own material, which this account does not open…"). Rendered
+on the config's own server: as Tomáš (manager) the table with eight rows and no sentence; as Petra
+(developer) no table and the sentence, one table fewer in the document. Mutation, the gate always
+open: red on "the register is drawn for the sales team and not for the developer" (the developer
+got the register). One mutation attempt before it failed the build's typecheck — an unused import
+— and was not counted; the counted one compiled.
+
+**Commit 2, the name (`f285a78`).** Joined per render, stored nowhere, null for a walk-in, an
+erased contact, a withdrawn consent, a contact with no name recorded, and for every viewer outside
+the roles — withheld in the repository, so no screen has to remember to. Beside the label, never
+inside it. The register renders two strings and assembles neither. Rendered as Tomáš on Lucia
+Horváth's register: "Ilona Balog Returning · 2nd meeting", "Klára Dobos First meeting", "Jakub Tóth
+First meeting" among eight rows, five with the label alone; as Petra, no table and the sentence.
+Three tests, one assertion each, from docs/22 §6, and three mutations: (a) "the buyer's name stands
+beside the label for the sales team" — red when the register drops the name (`named: false`); (b)
+"disappears when the consent is withdrawn, and the label stays" — red when the join ignores the
+consent; (c) "is in no stored record and no event" — red when the session record is stamped with
+the name (`visitorName (personal_key)` on every session, through the contract's own scanner).
+Every mutation restored to an empty porcelain.
+
+**An adversarial review of the two commits, and what it left (`b13be13`).** Nine agents, three
+lenses (a leak to a role or a surface; storage, events, logs and caches; gate bypass and role-list
+drift): nothing confirmed as a leak — the developer gets null in the repository and a blank
+section on paper, nothing writes the name anywhere, and the page's gate is the presentation policy
+while the data policy is the read model's. Three residues were real and are fixed: the directory
+kept an erased contact's name behind the join's refusal (deletion deletes — now it holds none, and
+there are three such contacts, not one); every `MeetingRow` carried the name for the three roles,
+the meetings list's and a unit's related meetings' included, with only the components' discipline
+keeping it off those two open surfaces (now only an agent's register asks for names, and the other
+rows never carry one); and the printed agent summary's docblock still said "no buyer's name in
+it". The printed summary draws that same register, behind the same gate, for the same three roles
+— on paper as on the screen — and this is said now, in the docblock and here. Test (b) reads the
+register's own rows, holds the erased contact beside the withdrawn one and the list's rows nameless
+for every viewer, in one assertion; mutations after the commit: the consent ignored — red; every
+row asking for names — red on the same assertion (`listNames`). Two notes not fixed: the commit
+message of `f285a78` quotes three invented name-and-label lines, and no test renders the printed
+summary's named register (both e2e specs measure the agent's screen).
+
+**Commit 3, the evidence survives (`e552475`).** Playwright clears each project's `outputDir` at
+the start of a run of that project; with one shared directory the lab run cleared the desktop's
+traces before anybody opened them — which is why the two desktop failures of the whole run
+("implementation at 1280", "the audience builder returns meetings, not people", both a navigation
+to /sign-in aborting before any assertion) stayed (D). A directory per project now: proved with a
+desktop run (2 passed, two entries under `test-results/desktop`) followed by a lab run (5 passed,
+`test-results/lab` appears, the desktop's two entries stay).
+
+**Not touched:** the (ii) mobile findings; the two (D) failures, which the next run that keeps its
+trace will answer; the four languages (P2-17); the brief's literal names in `world.ts`/`agent.ts`
+(docs/22 §7 step 6).
+
+Evidence: `c3ea848`, `f285a78`, `e552475`, `b13be13` and this entry's commit on
+`feature/observer-ux-overhaul-phase2`; the run logs, renders, photographs and the review's journal
+in the session scratchpad.
+
+## 2026-09-23 — The printed register's guard, and the first measurement of Gate 2
+
+**The paper gets its own guard (`d18d47e`).** `/report?agent=` draws the agent's register — the same
+component, behind the same `AGENT_REGISTER_ROLES` — on a page whose one control is the browser's
+print dialog; the screen's gate had two viewers measuring it, the paper's had none, and the paper's
+gate is a second code path (the manifest's `unavailable` branch and the page's `content` map).
+`e2e/paper-register.spec.ts`, three tests, one assertion each, in the rendered document on the
+config's own server: (a) for the agency manager the printed register is there and a row carries
+the buyer's name beside its label; (b) for the developer there is no register table, the section's
+chip reads "Blank" and its reason names "Kept for the sales team"; (c) the names on paper follow the
+join's rules — Lucia Horváth's eight rows hold an erased contact (23 Aug · 14:17) and two whose
+consent is withdrawn (20 Aug · 09:00, 11 Aug · 13:02), and those rows print the label alone, the
+fixture's facts stated row by row. Run on the HEAD before the commit: 3 passed — the behaviour
+was there, the guard was not. Mutation, the paper's gate always open (the manifest's branch):
+red on "(b) the developer's printed page has no register and says why" — chip "Ready", one table,
+no sentence; restored to an empty porcelain. Rendered and photographed: as Tomáš, "Ready", eight
+rows, "Ilona Balog", "Klára Dobos", "Jakub Tóth" beside their labels, the erased and the withdrawn
+rows with the label alone; as Petra, "Blank", no table, the reason. One residue, not fixed: the
+blank section's foot still prints "n = 8 meetings listed" — the manifest's sample, for a section
+the reader does not get.
+
+**Gate 2, measured and not built.** Four questions, read from source by four agents and re-read by
+four verifiers (file:line), and where a render could answer, rendered.
+
+_(i) The deployed build._ A real credential store needs server-side Supabase (`SUPABASE_URL` and
+exactly `SUPABASE_SECRET_KEY`, `apps/web/src/lib/supabase-env.ts:30,41,149-152`) AND a 64-hex
+`OBSERVER_CREDENTIAL_KEY` (`env.ts:223-226,335-336`); the in-memory test store cannot exist on
+Vercel (`credentials/test-store.ts:85-90` refuses any `VERCEL*` marker). Vercel's environment could
+not be read from here — the listing call was refused by this session's permission classifier as a
+production read — so the record stands in: `docs/PROJECT-STATE.md:51` (2026-09-07) says the
+Preview carries Supabase and `OBSERVER_DEMO_ACCOUNTS=1` and that `OBSERVER_CREDENTIAL_KEY` is "not
+set anywhere yet"; no later line records it set; whether the credentials migration
+(`20260829173000`) is on the hosted project is not recorded either (`supabase/README.md:19-22`
+lists only the five 25 August migrations). Rendered: the production alias
+`iris-observer-madspaces-projects.vercel.app` answers `/sign-in` with "NO ACCOUNTS CONFIGURED …
+No account directory is configured on this server, so there is nothing to sign in to", and a
+demo credential is sent back to `/sign-in?error=unavailable` — nobody can reach `/settings/ai`
+there. **The exposure is latent**: by the record no key can be attached today, and on the production
+alias nobody can even sign in. It becomes live the moment an operator sets the key in Vercel,
+redeploys, and the migration is on the hosted project.
+
+_(ii) The session today, from the code and from the machine._ The cookie is `observer_session`,
+`${accountId}.${expiresAt}.${nonce}.${hmac}` — HMAC-SHA256 over the first three, an 8-hour expiry,
+a nonce from `randomUUID`, no role, tenant or version in it (`session.ts:38,59-61,85-90`);
+httpOnly, SameSite=Lax, secure under `NODE_ENV=production` (`:219-225`). The secret is
+`OBSERVER_SESSION_SECRET` when set — it is set nowhere on this machine and named in neither
+`.env.example` nor `docs/18-deployment.md` — otherwise the **non-secret**
+`observer-dev.${VERCEL_DEPLOYMENT_ID ?? VERCEL_GIT_COMMIT_SHA ?? "local"}`, stated as such in its
+own docblock (`:40-57`). Measured: a session survives a server restart (the fallback is the constant
+`observer-dev.local`); on Vercel only a new deployment rotates it. Revocation: `revokedNonces`, a
+module-level in-process `Map` written on sign-out and consulted on every resolve (`:113,130-141,176`)
+— measured: after sign-out the old cookie is refused by a page, and **accepted after a restart**
+(the Map is process memory). And a finding the verifier raised from the repository's own history and
+the machine confirmed: the Map is a plain module constant, not hung off `globalThis`, while
+`771ac10` (2026-08-24) recorded that Next bundles route handlers separately from pages and server
+actions, so a module-level Map is a different Map in each — **after sign-out the old cookie is
+refused by `/alpha/ister-tower/showroom` and accepted by `POST /api/ask` (200, with an answer), on
+the same process**. The revocation the sign-out promises does not reach the route handlers.
+`docs/11-preproduction-gates.md:138-140` already lists "session revocation that survives a restart"
+as a production blocker; the route-handler half is new. Not fixed here: step 2 builds nothing.
+
+_(iii) WorkOS._ No WorkOS reference exists in the repository; everything about its model is from
+knowledge and marked so. The conflicts, with Observer's evidence: (1) Observer's grant unit is the
+project (`Viewer.projectIds` beside `tenantIds`, `context.ts:17-20`; the live grant row is
+`(project_id, viewer_account)` with no role, `20260918100000:158-171`) — a WorkOS Organization
+Membership has no resource below the organisation. (2) The tenant → project hierarchy
+(`/[tenantSlug]/[projectSlug]`, `tenant_baseline` comparisons) has no counterpart in flat
+organisations. (3) The agency is an operator, not an entity: `organisationName` is a display string,
+"there is no tenant, user or agency table yet" (`accounts.ts:359-360`), `OrganisationIdSchema` is
+declared and unused; a WorkOS Organization is a data-owning boundary, so Meridian is either an
+organisation whose members hold nothing in Alpha's, or Alpha's members whose agency can no longer be
+derived. (4) Tomáš holds two competing developers in one session and the shell switches portfolios
+(`authz.ts:79-88`), whereas an AuthKit session is bound to one organisation. (5) Role is a property
+of the account, identical in every tenant (`accounts.ts:303`; `directory/live.ts:247-255` merges
+grants and never a role), whereas WorkOS puts one role on each membership. (6) `madspace_admin`
+stands above every organisation with no grant row, and the whole live directory runs under ONE
+operating-estate account (`CONTROL_PLANE_ACCOUNT = "acct_madspace_demo"`, `control-plane.ts:31-45`;
+the migration header calls one account per developer "the spine's long shape"). (7) The
+viewer↔agent link exists only in the synthetic `VIEWERS` constant; the live directory merges no
+`agentId`, so a directory-granted account can never pass `getAgentOverview` — a mapping gap that is
+Observer's, not WorkOS's. (8) Email-domain provisioning would put Meridian's people in Meridian's
+organisation, not in each developer's. Verifier corrections folded in: no RLS policy exists (every
+table is "enabled, no policy", reached through SECURITY DEFINER facades keyed on the operating
+account), `viewer_role` is stamped on `ai_requests` as an audit column, and the tenant list already
+holds a non-developer holding tenant (`tnt_madspacedemo1`).
+
+_(iv) The account's lifecycle._ Creation, suspension and deletion of a user account exist nowhere:
+the only account store is the six-entry literal `DIRECTORY` (`accounts.ts:96-150`, "no password
+reset, no lockout, no second factor and no account lifecycle", `:26-27`), one shared demo password,
+read-only lookups, and the whole directory off unless `OBSERVER_DEMO_ACCOUNTS=1`. Creating an
+account means editing the literal and redeploying; deleting one means removing it (a signed token
+for an id the directory no longer holds resolves to no session, `session.ts:178-183`). The sign-in
+page's SSO and invitation controls are stubs ("Invitations are not connected to this build").
+`packages/sources` is about installations and never people: create project/source, activation
+codes, suspend/resume/archive a source, revoke a source credential (`admin.ts:315-348`); the project
+directory grants and revokes a viewer by an opaque account string (`directory.ts:117-140`).
+`/madspace` creates projects and `showroom_ue5` sources, and — the verifier's addition — saves,
+enables, syncs and removes CRM connector configurations and credentials (`connector-actions.ts`;
+`20260907100000` `connector_configs`, `connector_credentials`). Two credential stores exist per
+account (`account_credentials`, `connector_credentials`), each removable by hard delete, with no
+cascade from an account that does not exist as a row. Missing for a billed, self-service
+subscription, with no home today: an account row at all, a billing identity, plan and seats,
+suspension on non-payment (only a source can be suspended), invitation and password reset, erasure
+of an account and its credentials, and an audit of who did what to whom.
+
+**Not touched:** the (ii) mobile findings, the two (D) failures, the route-handler revocation gap
+(reported, not fixed), the identity provider (not chosen), the four languages.
+
+Evidence: `d18d47e` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the renders,
+photographs, session logs, the deployment probe and the two workflows' journals in the session
+scratchpad.
+
+## 2026-09-23 — The orphan work measured, the session secret stops the process, the revocation gap measured
+
+**The orphan work, decision (A).** The previous session's two commits (`d18d47e` the printed
+register's guard, `49fd667` its entry) were kept, the working tree that undid them uncommitted was
+restored to HEAD, and the guard was re-measured rather than believed: `e2e/paper-register.spec.ts`
+on the config's own server, 3 passed; the paper's gate mutated open (the manifest's branch) and run
+together with the three existing specs — `paper-register` (b) "the developer's printed page has
+no register and says why" red (`chip: "Ready", tables: 1`), and `agent-report` ×3, `register-gate`,
+`visitor-name` all green: the measurement the session had not made, and the gap the guard closes.
+Restored to an empty porcelain.
+
+**The session secret stops the process (`162222f`, `57fdac5`).** `OBSERVER_SESSION_SECRET` had a
+non-secret stand-in everywhere (`observer-dev.<deployment id>`), and neither `.env.example` nor
+`docs/18-deployment.md` named it — a value nobody documents as required is a value nobody sets.
+Now the stand-in exists for a developer's own machine alone: `session-secret.ts` is a pure resolver
+over an environment source; outside development, or on any deployment platform (the credential
+test store's `DEPLOYMENT_MARKERS`, now shared from `deployment-markers.ts`, presence not value,
+because `OBSERVER_ENVIRONMENT` defaults to development and can be forgotten), it throws
+`SessionSecretMissingError` by name, and `instrumentation.ts` ends the process on it at boot.
+Measured, not read: a throw alone left `next start` at "Failed to prepare server" with the port
+still bound and every request failing — down without having stopped — so the hook prints the error
+once and exits 1. `next start` without the variable under `production` and under `staging`: the
+named error, `Exit status 1`, nothing listening, no process left; under `development`: the server
+answers; under `production` with the variable set: the server answers. One assertion over five
+cases (staging, production, "development" on Vercel, nothing-set on Vercel — refused; local
+development — the stand-in); mutations: the stand-in back everywhere — red; the platform marker
+ignored — red, on "refuses to make a signing key outside development without
+OBSERVER_SESSION_SECRET". `.env.example` and `docs/18-deployment.md` name the variable as required
+and sensitive; ADR-0022 carries the amendment. **Consequence, stated:** the Preview deployment runs
+as `staging` and, by the record, has no `OBSERVER_SESSION_SECRET` — its next build of this branch
+refuses to start until one is set in Vercel. One transient: a single `pnpm --filter @observer/web
+typecheck` returned 1 with no error line during the boot experiments and 0 on the re-run.
+
+**(d) Other silent non-secret substitutions, listed and not fixed.** One in package source:
+`DEVICE_CREDENTIAL_PEPPER` falls back to the fixed string `"observer-safety-identifier-unpeppered"`
+(`apps/web/src/lib/ai/identity.ts:51`), keying the vendor-facing `safety_identifier` HMAC — stated
+in its own docblock as deliberate, and `.env.example` describes the variable as hashing device
+ingest credentials, which nothing does (those are keyed by `OBSERVER_SOURCE_TOKEN_PEPPER`). One in
+a script: `scripts/observer-acceptance.mjs:25` signs session cookies with `""` when neither argv
+nor the environment supplies a secret, so its tokens can never verify and failures read as product
+401s. Everything else refuses: `OBSERVER_SUBJECT_PEPPER` (`identity.ts:205`),
+`OBSERVER_ACTIVATION_CODE_PEPPER` / `OBSERVER_SOURCE_TOKEN_PEPPER` (`packages/sources/src/secrets.ts:216`),
+`OBSERVER_CREDENTIAL_KEY` (`credentials/envelope.ts:68`), `SUPABASE_SECRET_KEY`
+(`supabase-env.ts:151`), `CRON_SECRET` (`connectors/sync/route.ts:24`), the Lomnio webhook secret
+(`connectors/service.ts:493`).
+
+**The revocation gap, measured and not fixed — three data for the next round.** _Route handlers:_
+ten `route.ts` files. Four accept the session cookie, all through one `gate()`
+(`lib/ai/gate.ts:255` `currentViewer()`, `:266` `currentAccount()` → `resolveSession`,
+`session.ts:159`): `POST /api/ask` and `POST /api/ask/stream` spend money (the account's own key
+reaches the vendor, `transport.ts:171`, after an audit row and a budget reservation); `POST
+/api/observer/voice/tool` spends on its delegation branch; `POST /api/observer/voice/session` is
+gated but cannot spend today (`createVoiceSession` rejects, `voice.ts:209`). Two connector routes
+take a shared secret or an HMAC and no cookie; the four `functions/v1/*` routes take a
+source-scoped bearer and no cookie. Two server actions spend with a 16-token probe of a pasted or
+stored key (`settings/ai/actions.ts` connect and test, behind `requireAccount`). Forty-six modules
+import a session resolver, so a revocation store has one place to be consulted: `resolveSession`.
+Measured on the config-environment server, one process: after sign-out the old cookie is refused
+by a page (sent to `/sign-in`) and **accepted by `POST /api/ask` (200, with an answer) and
+`POST /api/ask/stream` (200)** — the in-process `revokedNonces` Map (`session.ts:113`) is a
+different Map in the route handlers' bundle. _Durable stores today:_ none holds a session, a nonce
+or an account-level revocation. Supabase: 29 `observer.*` tables in 22 migrations, RLS on and not
+one policy, every row reached only through `public.*` security-definer façades (`SUPABASE_URL` +
+`SUPABASE_SECRET_KEY`), reachable from a route handler on Vercel at request time where the pair is
+set (the Preview, by the record); the closest rows are `project_viewers.revoked_at` (an access
+grant, not a token), `source_credentials.revoked_at` (a source token) and `ai_rate_buckets`
+(pseudonym-keyed counters, pruned at 48 h); a revocation table would need a new migration and a
+new façade. No Vercel Edge Config, KV, Upstash or Redis in the repository. The local control plane
+is PGlite, development only, running the same migrations. _Lifetime:_ `SESSION_TTL_MS` is eight
+hours (`session.ts:39`) — the window a signed-out cookie stays live on the API.
+
+**Not touched:** the revocation (a store is the Gate 2 identity-provider decision), the identity
+provider, the (ii) mobile findings, the two (D) failures, the Blank section's "n = 8 meetings
+listed" foot, `DEVICE_CREDENTIAL_PEPPER` and the acceptance script.
+
+Evidence: `162222f`, `57fdac5` and this entry's commit on `feature/observer-ux-overhaul-phase2`;
+the boot logs, the revocation measurement and the inventory workflow's journal in the session
+scratchpad.
+
+## 2026-09-23 — The spend window after sign-out: measured and not cut; the two remaining silent stand-ins closed
+
+**Step 1, measured before anything was written, and the round stopped on it.** The proposal was to
+cut the eight-hour window a signed-out cookie stays live on the spending routes without a store:
+require a fresh issuance on `/api/ask`, `/api/ask/stream` and the voice tool, and have pages renew
+the cookie on navigation, so a signed-out copy ages out in minutes. Two measurements decide it.
+_Renewal:_ none exists. `observer_session` is written in exactly one place — the sign-in server
+action (`sign-in/page.tsx:85`, `createAccountSession`, `maxAge` eight hours) — and deleted in
+three; no page, layout, action or middleware re-signs it, so a cookie counts eight hours from
+issuance and nothing else. Nor can a page do it: a Server Component cannot write a cookie during
+render (Next reserves that for Server Actions, Route Handlers and middleware — `middleware.ts`'s
+own docblock), the middleware runs on the Edge runtime without `node:crypto` (the reason
+`cookie-names.ts` exists), and Next 16's successor `proxy.ts` runs on Node and may set cookies
+(`node_modules/next/dist/docs/…/proxy.md:221-223, 337`) but is not what the repository uses.
+_Freshness:_ the token carries `expiresAt`, a nonce and the signature, no issuance; issuance is
+derivable as `expiresAt − SESSION_TTL_MS` while the TTL is a constant, so a route could demand a
+young cookie without a format change. Without renewal that demand signs out a working reader
+every N minutes on the one surface that costs money — a different decision — so, by the brief's
+own stop rule, the freshness requirement is not built. One more finding for whoever builds
+renewal: a copy of the cookie is renewed by whoever presents it, so renewal-based expiry closes
+the window only where the page path already refuses — the same warm instance — and not on
+another instance; without a store it is as narrow as the Map it would replace.
+
+**Commit 3 (`18efd8c`): the two remaining silent stand-ins.** `DEVICE_CREDENTIAL_PEPPER`, the
+key of the HMAC that names a viewer to the model vendor, was stood in for everywhere by a fixed
+string in the source — a pseudonym in name only, since the viewer ids come from a six-entry
+directory — and `.env.example` described the variable as hashing device ingest credentials, which
+nothing does. Its one reader is `ai/identity.ts` (no conflict with the stability requirement: it is
+a configured value, kept the same across deployments, never deployment-derived). Now the session
+secret's rule, from the shared platform-marker list (`lib/device-pepper.ts`): a stand-in on a
+developer's own machine, stated not a secret; a named refusal at boot and at every call anywhere
+else. Measured: `next start` under production with the session secret and no pepper —
+`DevicePepperMissingError`, exit 1, nothing listening; with both — the server answers; under
+development with neither — the server answers. One assertion over six cases; mutation, the
+stand-in back everywhere: red on "refuses to key a safety identifier outside development without
+DEVICE_CREDENTIAL_PEPPER". `.env.example` says what the variable is and that it is required;
+`docs/18-deployment.md` lists it, required and sensitive. And `scripts/observer-acceptance.mjs`,
+which signed session cookies with `""` when given no secret, stops before the first request with
+the variable named (exit 2) — run without one, it printed exactly that.
+
+**Consequence, stated again:** the Preview deployment now needs both `OBSERVER_SESSION_SECRET`
+and `DEVICE_CREDENTIAL_PEPPER` in Vercel before its next build of this branch starts; production,
+if it exists, needs both with its own session secret and the SAME pepper value if the vendor is to
+see one viewer as one viewer across the two.
+
+**Not touched:** the freshness requirement and renewal (stopped by measurement), the revocation
+store (a migration under the frozen surface — Máté's signature, once the Gate 2 identity-provider
+decision is made), the identity provider, the "n = 8 meetings listed" foot on a blank section, the
+(ii) mobile findings, the two (D) failures.
+
+Evidence: `18efd8c` and this entry's commit on `feature/observer-ux-overhaul-phase2`; the boot
+logs, the script's output and the measurement notes in the session scratchpad.
+
+## 2026-09-24 — P2-16 built: the brief's project gate, no link to a person page that does not exist, the scope survives list → detail → back
+
+Six items from the P2-16 survey, each with its test written first and seen red, its fix, a
+mutation that turned the same named assertion red again, a photograph before and after, and its
+own commit and push. The journal with every red line and every photograph is `_review/p216-journal.md`
+(not committed).
+
+1. **`1d8328d` — the brief is served only under Northgate.** `buildPreMeetingBrief` was gated on
+   the meeting id alone, so the scripted brief appeared under ISTER TOWER and under Kingsford —
+   another developer — with those projects' links. Gated the way `buildAgentOverview` is. The
+   meeting-report half was measured and left alone: another project's meeting already draws the
+   not-found boundary, and `report/page.tsx:393` is reachable only when the layout has already
+   replaced the page with its refusal.
+2. **`bd8e59a` — every `/people` link is gone, and each vanished action says so.** 94 rendered
+   anchors pointed at `/people`, which redirects to the agents roster (ADR-0033). None is
+   re-pointed: evidence keeps its tier and count with an empty route (`NO_PAGE`, documented on
+   `EvidenceRef.href`, honoured by every renderer), actions keep their label and read "… — no
+   surface for this yet". The brief's `contactHref ?? "#"` is gone. The audience caveat promised
+   "open a meeting to reach the contact"; the replay names none, and it now says so.
+3. **`384cbe8` — the meeting register's filters survive a replay.** `withMeetingFilters` writes
+   agent, channel and outcome into the row link and both ways back; the button reads "Back to the
+   narrowed register" when a filter is carried.
+4. **`b6b4b28` — every link a read model built carries the period.** 588 links dropped it; now
+   `RankedBars` and `Finding` require it, the UI package's views are finished by
+   `withPeriodOnLinks`, and the remaining sites carry it where they draw. `segment` and `window`
+   are deliberately not carried: the DoD names search, period, project and paging place.
+5. **`d881574` — the unit page lists every meeting that opened the unit.** It listed eight under a
+   caption claiming all (the register counted up to 59). The cut is gone, since nothing else lists
+   a unit's meetings; the timeline keeps its forty entries and now says out of how many; the agent
+   report's blank register section no longer prints "n = 8 meetings listed". The survey had tied
+   that foot to the unit page; it is the report's.
+6. **`d6982a1` — the last-project cookie is documented as navigation state, not a preference.**
+   The units round trip with `more=1` was photographed and holds, so there is no seventh item.
+
+**Where P2-16's DoD stands.** Clause 1 holds on every route measured. Clause 2 holds in its
+negative half — nothing guesses at a person; the positive half, a related-meetings action active
+on a stable person link, stays blocked on the identity link that does not exist (ADR-0011,
+ADR-0039, P2-13's identity gate), and no person route is built (ADR-0033). Clause 3 holds. Ticking
+the tracker is Máté's decision.
+
+**Decisions left for Máté, measured and not taken:**
+
+- Every `notFound()` in the app answers 200 under streaming, with `robots=noindex` — measured on an
+  unknown unit and on another project's meeting report. A real 404 is a product-wide change.
+- The scripted Ask session — Northgate's prose, including the brief's buyer and A-505 — is served
+  on every synthetic project. Its "Open the full brief" now leads to "No brief for this meeting"
+  outside Northgate. Gating it decides what the other projects' Ask offers.
+- The `requireSurface` refusal redirect (`lib/authz.ts:53`) drops the period; it is a redirect, not
+  a read-model link, so it is outside item 4's rule.
+- Two more `?? "#"` fallbacks exist: `showroom/ProfilePicker.tsx` (the internal lab sign-in only)
+  and `showroom/UnitMatrix.tsx` (imported by nothing).
+
+**Not touched:** migrations, the identity provider, the session store and TTL, a person route, a
+contact-based action, `segment` and `window` scope, the frozen surfaces.
+
+Evidence: the six commits above on `feature/observer-ux-overhaul-phase2`, the journal, and the
+photograph and mutation logs in the session scratchpad.
+
+## 2026-09-24 — The third instance of the scenario leak closed; `pnpm verify` green in full; P2-17 surveyed
+
+Three fixes, each with its test red first, a mutation turned red again, and its own commit and push;
+then a survey of P2-17 with no code. The journal is `_review/p217-journal.md` (not committed).
+
+1. **`12d59b7` — the scripted Ask session is served only on Northgate.** A crawl of every synthetic
+   project with every account came first (rule 27): 459 pages, 124 project-surface pairs, 44 flagged,
+   31 genuine after reading each on the render — all from one source, the repository serving
+   Northgate's prepared Ask session (its figures, unit A-505, its buyer, its "south-facing, floors 4
+   to 6" framing) to Riverside, Kingsford and ISTER TOWER. One gate at that source, in the pattern of
+   the brief and the agent overview; the other projects get the session their own meetings support.
+   After: 0 genuine. The test asserts the Ask screen's rendered refusal, never a status (rule 28).
+2. **`03fe37a` — the two files that kept `pnpm format:check` red are formatted.** Then `pnpm verify`
+   ran in full for the first time in this programme and exited 0: format, typecheck, lint, 190 test
+   files, build.
+3. **`47f3cf8` — rule 28 is written down** in `playwright.config.ts`: a page that refuses or finds
+   nothing answers 200 under streaming, so a refusal on a page is asserted by the boundary it renders;
+   route handlers under `/api` answer real statuses.
+
+**P2-17, surveyed (four languages, SK/EN/DE/HU).** No i18n machinery exists: no library,
+`<html lang="en">`, a per-project `locale` (all `"en-GB"`) that formats numbers and dates only, 58
+hand-written English plurals, no language control anywhere. Every visible string for every account
+on 412 pages: 3,617 distinct, 91,558 occurrences. By origin: read-model prose 743 distinct, component
+literals 969, locale-shaped values 973, frozen contract vocabulary 70 (26 labels, 30 raw enum keys, 14
+Slovak amenity nouns), and 862 that are data, of mixed origin, or assembled at render. 353 distinct
+strings carry a denominator or a floor explanation, where a wrong translation makes a false claim.
+The four contract label maps are keyed by stable enum values, so they can be translated without
+opening the contracts; the raw keys and the Slovak amenity nouns reach the screen as contract text.
+The shape of P2-17 is Máté's decision.
+
+**Not touched:** migrations, the identity provider, the session store, the frozen surfaces; the
+two remaining `?? "#"` fallbacks, the refusal redirect that drops the period, and the 200 that
+`notFound()` answers, all still awaiting a decision.
+
+## 2026-09-24 — The migration history says what is true; the owner-role window is built and guarded
+
+Three rounds on the hosted project `tfcchobwobpadenampyh`; the first two stopped on their own
+conditions. The journal is `_review/p-migrations-journal.md` (not committed).
+
+1. **Measured, not assumed.** Of the 22 migrations, the five `20260825*` are fully applied — every
+   object, every live function body equal to its file but for CRLF (9 of 9), the comments, the
+   defaults and the fixed `search_path` — and the other seventeen are wholly absent; none is partial.
+   There was no migration history at all. `supabase/README.md` (frozen, not edited) claims more than
+   is there: `run_rate_bucket_retention`, `maintenance` and `pseudonym_version` are described as
+   present and are not, and only four of the seventeen are marked "executed, not applied". The old
+   staging project `jtvqecusxzogqubxpoyf` exists, INACTIVE, in another organisation.
+2. **Found: the seventeen cannot be applied as written.** Hosted `postgres` is not a superuser, so
+   the first `… OWNER TO` stops at `20260829173000:121` with
+   `must be able to SET ROLE "observer_credentials_owner"`, and the façades then need their owner
+   to hold CREATE on `public`. PGlite applies every migration as a superuser, which is why the
+   suite never saw it.
+3. **`a76846a` — the owner-role prerequisite and its guard.**
+   `supabase/prerequisites/observer-role-prerequisite.sql` creates the three roles exactly as the
+   migrations declare them and grants them to `postgres` (INHERIT and SET) with CREATE on
+   `observer` — those stay — and opens a **window**: CREATE on `public`, which PostgREST serves and
+   where the owners run 61 `security definer` façades. `observer-role-window-closed.sql` raises an
+   exception while the window is open. Proved in one PGlite run under a non-superuser `postgres`
+   with the measured attributes: red at 121 without it; with it, run twice (idempotent), all fifteen
+   pending files apply; the guard is red with the window open, with one owner left open, with CREATE
+   granted to PUBLIC and with the roles missing, and green after the runbook's revoke; the façades
+   answer `service_role` afterwards.
+4. **`a85ee15` — `docs/18-deployment.md`, "Owner roles, and the window on `public`":** open →
+   apply `20260829173000` to `20260918100000` → revoke → check. Applying the migrations is not
+   finished until the check is green; a file that recreates its façades needs the window again.
+5. **The history repaired — the round's only hosted write.**
+   `supabase migration repair --status applied` for the five `20260825*`;
+   `supabase migration list` shows them local and remote and the seventeen local only, and
+   `list_migrations` returns the same five. A re-measurement at 09:42 UTC,
+   before the repair, matched the evidence it rests on exactly. Side effect of the CLI's own login:
+   a role `cli_login_postgres` (LOGIN, member of `postgres`, password valid for five minutes) now
+   exists on the project.
+
+`pnpm verify` exit 0 at `a85ee15` (190 test files, 3,938 passed, 1 skipped; build), pushed
+`c9dce55..a85ee15`.
+
+**Next:** the seventeen, applied by an operator, not by a session: `20260826120000`; the cron
+prerequisite, then `20260826140000`; the owner-role window around `20260829173000` to
+`20260918100000`; the contract `20260826090000` last, after `observer-contract-readiness.sql` — and
+once later versions are recorded, `supabase db push` will take the contract only with
+`--include-all`. A `repair` follows every application made by hand.
+
+**Not touched:** every migration, `supabase/README.md`, the other frozen surfaces; no `db push`, no
+migration applied.
+
+## 2026-09-24 — The test harness applies migrations the way the host does
+
+Until today every suite applied every migration as PGlite's bootstrap superuser, which skips every
+ownership and privilege check; that is how a chain that cannot run on the host stayed green for a
+month. The journal is `_review/p-harness-journal.md` (not committed).
+
+1. **`a62bd4d` — a second runner.** `openDatabase(scope, "hosted")` in
+   `supabase/test/support/pglite.ts`: the bootstrap superuser steps aside and a non-superuser
+   `postgres` takes the name, with the attributes and memberships measured on the host on
+   2026-09-24 (a dated comment, so a later measurement can refute it). `asPlatform` does the
+   platform's own work, such as installing the `pg_cron` stand-in; `applyMigrations` is the
+   runbook's four steps, with the revoke read out of `docs/18-deployment.md`. The superuser mode
+   stays. First consumer: `supabase/test/owner-role-window.test.ts`, the proof that lived in a
+   scratch script — sixteen pending files through the window, and the guard red in five ways,
+   including psql without ON_ERROR_STOP. Two mutations turn it red where they should.
+2. **`8f7b247` — all 25 migration-applying suites on the hosted runner.** What failed is the
+   product: three suites claimed that nobody is a member of an owner role, which held only under a
+   superuser — on the host `postgres` is a member twice (ADMIN since PostgreSQL 16 for creating
+   the role, INHERIT and SET from the role prerequisite) and nobody else, and the assertions now
+   say so; re-applying a file over itself needs the window again, as the runbook says, so those
+   tests re-apply through it; breaking `cron.schedule` on purpose is the platform's act. No
+   migration changed, and no suite went back to the superuser runner — `pglite-lifecycle` never
+   applied a migration and says why it keeps the default.
+3. **`4f1574e` — `docs/18-deployment.md` §2:** `cli_login_postgres` is the CLI's expected trace,
+   not debris, and is not to be deleted.
+4. **`ae46ee3` — the runner reporter's list of PGlite suites** names the new file;
+   `worker-bound.test.ts` refused it until it did.
+
+Closing gate at `ae46ee3`: `pnpm audit:frozen`, `pnpm typecheck`, `npx vitest run`, `pnpm build`
+and `pnpm verify` all exit 0 — 191 test files, 3,950 passed, 1 skipped (190 and 3,938 this
+morning); the run took 215.8 s against 190.5 s this morning. Pushed `6bbd49a..ae46ee3`.
+
+For the application round: one backup is visible on the project — physical, 08:17:52 UTC today,
+before the history repair — and point-in-time recovery is off.
+
+**Not touched:** the host, every migration, `supabase/README.md`, section 7 of the runbook and
+`rollout-order.test.ts`. The local control plane (`apps/web/src/lib/sources/local-db.ts`) still
+applies migrations as PGlite's superuser; it is not a test and was out of scope.
+
+## 2026-09-24 (afternoon) — the report's language measured, and the runbook aligned with the host
+
+Five rounds, three of them stopped by their own conditions and one landing as ten commits. The
+journals are in `_review/` (not committed): `p217-report-journal.md`, `p217a-journal.md`,
+`p217b-journal.md`, `p-doc18-journal.md`, `p-doc18b-journal.md`.
+
+1. **P2-17 — the report's own text, measured, no code.**
+   - 819 distinct texts, 21,883 occurrences.
+   - Seven plural decision sites, and none of them uses `Intl.PluralRules`.
+   - 337 distinct source messages.
+2. **P2-17a — stopped before any change.**
+   - The "locale in hand" at the sites is `context.project.locale`. That is the **formatting**
+     locale — figures, money, dates; the administration form suggests `sk-SK` — not the language
+     of the words.
+   - Fed to `Intl.PluralRules`, it would change a word the report renders in 139 of 142 ICU
+     locales. On `sk-SK` "2nd" would become "2th".
+   - The report's language is a third concept, meant to travel on the read-model request.
+3. **P2-17b — who builds the report's 185 read-model messages, measured by rendering. Stopped.**
+   - By the brief's rule: shared 51, exclusive 45, undecidable 89. At the function level: 76, 55
+     and 54.
+   - The report's `?agent=` document is largely `buildAgentDetail`'s output, `?meeting=` is
+     `buildMeetingReplay`'s, and the project report renders the Sales Flow findings. So a report
+     language is a separation question, not a parameter, and it is undecided.
+4. **P2-doc18 — the runbook against the host. Stopped on its own security condition.**
+   - 22 READY deployments on `release/observer-demo-rc1` call the old façades.
+   - The user's measurement narrowed it: only `postgres` and `service_role` can execute any of the
+     five functions. The exposure is therefore a build holding a live `service_role` key, and the
+     control is rotation.
+5. **P2-doc18b — `docs/18-deployment.md`, ten commits, one claim each** (`6e115bb..0dbbeb0`):
+   - five functions in `public`, not three;
+   - Node 24.x;
+   - a third domain;
+   - five of twenty-two migrations applied, the history repaired at about 09:47 UTC (witness:
+     `cli_login_postgres` `valid_until` 09:52:22 UTC);
+   - the two other Supabase projects UNVERIFIED rather than gone;
+   - a measured state of all nineteen steps at the top of §7 — step 4 ran, as a redeploy on
+     2026-09-06; steps 5–19 did not;
+   - steps 10–11 and the steps-1–5-first rule **RETIRED 2026-09-24**, not deleted. The measurement:
+     no version-1 row for 29 days, and the current build cannot write an audit row on this host
+     until Migration 3;
+   - rotating the `service_role` key as the stronger control beside step 18, because the
+     enumeration cannot be completed;
+   - a §12 of what is unverified, what is measured different, and what needs a decision;
+   - the date.
+
+   `pnpm verify` exit 0 on `0dbbeb0`: 191 test files, 3,950 passed, 1 skipped.
+
+**Next, in this order.**
+
+1. Matthew rotates every key that authenticates as `service_role` on `tfcchobwobpadenampyh`
+   (runbook §7, "Beside step 18").
+2. Decide where the contract migration goes. Version order puts `20260826090000` first; step 19
+   puts it last; and the owner-role steps say "in order" (runbook §12).
+3. The migration round.
+4. Delete the 22 old-façade builds and both `3f298a6` builds.
+
+Separately, and blocking none of the above:
+
+- the report-language architecture (P2-17b);
+- whether Slovak is needed before the first paying customer.
+
+**Not pushed.** The ten runbook commits and this entry are local only. Not touched: the host (read
+only), every deployment, every migration, `supabase/README.md`, `rollout-order.test.ts`, and the
+seven plural sites.
+
+## 2026-09-24 (evening) — the retirement's two defects closed
+
+The eleven commits above were pushed first, `2942a0a..48c9d30`. From now on every round that produces
+commits closes with a push to this branch. The journal is `_review/p-doc18c-journal.md` (not
+committed).
+
+1. **`9e0aabd` — Part A stands in step 15's own row.**
+   - The retirement had moved it into the RETIRED block, where a live instruction does not run. Step
+     16 would then have counted from a floor nobody opened.
+   - The RETIRED block keeps a pointer.
+2. **`c49a6d0` — Part B of `observer-http-compat-proof.sql` does not run without Part A.**
+   - The template shipped example values that, on a table nobody had written to since 2026-08-25,
+     counted true: 13 of 13 could read PASS with nothing measured. It now ships NULL for both.
+   - A `part_a` CTE refuses to run, naming one of four reasons: floor null, count null, floor in the
+     future, or the two not taken together.
+   - Six new cases cover six ways to get there. The existing verifier suites stayed green with the
+     guard (112 tests), so no test had been passing on a missing floor.
+   - Two mutations were each shown present, then run: with the cast disabled, 6 of 6 red; with the
+     WHERE removed, 6 of 6 red — the planner prunes an unfiltered cast.
+   - The locally staged copy in `_sql-to-paste/` was re-staged from HEAD. The release build requires
+     it byte-identical.
+3. **`1c15f2d` — the retired rules live in one fenced `retired-rules` block** in the runbook's
+   RETIRED section: step 10, step 11, and `order 1-5 before 8-9`.
+4. **`418e6a4` — `rollout-order.test.ts` reads that block.**
+   - It enforces only the seven live orderings, and fails when a check's declared status disagrees
+     with the block, in either direction.
+   - Rule 29 for the four assertions no longer enforced is in the commit message.
+   - Shown by mutation: the old shape, with all four declared live, gives 4 red while the orderings
+     themselves pass.
+5. **`ed0f34c` — §12 no longer lists the rollout test as open.**
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+**Still open, unchanged:**
+
+- the `service_role` rotation (Matthew's), then the contract-migration order, then the migration
+  round;
+- `supabase/README.md:285-288,330` — whether its freeze may open for those lines is Matthew's
+  decision;
+- the P2-17 language questions.
+
+## 2026-09-24 (night) — P2-18: the negative half is built; the list is BLOCKED on a missing input
+
+**The negative half is built, and the list is BLOCKED.** This is the same split P2-06 drew. The
+survey is in `_review/p218-journal.md` and this round's record in `_review/p218b-journal.md`; the
+photographs are in `_review/p218b/`. None of them is committed.
+
+**What was fixed is the frozen contract's invariant, not the P2-18 DoD.**
+
+- `ShowroomPlaceInteraction` (`packages/contracts/src/showroom.ts:209-212`) says that Surroundings
+  points of interest are `requires_ue5_v2_event` "and every surface reading them says so".
+- `buildAudience` read them on category and dwell alone (`views3.ts:1416-1421` at `457c504`), and
+  said nothing.
+- The contract was not touched. The surface now does what the contract says.
+
+1. **`55123f6` — the gate.**
+   - A place selects a meeting, or is named as why it matched, only when its availability is
+     `legacy_available`.
+   - `partially_derivable` does not qualify. For a point of interest it means the section was reached
+     and nothing more, which is the general Surroundings data the DoD forbids a list from.
+   - Over every synthetic meeting — family places, 25 s, any unit, merely opened — the count went
+     from 125 to 99. That is the survey's independent expectation from the section split: 47 on
+     amenities only plus 52 on both. The 26 matches that stood on Surroundings alone are gone.
+   - Mutations, each restored byte for byte: with no gate, 6 of 6 red and the 26 back; each half of
+     the gate on its own, 3 red; a deny-list in place of the allow-list, 2 red.
+2. **`0fd6afd` — the statement.**
+   - Every row prints its source and availability ("IRIS observed · Recorded today"). Both are read
+     from each named place's own token.
+   - A first version asked the gate instead. With the gate removed, every row still said
+     "recorded"; this was found by mutation and fixed before the commit.
+   - When the kind of place asked for has nothing recorded behind it, the page names what is missing
+     rather than printing "nothing matched".
+   - On a phone the reason had been cut to five characters. It now wraps.
+
+**Rendered, before and after:**
+
+- **Northgate, year to date, transport.** 29 rows, every one on a Surroundings stop or the airport,
+  became "No list: no place of this kind was recorded in this period.", naming the UE5 v2 event.
+- **Family.** 34 rows became 24. Rows naming a Surroundings place fell from 19 to 0.
+- **Akhilesh Demo Source (11 live meetings) and Birch Court.** The page had read:
+  - "0 of 11 meetings match";
+  - advice to loosen the criteria;
+  - "both are shown here as a demonstration", on a project badged "Live meetings".
+
+  It now names both inputs.
+
+**The list: BLOCKED.** What is missing is a verified, concrete point of interest on a real session.
+Every real path today delivers `places: []` (`supabase-showroom.ts:328`, `ue5-events.ts:322`). The
+input is one of two:
+
+- **either (X)** the UE5 v2 event that names which point of interest was presented. P2-18 may not
+  create it: the capability clause forbids new telemetry.
+- **or (Y)** the legacy Amenities item entries mapped into `ShowroomPlaceInteraction`, which is the
+  pass deferred at `supabase-showroom.ts:72-76`. The mapping needs a taxonomy that is not the
+  Ružinov demonstration list (`places.ts:4-5`), because the acceptance forbids demo points of
+  interest for real targeting.
+
+The confirmed-preference path is not an option: there is no such field in any contract, read model
+or adapter, and no document defines it.
+
+**No ADR records this gate. That is a gap.** It is stated only by `docs/16` §2.6 (rows `:141` and
+`:142`) and by a connector comment (`supabase-showroom.ts:72-76`).
+
+- P2-13 and P2-16 (2) stand behind ADRs: ADR-0011, as ADR-0039 applies it.
+- P2-18 stands behind an audit table and a code comment.
+- It is also a different gate from theirs. Its acceptance asks for a person or a session link, and
+  every match carries its session. What it lacks is an observation, not an identity.
+
+**Where the DoD stands.**
+
+- Holds: reason, date, source and link on every row; no kindergarten list from Surroundings; no
+  e-mail; the list active only on a verified place; and no real targeting from demo points of
+  interest (the four P2-07 grounds, re-measured in the survey).
+- Blocked: the list itself, as above.
+- Ticking the tracker is Máté's decision.
+
+**Observed, not changed:**
+
+- `StatedDemandRegister`, whose availability words moved beside `SourceChips`, is mounted on no
+  route, so that change is type-checked, not rendered.
+- Two other surfaces still say amenities "are recorded … today": `project/page.tsx:477-478` and
+  `views3.ts:1071`. That is true of the legacy capture and not of Observer's connectors.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+## 2026-09-24 (late) — P2-17 leaves Phase 2: a pre-customer phase of its own
+
+**Decided by Máté, 2026-09-24.** In his words: „kell szlovák plusz angol felület az első fizető
+ügyfél ELŐTT, mert a piac Szlovákia, és ott vannak a kliensek. Német és magyar később.” A Slovak and
+an English surface are needed before the first paying customer, because the market is Slovakia and
+the clients are there; German and Hungarian come later.
+
+**P2-17 does not stay in Phase 2.** The decision makes it too big for a checklist item.
+
+- It becomes its own phase: a pre-customer blocker that runs beside Gate 2, ordered before P2-19 and
+  P2-20.
+- The plan file (`_planning/observer-v3-package/OBSERVER_Claude_Code_Phase_1_2_3_v3.md`) is the v3
+  package and is not rewritten. This entry records the reclassification.
+
+**The three measurements of 2026-09-24 that set the scope:**
+
+1. **482 and 185.** The report's translatable text rests on 482 origin-bound messages, 337 of them
+   distinct. 185 of the 482 are assembled in the read-model layer: 153 literals and 32 templates
+   (`_review/p217-report-journal.md:110`, `_review/p217b-journal.md`).
+2. **3 and 13.** Three of the builders behind them are report-only: the three report-scope builders,
+   whose own text is mostly the export panel's section list. Thirteen are shared. By message, shared
+   outnumbers exclusive: 51 to 45 by the survey's rule, 76 to 55 by function witness.
+3. **The report's own text is 45 messages from 3 builders, mostly the export panel's section
+   list.** The 45 are exclusive by the survey's rule, and the 3 builders are the report-only ones.
+   Everything else it prints is other surfaces' text:
+   - `?agent=` is largely `buildAgentDetail`'s output, and `?meeting=` is `buildMeetingReplay`'s.
+   - The project report renders `buildSalesFlow`'s findings.
+   - Translating the report is therefore translating the agent, meeting and flow surfaces, plus
+     those 45.
+   - _Corrected 2026-09-25._ This item first said the report had "no text of its own to speak of",
+     an overstatement of the measured 45 and 3.
+
+**Two languages are not half of four.** English exists, so the translation work is one language,
+Slovak. The machinery is not halved:
+
+- **Plurals.** English has two cardinal forms (`one`, `other`); Slovak has four (`one`, `few`, `many`,
+  `other`, with 2–4 taking `few`). The seven plural sites use no `Intl.PluralRules`.
+- **Ordinals.** English has four ordinal forms (1st, 2nd, 3rd, nth); Slovak has one. The English
+  suffix code, fed a formatting locale, prints "2th" on `sk-SK` (P2-17a).
+- **Language versus locale.** The report's language has to travel on the read-model request,
+  separate from `context.project.locale`, which formats figures and dates.
+
+The category counts above were measured with ICU 78.3 on Node 24.19.0.
+
+**The number nobody has measured:** how many distinct source messages the whole product carries.
+
+- The report carries 337.
+- The P2-17 survey's 3,617 distinct strings are rendered texts, a different unit. Nobody has counted
+  the messages behind them.
+
+The demo's `en-GB` locale is unchanged. It belongs to that phase.
+
+## 2026-09-24 (late) — the frozen README opened, the staging trap closed
+
+With Máté's permission, the frozen `supabase/README.md` opened in two places. The staging folder
+that caught a stale copy this afternoon is now generated, and when it is missing the checks say so.
+The journal is `_review/p221a-journal.md` (not committed).
+
+1. **`9e9d49b` — the README's two places.**
+   - Lines 285–288 described the fresh legacy redeploy as the required target of a proof retired
+     that day. Line 330 numbered the proof's steps "4–5" and "9".
+   - Both now point to _RETIRED 2026-09-24_. The steps read 10–11 (retired) and 15–16.
+   - `audit:frozen` is red on this commit, as it has to be: 1 file changed since base,
+     `supabase/README.md`.
+2. **`90bcdec` — `DEFAULT_BASE` moves to `9e9d49b`.** Its comment says who allowed the move and why.
+   - The script used to say the base moves "in the same commit". No commit can name its own SHA, so
+     it now says the next one.
+   - `audit:frozen` exits 0: 7 surfaces, 124 files, 0 changed.
+   - The six other surfaces (123 files) do not differ between `aac1866` and `9e9d49b`, and none
+     differs on the tree either.
+3. **`2d043d7` — the runbook's §12 no longer lists the README as open.**
+4. **`e33debd` — `pnpm release:wrappers` generates all of `_sql-to-paste/`.**
+   - The seven verbatim copies had no generator, and one went stale this afternoon. The generator
+     now writes them from one list, and the builder's allow-list is derived from the same list.
+   - It also creates the directory, which a fresh clone lacks. Its first write used to die on
+     ENOENT.
+   - Against the hand-staged directory: 11 files unchanged. On a fresh directory it wrote 11 files,
+     none different from the hand-staged ones.
+5. **`e12ad6c`, `e8a4ac3` — a missing or stale directory is named.**
+   - **Before, measured with the directory moved away:** the run was red, but by accident:
+     - 32 bare ENOENTs;
+     - a release build that died before its byte check had examined anything;
+     - 23 tests skipped behind failed hooks;
+     - 97 tests never collected.
+   - **What changed:** the builder refuses by name before it reads the directory. `facts.ts` names
+     the missing file. `contract-policy` states the directory's existence and freshness itself.
+   - **Now, with the directory moved away:**
+     - 7 of 10 files are red;
+     - 75 lines name `pnpm release:wrappers`, and no bare ENOENT is left;
+     - the three green files never read the directory.
+   - **A stale copy** is named by `--check`, by `contract-policy` and by the build.
+     `pnpm release:wrappers` restores it byte for byte.
+6. **`f4603f8` — P2-17's reclassification**, above.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+**Still open:**
+
+- the `service_role` rotation (Matthew's), then the contract-migration order, then the migration
+  round;
+- the header comment at `supabase/test/http-proof.test.ts:30` still numbers the proof's steps "4-5"
+  and "9";
+- P2-17, now a phase of its own.
+
+## 2026-09-25 — R05-a: Sales Flow rearranged, under Máté's approval
+
+**Approved by Máté on 2026-09-24** under `docs/observer-visual-baseline.md:280`, the fourth reason:
+explicit user approval for that specific change. The approval covers exactly three things:
+
+- R05 item 2: the summary row, regrouped;
+- R05 item 8: long lists shown as five rows plus Show all;
+- the R05 target layout's order, from `v3 :1039`.
+
+R01, R02, R06 and R12 are not approved. Each commit carries the approval text and names its item.
+The journal is `_review/r05a-journal.md`; the photographs are in `_review/r05a/`. Neither is
+committed.
+
+**Step 0 stopped the first attempt.** Two of the plan's four groups have nothing on the page to
+hold:
+
+- **Conversion.** The deal ladder is stock, not path (`deal-source.ts:50-52`).
+  `flow.stage_conversion` is defined and computed nowhere. Progressing is a meeting ratio, which
+  `v3:516` excludes.
+- **Cycle time.** P2-06 is blocked.
+
+The reviewer decided that both empty groups are printed, each with what is missing, as a report
+prints a blank section. Typical length stays outside the groups.
+
+1. **`12a586f` — item 2.**
+   - Volume holds Presentations and Units opened; Progress holds Progressing.
+   - Conversion and Cycle time are printed empty, each naming its missing input.
+   - Typical length sits in the row outside any group.
+   - Every word comes from the read model (`KpiPanel.groups`, `KpiPanel.ungrouped`). A subgrid lines
+     up the names, definitions and figures.
+2. **`54d67f2` — the order.** Hero, groups, deal ladder, stalled deals, then the details in the
+   order they already had. IRIS-assisted sales has no station in `:1039` and stays with the deal
+   blocks.
+   - Station 1's common period is not built: moving the summary onto the page period would change
+     its numbers.
+   - Station 3's cohort view is not built: it is a new number, and is the next round.
+   - Station 4 is not built: P2-06 is blocked.
+   - Station 6's collapsing is not built: whole sections were not approved.
+3. **`74c7784` — item 8.** Three lists collapse after five rows: stalled deals, IRIS-assisted sales
+   and longest presentations. In each, no hidden row carries an "of N" the page states nowhere
+   else. Presentations given never collapses: its rows carry "N of M meetings".
+   - `RankedBars.collapseAfter` is opt-in, and hidden rows keep their places and the shared scale.
+   - Without the prop the markup is unchanged, so Sales Agents' and Features' lists are untouched.
+
+**The proof that nothing was recomputed.** The page was read as one token per digit-bearing word of
+every text node, hidden rows included.
+
+- **Coverage:** Northgate, quarter to date and year to date, as a developer and as an agent.
+- **Result:** the figure multiset is byte-identical before and after every commit — 402 and 442
+  tokens.
+- **The instrument can fail:** two runs of the old page agreed, and a deliberate Presentations +1
+  showed as "41: 1→0 | 42: 1→2".
+- **New text:** only the ten group texts and "Show all", none with a digit.
+
+**Tests and mutations.** kpi-groups adds 6 tests and ranked-collapse adds 3. Two mutations turn the
+collapse test red: places restarting at one (2 red), and hidden rows on their own scale (1 red).
+
+**Page height.** Desktop went from 6725 px to 6541 px. The phone went from 11334 px to 11544 px: the
+definitions and the two empty groups take more room than the collapsed rows give back.
+
+**Observed, not changed.** "How to read this" still says "Everything below them reads the period in
+the bar at the top."
+
+- It is false for the deal ladder, stalled deals and IRIS-assisted sales, which read the CRM's
+  present or the whole history.
+- It was false before this round, and those blocks now sit directly below the summary.
+- The approval allowed no other new text.
+- The baseline's "Accepted later fixes" does not list R05-a. Whether it should is Máté's decision.
+
+**Next:** the cohort round. It measures whether the delivered deals carry enough stage history for
+`flow.stage_conversion`, and asks its own approval before it becomes a number.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+## 2026-09-25 — R05-b: the false sentence, the baseline record, the P2-17 numbers
+
+The journal is `_review/r05b-journal.md`, with photographs in `_review/r05b/`. Neither is committed.
+
+1. **`1a3a571` — Sales Flow's "How to read this" says which sections read the period.**
+   - "Everything below them reads the period in the bar at the top" was false for three blocks. It
+     is a proven bug under the baseline's first reason (`:276`).
+   - **Measured by rendering the page under four periods,** on two projects:
+     - the deal ladder, stalled deals and IRIS-assisted sales are byte-identical under all four;
+     - every other section moves.
+   - The sentence now lists both groups.
+   - **Proof:** the figure multiset is unchanged, and exactly one text node changed.
+2. **`bce8e24` — the baseline records R05-a** under "Accepted later fixes": the dates, the three
+   items, the approval and the four commits. The baseline is not a frozen surface. With it edited
+   on disk, `audit:frozen` reported 0 changed.
+3. **`62633ad` — P2-17's item 3 gives the report's own text in numbers:** 45 exclusive messages
+   from 3 report-only builders, mostly the export panel's section list. The overstatement is marked
+   as corrected.
+
+**Still open:**
+
+- the phone length of Sales Flow, which is the hunt's scope;
+- the cohort round;
+- the header comment at `supabase/test/http-proof.test.ts:30`;
+- the `service_role` rotation.
+
+The full `pnpm verify` ran on this commit; its result is in the journal and the round report.
+
+## 2026-09-27 — P2-17: the report prints in Slovak, English and Hungarian
+
+**Máté's decisions this rests on.** 2026-09-26: P2-17 is three languages, not four — Slovak, English
+and Hungarian; German is not needed for now. The "SK/EN/DE/HU" in the older entries above is history,
+not the scope. The report's language is a closed union on the read-model request
+(`OverviewQuery.language`), separate from `context.project.locale`, which still formats every figure,
+date and currency.
+
+**What was built, commit by commit** (all on `feature/observer-ux-overhaul-phase2`, pushed):
+
+1. `ac928b9` — the export dialog's sections and language reach the page: `?lang=` and `?omit=` on
+   the report's address, the page reads both, the cover lists what the reader left out.
+2. `0e620f8` — every read model the project report and the meeting summary print takes the
+   language: periods, flow verdict and findings, outcome names, room-count segments, the deal
+   ladder, section names, suppression notes, the manifest, the meeting replay.
+3. `a47d9dc` — the report page and the components it mounts (finding list, tier and source chips,
+   evidence, flow ladder, demonstration marker, breadcrumb, print control) take the page's language.
+   `WRITTEN_IN` moved to `apps/web/src/lib/language.ts`, and the page reads it too: a language typed
+   onto the address by hand gets the dialog's answer, never a half-translated document.
+4. `b6339d5` — a source-reading test followed the agents-table header into the words table.
+5. `5cb3691` — the Slovak "z" or "zo" before a count is read from `slovakZForm`, not written as "z".
+6. `6512885`, `3ca59cd` — the agent summary: `buildAgentDetail`, the register rows (the visitor
+   label stays a pure function of closed values; the language is one more closed union), the
+   manifest, and the page with `Figure`, `ShareFigure`, `StageFunnel`, the agent's register and the
+   head's answer. All three scopes are now written whole in all three languages.
+
+**Proof.**
+
+- **English is unchanged:** a render capture of all eleven report pages (Northgate under three
+  periods, Riverside, ISTER TOWER, as a developer and as an agency manager, the agent and meeting
+  scopes) is byte-identical to the baseline taken before the work — 11 of 11.
+- **Same input, same figures:** `packages/synthetic/test/report-language.test.ts` holds every scope
+  to the same sections, states and samples, the same replay steps, codes, clocks and evidence, and
+  the same agent figures, stages, rows and findings in every language — and to no English word left
+  standing in Slovak or Hungarian.
+- **Leaks, measured by rendering:** the Slovak and Hungarian captures carry no English word of the
+  product's own. What the leak analyser still finds is data (names, the organisation, unit codes),
+  words that are also Slovak or Hungarian ("trend", "register", "penthouse", "segment", "minimum"),
+  and the dates, which follow the project's `en-GB` locale ("24 Aug").
+- **Screens:** `_review/p217/` holds the dialog in Slovak, the Slovak report, the Slovak agent
+  summary (top, running order, register), the Hungarian meeting summary, and the Hungarian agent
+  summary on a 390 px phone with no horizontal overflow. Not committed.
+- **On the clean tree at `3ca59cd`:** `pnpm test` 208 files, 4,309 passed, 1 skipped; `pnpm typecheck`,
+  `pnpm format:check` and `pnpm build` exit 0; `audit:frozen` 0 changed; `audit:secrets` clean.
+  `pnpm lint` fails only on `_review/_runner/round-runner.mjs`, an untracked file this round did not
+  create; with it excluded, `eslint .` exits 0. Logs: `_review/p217/`.
+
+**Not ticked, and why.** The plan's definition of done for P2-17 asks for Slovak, English, German and
+Hungarian labels **and date and number forms**, and the same figures from the same input. The labels
+(three languages, by Máté's decision) and the same figures are done and proven. Two things are not
+this round's to close:
+
+- **The Slovak and Hungarian text is a draft.** `_review/p217/review-sheet.md` sets every line the
+  eleven pages print side by side in the three languages, 401 entries, for approval.
+- **Dates and numbers follow the project's locale, not the report's language.** A Hungarian report
+  on Northgate prints "24 Aug" and "45%". Whether the month's name follows the report's language is
+  a decision — see the round report's questions.
+
+**Next recommended action.** Máté's two decisions above; then an approval round that replaces the
+drafts with the approved text, as the L-rounds did for the sentence entries.
+
+## 2026-09-27 — P2-21: Phase 2 acceptance, measured — not accepted
+
+**The result is `docs/23-phase2-acceptance.md`.** Every one of the thirteen screens the plan was
+drawn from has its route, an after screenshot at 1920 and end-to-end specs that ran green today
+(`wide` 101 passed, 35 skipped by design, 0 failed; `desktop` product package 34 passed, 1 skipped,
+0 failed, the link crawl included). The 88 Phase 1 and Phase 2 items of the route checklists:
+**32 verified, 33 partial, 12 not done, 11 blocked** on a named input (28 verified, 1 untested and
+36 partial at the first measurement; four items closed after it, below).
+
+**The gate's clause that fails:** the sales formulas are not shared. "Attention for its share of
+stock" is three computations — `/project` 1.41×, `/units` 1.39× for the same Northgate segment, and
+the Ask pulse on a third population — and `/overview` prints a hard-coded 2.1. Choosing the
+population is a decision (see the document's last section); then one implementation in the registry.
+
+**Corrected on the way**, each its own commit with a test, all pushed:
+
+- `c9d89e5` — Kingsford Yard, priced in pounds, printed its price filters in euros.
+- `1b5f0e4` — Kingsford's Presentation DNA named two of Alpha Estates' agents ("presented no
+  meeting"): the default pair came from the whole roster. Now only the project's own roster and its
+  presenters may be named, for a requested id too.
+- `7ffbfb2` — Features stated a feature pairing under "What stands out" below the floor its own table
+  holds to.
+- `24e573e` — "Meetings ending without a recorded outcome" opened the whole register; it now opens
+  `?outcome=skipped`, and the count matches.
+
+Closed after the first measurement, pushed:
+
+- `b226f15` — the DNA's chosen pair survives a mode switch, and its lede no longer calls the
+  team's lane one presenter's sequence.
+- `c10616f` — a comparison's evidence opens the comparison it rests on, the pair included.
+- `aeb1946` — the agents roster no longer credits a CRM it did not read.
+- `40957fa` — the compact DNA lanes' codes got a key; their names were only in titles.
+- `d2331d5` — a figure below its minimum sample keeps its denominator beside the shortfall.
+- `633bf12` — Sales Flow's windows outside the selected period read "Not in this period", not 0, and
+  Sales Flow and the Briefing compare such a period with its baseline ("0 last month" and "no
+  earlier comparable period" under Last 28 days were false).
+- `6556ba1` — "Presentations week by week" draws only the weeks the period holds whole; the week
+  still running was marked "±9 against the week before".
+- `43affea` — a flagged agent's finding is set against the team's figure for the same thing: "against
+  0% for the team" beside "10 of 10 with no outcome recorded" on the projects with no outcomes was false.
+- `ec24669` — the Briefing's door to Sales Flow says "no outcome recorded" instead of "0% progressing"
+  on the projects that record none (R02, as a proven bug).
+- `0c45214` — an empty period's two Sales Flow sections say what they cannot draw.
+- `1c58eaf` — the trend line's last x label ends at its point; centred, it ran past the frame ("17 Au").
+- `786b396` — the shortlisted follow-up state's action says it opens the meeting register; "Open those
+  meetings" opened all 74 for 41 counted. The matching filtered list needs an R08 filter (approval).
+- `bf14119`, `f83b26d`, `db2adb5` — three findings' next steps open what they name: Sales Flow's unrecorded
+  meetings (`?outcome=skipped`), the cohort comparison (`?mode=cohorts`), and a unit's shortlisted
+  meetings (its own table, `#meetings-that-opened-it`; `withPeriod` now keeps a fragment last).
+- `4e03140` — the executive overview's foot no longer claims every sentence links to its records; two
+  desktop e2e specs failing since before the block pass again (the whole desktop project was run).
+- `77b1be8` — the mobile e2e cases open the Menu the shell puts its controls behind (eight failed and
+  eighteen could not run: the plan's "mobile (ii)" class, a P2-21 gate item). Test code only.
+- `ab981c9` — "What those meetings became" names the days of a month the period cuts ("Aug 1–24").
+
+**Verification at `ab981c9`:** `pnpm test` 223 files, 4,359 passed, 1 skipped.
+
+**Next recommended action.** Máté's decisions, in the order the document lists them: the index's
+population (the failing clause), approval for the frozen-surface copy the plan asks for (R02 "On
+course", R06's quadrant labels, R12's automatic flag), whether R12 counts unknown visitors apart from
+first meetings and R04 splits its two outcome checks, and whether P2-19 and P2-20 are built now.
+Added by the 2026-09-27 morning block, whose report is `_review/blokk-0927/report.md`: R08's sticky
+header (three options), a register filter for R04's shortlisted follow-up state (a new R08
+control), whether P2-17 stays ticked while its text and date forms are open, and the L5d brief
+waiting in `_review/_inbox/` since 09:17, which runs on "következő".
+
+## 2026-09-27 (day) — Máté's fifteen decisions, built
+
+Máté answered the morning block's fifteen questions at 10:31. What they changed, each its own commit
+with a test and a mutation check, all pushed:
+
+- `d37c01e` — **one attention index** (decision 1): one population on both sides, the stock the
+  period ends with unsold (available, reserved, pre-reserved), one implementation in the registry
+  (`packages/metrics/src/attention-index.ts`), read by `/project`, `/units`, the Ask pulse, the
+  Briefing's door and `/overview`. Northgate's two-room units read 1.39× everywhere for the quarter;
+  the overview's hard-coded 2.1, +34% and Riverside's 1.7 are computed, and Riverside's briefing
+  says it has no south-facing unit at all (its catalogue faces east and north). The gate's failing
+  clause holds. The old Ask index was 1.30× in every period alike: it never read the period.
+- `d89dcf3` — R07's "Verified outcome" row goes; Status says it (11).
+- `0ae773f` — R08: no sticky header where a register scrolls sideways, option (c) (9).
+- `31d85a8` — R04: the recorded outcome and its CRM verification are two checks with two counters;
+  lateness is asked and answered Not evaluated (7b). The Briefing's lead state is unchanged on all
+  four projects.
+- `c31290c` — the printed report is formatted by its language, screens by the project's locale, the
+  currency always the project's: Kingsford's Slovak report prints "210 000 £" (3).
+- `7daa911` — R12: a visitor Observer does not know is not a first meeting; Northgate's quarter
+  reads first meeting 10 (14%), not linked to a contact 50 (68%), and "81% were a buyer's first"
+  no longer fires (7a).
+- `94cee08`, `876e986` — the Briefing reads one window in its sentence and its Progressing figure,
+  and gives no verdict below 20 recorded outcomes a side or with nothing earlier (6). Northgate's
+  last quarter and year to date and ISTER TOWER's year to date lose "on course"; ISTER TOWER's
+  quarter reads "needs a look" (its month at 43% against 49%).
+- `63123c0` — Sales Flow's verdict gets the same floor, and no "0% before" where the baseline
+  recorded no outcome. All 48 synthetic verdicts are byte-identical before and after.
+- `e9b44c3` — the parity-row e2e guard reads "of the unsold stock".
+
+The plan document: P2-17's tick was already off (rev 238); P2-17 and P2-21 annotated; P2-19 and
+P2-20 marked "after the Phase 2 gate"; the interface language and R04's filtered list added to the
+Phase 3 list as their own items (decisions 5, 8, 10). Decisions 4, 12, 13 and 15 needed no work;
+the stash stays, its patch is in the block report (14).
+
+**Verification.** `pnpm test` 226 files, 4,378 passed, 1 skipped at `94cee08`; all four e2e projects
+at `876e986`: 1,144 passed, 405 skipped, 3 failed on the one stale guard, corrected in `e9b44c3` and
+15 of 15 on its three projects. Screenshots looked at: `/project` (R06), `/overview` for Northgate
+and Riverside, `/showroom` (R02) for the quarter and the year, `/attention` (R04) for Northgate and
+Riverside, `/agents` (R12), a unit page (R07).
+
+**Found and not changed** (in `docs/23`): Northgate's overview says two-room units "convert at half
+the project average" while `/project` computes 41% against 40% for the same quarter; the P1-04
+"1.51×" is reproduced by none of the removed computations; R04's shortlisted follow-up state counts
+"Presentation only" and "Not interested" as missed follow-ups (41 on Northgate's quarter, 7 without
+them).
+
+**Later the same day**, each with a test, pushed:
+
+- `4d01f3a` — the Briefing's door read "1 agents · outcome mix side by side" on ISTER TOWER's live
+  twin, which has one presenter; it reads "1 agent · outcome mix" (a proven bug on R02).
+- `8cbda0e` — a running period ends at the end of today in the project's time zone, not UTC's:
+  west of UTC, at noon, today's, this week's and this month's windows read "Not in this period".
+  `slices()` now calls `sliceSpan`, one decision for the cut and the windows. Every project today
+  is at or east of UTC, and nothing on screen moved (compared on four projects in four periods).
+- `7138e0e` — the lab's copy-control e2e check waits for the control before it skips; a cold
+  compile made it skip once in three runs.
+
+The user's own case, checked on real data: ISTER TOWER's live twin (four delivered meetings, the
+lab's control plane on) read "The showroom is on course." and now reads "4 recorded outcomes this
+month; 20 needed for a verdict." under "No verdict". A text sweep of 60 pages on the lab server
+(five account, project and period combinations) found no "1 <plural>", no `NaN`, `undefined` or
+`null`, and no "against 0% before".
+
+**Verification at `7138e0e`:** `pnpm test` 226 files, 4,384 passed, 1 skipped; all four e2e
+projects at `8cbda0e`: 1,146 passed, 406 skipped, 0 failed (the extra skip was the lab flake
+`7138e0e` closes; 12 of 12 after it); `audit:frozen` 0, `audit:secrets` 0.
+
+**The L5d brief will stop at its preflight**: it asks for HEAD `0f54fab`, and two of its six
+allow-listed files changed today (`showroom/project.ts` for decision 1, `plural-language.test.ts`
+for decision 3). The brief's HEAD needs refreshing before "következő".
+
+**Next recommended action.** The block report `_review/blokk-0927b/report.md` and its seven
+questions — first the executive and agent overviews, which are fixed scenarios whose figures
+contradict Sales Flow's; then the measurement again before P2-21 is ticked.

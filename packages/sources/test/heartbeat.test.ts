@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { HeartbeatResponseSchema, OBSERVER_ROUTES } from "@observer/contracts/ue5";
@@ -18,6 +16,7 @@ import {
   closeSuiteDatabases,
   closeTestDatabases,
   openDatabase,
+  applyMigrations,
 } from "../../../supabase/test/support/pglite";
 
 afterEach(closeTestDatabases);
@@ -47,8 +46,6 @@ afterAll(closeSuiteDatabases);
  * synthetic English phrases padded to length; `describePepper` accepts them only
  * because `VITEST` is set, and refuses them on any deployment.
  */
-
-const MIGRATIONS = resolve(import.meta.dirname, "../../../supabase/migrations");
 
 /*
  * Named rather than globbed, as the other database suites do, so that a
@@ -111,14 +108,8 @@ let deps: HandlerDeps;
 const query: SqlQuery = (sql, params) => pg.query(sql, [...params]);
 
 beforeAll(async () => {
-  pg = await openDatabase("suite");
-  /* The three Supabase roles the migrations revoke from; PGlite ships none. */
-  await pg.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of FILES) await pg.exec(readFileSync(join(MIGRATIONS, name), "utf8"));
+  pg = await openDatabase("suite", "hosted");
+  await applyMigrations(pg, FILES);
   db = pgliteDb(query);
   deps = { db, env: ENV, now: () => NOW };
 });

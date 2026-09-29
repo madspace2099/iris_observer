@@ -12,6 +12,7 @@ import {
   type RegisterSearch,
 } from "@/components/units";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Units" };
 
 /**
@@ -37,7 +38,7 @@ export const metadata: Metadata = { title: "Units" };
  * carry actions, so they belong above the seam with everything else a reader
  * may act on.
  *
- * **The register, on paper.** Thirteen columns of measurement. ADR-0034 divides
+ * **The register, on paper.** Twelve columns of measurement. ADR-0034 divides
  * this product by content rather than by page, and this is the surface the
  * paper plate was written for: every cell in it is a reading, a date, a count
  * or a price, and none of it is a conclusion.
@@ -87,7 +88,7 @@ export default async function UnitsPage({
   const search = await searchParams;
 
   const period = presetFrom(search.period);
-  const query = { viewer, tenantSlug, projectSlug, period };
+  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
 
   const [view, pulse, attention] = await Promise.all([
     /*
@@ -152,10 +153,34 @@ export default async function UnitsPage({
           <div className="ox-section-head">
             <h2 className="ox-section-title">{pulse.buildingLabel}</h2>
             {pulse.totals.units === 0 ? null : (
+              /*
+               * THE STOCK BREAKDOWN IS A LIFETIME COUNT. THE SALE FIGURE IS NOT.
+               *
+               * `available`, `reserved` and `sold` are the catalogue's current
+               * state and they sum to the building. `soldInPeriod` answers a
+               * different question — how many of those sales fall inside the
+               * window this entire screen is measured in — and every other
+               * number on this page is period-scoped. Drawing the three without
+               * it put a lifetime count in a period-scoped sentence, where
+               * "3 sold" reads as three sales this quarter.
+               *
+               * The Briefing states it in this exact shape and the Project
+               * overview states it as a reading of its own. This was the third
+               * surface reading the same pulse and the only one that stopped at
+               * the stock.
+               *
+               * Null is not nought: a delivered catalogue with no observed
+               * sessions behind it has not measured the period at all, and a
+               * zero would say that nothing sold.
+               */
               <p className="ox-section-note">
                 The same {pulse.totals.units} flats the register below lists, arranged as the
                 building rather than as a list. {pulse.totals.available} available,{" "}
-                {pulse.totals.reserved} reserved, {pulse.totals.sold} sold.
+                {pulse.totals.reserved} reserved, {pulse.totals.sold} sold
+                {pulse.totals.soldInPeriod === null
+                  ? "; how many of them in this period is not observed yet"
+                  : `, ${pulse.totals.soldInPeriod} of them in this period`}
+                .
               </p>
             )}
           </div>

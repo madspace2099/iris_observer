@@ -6,10 +6,13 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { Missing, ShareFigure } from "@/components/agents";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { Radar, RankedBars } from "@/showroom/charts2";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Sales Agents" };
 
 /**
@@ -52,6 +55,7 @@ export default async function AgentsPage({
     tenantSlug,
     projectSlug,
     period: period as PeriodPreset,
+    language: DEFAULT_LANGUAGE,
   };
 
   const [view, charts] = await Promise.all([
@@ -106,16 +110,51 @@ export default async function AgentsPage({
                   {a.suppressionNote}
                 </p>
               ) : (
+                /*
+                 * THE RATE THROUGH `ShareFigure`, NOT ROUNDED HERE.
+                 *
+                 * This line rounded `progressedShare` and appended a percent
+                 * sign — the component computing a figure that ADR-0012
+                 * forbids, and the exact thing the Flow page's docblock named
+                 * when it removed the same line. Worse, the only count on the
+                 * card was the ring's centre, every meeting, while the rate
+                 * stands on the decided ones. The denominator is the read
+                 * model's, in words; the locale is the project's.
+                 */
                 <p className="iris-code" style={{ margin: 0 }}>
-                  {Math.round(a.ring.progressedShare * 100)}% progressed · median{" "}
-                  {a.medianDurationDisplay}
+                  {a.ring.decidedMeetings === 0 ? (
+                    <Missing what="No outcome recorded" />
+                  ) : (
+                    <ShareFigure
+                      share={a.ring.progressedShare}
+                      sampleSize={a.meetings}
+                      minimumSampleSize={AGENT_MIN_SAMPLE}
+                      locale={view.context.project.locale}
+                      qualifier={`progressed, of ${a.ring.decidedMeetings} meetings with an outcome`}
+                    />
+                  )}{" "}
+                  · median {a.medianDurationDisplay}
                 </p>
               )}
               <OutcomeKey slices={a.ring.slices} />
-              {a.belowMinimum || a.signature === null ? null : (
+              {/*
+               * The habit's own gate, on the set the habit stands on. The
+               * card's `belowMinimum` counts the meetings held; "leans on"
+               * stands on the timed ones, and a card that named a set of
+               * fifteen under a gate that counted twenty-five would contradict
+               * itself in one breath. Under the timed floor the read model's
+               * own reason stands where the habit would.
+               */}
+              {a.belowMinimum ? null : a.signatureNote !== null ? (
+                <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
+                  {a.signatureNote}
+                </p>
+              ) : a.signature === null ? null : (
+                /* The set the two shares stand on, in the Features page's own form. */
                 <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
                   Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the
-                  team&rsquo;s share.
+                  team&rsquo;s share of presentation time, across the {a.timedMeetings} of{" "}
+                  {a.meetings} meetings the source could time end to end.
                 </p>
               )}
               {a.irisRating === null ? null : (
@@ -149,9 +188,27 @@ export default async function AgentsPage({
           </p>
           <div className="iris-radars">
             {charts.radar.profiles.map((profile) => (
-              <div className="iris-radar-card" key={profile.id}>
-                <Radar axes={charts.radar.axes} series={[profile]} size={190} />
-              </div>
+              <figure className="iris-radar-card" key={profile.id}>
+                {/*
+                 * Below the floor the card stays and the shape does not: a
+                 * shape scaled against the strongest colleague on every axis
+                 * is a ranking without numbers, drawn from four meetings. The
+                 * note is the read model's, the same sentence the ring card
+                 * above prints.
+                 */}
+                {profile.belowMinimum ? (
+                  /* The note stands in the box the shape would fill (`.iris-radar-note`), so the row keeps four equal cells. */
+                  <p className="iris-meta iris-radar-note">
+                    <b>{profile.label}</b> — {profile.note}
+                  </p>
+                ) : (
+                  /* The label is the card's caption, under the shape — not a key inside the component for one shape. */
+                  <>
+                    <Radar axes={charts.radar.axes} series={[profile]} size={190} />
+                    <figcaption>{profile.label}</figcaption>
+                  </>
+                )}
+              </figure>
             ))}
           </div>
           <dl className="iris-axis-key">
@@ -177,7 +234,7 @@ export default async function AgentsPage({
             <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
               Presentations given
             </p>
-            <RankedBars rows={charts.ranked} />
+            <RankedBars rows={charts.ranked} period={period} />
             <p className="iris-meta" style={{ marginTop: ".5rem" }}>
               How many, and how long they typically ran. This list is ordered by workload. It is not
               ordered by outcome, and there is no list here that is.
@@ -190,7 +247,7 @@ export default async function AgentsPage({
             </p>
             <div className="iris-bars">
               {view.repeats.map((r) => (
-                <div className="iris-bar" key={r.visits}>
+                <div className="iris-bar" key={r.visits ?? "unlinked"}>
                   <span className="iris-bar-label" title={r.label}>
                     {r.label}
                   </span>
@@ -210,20 +267,16 @@ export default async function AgentsPage({
         </div>
 
         {/*
-            Named where it contributed. A project with no CRM connected has no
-            CRM outcome under these figures, and a chip saying otherwise is the
-            same lie in miniature as a zero standing in for something unmeasured.
+            Named where it contributed, and the CRM contributes nothing here. The
+            rings, the flags and the findings are the outcomes agents recorded in
+            the room, the showroom's own record (docs/06; the sweep that took the
+            same chip off the agent's page, 83d3e72). A CRM chip on a connected
+            project credited it with figures it never touched.
           */}
-        <SourceChips
-          sources={
-            view.context.project.connectedSources.includes("crm")
-              ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
-              : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
-          }
-        />
+        <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
 
         {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} lead={index === 0} />
+          <Finding key={finding.id} finding={finding} period={period} lead={index === 0} />
         ))}
 
         <Gaps

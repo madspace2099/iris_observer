@@ -1,7 +1,12 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NotFoundError, NotPermittedError, type Viewer } from "@observer/readmodels";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type Viewer,
+  DEFAULT_LANGUAGE,
+} from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 
 import { maySeeSurface } from "../src/lib/routes";
@@ -154,6 +159,7 @@ describe("the address gate", () => {
       tenantSlug: cell.tenantSlug,
       projectSlug: cell.projectSlug,
       period: "quarter_to_date",
+      language: DEFAULT_LANGUAGE,
     });
     if (cell.error === "none") {
       await expect(call, cell.note).resolves.toBeDefined();
@@ -172,7 +178,13 @@ describe("the address gate", () => {
       ["beta", "kingsford"],
     ] as const) {
       await expect(
-        repo().getHome({ viewer: nobody, tenantSlug, projectSlug, period: "quarter_to_date" }),
+        repo().getHome({
+          viewer: nobody,
+          tenantSlug,
+          projectSlug,
+          period: "quarter_to_date",
+          language: DEFAULT_LANGUAGE,
+        }),
         `${tenantSlug}/${projectSlug}`,
       ).rejects.toBeInstanceOf(NotPermittedError);
     }
@@ -192,20 +204,21 @@ describe("the gates compose, and the middle one actually removes data", () => {
       tenantSlug: "alpha",
       projectSlug: "northgate",
       period: "quarter_to_date",
+      language: DEFAULT_LANGUAGE,
     } as const;
 
     expect(maySeeSurface("developer", "project")).toBe(true);
     const open = await repo().getExecutiveOverview(query);
     const gated = await entitled(repo(), FIXTURE_REGISTRY).getExecutiveOverview(query);
 
-    const exec = (v: unknown): { metricId: string; display: unknown }[] => {
-      const out: { metricId: string; display: unknown }[] = [];
+    const exec = (v: unknown): { metricId: string; display: unknown; state: unknown }[] => {
+      const out: { metricId: string; display: unknown; state: unknown }[] = [];
       const walk = (x: unknown, seen = new Set<unknown>()) => {
         if (typeof x !== "object" || x === null || seen.has(x)) return;
         seen.add(x);
         const r = x as Record<string, unknown>;
         if (typeof r["metricId"] === "string" && r["metricId"].startsWith("exec.")) {
-          out.push({ metricId: r["metricId"], display: r["display"] });
+          out.push({ metricId: r["metricId"], display: r["display"], state: r["state"] });
         }
         for (const child of Object.values(r)) walk(child, seen);
       };
@@ -215,10 +228,36 @@ describe("the gates compose, and the middle one actually removes data", () => {
 
     const before = exec(open);
     expect(before.length, "the fixture must carry executive figures to refuse").toBeGreaterThan(0);
-    for (const m of exec(gated)) {
-      expect(m.display, m.metricId).not.toBe(
-        before.find((b) => b.metricId === m.metricId)?.display,
-      );
+    expect(
+      before.filter((b) => b.display !== null).length,
+      "the fixture must carry available executive figures to refuse",
+    ).toBeGreaterThan(0);
+    /*
+     * Two rules, not one rule with an exemption: an available figure must come
+     * out changed, and a null one must be null on BOTH sides AND declared
+     * unavailable, so a figure that is null for no stated reason still fails.
+     */
+    /*
+     * Paired by position, not by the first figure with the same id: the verdict
+     * component and the headline tile share one metricId, and a lookup by id
+     * compared every tile with its component and never looked at the tile.
+     */
+    const after = exec(gated);
+    expect(after.map((m) => m.metricId)).toEqual(before.map((m) => m.metricId));
+    for (const [i, m] of after.entries()) {
+      const pair = before[i];
+      const was = pair?.display;
+      if (was === null) {
+        expect(pair?.state, `${m.metricId} is null without being declared unavailable`).toBe(
+          "unavailable",
+        );
+        expect(
+          m.display,
+          `${m.metricId} had no value, and the gate must not give it one`,
+        ).toBeNull();
+      } else {
+        expect(m.display, m.metricId).not.toBe(was);
+      }
     }
   });
 

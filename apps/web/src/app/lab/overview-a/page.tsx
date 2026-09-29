@@ -3,6 +3,9 @@ import { Workspace } from "@/lab/Workspace";
 import { repository } from "@/lib/repository";
 import { viewerFor } from "@/lib/session";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
+
+import { labGate } from "../gate";
 export const metadata: Metadata = { title: "Concept A — narrative-first" };
 
 /**
@@ -13,11 +16,13 @@ export const metadata: Metadata = { title: "Concept A — narrative-first" };
  * concept is about composition rather than about the session adapter.
  */
 export default async function Page() {
+  await labGate();
   const query = {
     viewer: viewerFor("developer"),
     tenantSlug: "alpha",
     projectSlug: "northgate",
     period: "quarter_to_date",
+    language: DEFAULT_LANGUAGE,
   } as const;
 
   const [overview, pulse, ask] = await Promise.all([

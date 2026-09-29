@@ -4,6 +4,7 @@ import type { CatalogueSource, DealSource, OverviewQuery, Viewer } from "@observ
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 import { rawUnitsFromCatalogue } from "../src/catalogue-overlay";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * A connector's catalogue standing in for the synthetic one.
  *
@@ -14,7 +15,7 @@ import { rawUnitsFromCatalogue } from "../src/catalogue-overlay";
  */
 
 function query(viewer: Viewer, tenantSlug: string, projectSlug: string): OverviewQuery {
-  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date" };
+  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date", language: DEFAULT_LANGUAGE };
 }
 
 const ISTER = query(VIEWERS.developer as Viewer, "alpha", "ister-tower");
@@ -181,7 +182,9 @@ describe("a repository composed with a catalogue source", () => {
   it("lets no invented session touch a delivered unit", async () => {
     // The synthetic sessions still exist — the showroom surfaces keep their
     // demonstration — but they touch synthetic units, so every delivered
-    // segment shows the attention it has actually earned: none.
+    // segment shows the attention it has actually earned: none. With no
+    // looking time on the unsold stock there is no index at all, and an absent
+    // index is not 0× (the registry's exclusion, decided 2026-09-27).
     const flow = await repo.getSalesFlow(ISTER);
     expect(flow.meetingCount).toBeGreaterThan(0);
 
@@ -189,7 +192,7 @@ describe("a repository composed with a catalogue source", () => {
     for (const segment of view.segments) {
       expect(segment.meetings).toBe(0);
       expect(segment.attentionShare).toBe(0);
-      expect(segment.index).toBe(0);
+      expect(segment.index).toBeNull();
     }
     expect(view.verdict).toMatch(/meetings?/);
   });
@@ -214,7 +217,19 @@ describe("a repository composed with a catalogue source", () => {
     const plain = new SyntheticObserverRepository();
     const pulse = await plain.getProjectPulse(ISTER);
     expect(pulse.floors.flatMap((f) => f.units).some((u) => u.code.startsWith("IT-"))).toBe(true);
-    expect(pulse.totals.soldInPeriod).not.toBeNull();
+    /*
+     * `observationCount`, not `soldInPeriod`.
+     *
+     * This line asserted `soldInPeriod` was not null, as a proxy for "this is
+     * the observed path and not the delivered one". It stopped being a usable
+     * proxy when `soldInPeriod` became each scheme's own figure or none: Ister
+     * Tower's scenario states none, so the observed path now answers null here
+     * and the proxy reported the delivered path.
+     *
+     * The fact it stood for is asserted directly instead, and against the same
+     * number the delivered case pins to nought fifty lines up.
+     */
+    expect(pulse.evidence.observationCount).toBeGreaterThan(0);
   });
 });
 
@@ -252,7 +267,9 @@ describe("a repository composed with a deal source", () => {
     ]);
     expect(flow.ladder.stages[3]?.rate).toBe("75%");
     expect(flow.ladder).toMatchObject({ connector: "csv", unmapped: 1, lost: 1, total: 6 });
-    expect(flow.ladder.note).toContain("1 deal carry a stage word not mapped yet");
+    expect(flow.ladder.note).toContain(
+      "1 deal carries a stage word not mapped yet and sits on no rung.",
+    );
     expect(flow.ladder.note).toContain("1 lost");
   });
 

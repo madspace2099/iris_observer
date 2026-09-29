@@ -1,4 +1,4 @@
-import type { SectionUsage } from "@observer/readmodels";
+import type { PeriodPreset, SectionUsage } from "@observer/readmodels";
 
 import { ChartFrame, Empty } from "@/components/product";
 import { RankedBars } from "@/showroom/charts2";
@@ -49,10 +49,13 @@ export function RunningOrder({
   sections,
   meetingsTotal,
   periodLabel,
+  period,
 }: {
   readonly sections: readonly SectionUsage[];
   readonly meetingsTotal: number;
   readonly periodLabel: string;
+  /** For `RankedBars`, which requires it; these rows link nowhere today. */
+  readonly period: PeriodPreset;
 }) {
   const reached = sections.filter((section) => section.meetings > 0);
   const ordered = [...reached].sort((a, b) => a.meanPosition - b.meanPosition);
@@ -76,6 +79,7 @@ export function RunningOrder({
         .join(", ")}.`}
     >
       <RankedBars
+        period={period}
         rows={ordered.map((section) => ({
           id: section.sectionId,
           label: section.label,

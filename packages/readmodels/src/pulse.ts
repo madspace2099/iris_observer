@@ -82,16 +82,19 @@ export interface PulseFloor {
 /**
  * A segment the Pulse can be filtered or read by.
  *
- * `attentionIndex` is the workhorse: share of attention divided by share of
- * inventory. Above one means the segment draws more interest than its size
- * warrants — which is the finding the Overview verdict rests on.
+ * `attentionIndex` is the workhorse: the segment's share of the looking time
+ * on the stock the period ends with unsold, over its share of that stock —
+ * `attentionIndex` in `@observer/metrics`, the one implementation `/project`,
+ * `/units` and the overview read too. Above one means the segment draws more
+ * interest than its size warrants. Null where the period's meetings were not
+ * read, the segment holds no unsold unit, or nobody looked at the unsold stock.
  */
 export interface PulseSegment {
   readonly id: string;
   readonly dimension: "rooms" | "orientation" | "floor_band" | "price_band";
   readonly label: string;
   readonly unitIds: readonly string[];
-  readonly attentionIndex: number;
+  readonly attentionIndex: number | null;
   readonly conversionRatio: number | null;
   readonly available: number;
 }

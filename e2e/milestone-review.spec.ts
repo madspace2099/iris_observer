@@ -9,9 +9,13 @@ import { chooseInSwitcher } from "./switcher";
  * approved. Every surface named in the milestone appears, at the widths the
  * defects were reported at, plus the states that only exist at runtime.
  */
-const OUT =
-  process.env["OBSERVER_MILESTONE_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/milestone";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_MILESTONE_SHOTS"] ?? "_review/milestone";
 
 
 async function shoot(page: Page, name: string) {
@@ -29,12 +33,26 @@ test.describe("milestone review", () => {
    * Opt-in. This file produces images for a human, asserts nothing, and was
    * written against the briefing landing and the Observer console that Ask IRIS
    * has since replaced — so run unasked it only turned `wide` red and wrote
-   * screenshots into a dead session's temp directory. Name where the images go
-   * to run it, and expect to update its selectors to the current UI first.
+   * screenshots into a dead session's temp directory. Turn it on to run it, and
+   * expect to update its selectors to the current UI first.
+   */
+  /*
+   * THE SWITCH IS NOT THE DESTINATION.
+   *
+   * This gate used to read `OBSERVER_MILESTONE_SHOTS` — the same variable that names where
+   * the images go. The two jobs cancelled: with the variable unset the file
+   * skipped, and with it set the default never applied, so the
+   * `?? "_review/milestone"` beside it was a line that could not become true. A
+   * default nobody can reach tells the next reader the file writes there, and
+   * it does not.
+   *
+   * `OBSERVER_MILESTONE_CAPTURE` turns the generator on. `OBSERVER_MILESTONE_SHOTS` still moves
+   * the images, and now its default is reachable: with the flag set and no
+   * destination named, they land in `_review/milestone`.
    */
   test.skip(
-    () => process.env["OBSERVER_MILESTONE_SHOTS"] === undefined,
-    "A screenshot generator: set OBSERVER_MILESTONE_SHOTS to produce the set.",
+    () => process.env["OBSERVER_MILESTONE_CAPTURE"] === undefined,
+    "A screenshot generator: set OBSERVER_MILESTONE_CAPTURE=1 to produce the set.",
   );
 
   test("sign-in", async ({ page }) => {

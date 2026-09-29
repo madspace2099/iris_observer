@@ -67,6 +67,63 @@
   color: var(--ink-2);
 }
 
+/*
+ * The summary row in the plan's four groups (R05 item 2). The live figures
+ * come first, with "Typical length" in the row outside any group. The two
+ * groups nothing measures sit below them, printed empty with what is missing.
+ * The strips are the same joined strips as before, one per group.
+ */
+.iris-kpi-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.375rem 1rem;
+}
+
+/*
+ * Each group takes three rows of the parent, name, definition, figures, so the
+ * names line up, the definitions line up and the figures line up however many
+ * lines a definition wraps to. A figure outside any group puts its strip in
+ * the figure row, under no name.
+ */
+.iris-kpi-group {
+  display: grid;
+  grid-row: span 3;
+  grid-template-rows: subgrid;
+  min-width: 0;
+}
+
+.iris-kpi-group > p {
+  margin: 0;
+}
+
+.iris-kpi-group > .iris-kpis:only-child {
+  grid-row: 3;
+}
+
+.iris-kpi-group[data-empty="true"] > .iris-kicker {
+  margin-top: 1.25rem;
+}
+
+.iris-kpi-group[data-empty="true"] + .iris-kpi-group[data-empty="true"] {
+  grid-column: span 2;
+}
+
+.iris-kpi-missing {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+@media (max-width: 60rem) {
+  .iris-kpi-groups {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .iris-kpi-group[data-empty="true"] + .iris-kpi-group[data-empty="true"] {
+    grid-column: auto;
+  }
+}
+
 .iris-spark-fill {
   fill: color-mix(in oklab, var(--accent) 16%, transparent);
 }
@@ -470,6 +527,22 @@
   gap: 0;
 }
 
+/*
+ * A long list's first rows, and the rest behind "Show all" (R05 item 8). The
+ * control is the page's own action pill (`.iris-action`), with the browser's
+ * disclosure marker taken off rather than a new mark put on.
+ */
+.iris-ranked-more > summary {
+  list-style: none;
+  cursor: pointer;
+  width: fit-content;
+  margin: 0.75rem 0;
+}
+
+.iris-ranked-more > summary::-webkit-details-marker {
+  display: none;
+}
+
 .iris-ranked li {
   display: grid;
   grid-template-columns: 1.5rem minmax(0, 12rem) minmax(0, 1fr) 5rem;
@@ -688,15 +761,44 @@
   gap: 1.25rem;
 }
 
+/*
+ * A `figure`, so its caption is a caption: the browser's figure margin is
+ * reset. The rows pack at the top, so a note (`.iris-radar-note`) is centred
+ * on the shape's 190px box and not on the box plus the caption under it —
+ * a note and a shape in one row share one centre line, and the caption
+ * stands under its own shape.
+ */
 .iris-radar-card {
   display: grid;
   justify-items: center;
+  align-content: start;
   gap: 0.375rem;
+  margin: 0;
 }
 
 .iris-radar-card figcaption {
   font-size: 0.75rem;
   color: var(--ink-2);
+  text-align: center;
+}
+
+/*
+ * The note that stands in for a shape below the sample floor.
+ *
+ * The card keeps its cell and its height: the note fills the box the radar
+ * would (190px, the size the page draws the radar at) and sits in its vertical
+ * middle, so a row of four reads as four equal cells rather than one chart and
+ * three captions floating at the top of empty space — which is what the first
+ * photograph showed.
+ */
+.iris-radar-note {
+  box-sizing: border-box;
+  min-height: 190px;
+  max-width: 22rem;
+  margin: 0;
+  padding: 0 0.5rem;
+  display: grid;
+  align-content: center;
   text-align: center;
 }
 

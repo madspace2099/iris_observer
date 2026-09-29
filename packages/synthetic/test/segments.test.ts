@@ -3,6 +3,7 @@ import type { OverviewQuery, Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 import { catalogueFor, roomCounts, roomLabel } from "../src/pulse";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * Room segments follow the catalogue.
  *
@@ -17,7 +18,7 @@ import { catalogueFor, roomCounts, roomLabel } from "../src/pulse";
 const repo = new SyntheticObserverRepository();
 
 function query(viewer: Viewer, tenantSlug: string, projectSlug: string): OverviewQuery {
-  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date" };
+  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date", language: DEFAULT_LANGUAGE };
 }
 
 const ISTER = query(VIEWERS.developer as Viewer, "alpha", "ister-tower");

@@ -38,8 +38,18 @@ export default defineConfig({
      * under `maxWorkers` below, are never one stretch that is outside it.
      */
     setupFiles: ["test-support/pepper.ts", "test-support/yield.ts"],
-    // Playwright owns e2e/. Vitest must not try to collect it.
-    exclude: ["e2e/**", "**/node_modules/**"],
+    /*
+     * Playwright owns e2e/. Vitest must not try to collect it.
+     *
+     * And `supabase/test/release/` is the release gate, not the portable suite:
+     * it needs the prepared release workspace — the gate records in `.release/`
+     * and the delivered archives in `_review/`, both gitignored — so a fresh
+     * clone can never pass it. It runs under `pnpm test:release`
+     * (`vitest.release.config.ts`), and its LOCATION decides which suite a test
+     * is in, so a new test cannot drift across by forgetting a flag (decided
+     * 2026-09-27; `release-boundary.test.ts` holds the line).
+     */
+    exclude: ["e2e/**", "**/node_modules/**", "supabase/test/release/**"],
     passWithNoTests: true,
     /*
      * The database tests each boot a WASM Postgres and apply every migration —

@@ -1,7 +1,17 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import type { PeriodPreset, PulseFloor, PulseUnit, UnitStatus } from "@observer/readmodels";
-import { areaWord, aspectWord, floorWord, roomsWord } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  areaWord,
+  aspectWord,
+  floorWord,
+  roomsWord,
+  sentence,
+  type Language,
+  type PluralForms,
+  type Sentence,
+} from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -111,6 +121,7 @@ export function StackPlan({
   period,
   buildingLabel,
   peakViews = null,
+  language = DEFAULT_LANGUAGE,
 }: {
   /** Top floor first, as `ProjectPulse.floors` already orders them. */
   readonly floors: readonly PulseFloor[];
@@ -132,6 +143,8 @@ export function StackPlan({
    * luminance with no scale is a decoration.
    */
   readonly peakViews?: number | null;
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
   return (
     <div>
@@ -151,6 +164,7 @@ export function StackPlan({
                   unit={unit}
                   href={unitHrefs[unit.unitId] ?? null}
                   period={period}
+                  language={language}
                 />
               ))}
             </div>
@@ -182,14 +196,54 @@ export function StackPlan({
  * and how much attention it drew. Splitting that across a `title` and a
  * shorter label would leave that reader with a grid of unit codes.
  */
+/*
+ * The words a cell's accessible name counts in. The Slovak and Hungarian forms
+ * are the ones a count takes standing alone or as a subject.
+ */
+
+export const STACK_MEANINGFUL_VIEWS: PluralForms = {
+  en: { one: "meaningful view", other: "meaningful views" },
+  sk: {
+    one: "zmysluplné zobrazenie",
+    few: "zmysluplné zobrazenia",
+    other: "zmysluplných zobrazení",
+  },
+  hu: { one: "érdemi megtekintés", other: "érdemi megtekintés" },
+};
+
+export const STACK_PEOPLE: PluralForms = {
+  en: { one: "person", other: "people" },
+  sk: { one: "človek", few: "ľudia", other: "ľudí" },
+  hu: { one: "ember", other: "ember" },
+};
+
+/** "5 meaningful views from 3 people, rising": one part of a cell's accessible name. */
+export const STACK_VIEWS_SENTENCE: Sentence = {
+  en: {
+    text: "{views} {viewsWord|views} from {people} {peopleWord|people}, {trend}",
+    words: { viewsWord: STACK_MEANINGFUL_VIEWS.en, peopleWord: STACK_PEOPLE.en },
+  },
+  sk: {
+    text: "{views} {viewsWord|views} od {people} {peopleWord|people}, {trend}",
+    words: {
+      viewsWord: STACK_MEANINGFUL_VIEWS.sk,
+      /* After "od": the genitive. */
+      peopleWord: { one: "človeka", few: "ľudí", other: "ľudí" },
+    },
+  },
+  hu: { text: "{views} érdemi megtekintés {people} embertől, {trend}" },
+};
+
 function Cell({
   unit,
   href,
   period,
+  language,
 }: {
   readonly unit: PulseUnit;
   readonly href: string | null;
   readonly period: PeriodPreset;
+  readonly language: Language;
 }) {
   const sold = unit.status === "sold";
 
@@ -213,11 +267,15 @@ function Cell({
   const change = unit.change === null ? null : CHANGE_WORDS[unit.change];
   const name = [
     `${unit.code}, ${floorWord(unit.floor).toLowerCase()}, block ${unit.block}`,
-    `${roomsWord(unit.rooms)}, ${areaWord(unit.areaSqm)}, ${aspectWord(unit.orientation)}`,
+    `${roomsWord(unit.rooms, language)}, ${areaWord(unit.areaSqm)}, ${aspectWord(unit.orientation)}`,
     unit.priceDisplay,
     STATUS_WORDS[unit.status],
     /* A real project's first meeting is one view by one person, and that is when this is read. */
-    `${unit.meaningfulViews} meaningful ${unit.meaningfulViews === 1 ? "view" : "views"} from ${unit.uniqueContacts} ${unit.uniqueContacts === 1 ? "person" : "people"}, ${TREND_WORDS[unit.trend]}`,
+    sentence(language, STACK_VIEWS_SENTENCE, {
+      views: unit.meaningfulViews,
+      people: unit.uniqueContacts,
+      trend: TREND_WORDS[unit.trend],
+    }),
     ...(change === null ? [] : [change]),
   ].join(" · ");
 

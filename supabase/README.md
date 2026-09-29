@@ -282,10 +282,11 @@ project-level changes do not alter it — Vercel applies them only to new
 deployments. What is _not_ known is whether that snapshot contains the variable
 at all. That deployment may answer or may return 503; neither has been observed.
 
-It is excluded from the controlled legacy proof because its configuration is
+It was excluded from the controlled legacy proof because its configuration is
 **unverified**, not because it has been shown to fail. A **fresh redeploy of the
-same SHA**, built after the pepper state is settled, is the required controlled
-target either way. See `docs/18-deployment.md`.
+same SHA**, built after the pepper state is settled, was the required controlled
+target either way — until the legacy proof was retired on 2026-09-24. See
+_RETIRED 2026-09-24_ in `docs/18-deployment.md` §7.
 
 ## Verifiers
 
@@ -328,8 +329,10 @@ three of them are executed by the test suite against a real Postgres.
   every browser-role privilege, and — the part a catalogue check cannot give
   you — whether it has actually **run**, recently and successfully.
 - `observer-http-compat-proof.sql` — the deployed-build proof, for rollout steps
-  4–5 (the deployed legacy build) and step 9 (the new one). One file, four
-  modes, chosen by parameter rather than by editing predicates:
+  10–11 (the deployed legacy build; retired on 2026-09-24, see
+  _RETIRED 2026-09-24_ in `docs/18-deployment.md` §7) and steps 15–16 (the new
+  one). One file, four modes, chosen by parameter rather than by editing
+  predicates:
 
   |                       | `pseudonym_version` | cross-tenant hashes | audit delta |
   | --------------------- | ------------------- | ------------------- | ----------- |

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { NotFoundError, type AskThread } from "@observer/readmodels";
+import { NotFoundError, type AskThread, DEFAULT_LANGUAGE } from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
@@ -91,7 +91,10 @@ export default async function AskThreadPage({
   let thread: AskThread | null = null;
   let unreadable = false;
   try {
-    thread = await repository.getAskThread({ viewer, tenantSlug, projectSlug, period }, threadId);
+    thread = await repository.getAskThread(
+      { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
+      threadId,
+    );
   } catch (error) {
     if (error instanceof NotFoundError) thread = null;
     else unreadable = true;

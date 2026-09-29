@@ -1,9 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /*
  * CLOSE WHAT THE FIXTURE OPENS.
@@ -32,7 +35,6 @@ afterAll(closeSuiteDatabases);
  * remains an open deployment prerequisite.
  */
 
-const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const CREDENTIALS = "20260829173000_observer_account_credentials.sql";
 const MODELS = "20260830090000_observer_models_and_budget.sql";
 
@@ -68,15 +70,9 @@ const DOLLAR = 1_000_000;
 let db: PGlite;
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
+  db = await openDatabase("suite", "hosted");
   /* Both migrations, in order: this one widens the credential provider list. */
-  await db.exec(readFileSync(join(MIGRATIONS, CREDENTIALS), "utf8"));
-  await db.exec(readFileSync(join(MIGRATIONS, MODELS), "utf8"));
+  await applyMigrations(db, [CREDENTIALS, MODELS]);
 });
 
 async function one<T>(sql: string, params: unknown[] = []): Promise<T> {

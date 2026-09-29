@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 import { signInAs } from "./sign-in";
+import { credentialStoreMissing } from "./secrets";
 
 /**
  * ACCOUNT SETTINGS, WEARING THE PRODUCT'S CHROME.
@@ -104,6 +105,11 @@ test.describe("account settings looks like the product it belongs to", () => {
   test("uses the product's own accent and nothing else", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "checked once");
     await asPetra(page);
+    const missing = await credentialStoreMissing(page);
+    test.skip(
+      missing !== null,
+      `${missing ?? ""} — not measured: whether the settings page's primary control wears the product's accent`,
+    );
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(SETTINGS);
 
@@ -299,6 +305,11 @@ test.describe("account settings leads back where the reader came from", () => {
 
   test("keeps the way back across a save", async ({ page }) => {
     await asPetra(page);
+    const missing = await credentialStoreMissing(page);
+    test.skip(
+      missing !== null,
+      `${missing ?? ""} — not measured: whether account settings leads back where the reader came from, across a save`,
+    );
     await openSettingsFrom(page, FLOW);
 
     /*

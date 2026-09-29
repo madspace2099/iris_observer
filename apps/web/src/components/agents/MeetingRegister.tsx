@@ -1,5 +1,10 @@
 import Link from "next/link";
-import type { MeetingRow, PeriodPreset } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  type Language,
+  type MeetingRow,
+  type PeriodPreset,
+} from "@observer/readmodels";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
@@ -18,35 +23,108 @@ import { Missing, isDash } from "./Rates";
  * person the page is about, and a column repeating one name eight times is a
  * column of noise.
  *
- * ## No buyer reaches this table today
+ * ## The buyer's name stands beside the label, behind the register's gate
  *
- * `MeetingRow.visitor` is a `VisitorLabel`, and the type has no field a name,
- * an email or a telephone number could sit in — `visitorLabel` takes a closed
- * enum and an integer and nothing else. What appears is "First meeting",
- * "Returning · 3rd meeting" or "Not linked to a contact". That is a structural
- * guarantee rather than a convention this component is remembering to keep, and
- * it is why the column is safe to show on a surface a whole agency can open.
- * Whether a real name should appear here is reopened and under design; that
- * surface question is exactly the one `docs/22-visitor-name-display.md` §5
- * leaves to a product decision.
+ * `MeetingRow.visitor` is a `VisitorLabel`: a closed enum and an integer —
+ * "First meeting", "Returning · 3rd meeting", "Not linked to a contact" —
+ * with no field a name could sit in. `MeetingRow.visitorName` is the name,
+ * beside it and never inside it: joined per render by the read model from the
+ * contact directory and stored nowhere, null for a walk-in, an erased contact,
+ * a withdrawn behavioural-linking consent, a contact with no name recorded,
+ * and for every viewer outside `AGENT_REGISTER_ROLES`. That is
+ * `docs/22-visitor-name-display.md` §5's decision (B) and §6's three
+ * promises. This component renders the two strings it is given and assembles
+ * neither; whether it is rendered at all is the agent screen's decision, on
+ * the server, for the meeting drill-down's roles.
  *
- * ## Follow-up has four states and three of them are not "no"
+ * ## Follow-up has three states and one of them is not "no"
  *
  * `FOLLOW_UP_STATES` separates "the recorded outcome asks for one", "the
- * recorded outcome does not", "no outcome was recorded" and "no CRM is
- * connected". The last two are absences and are drawn as absences; folding them
- * into "no follow-up needed" would turn a gap in the record into a decision
- * somebody made. `followUpLabel` is the read model's sentence and is carried on
- * the cell's `title` so a reader can ask what a state means without the column
- * growing to hold a sentence.
+ * recorded outcome does not" and "no outcome was recorded". The last is an
+ * absence and is drawn as one; folding it into "no follow-up needed" would turn
+ * a gap in the record into a decision somebody made. `followUpLabel` is the
+ * read model's sentence and is carried on the cell's `title` so a reader can
+ * ask what a state means without the column growing to hold a sentence. A
+ * fourth state, "No CRM", used to stand here; the outcome is the room's record
+ * and no CRM is asked.
  */
 
-/** The short word for each state. The long sentence is the read model's. */
-const FOLLOW_UP_SHORT: Readonly<Record<MeetingRow["followUp"], string>> = {
-  required: "Needed",
-  not_required: "Not needed",
-  not_recorded: "No outcome",
-  unavailable: "No CRM",
+/*
+ * The register's own words, in each language a report can be printed in. The
+ * short word for each follow-up state is here; the long sentence is the read
+ * model's. Slovak and Hungarian are drafts for review (P2-17).
+ */
+interface RegisterWords {
+  readonly columns: readonly [string, string, string, string, string, string, string, string];
+  readonly followUp: Readonly<Record<MeetingRow["followUp"], string>>;
+  readonly notTimed: string;
+  readonly imported: string;
+  readonly span: string;
+  readonly empty: string;
+  readonly notOpenable: string;
+}
+
+const REGISTER_WORDS: Readonly<Record<Language, RegisterWords>> = {
+  en: {
+    columns: [
+      "Meeting",
+      "Length",
+      "Sections",
+      "Units opened",
+      "Shortlisted",
+      "Recorded outcome",
+      "Follow-up",
+      "Visitor",
+    ],
+    followUp: { required: "Needed", not_required: "Not needed", not_recorded: "No outcome" },
+    notTimed: "Not timed",
+    imported: "Imported without step timing.",
+    span: " · session span",
+    empty: "No meetings in this period",
+    notOpenable: MEETINGS_NOT_OPENABLE,
+  },
+  sk: {
+    columns: [
+      "Stretnutie",
+      "Dĺžka",
+      "Sekcie",
+      "Otvorené byty",
+      "Obľúbené",
+      "Zaznamenaný výsledok",
+      "Ďalší kontakt",
+      "Návštevník",
+    ],
+    followUp: { required: "Potrebný", not_required: "Nepotrebný", not_recorded: "Bez výsledku" },
+    notTimed: "Bez merania času",
+    imported: "Importované bez časovania krokov.",
+    span: " · rozpätie stretnutia",
+    empty: "V tomto období žiadne stretnutia",
+    notOpenable:
+      "Prehrávanie stretnutia nie je súčasťou prístupu tohto konta, preto sú riadky nižšie uvedené bez odkazov.",
+  },
+  hu: {
+    columns: [
+      "Találkozó",
+      "Hossz",
+      "Szakaszok",
+      "Megnyitott lakások",
+      "Kedvencek",
+      "Rögzített eredmény",
+      "Utánkövetés",
+      "Látogató",
+    ],
+    followUp: {
+      required: "Szükséges",
+      not_required: "Nem szükséges",
+      not_recorded: "Nincs eredmény",
+    },
+    notTimed: "Nincs időmérés",
+    imported: "Lépésidőzítés nélkül importálva.",
+    span: " · a találkozó teljes hossza",
+    empty: "Ebben az időszakban nincs találkozó",
+    notOpenable:
+      "A találkozó visszajátszása nem része ennek a fióknak, ezért az alábbi sorok hivatkozás nélkül szerepelnek.",
+  },
 };
 
 export function MeetingRegister({
@@ -55,6 +133,7 @@ export function MeetingRegister({
   caption,
   canOpen,
   emptyNote,
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly rows: readonly MeetingRow[];
   readonly period: PeriodPreset;
@@ -62,16 +141,20 @@ export function MeetingRegister({
   /** Whether this reader may open a meeting. See the meetings register for why. */
   readonly canOpen: boolean;
   readonly emptyNote: string;
+  /** The words' language: English on the screens, the reader's choice on a printed report. */
+  readonly language?: Language;
 }) {
+  const words = REGISTER_WORDS[language];
+  const FOLLOW_UP_SHORT = words.followUp;
   const columns: readonly DataColumn[] = [
-    { key: "meeting", label: "Meeting" },
-    { key: "duration", label: "Length", numeric: true },
-    { key: "sections", label: "Sections", numeric: true },
-    { key: "units", label: "Units opened", numeric: true },
-    { key: "favourites", label: "Shortlisted", numeric: true },
-    { key: "outcome", label: "Recorded outcome" },
-    { key: "followUp", label: "Follow-up" },
-    { key: "visitor", label: "Visitor" },
+    { key: "meeting", label: words.columns[0] },
+    { key: "duration", label: words.columns[1], numeric: true },
+    { key: "sections", label: words.columns[2], numeric: true },
+    { key: "units", label: words.columns[3], numeric: true },
+    { key: "favourites", label: words.columns[4], numeric: true },
+    { key: "outcome", label: words.columns[5] },
+    { key: "followUp", label: words.columns[6] },
+    { key: "visitor", label: words.columns[7] },
   ];
 
   const data: readonly DataRow[] = rows.map((row) => ({
@@ -91,11 +174,11 @@ export function MeetingRegister({
        * printed as a measurement.
        */
       duration: isDash(row.durationDisplay) ? (
-        <Missing what="Not timed" />
+        <Missing what={words.notTimed} />
       ) : (
-        <span title={row.timingAvailable ? undefined : "Imported without step timing."}>
+        <span title={row.timingAvailable ? undefined : words.imported}>
           {row.durationDisplay}
-          {row.timingAvailable ? null : <span className="ox-n"> · session span</span>}
+          {row.timingAvailable ? null : <span className="ox-n">{words.span}</span>}
         </span>
       ),
 
@@ -125,18 +208,27 @@ export function MeetingRegister({
           <Missing what={FOLLOW_UP_SHORT[row.followUp]} />
         ),
 
-      visitor: <span className="ox-n">{row.visitor.display}</span>,
+      visitor: (
+        <span>
+          {row.visitorName === null ? null : (
+            <>
+              <span className="ox-visitor-name">{row.visitorName}</span>{" "}
+            </>
+          )}
+          <span className="ox-n">{row.visitor.display}</span>
+        </span>
+      ),
     },
   }));
 
   return (
     <DataTable
-      caption={canOpen ? caption : `${caption} ${MEETINGS_NOT_OPENABLE}`}
+      caption={canOpen ? caption : `${caption} ${words.notOpenable}`}
       columns={columns}
       rows={data}
       codeColumn="meeting"
       period={period}
-      empty={{ title: "No meetings in this period", note: emptyNote }}
+      empty={{ title: words.empty, note: emptyNote }}
     />
   );
 }

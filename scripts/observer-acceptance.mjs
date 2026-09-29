@@ -25,6 +25,21 @@ const BASE = process.argv[2] ?? "http://127.0.0.1:3311";
 const SECRET = process.argv[3] ?? process.env["OBSERVER_SESSION_SECRET"] ?? "";
 const EVIDENCE = process.argv[4] ?? "acceptance-evidence.json";
 
+/*
+ * No secret, no run. This script signs session cookies exactly as the server
+ * does; with an empty secret every token fails to verify and every scenario
+ * reads as a product 401 — an instrument manufacturing false negatives. Until
+ * 2026-09-23 it signed with "" and said nothing.
+ */
+if (SECRET.length === 0) {
+  console.error(
+    "observer-acceptance: OBSERVER_SESSION_SECRET is not set and no secret was given as the third argument. " +
+      "The tokens this script would sign could never verify against the server, and every scenario would " +
+      "fail as a 401 that is not the product's. Stopping before the first request.",
+  );
+  process.exit(2);
+}
+
 /* --- signing in without a browser -------------------------------------------
  *
  * The same token `session.ts` mints, built here rather than driven through the

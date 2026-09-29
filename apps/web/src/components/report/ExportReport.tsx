@@ -3,10 +3,29 @@
 import Link from "next/link";
 
 import { useId, useState } from "react";
-import type { ReportGeneration, ReportScope, ReportSection } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  LANGUAGES,
+  sentence,
+  type Language,
+  type PluralForms,
+  type ReportGeneration,
+  type ReportScope,
+  type ReportSection,
+  type Sentence,
+} from "@observer/readmodels";
+
+/** What the trigger and the dialog call themselves, by whose report it is. */
+const TITLES: Readonly<Record<ReportScope["kind"], string>> = {
+  project: "Export project report",
+  meeting: "Export meeting summary",
+  agent: "Export agent summary",
+};
 
 import { Dialog } from "@/components/product/Dialog";
+import { LANGUAGE_NAMES, WRITTEN_IN, withLanguage } from "@/lib/language";
 import { ReportSections } from "./ReportSections";
+import { withOmitted } from "./omit";
 
 /**
  * EXPORT — the frontend for a document nothing writes yet.
@@ -30,11 +49,13 @@ import { ReportSections } from "./ReportSections";
  * queued state, an email-it-to-me field, a download that produces an empty file,
  * and a format list that implies a renderer exists for each entry.
  *
- * **Every other control in this dialog works.** The section checkboxes and the
- * format select configure the preview sentence beneath them, which changes as
- * they change. They are not a mock of a generator; they are the specification a
- * reader is composing, and the one control that would act on it says plainly
- * that it cannot yet.
+ * **Every other control in this dialog works.** The section checkboxes, the
+ * language and the format select configure the preview sentence beneath them,
+ * which changes as they change, and the report page the dialog opens is the
+ * document they describe: the sections the reader took out are left out of it,
+ * and say so on its cover, and it is written in the language chosen. They are
+ * the specification a reader is composing, and the one control that would act
+ * on it as a file says plainly that it cannot yet.
  *
  * ## ADR-0018 — a client-facing document is a different contract
  *
@@ -51,18 +72,15 @@ import { ReportSections } from "./ReportSections";
  * both work would be this component deciding which sections are safe to hand a
  * buyer — a product rule a component is not allowed to invent.
  *
- * ## Scope, and the one thing the port cannot yet answer
+ * ## Scope
  *
- * `ReportScope.kind` is `project | meeting`, and the two are the same machinery
- * over different scopes — which is what stops a component titling one with the
- * other's heading. This component reads the kind and titles itself accordingly,
- * so Meeting Detail and Project Overview mount the same trigger.
- *
- * `getReportScope(query)` takes no meeting identifier, so the synthetic
- * repository returns `kind: "project"` on every call and a meeting-scoped view
- * cannot yet be fetched. That is a gap in the port rather than in this
- * component: when the method gains the argument, this dialog already renders
- * the result correctly and nothing here changes.
+ * `ReportScope.kind` is `project | meeting | agent`, and the three are the same
+ * machinery over different scopes — which is what stops a component titling
+ * one with another's heading. This component reads the kind and titles itself
+ * accordingly, so Project Overview, Meeting Detail and the agent's screen
+ * mount the same trigger. The port answers for one meeting or one agent
+ * through `ReportScopeSelector`, and the caller that mounts this dialog has
+ * already asked it; nothing here decides whose report it is.
  *
  * ## Why the period is stated and not chosen
  *
@@ -109,10 +127,38 @@ function formatLabel(id: FormatId): string {
   return FORMATS.find((format) => format.id === id)?.label ?? id;
 }
 
+/** The sections a report would leave blank. The Slovak and Hungarian forms are the ones a count takes standing alone. */
+export const EXPORT_SECTIONS: PluralForms = {
+  en: { one: "section", other: "sections" },
+  sk: { one: "sekcia", few: "sekcie", other: "sekcií" },
+  hu: { one: "szakasz", other: "szakasz" },
+};
+
+/** "2 sections would be blank and cannot be included." */
+export const EXPORT_BLANK_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {sections|count} would be blank and cannot be included.",
+    words: { sections: EXPORT_SECTIONS.en },
+  },
+  sk: {
+    text: "{count} {sections|count} {rest|count}.",
+    words: {
+      sections: EXPORT_SECTIONS.sk,
+      rest: {
+        one: "by bola prázdna a nemožno ju zahrnúť",
+        few: "by boli prázdne a nemožno ich zahrnúť",
+        other: "by bolo prázdnych a nemožno ich zahrnúť",
+      },
+    },
+  },
+  hu: { text: "{count} szakasz üres lenne, ezért nem vehető fel." },
+};
+
 export function ExportReport({
   report,
   pageHref,
   weight = "quiet",
+  language = DEFAULT_LANGUAGE,
 }: {
   readonly report: ExportReportView;
   /**
@@ -123,17 +169,23 @@ export function ExportReport({
   readonly pageHref: string;
   /** `quiet` beside other page controls; `primary` where export is the point. */
   readonly weight?: "primary" | "quiet";
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
-  const meeting = report.scope.kind === "meeting";
-  const title = meeting ? "Export meeting summary" : "Export project report";
+  const title = TITLES[report.scope.kind];
 
   const ids = useId();
   const titleId = `${ids}-title`;
   const noteId = `${ids}-note`;
   const formatId = `${ids}-format`;
+  const languageLabelId = `${ids}-language`;
+  const languageNoteId = `${ids}-language-note`;
 
   const [open, setOpen] = useState(false);
   const [format, setFormat] = useState<FormatId>("pdf");
+  const written = WRITTEN_IN[report.scope.kind];
+  /* The document's language, not the screen's: the screens stay as they are. */
+  const [reportLanguage, setReportLanguage] = useState<Language>(DEFAULT_LANGUAGE);
   /*
    * Held as the sections taken OUT rather than the ones put in, so a section
    * that becomes writable between two reads arrives already included. The
@@ -147,6 +199,15 @@ export function ExportReport({
 
   const writable = report.sections.filter((section) => section.availability !== "unavailable");
   const included = writable.filter((section) => !excluded.includes(section.id));
+  /*
+   * The page the reader composed: the sections they kept and the language they
+   * chose travel on its address, so the document is the one described here and
+   * not the page's default. A blank section cannot be taken out.
+   */
+  const href = withOmitted(
+    withLanguage(pageHref, reportLanguage),
+    writable.filter((section) => excluded.includes(section.id)).map((section) => section.id),
+  );
 
   const toggle = (id: string) =>
     setExcluded((current) =>
@@ -221,6 +282,39 @@ export function ExportReport({
             />
           </div>
 
+          {/* --- what language it is written in --------------------------- */}
+          <div className="ox-field">
+            <span className="ox-field-label" id={languageLabelId}>
+              Language
+            </span>
+            <ul className="ox-chipset" role="group" aria-labelledby={languageLabelId}>
+              {LANGUAGES.map((code) => {
+                const available = written.includes(code);
+                return (
+                  <li key={code}>
+                    <button
+                      type="button"
+                      className="ox-toggle"
+                      lang={code}
+                      aria-pressed={reportLanguage === code}
+                      disabled={!available}
+                      {...(available ? {} : { "aria-describedby": languageNoteId })}
+                      onClick={() => setReportLanguage(code)}
+                    >
+                      {LANGUAGE_NAMES[code]}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            {LANGUAGES.every((code) => written.includes(code)) ? null : (
+              <p className="ox-section-note" id={languageNoteId}>
+                A language is offered once every word of this document is written in it. The screens
+                themselves stay in English either way; only the document changes.
+              </p>
+            )}
+          </div>
+
           {/* --- what shape it would take --------------------------------- */}
           <div className="ox-field">
             <label className="ox-field-label" htmlFor={formatId}>
@@ -255,13 +349,11 @@ export function ExportReport({
               {format === "page" ? "Available now" : "Preview-ready"}
             </span>
             <span>
-              {formatLabel(format)} · {included.length} of {writable.length} writable sections ·{" "}
-              {report.scope.label}.
+              {formatLabel(format)} · {LANGUAGE_NAMES[reportLanguage]} · {included.length} of{" "}
+              {writable.length} writable sections · {report.scope.label}.
               {report.unavailableCount === 0
                 ? ""
-                : ` ${report.unavailableCount} ${
-                    report.unavailableCount === 1 ? "section" : "sections"
-                  } would be blank and cannot be included.`}
+                : ` ${sentence(language, EXPORT_BLANK_SENTENCE, { count: report.unavailableCount })}`}
             </span>
           </p>
         </div>
@@ -294,7 +386,7 @@ export function ExportReport({
            * empty download or a spinner that never resolves.
            */}
           {format === "page" ? (
-            <Link className="ox-btn" data-weight="primary" href={pageHref as never}>
+            <Link className="ox-btn" data-weight="primary" href={href as never}>
               Open the report page
             </Link>
           ) : null}

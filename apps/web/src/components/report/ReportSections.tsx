@@ -40,13 +40,12 @@ import { Sample, Sources } from "@/components/product/Provenance";
  *
  * ## Why the evidence reference is not rendered here
  *
- * Every `ReportSection.evidence` produced today resolves to `/{tenant}/{project}
- * /report`, which is not a route in this application: the report scope is a
- * dialog rather than a screen, so the read model's own drill-down target has
- * nowhere to land. Drawing it would be a link to a 404 beside a claim about
- * honesty. The provenance a reader can actually use — which sources the section
- * rests on and how many meetings are behind it — is rendered instead, and the
- * dangling reference is reported rather than papered over.
+ * Every `ReportSection.evidence` resolves to `/{tenant}/{project}/report`,
+ * where the section it describes is drawn in full and the reference lands on
+ * it. The dialog offers that page as its one existing format rather than
+ * drawing a drill-down beside a checkbox; what it renders here is the
+ * provenance a reader composing a document needs — which sources the section
+ * rests on and what sample is behind it, in the section's own noun.
  */
 
 /** The availability, in a word. A state never reaches the screen as a colour. */
@@ -114,7 +113,7 @@ export function ReportSections({
               <div className="ox-alert-foot">
                 <Sources sources={section.sources} />
                 {section.sampleSize === null ? null : (
-                  <Sample n={section.sampleSize} noun="meetings" />
+                  <Sample n={section.sampleSize} noun={section.sampleNoun} />
                 )}
               </div>
             </div>

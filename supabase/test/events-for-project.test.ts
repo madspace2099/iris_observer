@@ -1,9 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import type { PGlite } from "@electric-sql/pglite";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support/pglite";
+import {
+  applyMigrations,
+  closeSuiteDatabases,
+  closeTestDatabases,
+  openDatabase,
+} from "./support/pglite";
 
 /**
  * THE DOOR THE DASHBOARD READS EVENTS THROUGH, ASKED OF POSTGRES ITSELF.
@@ -23,7 +26,6 @@ import { closeSuiteDatabases, closeTestDatabases, openDatabase } from "./support
 afterEach(closeTestDatabases);
 afterAll(closeSuiteDatabases);
 
-const MIGRATIONS = resolve(import.meta.dirname, "../migrations");
 const BEFORE = [
   "20260902090000_observer_source_identity_spine.sql",
   "20260902093000_observer_activation_and_credentials.sql",
@@ -33,8 +35,6 @@ const BEFORE = [
 const MIGRATION = "20260917100000_observer_events_for_project.sql";
 const DOOR = "public.observer_events_for_project(text, uuid, text, integer)";
 
-const sql = (name: string): string => readFileSync(join(MIGRATIONS, name), "utf8");
-
 let db: PGlite;
 
 async function one<T>(query: string, params: readonly unknown[] = []): Promise<T | undefined> {
@@ -43,14 +43,8 @@ async function one<T>(query: string, params: readonly unknown[] = []): Promise<T
 }
 
 beforeAll(async () => {
-  db = await openDatabase("suite");
-  await db.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of BEFORE) await db.exec(sql(name));
-  await db.exec(sql(MIGRATION));
+  db = await openDatabase("suite", "hosted");
+  await applyMigrations(db, [...BEFORE, MIGRATION]);
 });
 
 describe("who may read a project's events", () => {
@@ -102,9 +96,14 @@ describe("who may read a project's events", () => {
 });
 
 describe("the migration can be applied again", () => {
+  /*
+   * Through the window, as on the host: the file recreates its façade and hands it to the ingest
+   * owner, which needs CREATE on `public` at that moment. With the window closed the host
+   * refuses; `docs/18-deployment.md` says open, apply, close, check — every time.
+   */
   it("over itself, as the local control plane does on every start", async () => {
-    await expect(db.exec(sql(MIGRATION))).resolves.toBeDefined();
-    await expect(db.exec(sql(MIGRATION))).resolves.toBeDefined();
+    await expect(applyMigrations(db, [MIGRATION])).resolves.toBeUndefined();
+    await expect(applyMigrations(db, [MIGRATION])).resolves.toBeUndefined();
     expect(
       await one<boolean>(`select has_function_privilege('anon', $1, 'execute') as value`, [DOOR]),
       "and the grants are re-stated each time, not left to the dropped function",
@@ -112,13 +111,8 @@ describe("the migration can be applied again", () => {
   });
 
   it("over its first draft, whose return type `create or replace` could not have changed", async () => {
-    const draft = await openDatabase("test");
-    await draft.exec(`
-      create role anon nologin;
-      create role authenticated nologin;
-      create role service_role nologin bypassrls;
-    `);
-    for (const name of BEFORE) await draft.exec(sql(name));
+    const draft = await openDatabase("test", "hosted");
+    await applyMigrations(draft, BEFORE);
     /* The draft's shape: same arguments, thirteen columns, no cursor. */
     await draft.exec(`
       create function public.observer_events_for_project(
@@ -127,7 +121,7 @@ describe("the migration can be applied again", () => {
       language sql security definer set search_path = ''
       as $$ select e.event_id from observer.analytics_events e limit 0 $$;
     `);
-    await expect(draft.exec(sql(MIGRATION))).resolves.toBeDefined();
+    await expect(applyMigrations(draft, [MIGRATION])).resolves.toBeUndefined();
     const columns = await draft.query<{ value: string }>(
       `select pg_get_function_result(p.oid) as value
          from pg_proc p join pg_namespace n on n.oid = p.pronamespace

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AMENITIES, PLACE_CATEGORIES, SURROUNDINGS } from "@observer/contracts";
 import { VIEWERS, showroomSessions, syntheticRepository } from "@observer/synthetic";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * The three views, and the opening screen that leads to them.
  *
@@ -15,6 +16,7 @@ const QUERY = {
   tenantSlug: "alpha",
   projectSlug: "northgate",
   period: "quarter_to_date" as const,
+  language: DEFAULT_LANGUAGE,
 };
 
 describe("the opening screen", () => {
@@ -194,6 +196,28 @@ describe("sales agents", () => {
     const view = await syntheticRepository.getAgentsView(QUERY);
     expect(view.repeats.length).toBeGreaterThan(1);
     expect(view.repeats.reduce((a, r) => a + r.meetings, 0)).toBe(view.meetingCount);
+  });
+
+  /*
+   * Decided 2026-09-27: a visitor not linked to a contact is not a first
+   * meeting. Counted against the meeting register's visitor label, a second
+   * path to the same meetings: the first-meeting row holds only known contacts,
+   * and the unlinked ones stand in a row of their own.
+   */
+  it("does not count a visitor it does not know as a first meeting", async () => {
+    const view = await syntheticRepository.getAgentsView(QUERY);
+    const register = await syntheticRepository.getMeetings(QUERY, {
+      agentId: null,
+      channel: null,
+      outcome: null,
+    });
+    const kinds = register.rows.map((r) => r.visitor.kind);
+    const unlinked = kinds.filter((k) => k === "unlinked").length;
+    expect(unlinked, "the fixture has walk-ins").toBeGreaterThan(0);
+    expect(view.repeats.find((r) => r.visits === null)?.meetings).toBe(unlinked);
+    expect(view.repeats.find((r) => r.visits === 0)?.meetings).toBe(
+      kinds.filter((k) => k === "known_first_meeting").length,
+    );
   });
 });
 

@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join, resolve } from "node:path";
 import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import {
@@ -29,6 +27,7 @@ import {
   closeSuiteDatabases,
   closeTestDatabases,
   openDatabase,
+  applyMigrations,
 } from "../../../supabase/test/support/pglite";
 
 afterEach(closeTestDatabases);
@@ -58,8 +57,6 @@ afterAll(closeSuiteDatabases);
  * No plaintext is printed: every assertion about one is a comparison or an
  * absence check.
  */
-
-const MIGRATIONS = resolve(import.meta.dirname, "../../../supabase/migrations");
 
 /**
  * The five migrations of the source spine, named rather than globbed.
@@ -100,14 +97,8 @@ let deps: HandlerDeps;
 const query: SqlQuery = (sql, params) => pg.query(sql, [...params]);
 
 beforeAll(async () => {
-  pg = await openDatabase("suite");
-  /* The three Supabase roles the migrations revoke from; PGlite has none. */
-  await pg.exec(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-  `);
-  for (const name of FILES) await pg.exec(readFileSync(join(MIGRATIONS, name), "utf8"));
+  pg = await openDatabase("suite", "hosted");
+  await applyMigrations(pg, FILES);
   db = pgliteDb(query);
   deps = { db, env: ENV, now: () => new Date() };
 });

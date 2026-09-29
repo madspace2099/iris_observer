@@ -163,13 +163,18 @@ select clock_timestamp()                          as floor_ts,
 
 /* ========================================================================== */
 /* PART B — AFTER. Fill in the parameters, then run. Every row must PASS.     */
+/* It refuses to run at all without the two values PART A printed.            */
 /* ========================================================================== */
 
 with params as (
   select
-    /* --- from part A, verbatim --------------------------------------- */
-    '2026-08-26 12:34:56.789+00'::timestamptz as floor_ts,
-    133::bigint                               as audit_rows_before,
+    /* --- from part A, verbatim — REQUIRED ------------------------------ */
+    -- Both stay NULL until PART A has been run and its output pasted here.
+    -- They once shipped with example values, and on a table nobody had
+    -- written to since, the example counted true: every row read PASS with
+    -- no floor anybody had opened.
+    null::timestamptz                         as floor_ts,
+    null::bigint                              as audit_rows_before,
 
     /* --- which build answered ----------------------------------------- */
     -- 'legacy' = the freshly redeployed 3f298a6 Preview
@@ -193,6 +198,51 @@ with params as (
     -- Required in scoped mode; must be NULL in legacy mode.
     null::uuid                                as primary_request_id,
     null::uuid                                as sibling_request_id
+),
+
+/*
+ * PART A IS NOT OPTIONAL, AND THIS IS WHERE THAT IS ENFORCED.
+ *
+ * Every row below is selected from `floor_ts` on, and row 11 subtracts
+ * `audit_rows_before`. Without the two values PART A recorded, the counts run
+ * from a floor nobody opened. So Part B does not report a FAIL here; it does not
+ * run. Each refusal names its reason:
+ *
+ *   floor_ts is null            PART A was not run, or its floor was not pasted
+ *   audit_rows_before is null   only half of PART A's output was pasted
+ *   floor_ts is in the future   not a time PART A could have recorded
+ *   not taken together          audit_rows_before is not the number of rows
+ *                               before floor_ts, so the two values came from
+ *                               different moments
+ *
+ * The last one checks coherence, not provenance: a floor and a count that
+ * agree with the table describe a real window, and the rows after it are then
+ * counted honestly. Two values that disagree with it describe no window at all.
+ *
+ * A plain SELECT has no RAISE. Casting the sentence to an integer is the
+ * expression that fails with the sentence in its error message. The final
+ * SELECT filters on the result, so the cast is evaluated rather than pruned.
+ */
+part_a as (
+  select case
+           when p.floor_ts is null
+             then 'floor_ts is null — run PART A before the request and paste both of its values'
+           when p.audit_rows_before is null
+             then 'audit_rows_before is null — paste both values PART A printed'
+           when p.floor_ts > clock_timestamp()
+             then 'floor_ts is in the future — it is not a time PART A could have recorded'
+           when p.audit_rows_before
+                <> (select count(*) from observer.ai_requests r where r.occurred_at < p.floor_ts)
+             then 'audit_rows_before is ' || p.audit_rows_before || ' but '
+                  || (select count(*) from observer.ai_requests r where r.occurred_at < p.floor_ts)
+                  || ' rows precede floor_ts — the two values were not taken together by PART A'
+         end as problem
+    from params p
+),
+
+part_a_guard as (
+  select coalesce(('PART A: ' || problem)::integer, 0) as refused
+    from part_a
 ),
 
 mode as (
@@ -409,5 +459,6 @@ select ord as "#",
        expect as "expected",
        coalesce(actual, '(missing)') as "actual",
        case when coalesce(actual, '(missing)') = expect then 'PASS' else 'FAIL' end as "verdict"
-  from checks
+  from checks, part_a_guard
+ where part_a_guard.refused = 0
  order by ord;

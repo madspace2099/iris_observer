@@ -12,9 +12,13 @@ import { signInAs } from "./sign-in";
  * the composer a horizontal scrollbar at any width.
  */
 
-const OUT =
-  process.env["OBSERVER_SCOPE_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/8eba7212-1d04-4994-b6ca-c0d2830338c5/scratchpad/screenshots";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_SCOPE_SHOTS"] ?? "_review/ask-scope";
 
 const ISTER = "/alpha/ister-tower/ask";
 

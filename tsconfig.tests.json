@@ -36,6 +36,8 @@
   "include": [
     "apps/web/test/ai-audit.test.ts",
     "apps/web/test/ai-config.test.ts",
+    "apps/web/test/session-secret.test.ts",
+    "apps/web/test/device-pepper.test.ts",
     "supabase/test/audit-contract.test.ts",
     "supabase/test/cron-health.test.ts",
     "supabase/test/http-proof.test.ts",
@@ -46,6 +48,12 @@
     "supabase/test/contract-policy.test.ts",
     "supabase/test/artefact-consistency.test.ts",
     "supabase/test/package-generation.test.ts",
+    "supabase/test/release/package-generation.test.ts",
+    "supabase/test/release/control-chars-package.test.ts",
+    "supabase/test/release/no-secret-recipes-package.test.ts",
+    "supabase/test/release/delivered-artefacts.test.ts",
+    "supabase/test/release-boundary.test.ts",
+    "vitest.release.config.ts",
     "supabase/test/project-mapping.test.ts",
     "supabase/test/supabase-resolver.test.ts",
     "supabase/test/gate-runner.test.ts",
@@ -146,6 +154,33 @@
      * it at all.
      */
     "apps/web/test/access-matrix.test.ts",
-    "test-support/access-matrix.ts"
+    "test-support/access-matrix.ts",
+
+    /*
+     * THE HOSTED RUNNER (2026-09-24).
+     *
+     * The proof that the owner-role window opens, lets the chain through and
+     * closes, and that its guard fails in every way the window can be left open.
+     * Its assertions are error messages and line numbers read out of Postgres,
+     * and the harness it drives now decides which role applies every migration
+     * in the suite, so both are worth a strict compile.
+     */
+    "supabase/test/owner-role-window.test.ts",
+    "supabase/test/support/pglite.ts",
+    "supabase/test/support/cron-stand-in.ts",
+
+    /*
+     * THE REPORT'S ADDRESS (P2-17). What the export dialog composes — the
+     * sections kept and the language chosen — travels to the report page on its
+     * address, and these helpers are the only two ends of that road.
+     */
+    "apps/web/test/report-address.test.ts",
+    "apps/web/test/report-words.test.ts",
+    "apps/web/test/presentation-scope.test.ts",
+
+    /* A window the selected period does not hold is drawn as outside it (P2-21, R05). */
+    "packages/synthetic/test/period-buckets.test.ts",
+    "packages/synthetic/test/views3.test.ts",
+    "apps/web/test/period-steps.test.ts"
   ]
 }

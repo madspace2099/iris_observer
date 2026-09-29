@@ -2,23 +2,33 @@ import {
   NotFoundError,
   type ActionItem,
   type AiBriefing,
-  type AlertItem,
   type ChangeItem,
   type DataHealth,
   type ExecutiveOverview,
   type FunnelStep,
   type MetricValue,
   type Verdict,
+  type DeliveredDeals,
   type ViewContext,
 } from "@observer/readmodels";
-import { DEFAULT_ATTRIBUTION_POLICY } from "@observer/metrics";
+import { hasProgressed, outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
+import {
+  DEFAULT_ATTRIBUTION_POLICY,
+  attentionIndex,
+  attentionIndexDisplay,
+} from "@observer/metrics";
+import { LADDER_STAGES, dealsFor } from "./deals";
+import { catalogueFor, type ObservedMeetings, type RawUnit } from "./pulse";
+import { sessionsForProject } from "./showroom/sessions";
 import {
   comparison,
   compactMoney,
   count,
+  dayLabel,
   days,
   evidenceRef,
   insufficient,
+  NO_PAGE,
   money,
   ok,
   percent,
@@ -64,251 +74,536 @@ function base(context: ViewContext) {
 
 /* --- Northgate: the complete case ---------------------------------------- */
 
-function northgate(context: ViewContext): ExecutiveOverview {
-  const { root, locale, currency } = base(context);
+/**
+ * A segment's attention index over some meetings: the registry's one
+ * implementation, over the stock the period ends with unsold. The overviews were
+ * hand-written scenarios, and their index was hand-written with them — 2.1 for
+ * Northgate's two-room units, 1.7 for Riverside's high south-facing flats —
+ * while `/project` computed another figure for the same units (decision
+ * 2026-09-27). Null where there is nothing to index.
+ */
+function indexOver(
+  projectId: string,
+  sessions: readonly ShowroomSession[],
+  inSegment: (unit: RawUnit) => boolean,
+): number | null {
+  return attentionIndex(
+    catalogueFor(projectId),
+    sessions.flatMap((s) => s.units),
+    inSegment,
+  ).index;
+}
+
+/** A relative change as the changes list prints it: "+34%", "−8%". */
+function signedPercent(change: number): string {
+  return `${change >= 0 ? "+" : "−"}${String(Math.round(Math.abs(change) * 100))}%`;
+}
+
+/* --- what every overview computes the same way ---------------------------- */
+
+/**
+ * The period as a sentence names it. The headline said "this quarter" on every
+ * period, including last quarter and the year to date.
+ */
+function periodPhrase(context: ViewContext): string {
+  switch (context.period.preset) {
+    case "quarter_to_date":
+      return "this quarter";
+    case "last_quarter":
+      return "last quarter";
+    case "year_to_date":
+      return "this year";
+    case "last_28_days":
+      return "in the last 28 days";
+  }
+}
+
+const SOURCE_NAMES: Readonly<Record<string, string>> = {
+  webiris: "WEBIRIS",
+  showroom: "Showroom",
+  crm: "CRM",
+  catalogue: "Catalogue",
+};
+
+/** Which sources the project has, from its own configuration rather than a list per builder. */
+function sourcesOf(context: ViewContext) {
+  const connected = context.project.connectedSources as readonly string[];
+  const names = Object.keys(SOURCE_NAMES);
+  return {
+    sourcesPresent: names.filter((s) => connected.includes(s)).map((s) => SOURCE_NAMES[s] ?? s),
+    sourcesMissing: names.filter((s) => !connected.includes(s)).map((s) => SOURCE_NAMES[s] ?? s),
+  };
+}
+
+const COMPLETENESS_RULE = "At least 80% of meetings carry a recorded outcome";
+
+/**
+ * Completeness, measured: the share of the period's meetings that carry a
+ * recorded outcome. It was a typed 86%, 52% and 71% "of expected inputs", a
+ * denominator nothing computes.
+ */
+function completenessOf(meetings: readonly ShowroomSession[]) {
+  const unknown = meetings.filter((s) => outcomeIsUnknown(s.outcome)).length;
+  const total = meetings.length;
+  return { unknown, total, share: total === 0 ? null : (total - unknown) / total };
+}
+
+function completenessMetric(meetings: readonly ShowroomSession[], locale: string): MetricValue {
+  const { total, share } = completenessOf(meetings);
+  if (share === null) {
+    return unavailable(
+      "exec.data_completeness",
+      "Data completeness",
+      5,
+      "No meeting in this period, so there is nothing to measure completeness over.",
+    );
+  }
+  const input = {
+    metricId: "exec.data_completeness",
+    label: "Data completeness",
+    display: percent(share, locale),
+    raw: share,
+    qualifier: "of meetings carry a recorded outcome",
+    sampleSize: total,
+    minimumSampleSize: 5,
+  };
+  return total < 5
+    ? insufficient(input, "Fewer than 5 meetings — shown as a raw figure, not as a verdict.")
+    : ok(input);
+}
+
+function completenessComponent(meetings: readonly ShowroomSession[], locale: string) {
+  const { share } = completenessOf(meetings);
+  return {
+    metricId: "exec.data_completeness",
+    label: "Data completeness",
+    display: share === null ? "no meetings" : percent(share, locale),
+    rule: COMPLETENESS_RULE,
+    outcome:
+      share === null ? ("unknown" as const) : share >= 0.8 ? ("pass" as const) : ("fail" as const),
+  };
+}
+
+function completenessNote(meetings: readonly ShowroomSession[]): string | null {
+  const { unknown, total } = completenessOf(meetings);
+  if (total === 0) return null;
+  if (unknown === 0)
+    return `All ${String(total)} meetings in this period carry a recorded outcome.`;
+  if (unknown === total)
+    return `None of the ${String(total)} meetings in this period carries a recorded outcome.`;
+  return `${String(unknown)} of ${String(total)} meetings have no recorded outcome, so conversion is a lower bound.`;
+}
+
+const plural = (n: number, one: string, many: string) => `${String(n)} ${n === 1 ? one : many}`;
+
+/* --- Northgate: the complete case ---------------------------------------- */
+
+const within = (iso: string | null, from: string, to: string): boolean => {
+  if (iso === null) return false;
+  const t = Date.parse(iso);
+  return t >= Date.parse(from) && t < Date.parse(to);
+};
+
+/** The nearest-rank percentile; null for no values. */
+function percentile(values: readonly number[], p: number): number | null {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)] as number;
+}
+
+/**
+ * What the CRM says about one window: the deals it dates to a purchase inside
+ * it, and how far the deals opened inside it have climbed. The CRM's stage is
+ * the authority on a sale (ADR-0021), so a sale is a deal the CRM moved to
+ * purchase in the window — not the catalogue's undated "sold", not a meeting's
+ * outcome, and not the scenario's typed seven.
+ */
+function crmWindow(deals: DeliveredDeals, from: string, to: string) {
+  const rank = new Map<string, number>(LADDER_STAGES.map((s, i) => [s, i]));
+  const reached = (stage: string) => (d: DeliveredDeals["deals"][number]) =>
+    d.stage !== null && d.stage !== "lost" && (rank.get(d.stage) ?? -1) >= (rank.get(stage) ?? 99);
+  const sales = deals.deals.filter(
+    (d) => d.stage === "purchase" && within(d.stageEnteredAt, from, to),
+  );
+  const opened = deals.deals.filter((d) => within(d.openedAt, from, to));
+  const daysToClose = sales
+    .map((d) =>
+      d.stageEnteredAt === null || d.openedAt === null
+        ? null
+        : (Date.parse(d.stageEnteredAt) - Date.parse(d.openedAt)) / 86_400_000,
+    )
+    .filter((n): n is number => n !== null);
+  return {
+    sold: sales.length,
+    offers: opened.filter(reached("offer")).length,
+    reservations: opened.filter(reached("reservation")).length,
+    purchases: opened.filter(reached("purchase")).length,
+    soldUnits: sales.map((d) => d.unitCode).filter((c): c is string => c !== null),
+    medianDaysToClose: percentile(daysToClose, 0.5),
+    p80DaysToClose: percentile(daysToClose, 0.8),
+  };
+}
+
+/** A rate step of the funnel, from counts, gated at its documented minimum. */
+function funnelStep(
+  label: string,
+  metricId: string,
+  from: number,
+  to: number,
+  minimum: number,
+  unitWord: string,
+  locale: string,
+  root: string,
+): FunnelStep {
+  const input = {
+    metricId,
+    label,
+    display: from === 0 ? "—" : percent(to / from, locale),
+    raw: from === 0 ? 0 : to / from,
+    qualifier: `${String(to)} of ${String(from)}`,
+    sampleSize: from,
+    minimumSampleSize: minimum,
+    evidence: evidenceRef(`northgate.${metricId}`, "observed_sequence", `${root}/flow`, from),
+    drillHref: `${root}/flow`,
+    policyVersion: POLICY,
+  };
+  return {
+    label,
+    fromCount: from,
+    toCount: to,
+    metric:
+      from < minimum
+        ? insufficient(
+            input,
+            `Fewer than ${String(minimum)} ${unitWord} — shown as a raw figure, not as a verdict.`,
+          )
+        : ok(input),
+  };
+}
+
+function northgate(context: ViewContext, meetings: ObservedMeetings): ExecutiveOverview {
+  const { root, locale } = base(context);
+  const { period } = context;
+  const name = context.project.name;
+  const when = periodPhrase(context);
+  const deals = dealsFor(context.project.id as string);
+
+  const twoRoom = (u: RawUnit) => u.rooms === 2;
+  const twoRoomNow = indexOver(context.project.id as string, meetings.current, twoRoom);
+  const twoRoomBefore = indexOver(context.project.id as string, meetings.previous, twoRoom);
+
+  /*
+   * Two-room conversion, the way `/project` reads it: decided meetings that
+   * opened a two-room unit and progressed, against every decided meeting. The
+   * sentence said "half the project average" while the figures said 41% against
+   * 40% — the opposite reading, typed once and never measured.
+   */
+  const twoRoomCodes = new Set(
+    catalogueFor(context.project.id as string)
+      .filter(twoRoom)
+      .map((u) => u.code),
+  );
+  const decided = meetings.current.filter((s) => !outcomeIsUnknown(s.outcome));
+  const decidedTwoRoom = decided.filter((s) => s.units.some((u) => twoRoomCodes.has(u.unitCode)));
+  const rate = (xs: readonly ShowroomSession[]) =>
+    xs.length === 0 ? null : xs.filter((s) => hasProgressed(s.outcome)).length / xs.length;
+  const twoRoomRate = rate(decidedTwoRoom);
+  const projectRate = rate(decided);
+  const comparable = decidedTwoRoom.length >= 20 && twoRoomRate !== null && projectRate !== null;
+  const convertsBelow = comparable && (twoRoomRate as number) < (projectRate as number);
+  const conversionClause = comparable
+    ? `their decided meetings progress at ${percent(twoRoomRate as number, locale)} against the project's ${percent(projectRate as number, locale)}`
+    : `${plural(decidedTwoRoom.length, "decided meeting", "decided meetings")} opened them, too few of 20 to compare their conversion`;
+  const twoRoomReading =
+    twoRoomNow === null
+      ? "Two-room units have no attention index in this period"
+      : `Two-room units draw ${attentionIndexDisplay(twoRoomNow)} their share of attention`;
+  /* The reading stays only where the figure under it is true. */
+  const twoRoomSentence = `${twoRoomReading}, and ${conversionClause}.${convertsBelow ? " The interest is real; the price probably is not." : ""}`;
+
+  const now = deals === null ? null : crmWindow(deals, period.from, period.to);
+  const before = deals === null ? null : crmWindow(deals, period.baselineFrom, period.baselineTo);
+  const viewing = meetings.current.length;
+  const viewingBefore = meetings.previous.length;
+  const offerRate = now === null || viewing === 0 ? null : now.offers / viewing;
+  const offerRateBefore =
+    before === null || viewingBefore === 0 ? null : before.offers / viewingBefore;
+
+  const NO_DEALS = "The CRM delivered no deals, so outcomes below the meeting are unknown.";
+  const velocityChange =
+    now === null || before === null || before.sold === 0 ? null : now.sold / before.sold - 1;
+
+  /*
+   * Revenue at list price. The registry's revenue is the contracted price and
+   * falls back to the list price "only where the contracted price is absent, and
+   * says so": this CRM states no contracted price, so every sale is valued at
+   * the catalogue's list price and the qualifier says that. Units without a
+   * price are excluded, as the registry excludes them.
+   */
+  const catalogue = catalogueFor(context.project.id as string);
+  const priceOf = new Map(catalogue.map((u) => [u.code, u.price]));
+  const soldPrices = (now?.soldUnits ?? [])
+    .map((c) => priceOf.get(c) ?? null)
+    .filter((p): p is number => p !== null);
+  const inventory = catalogue.reduce((a, u) => a + (u.price ?? 0), 0);
+  const revenue = soldPrices.reduce((a, p) => a + p, 0);
 
   const headline: MetricValue[] = [
-    ok({
-      metricId: "exec.units_sold",
-      label: "Units Sold",
-      display: count(7, locale),
-      raw: 7,
-      qualifier: "of 34 remaining",
-      sampleSize: 7,
-      minimumSampleSize: 1,
-      comparison: comparison("previous quarter", "−22%", "down", "up"),
-      evidence: evidenceRef("northgate.units_sold", "observed_sequence", `${root}/flow`, 7),
-      drillHref: `${root}/flow`,
-    }),
-    ok({
-      metricId: "exec.revenue",
-      label: "Revenue",
-      display: compactMoney(1_524_000, currency, locale),
-      raw: 1_524_000,
-      qualifier: `of ${compactMoney(5_910_000, currency, locale)} inventory`,
-      sampleSize: 7,
-      minimumSampleSize: 1,
-      comparison: comparison("previous quarter", "−18%", "down", "up"),
-      evidence: evidenceRef("northgate.revenue", "observed_sequence", `${root}/flow`, 7),
-      drillHref: `${root}/flow`,
-    }),
-    ok({
-      metricId: "exec.avg_days_to_close",
-      label: "Average Days to Close",
-      display: days(68),
-      raw: 68,
-      qualifier: "80th percentile 104",
-      sampleSize: 12,
-      minimumSampleSize: 10,
-      comparison: comparison("previous quarter", "+6 days", "up", "down"),
-      evidence: evidenceRef("northgate.days_to_close", "observed_sequence", `${root}/flow`, 12),
-      drillHref: `${root}/flow`,
-    }),
-    ok({
-      metricId: "exec.active_buyers",
-      label: "Active Buyers",
-      display: count(23, locale),
-      raw: 23,
-      qualifier: "in the last 28 days",
-      sampleSize: 23,
-      minimumSampleSize: 1,
-      comparison: comparison("previous period", "+3", "up", "up"),
-      evidence: evidenceRef("northgate.active_buyers", "observed_sequence", `${root}/people`, 23),
-      drillHref: `${root}/people`,
-    }),
+    now === null
+      ? unavailable("exec.units_sold", "Units Sold", 1, NO_DEALS)
+      : ok({
+          metricId: "exec.units_sold",
+          label: "Units Sold",
+          display: count(now.sold, locale),
+          raw: now.sold,
+          qualifier: "moved to purchase by the CRM in this period",
+          sampleSize: now.sold,
+          minimumSampleSize: 1,
+          ...(velocityChange === null || before === null
+            ? {}
+            : {
+                comparison: comparison(
+                  period.baselineLabel,
+                  signedPercent(velocityChange),
+                  velocityChange >= 0 ? "up" : "down",
+                  "up",
+                ),
+              }),
+          evidence: evidenceRef(
+            "northgate.units_sold",
+            "observed_sequence",
+            `${root}/flow`,
+            now.sold,
+          ),
+          drillHref: `${root}/flow`,
+        }),
+    now === null
+      ? unavailable("exec.revenue", "Revenue", 1, NO_DEALS)
+      : now.sold > 0 && soldPrices.length === 0
+        ? unavailable(
+            "exec.revenue",
+            "Revenue",
+            1,
+            "No unit sold in this period has a price in the catalogue.",
+          )
+        : ok({
+            metricId: "exec.revenue",
+            label: "Revenue",
+            display: compactMoney(revenue, context.project.currency, locale),
+            raw: revenue,
+            qualifier: `of ${compactMoney(inventory, context.project.currency, locale)} inventory, at list price: the CRM states no contract price`,
+            sampleSize: soldPrices.length,
+            minimumSampleSize: 1,
+            evidence: evidenceRef(
+              "northgate.revenue",
+              "observed_sequence",
+              `${root}/flow`,
+              soldPrices.length,
+            ),
+            drillHref: `${root}/flow`,
+          }),
+    now === null || now.medianDaysToClose === null
+      ? unavailable(
+          "exec.avg_days_to_close",
+          "Average Days to Close",
+          10,
+          "No sale in this period carries both an opening and a purchase date.",
+        )
+      : insufficientBelow(
+          {
+            metricId: "exec.avg_days_to_close",
+            label: "Average Days to Close",
+            display: days(now.medianDaysToClose, context.language),
+            raw: now.medianDaysToClose,
+            qualifier: `median; 80th percentile ${days(now.p80DaysToClose ?? now.medianDaysToClose, context.language)}, over ${plural(now.sold, "sale", "sales")}`,
+            sampleSize: now.sold,
+            minimumSampleSize: 10,
+            evidence: evidenceRef(
+              "northgate.days_to_close",
+              "observed_sequence",
+              `${root}/flow`,
+              now.sold,
+            ),
+            drillHref: `${root}/flow`,
+          },
+          "Fewer than 10 sales — shown as a raw figure, not as a verdict.",
+        ),
+    /*
+     * Active buyers are contacts with an OPEN DEAL and a recent interaction
+     * (registry: exec.active_buyers). This CRM's deals name no contact, so no
+     * meeting can be tied to an open deal, and a count of contacts met would be
+     * a different metric under this one's name.
+     */
+    unavailable(
+      "exec.active_buyers",
+      "Active Buyers",
+      1,
+      "The CRM's deals name no contact, so an open deal cannot be tied to a buyer.",
+    ),
   ];
 
-  const funnel: FunnelStep[] = [
-    {
-      label: "Viewing to Offer",
-      fromCount: 46,
-      toCount: 12,
-      metric: ok({
-        metricId: "flow.viewing_to_offer",
-        label: "Viewing to Offer",
-        display: percent(12 / 46, locale),
-        raw: 12 / 46,
-        qualifier: "12 of 46",
-        sampleSize: 46,
-        minimumSampleSize: 20,
-        comparison: comparison("previous quarter", "−9%", "down", "up"),
-        evidence: evidenceRef("northgate.v2o", "observed_sequence", `${root}/flow`, 46),
-        drillHref: `${root}/flow`,
-        policyVersion: POLICY,
-      }),
-    },
-    {
-      label: "Offer to Reservation",
-      fromCount: 12,
-      toCount: 7,
-      metric: ok({
-        metricId: "flow.offer_to_reservation",
-        label: "Offer to Reservation",
-        display: percent(7 / 12, locale),
-        raw: 7 / 12,
-        qualifier: "7 of 12",
-        sampleSize: 12,
-        minimumSampleSize: 15,
-        comparison: comparison("previous quarter", "+4%", "up", "up"),
-        evidence: evidenceRef("northgate.o2r", "observed_sequence", `${root}/flow`, 12),
-        drillHref: `${root}/flow`,
-        policyVersion: POLICY,
-      }),
-    },
-    {
-      label: "Reservation to Sale",
-      fromCount: 7,
-      toCount: 5,
-      metric: insufficient(
-        {
-          metricId: "flow.reservation_to_sale",
-          label: "Reservation to Sale",
-          display: percent(5 / 7, locale),
-          raw: 5 / 7,
-          qualifier: "5 of 7",
-          sampleSize: 7,
-          minimumSampleSize: 10,
-          evidence: evidenceRef("northgate.r2s", "observed_sequence", `${root}/flow`, 7),
-          drillHref: `${root}/flow`,
-        },
-        "Fewer than 10 reservations — shown as a raw figure, not as a verdict.",
-      ),
-    },
-  ];
+  const funnel: FunnelStep[] =
+    now === null
+      ? []
+      : [
+          funnelStep(
+            "Viewing to Offer",
+            "flow.viewing_to_offer",
+            viewing,
+            now.offers,
+            20,
+            "meetings",
+            locale,
+            root,
+          ),
+          funnelStep(
+            "Offer to Reservation",
+            "flow.offer_to_reservation",
+            now.offers,
+            now.reservations,
+            15,
+            "offers",
+            locale,
+            root,
+          ),
+          funnelStep(
+            "Reservation to Sale",
+            "flow.reservation_to_sale",
+            now.reservations,
+            now.purchases,
+            10,
+            "reservations",
+            locale,
+            root,
+          ),
+        ];
 
   /**
-   * Deterministic, and shown with its workings.
-   *
-   * Four rules, each a metric against a stated threshold. Two fail, so the
-   * state is attention_needed rather than critical — critical is reserved for
-   * a project that has stopped selling, not one selling more slowly.
+   * Deterministic, and shown with its workings: three rules, each a figure
+   * computed above against a stated threshold. Any fail is attention needed;
+   * all passing is positive; otherwise there is not enough to say.
    */
+  const components: Verdict["components"] = [
+    {
+      metricId: "exec.units_sold",
+      label: "Sales velocity",
+      display: now === null ? "unknown" : plural(now.sold, "unit", "units"),
+      rule:
+        before === null
+          ? "Requires the CRM"
+          : `At least 90% of ${period.baselineLabel} (${String(before.sold)})`,
+      outcome:
+        now === null || before === null || before.sold === 0
+          ? "unknown"
+          : now.sold >= 0.9 * before.sold
+            ? "pass"
+            : "fail",
+    },
+    {
+      metricId: "flow.viewing_to_offer",
+      label: "Viewing to offer",
+      display: offerRate === null ? "unknown" : percent(offerRate, locale),
+      rule:
+        offerRateBefore === null
+          ? "Within 10% of the comparison period, which has no meetings"
+          : `Within 10% of ${period.baselineLabel} (${percent(offerRateBefore, locale)})`,
+      outcome:
+        offerRate === null || offerRateBefore === null || viewing < 20 || viewingBefore < 20
+          ? "unknown"
+          : offerRate >= 0.9 * offerRateBefore
+            ? "pass"
+            : "fail",
+    },
+    completenessComponent(meetings.current, locale),
+  ];
+  const state: Verdict["state"] = components.some((c) => c.outcome === "fail")
+    ? "attention_needed"
+    : components.every((c) => c.outcome === "pass")
+      ? "positive"
+      : "insufficient_data";
+
+  const velocitySentence =
+    now === null || before === null
+      ? `${name} has no CRM deals to count sales from.`
+      : before.sold === 0
+        ? `${name} sold ${plural(now.sold, "unit", "units")} ${when}; ${period.baselineLabel} has no dated sale to compare against.`
+        : `${name} sold ${plural(now.sold, "unit", "units")} ${when} against ${String(before.sold)} in ${period.baselineLabel} (${signedPercent(now.sold / before.sold - 1)}).`;
+
   const verdict: Verdict = {
-    state: "attention_needed",
-    headline:
-      "Northgate sold 7 units this quarter against 9 in the last — 22% slower, and the loss is entirely between viewing and offer.",
-    supporting:
-      "Two-room units draw 2.1× their share of attention and convert at half the project average. The interest is real; the price probably is not.",
-    evidence: evidenceRef("northgate.verdict", "observed_sequence", `${root}/flow`, 46),
+    state,
+    headline: velocitySentence,
+    supporting: twoRoomSentence,
+    evidence: evidenceRef("northgate.verdict", "observed_sequence", `${root}/flow`, viewing),
     rulesetVersion: VERDICT_RULESET,
-    components: [
-      {
-        metricId: "exec.units_sold",
-        label: "Sales velocity",
-        display: "7 units",
-        rule: "At least 90% of the previous quarter (9)",
-        outcome: "fail",
-      },
-      {
-        metricId: "flow.viewing_to_offer",
-        label: "Viewing to offer",
-        display: percent(12 / 46, locale),
-        rule: "Within 10% of the project baseline (35%)",
-        outcome: "fail",
-      },
-      {
-        metricId: "exec.avg_days_to_close",
-        label: "Days to close",
-        display: days(68),
-        rule: "At or below the project's 80th percentile (104)",
-        outcome: "pass",
-      },
-      {
-        metricId: "exec.data_completeness",
-        label: "Data completeness",
-        display: percent(0.86, locale),
-        rule: "At least 80% of expected inputs present",
-        outcome: "pass",
-      },
-    ],
+    components,
   };
 
-  const changes: ChangeItem[] = [
-    {
-      id: "velocity",
-      label: "Sales velocity",
-      deltaDisplay: "−22%",
-      direction: "down",
-      better: "up",
-      detail: "7 units this quarter against 9 last. Sell-out moves from Q3 2027 to Q1 2028.",
-      evidence: evidenceRef("northgate.velocity", "observed_sequence", `${root}/flow`, 16),
-      href: `${root}/flow`,
-    },
-    {
-      id: "two-room-attention",
-      label: "Two-room attention",
-      deltaDisplay: "+34%",
-      direction: "up",
-      better: "up",
-      detail: "Attention index now 2.1, but conversion is half the project average.",
-      evidence: evidenceRef("northgate.tworoom", "observed_sequence", `${root}/project`, 61),
-      href: `${root}/project`,
-    },
-    {
-      id: "follow-up",
-      label: "Follow-up delay",
-      deltaDisplay: "+3 days",
-      direction: "up",
-      better: "down",
-      detail: "Median 8 days from meeting to first contact, against 5 last quarter.",
-      evidence: evidenceRef("northgate.followup", "observed_sequence", `${root}/people`, 31),
-      href: `${root}/people`,
-    },
-  ];
+  /*
+   * The change in two-room attention, from the same implementation over the
+   * baseline period's meetings. Where either end has no index, no change is stated.
+   */
+  const twoRoomChange: ChangeItem | null =
+    twoRoomNow === null || twoRoomBefore === null
+      ? null
+      : {
+          id: "two-room-attention",
+          label: "Two-room attention",
+          deltaDisplay: signedPercent(twoRoomNow / twoRoomBefore - 1),
+          direction: twoRoomNow >= twoRoomBefore ? "up" : "down",
+          better: "up",
+          detail: `Attention index now ${attentionIndexDisplay(twoRoomNow)}; ${conversionClause}.`,
+          evidence: evidenceRef(
+            "northgate.tworoom",
+            "observed_sequence",
+            `${root}/project`,
+            decidedTwoRoom.length,
+          ),
+          href: `${root}/project`,
+        };
 
-  const alerts: AlertItem[] = [
-    {
-      id: "mispriced-two-room",
-      severity: "warning",
-      title: "Two-room units are looked at and not bought",
-      detail:
-        "A-402 has entered 9 comparisons and won 2, losing to B-301 seven times. The two are 4 m² and one floor apart, priced €12,000 apart.",
-      evidence: evidenceRef("northgate.compare", "statistical_association", `${root}/project`, 9),
-      actionLabel: "Open unit comparison",
-      actionHref: `${root}/project`,
-    },
-    {
-      id: "stalled",
-      severity: "warning",
-      title: "3 deals past the usual time in stage",
-      detail: "All three sit at offer, beyond this project's own 80th percentile of 21 days.",
-      evidence: evidenceRef("northgate.stalled", "observed_sequence", `${root}/flow`, 3),
-      actionLabel: "Review stalled deals",
-      actionHref: `${root}/flow`,
-    },
-    {
-      id: "sold-favourite",
-      severity: "info",
-      title: "A-505 sold while an active buyer had it shortlisted",
-      detail: "Viktória Halász favourited it on 9 August. Her meeting is on 27 August.",
-      evidence: evidenceRef("northgate.a505", "observed_sequence", `${root}/people`, 1),
-      actionLabel: "Open the buyer",
-      actionHref: `${root}/people`,
-    },
+  const changes: ChangeItem[] = [
+    ...(velocityChange === null || now === null || before === null
+      ? []
+      : [
+          {
+            id: "velocity",
+            label: "Sales velocity",
+            deltaDisplay: signedPercent(velocityChange),
+            direction: velocityChange >= 0 ? ("up" as const) : ("down" as const),
+            better: "up" as const,
+            detail: `${plural(now.sold, "unit", "units")} ${when} against ${String(before.sold)} in ${period.baselineLabel}.`,
+            evidence: evidenceRef(
+              "northgate.velocity",
+              "observed_sequence",
+              `${root}/flow`,
+              now.sold + before.sold,
+            ),
+            href: `${root}/flow`,
+          },
+        ]),
+    ...(twoRoomChange === null ? [] : [twoRoomChange]),
   ];
 
   const briefing: AiBriefing = {
-    heading: "What changed this quarter",
+    heading: `What changed ${when}`,
     statements: [
       {
-        text: "Sales slowed by 22%, and the whole loss sits between viewing and offer: viewings held steady at 46, offers fell from 17 to 12.",
+        text:
+          now === null
+            ? velocitySentence
+            : `${velocitySentence} Of ${plural(viewing, "meeting", "meetings")} ${when}, ${String(now.offers)} became deals that reached an offer.`,
         tier: "observed_sequence",
-        evidence: evidenceRef("northgate.brief.1", "observed_sequence", `${root}/flow`, 46),
+        evidence: evidenceRef("northgate.brief.1", "observed_sequence", `${root}/flow`, viewing),
       },
       {
-        text: "Two-room units take 2.1× their share of attention and convert at half the project average — the pattern of a segment priced above what buyers will pay for it.",
+        text: twoRoomSentence,
         tier: "statistical_association",
         evidence: evidenceRef(
           "northgate.brief.2",
           "statistical_association",
           `${root}/project`,
-          61,
+          decidedTwoRoom.length,
         ),
-      },
-      {
-        text: "Median follow-up after a meeting is now 8 days, up from 5. Meetings followed up within 3 days reach an offer roughly twice as often (n = 31).",
-        tier: "statistical_association",
-        evidence: evidenceRef("northgate.brief.3", "statistical_association", `${root}/people`, 31),
       },
     ],
     generatorVersion: "briefing-1.0.0",
@@ -318,36 +613,25 @@ function northgate(context: ViewContext): ExecutiveOverview {
 
   const actions: ActionItem[] = [
     {
-      id: "review-two-room-pricing",
-      label: "Review two-room pricing",
-      description: "Open the segment with its comparison losses and price gaps.",
+      id: "review-two-room",
+      label: "Open the two-room segment",
+      description: "Its attention, its conversion and the units buyers compared.",
       href: `${root}/project`,
       emphasis: "primary",
     },
     {
-      id: "chase-stalled",
-      label: "Chase 3 stalled offers",
-      description: "All beyond this project's 80th percentile time in stage.",
+      id: "review-stalled",
+      label: "Review the longest-standing deals",
+      description: "The open deals longest on their rung, by the stage date the CRM stated.",
       href: `${root}/flow`,
       emphasis: "secondary",
     },
   ];
 
   const dataHealth: DataHealth = {
-    completeness: ok({
-      metricId: "exec.data_completeness",
-      label: "Data completeness",
-      display: percent(0.86, locale),
-      raw: 0.86,
-      qualifier: "of expected inputs",
-      sampleSize: 46,
-      minimumSampleSize: 5,
-      comparison: comparison("previous period", "+4%", "up", "up"),
-      drillHref: `${root}/people`,
-    }),
-    sourcesPresent: ["WEBIRIS", "Showroom", "CRM", "Catalogue"],
-    sourcesMissing: [],
-    note: "6 of 46 meetings have no recorded outcome, so conversion is a lower bound.",
+    completeness: completenessMetric(meetings.current, locale),
+    ...sourcesOf(context),
+    note: completenessNote(meetings.current),
   };
 
   return {
@@ -357,53 +641,46 @@ function northgate(context: ViewContext): ExecutiveOverview {
     funnel,
     briefing,
     changes,
-    alerts,
+    alerts: [],
     actions,
     dataHealth,
   };
 }
 
-/* --- Riverside: no CRM ---------------------------------------------------- */
+/** `insufficient` below the input's own minimum, `ok` at or above it. */
+function insufficientBelow(input: Parameters<typeof ok>[0], message: string): MetricValue {
+  return (input.sampleSize ?? 0) < input.minimumSampleSize
+    ? insufficient(input, message)
+    : ok(input);
+}
+
+/* --- Riverside and Kingsford: no CRM --------------------------------------- */
 
 const NO_CRM = "The CRM is not connected, so outcomes below the meeting are unknown.";
 
-function riverside(context: ViewContext): ExecutiveOverview {
-  const { root, locale } = base(context);
-
+/** The figures a project without a CRM cannot have, drawn as unavailable rather than as a smaller number. */
+function withoutCrm(context: ViewContext, meetings: ObservedMeetings) {
+  const { locale } = base(context);
+  const held = meetings.current.length;
   return {
-    context,
-    verdict: {
-      state: "insufficient_data",
-      headline:
-        "No verdict is possible for Riverside Walk: without the CRM, Observer can see the meetings but not what came of them.",
-      supporting:
-        "38 meetings and 214 online visitors are recorded this period. Connect the CRM to see offers, reservations and sales.",
-      evidence: evidenceRef("riverside.verdict", "observed_sequence", `${root}/people`, 38),
-      rulesetVersion: VERDICT_RULESET,
-      components: [
-        {
-          metricId: "exec.units_sold",
-          label: "Sales velocity",
-          display: "unknown",
-          rule: "Requires the CRM",
-          outcome: "unknown",
-        },
-        {
-          metricId: "flow.viewing_to_offer",
-          label: "Viewing to offer",
-          display: "unknown",
-          rule: "Requires the CRM",
-          outcome: "unknown",
-        },
-        {
-          metricId: "exec.data_completeness",
-          label: "Data completeness",
-          display: percent(0.52, locale),
-          rule: "At least 80% of expected inputs present",
-          outcome: "fail",
-        },
-      ],
-    },
+    held,
+    components: [
+      {
+        metricId: "exec.units_sold",
+        label: "Sales velocity",
+        display: "unknown",
+        rule: "Requires the CRM",
+        outcome: "unknown" as const,
+      },
+      {
+        metricId: "flow.viewing_to_offer",
+        label: "Viewing to offer",
+        display: "unknown",
+        rule: "Requires the CRM",
+        outcome: "unknown" as const,
+      },
+      completenessComponent(meetings.current, locale),
+    ],
     headline: [
       unavailable("exec.units_sold", "Units Sold", 1, NO_CRM),
       unavailable("exec.revenue", "Revenue", 1, NO_CRM),
@@ -413,7 +690,7 @@ function riverside(context: ViewContext): ExecutiveOverview {
     funnel: [
       {
         label: "Viewing to Offer",
-        fromCount: 38,
+        fromCount: held,
         toCount: null,
         metric: unavailable("flow.viewing_to_offer", "Viewing to Offer", 20, NO_CRM),
       },
@@ -429,23 +706,64 @@ function riverside(context: ViewContext): ExecutiveOverview {
         toCount: null,
         metric: unavailable("flow.reservation_to_sale", "Reservation to Sale", 10, NO_CRM),
       },
-    ],
+    ] satisfies FunnelStep[],
+    dataHealth: {
+      completeness: completenessMetric(meetings.current, locale),
+      ...sourcesOf(context),
+      note: completenessNote(meetings.current),
+    } satisfies DataHealth,
+  };
+}
+
+function riverside(context: ViewContext, meetings: ObservedMeetings): ExecutiveOverview {
+  const { root } = base(context);
+  const shared = withoutCrm(context, meetings);
+  const when = periodPhrase(context);
+  /*
+   * The scenario's high south-facing flats, at the index the period's meetings
+   * give them. The catalogue has none — every Riverside unit faces east or north
+   * — so the reading says that rather than printing the 1.7× the scenario was
+   * written with.
+   */
+  const southHigh = attentionIndex(
+    catalogueFor(context.project.id as string),
+    meetings.current.flatMap((s) => s.units),
+    (u) => u.orientation === "S" && u.floor !== null && u.floor >= 4,
+  );
+
+  return {
+    context,
+    verdict: {
+      state: "insufficient_data",
+      headline: `No verdict is possible for ${context.project.name}: without the CRM, Observer can see the meetings but not what came of them.`,
+      supporting: `${plural(shared.held, "meeting is", "meetings are")} recorded ${when}. Connect the CRM to see offers, reservations and sales.`,
+      evidence: evidenceRef("riverside.verdict", "observed_sequence", NO_PAGE, shared.held),
+      rulesetVersion: VERDICT_RULESET,
+      components: shared.components,
+    },
+    headline: shared.headline,
+    funnel: shared.funnel,
     briefing: {
       heading: "What can be said without the CRM",
       statements: [
         {
-          text: "38 meetings were held this period, and 214 people visited the project online.",
+          text: `${plural(shared.held, "meeting was", "meetings were")} held ${when}.`,
           tier: "observed_sequence",
-          evidence: evidenceRef("riverside.brief.1", "observed_sequence", `${root}/people`, 38),
+          evidence: evidenceRef("riverside.brief.1", "observed_sequence", NO_PAGE, shared.held),
         },
         {
-          text: "South-facing units above the third floor take 1.7× their share of attention. Whether that converts cannot be seen from here.",
+          text:
+            southHigh.segmentUnits === 0
+              ? "No unsold unit faces south above the third floor, so there is no attention index to state for them."
+              : southHigh.index === null
+                ? "Nobody looked at the unsold stock in this period, so there is no attention index to state."
+                : `South-facing units above the third floor take ${attentionIndexDisplay(southHigh.index)} their share of attention. Whether that converts cannot be seen from here.`,
           tier: "statistical_association",
           evidence: evidenceRef(
             "riverside.brief.2",
             "statistical_association",
             `${root}/project`,
-            91,
+            shared.held,
           ),
         },
       ],
@@ -475,167 +793,51 @@ function riverside(context: ViewContext): ExecutiveOverview {
         emphasis: "primary",
       },
     ],
-    dataHealth: {
-      completeness: ok({
-        metricId: "exec.data_completeness",
-        label: "Data completeness",
-        display: percent(0.52, locale),
-        raw: 0.52,
-        qualifier: "of expected inputs",
-        sampleSize: 38,
-        minimumSampleSize: 5,
-        drillHref: `${root}/people`,
-      }),
-      sourcesPresent: ["WEBIRIS", "Showroom", "Catalogue"],
-      sourcesMissing: ["CRM"],
-      note: "Roughly half the journey is invisible while the CRM is disconnected.",
-    },
+    dataHealth: shared.dataHealth,
   };
 }
 
-/* --- Kingsford: too new to judge ------------------------------------------ */
-
-function kingsford(context: ViewContext): ExecutiveOverview {
-  const { root, locale, currency } = base(context);
-  const thin = "Fewer than 20 meetings — shown as a raw figure, not as a verdict.";
+function kingsford(context: ViewContext, meetings: ObservedMeetings): ExecutiveOverview {
+  const { locale } = base(context);
+  const shared = withoutCrm(context, meetings);
+  const when = periodPhrase(context);
+  /*
+   * How long the project has been presenting, from its own first meeting —
+   * the headline said "three weeks and 7 meetings" while 41 were on record.
+   */
+  const first = [...sessionsForProject(context.project.id as string)]
+    .map((s) => s.startedAt)
+    .sort()[0];
+  const since =
+    first === undefined
+      ? "It has no meeting on record yet."
+      : `Its first meeting was on ${dayLabel(first, locale, context.project.timeZone)}.`;
 
   return {
     context,
     verdict: {
       state: "insufficient_data",
-      headline: "Kingsford Yard has been live for three weeks and has held 7 meetings.",
+      headline: `${context.project.name} has held ${plural(shared.held, "meeting", "meetings")} ${when}. ${since}`,
       supporting:
-        "That is too few to read as a trend. Figures are shown as raw counts until 20 meetings are on record.",
-      evidence: evidenceRef("kingsford.verdict", "observed_sequence", `${root}/people`, 7),
+        "Without the CRM, Observer can see the meetings but not what came of them, so no verdict is formed.",
+      evidence: evidenceRef("kingsford.verdict", "observed_sequence", NO_PAGE, shared.held),
       rulesetVersion: VERDICT_RULESET,
-      components: [
-        {
-          metricId: "exec.performance_status",
-          label: "Meetings on record",
-          display: "7",
-          rule: "At least 20 meetings before a verdict is formed",
-          outcome: "unknown",
-        },
-        {
-          metricId: "exec.data_completeness",
-          label: "Data completeness",
-          display: percent(0.71, locale),
-          rule: "At least 80% of expected inputs present",
-          outcome: "watch",
-        },
-      ],
+      components: shared.components,
     },
-    headline: [
-      insufficient(
-        {
-          metricId: "exec.units_sold",
-          label: "Units Sold",
-          display: count(1, locale),
-          raw: 1,
-          sampleSize: 1,
-          minimumSampleSize: 1,
-          drillHref: `${root}/flow`,
-        },
-        "One sale is a fact, not a rate.",
-      ),
-      insufficient(
-        {
-          metricId: "exec.revenue",
-          label: "Revenue",
-          display: compactMoney(310_000, currency, locale),
-          raw: 310_000,
-          qualifier: "of £8.4M inventory",
-          sampleSize: 1,
-          minimumSampleSize: 1,
-          drillHref: `${root}/flow`,
-        },
-        "One sale is a fact, not a rate.",
-      ),
-      unavailable(
-        "exec.avg_days_to_close",
-        "Average Days to Close",
-        10,
-        "Fewer than 10 completed sales — percentiles would be misleading.",
-      ),
-      insufficient(
-        {
-          metricId: "exec.active_buyers",
-          label: "Active Buyers",
-          display: count(6, locale),
-          raw: 6,
-          qualifier: "in the last 28 days",
-          sampleSize: 6,
-          minimumSampleSize: 1,
-          drillHref: `${root}/people`,
-        },
-        thin,
-      ),
-    ],
-    funnel: [
-      {
-        label: "Viewing to Offer",
-        fromCount: 7,
-        toCount: 2,
-        metric: insufficient(
-          {
-            metricId: "flow.viewing_to_offer",
-            label: "Viewing to Offer",
-            display: "2 of 7",
-            raw: 2 / 7,
-            sampleSize: 7,
-            minimumSampleSize: 20,
-            drillHref: `${root}/flow`,
-          },
-          thin,
-        ),
-      },
-      {
-        label: "Offer to Reservation",
-        fromCount: 2,
-        toCount: 1,
-        metric: insufficient(
-          {
-            metricId: "flow.offer_to_reservation",
-            label: "Offer to Reservation",
-            display: "1 of 2",
-            raw: 0.5,
-            sampleSize: 2,
-            minimumSampleSize: 15,
-            drillHref: `${root}/flow`,
-          },
-          thin,
-        ),
-      },
-      {
-        label: "Reservation to Sale",
-        fromCount: 1,
-        toCount: 1,
-        metric: insufficient(
-          {
-            metricId: "flow.reservation_to_sale",
-            label: "Reservation to Sale",
-            display: "1 of 1",
-            raw: 1,
-            sampleSize: 1,
-            minimumSampleSize: 10,
-            drillHref: `${root}/flow`,
-          },
-          thin,
-        ),
-      },
-    ],
+    headline: shared.headline,
+    funnel: shared.funnel,
     briefing: {
-      heading: "Too early for a summary",
+      heading: "What can be said without the CRM",
       statements: [
         {
-          text: "7 meetings and 1 sale are on record. No pattern can be separated from chance at this volume.",
+          text: `${plural(shared.held, "meeting is", "meetings are")} on record ${when}. No sale can be read without the CRM.`,
           tier: "observed_sequence",
-          evidence: evidenceRef("kingsford.brief.1", "observed_sequence", `${root}/people`, 7),
+          evidence: evidenceRef("kingsford.brief.1", "observed_sequence", NO_PAGE, shared.held),
         },
       ],
       generatorVersion: "briefing-1.0.0",
       generatedAt: context.generatedAt,
-      caveat: "Summaries become useful at around 20 meetings.",
+      caveat: "The CRM is disconnected. Nothing below the meeting is included in this summary.",
     },
     changes: [],
     alerts: [
@@ -650,28 +852,14 @@ function kingsford(context: ViewContext): ExecutiveOverview {
       },
     ],
     actions: [],
-    dataHealth: {
-      completeness: insufficient(
-        {
-          metricId: "exec.data_completeness",
-          label: "Data completeness",
-          display: percent(0.71, locale),
-          raw: 0.71,
-          qualifier: "of expected inputs",
-          sampleSize: 7,
-          minimumSampleSize: 5,
-          drillHref: `${root}/people`,
-        },
-        thin,
-      ),
-      sourcesPresent: ["Showroom", "Catalogue"],
-      sourcesMissing: ["WEBIRIS", "CRM"],
-      note: "Two of four sources are connected.",
-    },
+    dataHealth: shared.dataHealth,
   };
 }
 
-const BUILDERS: Record<string, (context: ViewContext) => ExecutiveOverview> = {
+const BUILDERS: Record<
+  string,
+  (context: ViewContext, meetings: ObservedMeetings) => ExecutiveOverview
+> = {
   prj_northgate01: northgate,
   prj_riversidew1: riverside,
   prj_beta0000001: kingsford,
@@ -704,12 +892,15 @@ const BUILDERS: Record<string, (context: ViewContext) => ExecutiveOverview> = {
  * existing `error.tsx` boundary, which already exists to say a screen could
  * not be produced — that is a true sentence here. A wrong one is not.
  */
-export function buildExecutiveOverview(context: ViewContext): ExecutiveOverview {
+export function buildExecutiveOverview(
+  context: ViewContext,
+  meetings: ObservedMeetings,
+): ExecutiveOverview {
   const builder = BUILDERS[context.project.id];
   if (builder === undefined) {
     throw new NotFoundError(`an executive overview for ${context.project.name}`);
   }
-  return builder(context);
+  return builder(context, meetings);
 }
 
 /** Exposed for the money formatter used by the units read model. */

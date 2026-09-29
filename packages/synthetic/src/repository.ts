@@ -16,7 +16,14 @@ import type {
   ViewContext,
   Viewer,
 } from "@observer/readmodels";
-import { NotFoundError, NotPermittedError } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  formattingLocale,
+  NotFoundError,
+  NotPermittedError,
+  type Language,
+} from "@observer/readmodels";
+import type { ReportScopeSelector } from "@observer/readmodels";
 import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "@observer/readmodels";
 import type {
   AgentsView,
@@ -51,7 +58,7 @@ import type {
   ShowroomSessionSource,
 } from "@observer/readmodels";
 import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
-import { periodsAt } from "./time";
+import { periodsAt, periodWords } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
@@ -74,6 +81,7 @@ import {
   buildHome,
   buildProjectView,
   buildSalesFlow,
+  sliceSpan,
 } from "./showroom/views3";
 import {
   buildMeetingList,
@@ -86,7 +94,7 @@ import {
 import { buildAgentDetail, buildMeetings, buildUnitDetail } from "./showroom/screens";
 import { buildAttention } from "./showroom/attention";
 import { buildAskHistory, buildAskThread } from "./ask-history";
-import { buildReportScope } from "./reports";
+import { buildAgentReportScope, buildReportScope } from "./reports";
 
 /**
  * A deterministic repository over the synthetic world.
@@ -102,42 +110,41 @@ import { buildReportScope } from "./reports";
  *    before it is backed by real rows.
  */
 
-const PERIODS: Record<PeriodPreset, Omit<Period, "preset">> = {
+/*
+ * The synthetic world's periods: its bounds here, its words from `periodWords`
+ * — the table the real clock reads — so the two cannot name a period apart.
+ * Its quarter to date has run 54 days.
+ */
+const SYNTHETIC_QUARTER_DAYS = 54;
+
+const PERIODS: Record<PeriodPreset, Omit<Period, "preset" | "label" | "baselineLabel">> = {
   last_28_days: {
-    label: "Last 28 days",
     from: "2026-07-27T00:00:00.000+02:00",
     to: "2026-08-24T00:00:00.000+02:00",
-    baselineLabel: "the previous 28 days",
     baselineFrom: "2026-06-29T00:00:00.000+02:00",
     baselineTo: "2026-07-27T00:00:00.000+02:00",
     baselineClipped: false,
   },
   quarter_to_date: {
-    label: "Quarter to date",
     from: "2026-07-01T00:00:00.000+02:00",
     to: "2026-08-24T00:00:00.000+02:00",
     // 54 days elapsed, so the baseline is clipped to the same 54 days.
     // Comparing a part-quarter with a whole one is the commonest false alarm
     // a dashboard raises.
-    baselineLabel: "the same 54 days of the previous quarter",
     baselineFrom: "2026-04-01T00:00:00.000+02:00",
     baselineTo: "2026-05-25T00:00:00.000+02:00",
     baselineClipped: true,
   },
   last_quarter: {
-    label: "Last completed quarter",
     from: "2026-04-01T00:00:00.000+02:00",
     to: "2026-07-01T00:00:00.000+02:00",
-    baselineLabel: "the quarter before it",
     baselineFrom: "2026-01-01T00:00:00.000+01:00",
     baselineTo: "2026-04-01T00:00:00.000+02:00",
     baselineClipped: false,
   },
   year_to_date: {
-    label: "Year to date",
     from: "2026-01-01T00:00:00.000+01:00",
     to: "2026-08-24T00:00:00.000+02:00",
-    baselineLabel: "the same period last year",
     baselineFrom: "2025-01-01T00:00:00.000+01:00",
     baselineTo: "2025-08-24T00:00:00.000+02:00",
     baselineClipped: true,
@@ -276,7 +283,8 @@ export class SyntheticObserverRepository implements ObserverRepository {
     if (project === undefined) throw new NotFoundError("This project");
     const live = await this.overlaySessions(project);
     const real = live || world.own.has(project.id as string);
-    return this.periodFor(project, preset, real ? this.clock() : null);
+    /* `resolvePeriod` is asked without a query, so it has no language to pass: its labels are the default's. */
+    return this.periodFor(project, preset, real ? this.clock() : null, DEFAULT_LANGUAGE);
   }
 
   /**
@@ -301,9 +309,20 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   /** `now` is the real clock's reading for a delivered project, and null for a synthetic one. */
-  private periodFor(project: ProjectSummary, preset: PeriodPreset, now: Date | null): Period {
-    const periods = now === null ? PERIODS : periodsAt(now, project.timeZone);
-    return { preset, ...periods[preset] };
+  private periodFor(
+    project: ProjectSummary,
+    preset: PeriodPreset,
+    now: Date | null,
+    language: Language,
+  ): Period {
+    if (now === null) {
+      return {
+        preset,
+        ...PERIODS[preset],
+        ...periodWords(preset, SYNTHETIC_QUARTER_DAYS, language),
+      };
+    }
+    return { preset, ...periodsAt(now, project.timeZone, language)[preset] };
   }
 
   private async context(query: OverviewQuery | BriefQuery): Promise<ViewContext> {
@@ -317,7 +336,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     const live = await this.overlaySessions(project);
     await this.overlayDeals(project);
     const now = live || own ? this.clock() : null;
-    const period = this.periodFor(project, preset, now);
+    const period = this.periodFor(project, preset, now, query.language);
     /*
      * One policy governs the synthetic world, so the period and its baseline
      * are always comparable; the refusal is computed rather than assumed, so
@@ -335,9 +354,14 @@ export class SyntheticObserverRepository implements ObserverRepository {
     return {
       viewer: query.viewer,
       tenant,
-      project,
+      /*
+       * The figures' locale: the project's on a screen, the language's on the
+       * printed report (decided 2026-09-27). Currency is left as it is.
+       */
+      project: { ...project, locale: formattingLocale(query.language, project.locale) },
       period,
       generatedAt: now === null ? TODAY : now.toISOString(),
+      language: query.language,
       sessionsDelivered: live,
       ownDataOnly: own,
       attribution,
@@ -396,14 +420,15 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getExecutiveOverview(query: OverviewQuery): Promise<ExecutiveOverview> {
-    const context = await this.context(query);
+    /* The period's meetings go with it: the index it states is computed from them. */
+    const { context, current, previous } = await this.slices(query);
     if (context.viewer.role === "sales_agent") {
       // Not a 404 and not an empty screen: agents have their own Overview, and
       // routing them here would either leak agency-wide figures or show them a
       // page of blanks.
       throw new NotPermittedError("the executive overview");
     }
-    return buildExecutiveOverview(context);
+    return buildExecutiveOverview(context, { current, previous });
   }
 
   async getAgentOverview(query: OverviewQuery): Promise<AgentOverview> {
@@ -434,16 +459,31 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession> {
-    const { context, current } = await this.slices(query);
+    const { context, current, previous } = await this.slices(query);
     /*
      * The prepared answers are the synthetic scenario's own prose. Printed over a
      * project whose meetings are its own showroom's they are a fabrication, so a
      * delivered project gets only what can be worked out from what was delivered.
+     *
+     * And the scenario is NORTHGATE's — its figures, its unit A-505, its buyer,
+     * its "south-facing, floors 4 to 6" — gated like `buildPreMeetingBrief` and
+     * `buildAgentOverview`. Every other synthetic project was served it until
+     * P2-17's first item: a crawl found 31 surface pairs on Riverside, Kingsford
+     * and ISTER TOWER. They get the answers their own meetings support.
      */
-    if (context.sessionsDelivered || context.ownDataOnly)
+    if (
+      context.sessionsDelivered ||
+      context.ownDataOnly ||
+      context.project.id !== "prj_northgate01"
+    )
       return buildDeliveredAskSession(context, current, selectionLabel);
 
-    const scripted = buildAskSession(context, buildProjectPulse(context), selectionLabel);
+    /* The period's meetings go to the pulse: the index an answer states is computed from them. */
+    const scripted = buildAskSession(
+      context,
+      buildProjectPulse(context, { current, previous }),
+      selectionLabel,
+    );
     /* Never scripted, so offered here too: the fifth opening, where a CRM is connected. */
     const assisted = assistedSalesAnswer(context);
     return assisted === null
@@ -491,14 +531,10 @@ export class SyntheticObserverRepository implements ObserverRepository {
      * So the period's window is extended through today when the period is
      * still running, and left alone when it is not. A period that ended within
      * the last day is still running; anything older is history and does not
-     * grow.
+     * grow. `sliceSpan` decides it, the same function the builders name their
+     * buckets with, and today ends where the project is.
      */
-    const endOfToday = new Date(today);
-    endOfToday.setUTCHours(23, 59, 59, 999);
-
-    const stillRunning =
-      new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
-    const periodEnd = stillRunning ? endOfToday.toISOString() : context.period.to;
+    const periodEnd = new Date(sliceSpan(context, today).to).toISOString();
 
     /*
      * Every slice is scoped to the project the viewer resolved.
@@ -519,7 +555,13 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getHome(query: OverviewQuery): Promise<ShowroomHome> {
     const { context, current, previous, today } = await this.slices(query);
-    return buildHome(context, current, previous, today);
+    /*
+     * Built once and handed to both. The Briefing leads with whatever the
+     * attention screen ranked first, so the two cannot disagree about what is
+     * raised in a period — see `actionWorthTaking` in @observer/readmodels.
+     */
+    const attention = buildAttention(context, current, previous);
+    return buildHome(context, current, previous, today, attention);
   }
 
   async getSalesFlow(query: OverviewQuery): Promise<SalesFlowView> {
@@ -582,7 +624,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     // one page, so they must count the same meetings.
     const { context, current } = await this.slices(query);
     const base = `/${context.tenant.slug}/${context.project.slug}`;
-    return buildAgentCharts(current, base, context.project.locale);
+    return buildAgentCharts(current, base, context.project.locale, context.language);
   }
 
   async getProjectView(query: OverviewQuery, segmentId: string | null): Promise<ProjectView> {
@@ -685,21 +727,29 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getAgentDetail(query: OverviewQuery, agentId: string): Promise<AgentDetailView> {
     const { context, current } = await this.slices(query);
-    /*
-     * The projects passed in are the viewer's, not the agent's.
-     *
-     * "Where else does this person work" is answered from the intersection of
-     * the agent's meetings and the reader's own grants. A developer who could
-     * read the full list would be learning, off a staff page, that their agency
-     * also sells for somebody else — which is a commercial fact about a third
-     * party and not theirs to have.
-     */
-    const visible = (await this.world()).projects.filter(
-      (p) => p.tenantId === context.tenant.id && query.viewer.projectIds.includes(p.id),
-    );
+    const visible = await this.projectsHeldHere(context, query.viewer);
     const view = buildAgentDetail(context, current, visible, agentId);
     if (view === null) throw new NotFoundError(`Agent "${agentId}" on this project`);
     return view;
+  }
+
+  /**
+   * The projects passed to the agent builders are the viewer's, not the agent's.
+   *
+   * "Where else does this person work" is answered from the intersection of
+   * the agent's meetings and the reader's own grants. A developer who could
+   * read the full list would be learning, off a staff page, that their agency
+   * also sells for somebody else — which is a commercial fact about a third
+   * party and not theirs to have. One rule, read by the agent's screen and by
+   * the agent's report scope, so the two cannot list different projects.
+   */
+  private async projectsHeldHere(
+    context: ViewContext,
+    viewer: Viewer,
+  ): Promise<readonly ProjectSummary[]> {
+    return (await this.world()).projects.filter(
+      (p) => p.tenantId === context.tenant.id && viewer.projectIds.includes(p.id),
+    );
   }
 
   async getAttention(query: OverviewQuery): Promise<AttentionView> {
@@ -721,13 +771,20 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getReportScope(
     query: OverviewQuery,
-    meetingId: string | null = null,
+    of: ReportScopeSelector | null = null,
   ): Promise<ReportScopeView> {
     const { context, current } = await this.slices(query);
-    if (meetingId === null) return buildReportScope(context, current);
-    const session = sessionById(meetingId, context.project.id as string);
+    if (of === null) return buildReportScope(context, current);
+    if ("agentId" in of) {
+      /* The same rule as getAgentDetail: not presenting here is not found here. */
+      const visible = await this.projectsHeldHere(context, query.viewer);
+      const view = buildAgentReportScope(context, current, visible, of.agentId);
+      if (view === null) throw new NotFoundError(`Agent "${of.agentId}" on this project`);
+      return view;
+    }
+    const session = sessionById(of.meetingId, context.project.id as string);
     if (session === undefined || session.projectId !== context.project.id) {
-      throw new NotFoundError(`Meeting "${meetingId}"`);
+      throw new NotFoundError(`Meeting "${of.meetingId}"`);
     }
     return buildReportScope(context, current, session);
   }

@@ -87,6 +87,32 @@ export function parseMeetingFilters(search: MeetingSearch): MeetingFilters {
 }
 
 /**
+ * An address with the register's filters written into it — the inverse of
+ * `parseMeetingFilters`, and the one place they are written.
+ *
+ * Carried on the row that opens a meeting and on the replay's two ways back,
+ * so the register a reader narrowed is the register they come back to. Until
+ * P2-16 the row carried the period alone and both ways back returned to the
+ * whole period. A null axis is omitted, as the GET form omits an empty select;
+ * the period is `withPeriod`'s business, not this function's.
+ */
+export function withMeetingFilters(href: string, filters: MeetingFilters): string {
+  const [path, query] = href.split("?");
+  const params = new URLSearchParams(query ?? "");
+  const axes: readonly (readonly [string, string | null])[] = [
+    [AGENT_PARAM, filters.agentId],
+    [CHANNEL_PARAM, filters.channel],
+    [OUTCOME_PARAM, filters.outcome],
+  ];
+  for (const [name, value] of axes) {
+    if (value === null) params.delete(name);
+    else params.set(name, value);
+  }
+  const search = params.toString();
+  return search === "" ? (path ?? href) : `${path}?${search}`;
+}
+
+/**
  * One select's options, with the applied value guaranteed to be among them.
  *
  * `MeetingFilterOptions` counts over the PERIOD rather than over the current

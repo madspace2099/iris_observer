@@ -9,9 +9,13 @@ import { signInAs } from "./sign-in";
  * of them, because a state machine that is only ever seen in one state has not
  * been reviewed.
  */
-const OUT =
-  process.env["OBSERVER_REVIEW_SHOTS"] ??
-  "C:/Users/42191/AppData/Local/Temp/claude/C--Users-42191-Documents-IRIS-OBSERVER/fca1dc8c-8691-435c-b958-dd07be3e192c/scratchpad/observer";
+/*
+ * Inside the repository. `_review/` rather than `test-results/`, which
+ * Playwright clears before every run; and rather than the absolute Windows
+ * temp path this defaulted to, which swept the images on one machine and, on
+ * any other, is a relative path that makes a folder called `C:`.
+ */
+const OUT = process.env["OBSERVER_REVIEW_SHOTS"] ?? "_review/observer";
 
 
 /** Long enough for the cross-fade to land, short enough to keep the run quick. */
@@ -30,9 +34,23 @@ test.describe("Observer review set", () => {
    * human, no assertions, and selectors for a console that no longer sits on
    * the landing page.
    */
+  /*
+   * THE SWITCH IS NOT THE DESTINATION.
+   *
+   * This gate used to read `OBSERVER_REVIEW_SHOTS` — the same variable that names where
+   * the images go. The two jobs cancelled: with the variable unset the file
+   * skipped, and with it set the default never applied, so the
+   * `?? "_review/observer"` beside it was a line that could not become true. A
+   * default nobody can reach tells the next reader the file writes there, and
+   * it does not.
+   *
+   * `OBSERVER_REVIEW_CAPTURE` turns the generator on. `OBSERVER_REVIEW_SHOTS` still moves
+   * the images, and now its default is reachable: with the flag set and no
+   * destination named, they land in `_review/observer`.
+   */
   test.skip(
-    () => process.env["OBSERVER_REVIEW_SHOTS"] === undefined,
-    "A screenshot generator: set OBSERVER_REVIEW_SHOTS to produce the set.",
+    () => process.env["OBSERVER_REVIEW_CAPTURE"] === undefined,
+    "A screenshot generator: set OBSERVER_REVIEW_CAPTURE=1 to produce the set.",
   );
 
   test("briefing at 1920×1080", async ({ page }, info) => {

@@ -1,0 +1,2227 @@
+/* ============================================================================
+ * DESIGN LAB, VARIANT D. THE HYPER KIT'S TREATMENT. Classes dld-, tokens --d-.
+ *
+ * The product's own chart components, unchanged, under the treatment of the
+ * "Hyper ✦ Charts templates" kit (Figma K0MHbKl6esDEoVajsBYrTN, dark theme):
+ * black cards on a darker ground, the kit's six-layer elevation, its accents,
+ * its gradients and its glow. Everything here is scoped to `.dld-root`, so no
+ * rule reaches a live screen, and nothing here redefines a product token:
+ * `tokens.css` and the `--viz-*` palette are read, never written.
+ *
+ * ## What is the kit's and what is not
+ *
+ *   geometry, spacing, stroke     the kit's XL (800×486) and Large (375×556)
+ *   widths, caps, gradients,      cards, measured node by node; the values are
+ *   glow, colour                  cited where they are used
+ *   typefaces                     NOT the kit's. Text stays Manrope; figures
+ *                                 take `--d-font-numeric`, Geist Mono
+ *   colours that already mean     NOT the kit's. An outcome keeps OUTCOME_TONE
+ *   something                     (`--outcome-*`), a delta keeps its verdict
+ *                                 colour, and neither is given the glow
+ *
+ * ## Two colour rules, both held here
+ *
+ *   1  #5EFF5A and #77FF60 are never two series on one chart. #5EFF5A is not
+ *      used at all; #77FF60 appears only where a chart has one series.
+ *   2  An ordered variable is one hue, dark to bright: `--d-ramp-lo` to
+ *      `--d-ramp-hi`, the kit's own dim and bright point. The kit's rainbow
+ *      heatmaps and its four-colour bullet bar are the two places it breaks
+ *      this, and the two places this sheet does not follow it.
+ * ========================================================================= */
+
+@import "@fontsource-variable/geist-mono";
+
+/* The ring and the dial turn in on one animated angle. */
+@property --d-sweep {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 360deg;
+}
+
+.dld-root {
+  /* --- elevation: the kit's "Shadow/Dark theme", and the same at half ------- */
+  --d-elevation-full:
+    10.67px 21.33px 3.38px #00000010, 13.48px 26.97px 7.01px #0000001a,
+    18.78px 37.57px 13.98px #00000021, 27.06px 54.13px 27.39px #00000028,
+    38.82px 77.65px 50.37px #00000032, 54.56px 109.12px 86px #00000042;
+  --d-elevation-half:
+    5.335px 10.665px 1.69px #00000010, 6.74px 13.485px 3.505px #0000001a,
+    9.39px 18.785px 6.99px #00000021, 13.53px 27.065px 13.695px #00000028,
+    19.41px 38.825px 25.185px #00000032, 27.28px 54.56px 43px #00000042;
+
+  /* --- ground, card, ink: the kit's dark theme -------------------------------- */
+  --d-ground: #16151c;
+  --d-card: #000000; /* every dark card */
+  --d-card-radius: 12px;
+  --d-card-pad: 24px;
+  --d-card-gap: 20px;
+  --d-ink: #ffffff; /* White: values */
+  --d-ink-2: #d0d0da; /* Light telegray: titles, labels */
+  --d-ink-3: #b3b3c5; /* Very light magenta blue: XL captions */
+  --d-ink-4: #5b5b65; /* Marengo: secondary text, axes */
+  --d-hairline: rgb(255 255 255 / 0.2); /* table dividers */
+  --d-grid: rgb(255 255 255 / 0.2); /* grid lines */
+  --d-guide: rgb(255 255 255 / 0.1); /* punch-card guides */
+  --d-track: #424141; /* Platinum Gray */
+  --d-space: #3d464d; /* Space: column separators */
+  --d-control: rgb(66 65 65 / 0.48); /* buttons */
+
+  /* --- accents ------------------------------------------------------------------ */
+  --d-accent: #77ff60; /* Screaming Green: the kit's single-series bar */
+  --d-accent-2: #15ffab; /* Spring Green: points, dumbbells, stepped lines */
+  --d-ramp-lo: #0c4d41; /* the kit's dim point */
+  --d-ramp-hi: #15ffab; /* the kit's bright point */
+
+  /*
+   * Agent identity: six hues at least 40° apart on the CIE LCh wheel, the
+   * scale the review measured the old set on — its violet and magenta stood
+   * 14° apart, and its grey sat in the same arc. Red, amber, yellow and pink
+   * are left out: each sits on or beside a verdict colour (loss 30°, watch 80°
+   * on this wheel), and an agent must never read as one.
+   *
+   * With those out, what is left runs from about 115° to 340°, and six hues at
+   * 40° fill it almost exactly: the set is one chain of 40.5° steps from the
+   * kit's lime, the only kit colour a yellow-free chain can hold. The kit's
+   * violet, magenta and cyan sit between its links. Ordered so the first
+   * agents drawn are the furthest apart: 131.7°, 294.3°, 212.9°, 334.5°,
+   * 172.4°, 253.8°; the smallest gap in the set is 40.2°.
+   */
+  --d-series-1: #5cf101;
+  --d-series-2: #406cff;
+  --d-series-3: #1ae8ff;
+  --d-series-4: #ff00dd;
+  --d-series-5: #0dffd1;
+  --d-series-6: #00b7ff;
+
+  /* The journey funnel: the kit's funnel violet, one path, one colour. */
+  --d-funnel: #8338ec;
+
+  --d-font-numeric: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, monospace;
+  --d-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  font-family: var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  background: var(--d-ground);
+  color: var(--d-ink);
+  min-height: 100vh;
+  padding: clamp(16px, 2.8vw, 40px);
+  overflow-x: clip;
+}
+
+.dld-root svg {
+  overflow: visible;
+}
+
+.dld-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* --- the page ------------------------------------------------------------------ */
+
+.dld-head {
+  display: grid;
+  gap: 12px;
+  max-width: 72rem;
+}
+
+.dld-kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--d-ink-4);
+}
+
+.dld-title {
+  margin: 0;
+  font-size: clamp(28px, 1.6vw + 18px, 44px);
+  line-height: 1.08;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.dld-lede {
+  margin: 0;
+  max-width: 68ch;
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--d-ink-2);
+}
+
+.dld-root code {
+  font-family: var(--d-font-numeric);
+  font-size: 0.9em;
+  color: var(--d-accent-2);
+}
+
+.dld-section {
+  display: grid;
+  gap: 20px;
+  margin-top: 48px;
+}
+
+.dld-section-head {
+  display: grid;
+  gap: 4px;
+}
+
+.dld-section-head h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dld-section-head p {
+  margin: 0;
+  max-width: 70ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--d-ink-4);
+}
+
+.dld-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 34rem), 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+/* --- the card: the kit's Large anatomy, and its XL arrangement when wide ------- */
+
+.dld-card {
+  container-type: inline-size;
+  min-width: 0;
+  padding: var(--d-card-pad) var(--d-card-pad) calc(var(--d-card-pad) + 8px);
+  border-radius: var(--d-card-radius);
+  background: var(--d-card);
+  box-shadow: var(--d-elevation-full);
+}
+
+.dld-card[data-wide="true"] {
+  grid-column: 1 / -1;
+}
+
+.dld-card-inner {
+  display: grid;
+  grid-template-areas: "head" "plot" "facts";
+  gap: var(--d-card-gap);
+  min-width: 0;
+}
+
+.dld-card-head {
+  grid-area: head;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dld-card-kicker {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-ink-4);
+}
+
+/* The kit's Large title: bold 24, white. */
+.dld-card-title {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.009em;
+  color: var(--d-ink);
+  text-wrap: balance;
+}
+
+.dld-card-reads {
+  margin: 0;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+  overflow-wrap: anywhere;
+}
+
+/* The drawing's definition: under it, across a hairline, in the kit's caption grey. */
+.dld-card-note {
+  margin: 18px 0 0;
+  /* The rule runs the drawing's full width; the line of text stops at a readable measure. */
+  padding: 12px max(0px, calc(100% - 76ch)) 0 0;
+  border-top: 1px solid var(--d-hairline);
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--d-ink-3);
+  text-wrap: pretty;
+}
+
+/* At the card's foot, the grid's own gap already parts it from the facts. */
+.dld-card-note[data-place="end"] {
+  margin-top: 0;
+}
+
+/* What a screen reader is told instead of the drawing: present, and out of sight. */
+.dld-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The six measures under an agent's shape, two or three to a row. */
+.dld-axis-notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 8px 24px;
+  justify-self: stretch;
+  margin: 18px 0 0;
+}
+
+/* Each entry stacks from the top: stretched to its row's tallest neighbour, a short one's definition drifted off its name. */
+.dld-axis-notes > div {
+  display: grid;
+  align-content: start;
+  gap: 1px;
+  min-width: 0;
+}
+
+.dld-axis-notes dt {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink);
+}
+
+.dld-axis-notes dd {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+/* Why an axis has no value: the product's "not measured" sentence, set apart from what the axis would count. */
+.dld-axis-notes dd.dld-axis-missing {
+  margin-top: 2px;
+  padding-left: 8px;
+  border-left: 1px dashed var(--d-hairline);
+  color: var(--d-ink-3);
+}
+
+.dld-axis-notes div[data-missing="true"] dt {
+  color: var(--d-ink-3);
+}
+
+/* The one sentence a drawing has to say: white, above the source line, never louder than the title. */
+.dld-card-lead {
+  margin: 4px 0 2px;
+  max-width: 68ch;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--d-ink);
+  text-wrap: pretty;
+}
+
+.dld-plot {
+  grid-area: plot;
+  min-width: 0;
+}
+
+.dld-facts {
+  grid-area: facts;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* The kit's KPI pair: label 12 telegray, value mono 24 white, caption 12 marengo. */
+.dld-figures {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.dld-figures > div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dld-figures dt {
+  font-size: 12px;
+  line-height: 20px;
+  color: var(--d-ink-2);
+}
+
+.dld-figure-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  font-family: var(--d-font-numeric);
+  font-size: 24px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--d-ink);
+  overflow-wrap: anywhere;
+}
+
+.dld-figure-of {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+/*
+ * A delta is a verdict: bold 12, never the glow, and the product's own colour for it —
+ * `--gain` and `--loss`, the names the KPI component beside it reads, which the
+ * graphite ground resolves to its verdict marks. One "good" green per card, not two.
+ */
+.dld-delta {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+.dld-delta[data-tone="good"] {
+  color: var(--gain);
+}
+
+.dld-delta[data-tone="bad"] {
+  color: var(--loss);
+}
+
+.dld-delta[data-tone="flat"] {
+  color: var(--d-ink-2);
+}
+
+/* The kit's ranked table: 14 telegray against mono 16 white, white hairlines at 20%. */
+.dld-rank {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dld-rank-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--d-ink-4);
+}
+
+.dld-rank ol {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-rank li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid var(--d-hairline);
+}
+
+.dld-rank li:first-child {
+  border-top: 0;
+}
+
+.dld-rank li span {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 16px;
+  color: var(--d-ink-2);
+  overflow-wrap: anywhere;
+}
+
+.dld-rank li b {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  line-height: 16px;
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  color: var(--d-ink);
+  white-space: nowrap;
+}
+
+.dld-rank-note,
+.dld-note {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.dld-note {
+  margin-top: 12px;
+}
+
+.dld-empty {
+  margin: 0;
+  max-width: 60ch;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--d-ink-2);
+}
+
+.dld-withheld {
+  display: grid;
+  gap: 6px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.dld-withheld b {
+  color: var(--d-ink-2);
+  font-weight: 600;
+}
+
+.dld-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-key ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-key li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dld-key i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* The XL arrangement: KPI pair and ranking side by side under the drawing. */
+@container (width >= 36rem) {
+  .dld-card-title {
+    font-size: 16px;
+    line-height: 28px;
+    color: var(--d-ink-2);
+  }
+
+  .dld-figure-value {
+    font-size: 28px;
+    font-weight: 600;
+  }
+
+  .dld-facts {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 28px;
+    align-items: start;
+  }
+}
+
+/* A wide card at a wide window: the drawing takes the width, the facts a column. */
+@container (width >= 64rem) {
+  .dld-card-inner {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+    grid-template-areas: "head head" "plot facts";
+    column-gap: 40px;
+  }
+
+  /* The column stacks from the top: stretched to the drawing's height, its rows drifted apart. */
+  .dld-facts {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 24px;
+  }
+
+  /* A full card keeps the whole width for its drawing; the figures and the ranking share a band under it. */
+  .dld-card[data-full="true"] .dld-card-inner {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "head" "plot" "facts";
+  }
+
+  .dld-card[data-full="true"] .dld-facts {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 28px;
+  }
+}
+
+/* Two geometries for a new form; the card's own width chooses. */
+.dld-size[data-size="l"] {
+  display: none;
+}
+
+.dld-size svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+@container (width < 34rem) {
+  .dld-size[data-size="xl"] {
+    display: none;
+  }
+
+  .dld-size[data-size="l"] {
+    display: block;
+  }
+}
+
+.dld-centred {
+  display: grid;
+  justify-items: center;
+}
+
+/* ============================================================================
+ * A. THE PRODUCT'S COMPONENTS
+ * ========================================================================= */
+
+/* --- KPI card: its own card dissolves into ours --------------------------------- */
+
+.dld-root .dld-kpi .iris-kpi {
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+}
+
+.dld-root .dld-kpi .iris-kpi-label {
+  font-size: 16px;
+  line-height: 28px;
+  font-weight: 700;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-kpi .iris-kpi-value {
+  font-family: var(--d-font-numeric);
+  font-size: 56px;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--d-ink);
+}
+
+.dld-root .dld-kpi .iris-kpi-foot {
+  align-items: center;
+  gap: 24px;
+}
+
+.dld-root .dld-kpi .iris-kpi-foot .iris-code {
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-kpi .iris-kpi-delta {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.dld-root .dld-kpi .iris-kpi-delta[data-tone="flat"] {
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-kpi .iris-spark {
+  width: min(100%, 220px);
+  height: auto;
+}
+
+/* --- the lead line: sparkline and trend -------------------------------------------- */
+
+.dld-root .iris-spark-line,
+.dld-root .iris-trend-line {
+  stroke: url(#dld-line);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: url(#dld-glow);
+}
+
+.dld-root .iris-spark-fill,
+.dld-root .iris-trend-fill {
+  fill: url(#dld-dots);
+  opacity: 0.55;
+}
+
+.dld-root .iris-spark-tip,
+.dld-root .iris-trend-dot {
+  fill: #000000;
+  stroke: var(--d-accent-2);
+  stroke-width: 2.5;
+}
+
+.dld-spark .iris-spark {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.dld-root .iris-trend {
+  max-height: none;
+}
+
+.dld-root .iris-trend-grid {
+  stroke: var(--d-grid);
+}
+
+.dld-root .iris-trend-tick {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+}
+
+.dld-root .iris-trend-note {
+  stroke: #000000;
+}
+
+/* --- stacked columns: the kit's pill columns, the outcome colours kept ---------- */
+
+.dld-root .dld-stacks .iris-stacks-plot {
+  height: 12rem;
+  grid-auto-columns: minmax(0, 4rem);
+  gap: 12px;
+}
+
+.dld-root .dld-stacks .iris-stacks-column {
+  width: 14px;
+  min-width: 14px;
+  border-radius: 100px;
+}
+
+/* A 2px black seam between the parts rather than a gap: a gap would add to a column's height. */
+.dld-root .dld-stacks .iris-stacks-column > span {
+  box-shadow: inset 0 -2px 0 #000000;
+}
+
+.dld-root .dld-stacks .iris-stacks-total {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+}
+
+.dld-root .dld-stacks .iris-stacks-label {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+/* --- keys, wherever a product component draws one ------------------------------- */
+
+.dld-root .iris-ring-key li {
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .iris-ring-key i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dld-root .iris-ring-key b {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+}
+
+.dld-root .iris-code {
+  font-family: var(--d-font-numeric);
+}
+
+/* --- ranked bars: the kit's segmented row, on in green, off in platinum ---------- */
+
+.dld-root .dld-ranked .iris-ranked li {
+  grid-template-columns: 1.5rem minmax(0, 11rem) minmax(0, 1fr) 4.5rem;
+  gap: 12px;
+  padding: 9px 0;
+  border-top-color: var(--d-hairline);
+}
+
+.dld-root .dld-ranked .iris-ranked-place {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-ranked .iris-ranked-name {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-ranked .iris-ranked-name em {
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-ranked .iris-ranked-track {
+  display: block;
+  height: 7px;
+  border-radius: 0;
+  overflow: visible;
+  background: repeating-linear-gradient(90deg, var(--d-track) 0 22px, transparent 22px 24px);
+}
+
+.dld-root .dld-ranked .iris-ranked-track i {
+  background: repeating-linear-gradient(90deg, var(--d-accent) 0 22px, transparent 22px 24px);
+  filter: drop-shadow(0 3px 8px rgb(99 255 59 / 0.35));
+}
+
+.dld-root .dld-ranked .iris-ranked-value {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  letter-spacing: -0.05em;
+  color: var(--d-ink);
+}
+
+@container (width < 34rem) {
+  .dld-root .dld-ranked .iris-ranked li {
+    grid-template-columns: 1.25rem minmax(0, 1fr) 3.5rem;
+  }
+
+  .dld-root .dld-ranked .iris-ranked-track {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}
+
+/* --- the outcome ring: round slice ends, the outcome colours kept --------------- */
+
+.dld-ring {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+}
+
+.dld-root .dld-ring .iris-ring {
+  width: 220px;
+  height: 220px;
+}
+
+/*
+ * The kit's Large ring is 20 wide with round caps. The component's own stroke is
+ * 13% of its box, and its slices sit a hairline apart, so the caps are drawn at
+  * 12: the cap is what overlaps the next slice, and the narrower it is the less a
+ * thin slice is overstated by it.
+ */
+.dld-root .dld-ring .iris-ring path {
+  stroke-width: 12;
+  stroke-linecap: round;
+  filter: url(#dld-glow);
+}
+
+.dld-root .dld-ring .iris-ring circle {
+  stroke: #111114;
+  stroke-width: 12;
+}
+
+.dld-root .dld-ring .iris-ring-figure {
+  font-family: var(--d-font-numeric);
+  font-size: 38px;
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  fill: var(--d-ink);
+}
+
+.dld-root .dld-ring .iris-ring-caption {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--d-ink-2);
+}
+
+@container (width < 34rem) {
+  .dld-ring {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+  }
+}
+
+/* --- the radar, three ways ------------------------------------------------------ */
+
+.dld-radar {
+  display: grid;
+  justify-items: center;
+}
+
+.dld-radar-plot {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  width: 100%;
+}
+
+.dld-root .dld-radar .iris-radar svg {
+  width: min(100%, 356px);
+  height: auto;
+}
+
+.dld-root .dld-radar .iris-radar-web,
+.dld-root .dld-radar .iris-radar-spoke {
+  stroke: var(--d-track);
+  stroke-width: 1;
+}
+
+.dld-root .dld-radar .iris-radar-axis {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+  paint-order: stroke;
+  stroke: #000000;
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+
+.dld-root .dld-radar .iris-radar-shape {
+  stroke-width: 3;
+  filter: url(#dld-glow);
+}
+
+/* Basic: one outline, no fill, a soft field of its own colour behind it. */
+.dld-root .dld-radar[data-variant="basic"] .iris-radar-shape {
+  fill: none;
+}
+
+.dld-radar[data-variant="basic"] .dld-radar-plot::before {
+  content: "";
+  position: absolute;
+  inset: 22% 20% 30%;
+  border-radius: 50%;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in oklab, var(--d-series-1) 22%, transparent),
+    transparent
+  );
+  filter: blur(18px);
+  pointer-events: none;
+}
+
+/* Simple: the hexagonal web at half strength in mother-of-pearl, the shape filled at 11%. */
+.dld-root .dld-radar[data-variant="simple"] .iris-radar-web,
+.dld-root .dld-radar[data-variant="simple"] .iris-radar-spoke {
+  stroke: #96969d;
+  opacity: 0.5;
+}
+
+.dld-root .dld-radar[data-variant="simple"] .iris-radar-shape {
+  fill: color-mix(in oklab, var(--tone) 11%, transparent);
+  filter: none;
+}
+
+/* Multiply: every drawn profile outlined, each over its own faint fill. */
+.dld-root .dld-radar[data-variant="multiply"] .iris-radar-shape {
+  fill: color-mix(in oklab, var(--tone) 7%, transparent);
+}
+
+/* --- the weekday grid, two ways --------------------------------------------------- */
+
+.dld-root .dld-heat .iris-heat-grid {
+  gap: 1px;
+}
+
+.dld-root .dld-heat .iris-heat-col,
+.dld-root .dld-heat .iris-heat-row {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+/*
+ * `--t` is where a cell sits between the grid's least count (0) and its most
+ * (1). The product sets `--v`, the count over the peak; `--d-vmin` is the least
+ * count on the same terms, from the loader. A ramp that began at nought spent
+ * its darkest shades on counts no cell holds, and a 1 and a 3 came out alike.
+ *
+ * The count is white on the dark shades and near-black on the bright ones:
+ * white on the kit's brightest green is 1.3 to 1.
+ */
+.dld-root .dld-heat .iris-heat-cell {
+  --t: clamp(0, (var(--v) - var(--d-vmin, 0)) / (1 - var(--d-vmin, 0)), 1);
+  --shade: var(--t);
+  --ink-flip: clamp(0, (var(--shade) - 0.5) * 1000, 1);
+  border: 0;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: color-mix(in oklab, #04150f calc(var(--ink-flip) * 100%), #ffffff);
+  text-shadow: 0 1px 2px rgb(0 0 0 / calc(0.8 - var(--ink-flip) * 0.8));
+}
+
+/*
+ * An empty slot stays an empty slot, as the product draws it: never the ramp's
+ * floor, which would print a nought as a small count. Keyed on the variant too,
+ * so it outranks each variant's fill below rather than depending on order: the
+ * first draft lost to them, and every empty hour came out a dim green.
+ */
+.dld-root .dld-heat[data-variant] .iris-heat-cell[data-empty="true"] {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 0.08);
+}
+
+/* Basic: the kit's rounded cells; one shade per count across the grid's own range, seven at most. */
+.dld-root .dld-heat[data-variant="basic"] .iris-heat-cell {
+  --shade: calc(round(nearest, var(--t) * (var(--d-steps, 2) - 1), 1) / (var(--d-steps, 2) - 1));
+  min-height: 30px;
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--shade) * 100%), var(--d-ramp-lo));
+}
+
+/* Gradient: continuous over the same range, and each cell bleeds into its neighbours, as the kit's blurred field does. */
+.dld-root .dld-heat[data-variant="gradient"] .iris-heat-cell {
+  min-height: 30px;
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--d-ramp-hi) calc(var(--t) * 100%), var(--d-ramp-lo));
+  box-shadow: 0 0 calc(var(--t) * 22px) calc(var(--t) * 4px)
+    color-mix(in oklab, var(--d-ramp-hi) calc(var(--t) * 40%), transparent);
+}
+
+/*
+ * Wide, a cell is some eighty pixels across, and a 12px count in it read as a
+ * speck under the field's glow. The count grows with the room; the shade and
+ * its ramp do not change.
+ */
+@container (width >= 48rem) {
+  .dld-root .dld-heat[data-variant="gradient"] .iris-heat-cell {
+    min-height: 38px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+}
+
+.dld-root .dld-heat .iris-meta {
+  margin-top: 14px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+/* --- the bullet: the kit's track and tick, the bar in one hue ------------------- */
+
+.dld-root .dld-bullets .iris-bullets {
+  max-width: none;
+  gap: 14px;
+}
+
+.dld-root .dld-bullets .iris-bullet {
+  grid-template-columns: 11rem minmax(0, 1fr) 7.5rem;
+  gap: 16px;
+}
+
+.dld-root .dld-bullets .iris-bullet-label {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-bullets .iris-bullet-track {
+  height: 19px;
+  border-radius: 0;
+  background: rgb(66 65 65 / 0.5);
+  overflow: visible;
+}
+
+.dld-root .dld-bullets .iris-bullet-band {
+  background: rgb(255 255 255 / 0.04);
+}
+
+.dld-root .dld-bullets .iris-bullet-track i {
+  top: calc(50% - 4px);
+  bottom: auto;
+  height: 8px;
+  border-radius: 0;
+  background: linear-gradient(90deg, var(--d-ramp-lo), var(--d-ramp-hi));
+  box-shadow:
+    0 2px 6px rgb(21 255 171 / 0.35),
+    0 8px 22px rgb(21 255 171 / 0.22);
+}
+
+/* Behind the schedule is a verdict: the product's watch colour, and no glow. */
+.dld-root .dld-bullets .iris-bullet-track i[data-behind="true"] {
+  background: var(--watch);
+  box-shadow: none;
+}
+
+.dld-root .dld-bullets .iris-bullet-track b {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--d-ink-2);
+}
+
+.dld-root .dld-bullets .iris-bullet-track u {
+  top: 5px;
+  bottom: 5px;
+  width: 3px;
+  background: var(--d-ink);
+}
+
+.dld-root .dld-bullets .iris-bullet-value {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  letter-spacing: -0.05em;
+  color: var(--d-ink);
+}
+
+.dld-root .dld-bullets .iris-bullets > .iris-code {
+  font-size: 12px;
+  color: var(--d-ink-4) !important;
+}
+
+@container (width < 34rem) {
+  .dld-root .dld-bullets .iris-bullet {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dld-root .dld-bullets .iris-bullet-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* --- the running order ------------------------------------------------------------ */
+
+.dld-root .dld-sequence .iris-sequence li {
+  border-top-color: var(--d-hairline);
+}
+
+.dld-root .dld-sequence .iris-sequence-step {
+  font-family: var(--d-font-numeric);
+  color: var(--d-ink);
+  background: #1d1e1f;
+  border-color: transparent;
+}
+
+.dld-root .dld-sequence .iris-sequence-name {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-root .dld-sequence .iris-sequence-name em {
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.dld-root .dld-sequence .iris-sequence-track {
+  height: 6px;
+  border-radius: 100px;
+  background: rgb(66 65 65 / 0.5);
+  overflow: visible;
+}
+
+.dld-root .dld-sequence .iris-sequence-track i {
+  border-radius: 100px;
+  background: linear-gradient(90deg, var(--d-ramp-lo), var(--d-ramp-hi));
+  box-shadow: 0 3px 10px rgb(21 255 171 / 0.3);
+}
+
+.dld-root .dld-sequence .iris-sequence-time {
+  font-family: var(--d-font-numeric);
+  color: var(--d-ink);
+}
+
+.dld-root .dld-sequence .iris-sequence-time em {
+  color: var(--d-ink-4);
+}
+
+/* ============================================================================
+ * B, AND THE SCATTER. THE NEW FORMS.
+ * ========================================================================= */
+
+.dld-root .dld-axis-label {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+}
+
+.dld-root .dld-row-label {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  fill: var(--d-ink-2);
+}
+
+.dld-root .dld-gridline {
+  stroke: var(--d-grid);
+  stroke-width: 1;
+}
+
+.dld-root .dld-guide {
+  stroke: var(--d-guide);
+  stroke-width: 1;
+}
+
+.dld-root .dld-centre-figure {
+  font-family: var(--d-font-numeric);
+  font-size: 22px;
+  letter-spacing: -0.05em;
+  fill: var(--d-ink);
+}
+
+.dld-root .dld-centre-caption {
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  fill: var(--d-ink-4);
+}
+
+/* --- scatter: the kit's bright point, glowing -------------------------------------- */
+
+.dld-root .dld-parity {
+  stroke: var(--d-ink-4);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.dld-root .dld-quadrant {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--d-ink-4);
+}
+
+.dld-root .dld-scatter-point circle {
+  fill: var(--d-accent-2);
+  filter: url(#dld-glow);
+}
+
+.dld-root .dld-point-label {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink);
+}
+
+.dld-scatter-key {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 8px 20px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-scatter-key li {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  gap: 2px 8px;
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-scatter-key b {
+  font-family: var(--d-font-numeric);
+  font-weight: 400;
+  color: var(--d-accent-2);
+}
+
+.dld-scatter-key em {
+  grid-column: 2;
+  font-style: normal;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+/* --- parallel coordinates: 5px round lines, black lift, the kit's haze ----------- */
+
+.dld-parallel svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.dld-root .dld-haze {
+  fill: #ff60dc;
+  opacity: 0.16;
+  filter: blur(40px);
+}
+
+.dld-root .dld-parallel-axis {
+  stroke: var(--d-ink-4);
+  stroke-opacity: 0.6;
+  stroke-width: 1;
+}
+
+/* An axis the build cannot answer stands as a dashed rule, and no line crosses it. */
+.dld-root .dld-parallel-axis[data-missing="true"] {
+  stroke-dasharray: 2 5;
+  stroke-opacity: 0.45;
+}
+
+.dld-root .dld-parallel-line {
+  fill: none;
+  stroke: var(--d-tone);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: url(#dld-lift);
+}
+
+.dld-size[data-size="l"] .dld-parallel-line {
+  stroke-width: 4;
+}
+
+/* Axis names are words, so they take the text face: ten of them share 712 units, and the mono would not fit. */
+.dld-parallel-axes {
+  display: grid;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-sans);
+  color: var(--d-ink);
+  text-align: center;
+}
+
+.dld-parallel-axes li {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 2px;
+  min-width: 0;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.dld-parallel-axes li[data-missing="true"] {
+  color: var(--d-ink-4);
+}
+
+.dld-parallel-axes li em {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+
+/*
+ * On the phone's geometry ten names do not fit ten columns across, so each
+ * stands on its end under its own axis, read upwards.
+ */
+.dld-size[data-size="l"] .dld-parallel-axes li {
+  justify-items: end;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+
+/* Stood on end, "not measured" would take a second column it does not have; the dashed axis and the list below say it. */
+.dld-size[data-size="l"] .dld-parallel-axes li em {
+  display: none;
+}
+
+.dld-size[data-size="l"] .dld-row-label {
+  font-size: 12px;
+}
+
+/* --- radial histogram: one hue, brighter with the count ----------------------------- */
+
+.dld-root .dld-radial-spoke {
+  stroke: var(--d-ink-4);
+  stroke-opacity: 0.7;
+  stroke-width: 1;
+  stroke-linecap: round;
+}
+
+.dld-root .dld-radial-bar {
+  stroke: color-mix(in oklab, var(--d-ramp-hi) calc(30% + var(--v) * 70%), var(--d-ramp-lo));
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.dld-root .dld-radial-bar[data-long="true"] {
+  filter: url(#dld-glow);
+}
+
+.dld-size[data-size="l"] .dld-radial-bar {
+  stroke-width: 4;
+}
+
+/* --- punch card: one hue, the size is the count ----------------------------------- */
+
+.dld-root .dld-punch-dot {
+  fill: color-mix(in oklab, var(--d-ramp-hi) calc(45% + var(--v) * 55%), var(--d-ramp-lo));
+}
+
+.dld-root .dld-punch-dot[data-long="true"] {
+  filter: url(#dld-glow);
+}
+
+.dld-root .dld-punch-zero {
+  fill: var(--d-ramp-lo);
+}
+
+/* --- funnels: the journey's one path, and one funnel per outcome ------------------ */
+
+/*
+ * A band is centred on its track, as the kit's funnel sits, and carries its
+ * count in the kit's black pill. One colour per funnel and no ramp down it: the
+ * bands' order is their position, and a colour that changed from band to band
+ * would be saying something the numbers do not.
+ */
+.dld-band {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  height: 36px;
+}
+
+.dld-band i {
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--d-tone, var(--d-funnel));
+  translate: -50% 0;
+}
+
+.dld-band b {
+  position: relative;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: #000000;
+  font-family: var(--d-font-numeric);
+  font-size: 13px;
+  line-height: 16px;
+  font-weight: 400;
+  color: var(--d-ink);
+}
+
+/* The journey: one path in the kit's funnel violet, which glows; it means nothing but "this path". */
+.dld-jf ol {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-jf li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "label share" "band band";
+  align-items: center;
+  gap: 6px 12px;
+}
+
+.dld-jf-label {
+  grid-area: label;
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--d-ink-2);
+}
+
+.dld-jf .dld-band {
+  grid-area: band;
+  height: 40px;
+}
+
+.dld-jf .dld-band i {
+  box-shadow: 0 10px 28px color-mix(in oklab, var(--d-funnel) 40%, transparent);
+}
+
+.dld-jf li em {
+  grid-area: share;
+  font-family: var(--d-font-numeric);
+  font-size: 14px;
+  font-style: normal;
+  color: var(--d-ink-2);
+  text-align: right;
+}
+
+@container (width >= 34rem) {
+  .dld-jf li {
+    grid-template-columns: 10rem minmax(0, 1fr) 3.5rem;
+    grid-template-areas: "label band share";
+    gap: 20px;
+  }
+}
+
+/*
+ * One funnel per outcome, in the outcome's own colour and without the glow:
+ * OUTCOME_TONE is a meaning, not a treatment. Narrow, every funnel reads on its
+ * own, names and all; wide, they stand side by side on one set of rows, the
+ * names once down the left, each column a subgrid of the whole so a band lines
+ * up with its name whatever wraps.
+ */
+.dld-of {
+  display: grid;
+  gap: 20px;
+}
+
+.dld-of-names {
+  display: none;
+}
+
+.dld-of-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dld-of-group h4 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.dld-of-group h4 span {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--d-ink-4);
+}
+
+.dld-of-group ol {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-of-group li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(7rem, 42%);
+  align-items: center;
+  gap: 12px;
+}
+
+.dld-of-name {
+  font-size: 12px;
+  line-height: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-of .dld-band {
+  height: 26px;
+}
+
+.dld-of .dld-band b {
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.dld-of-group > p {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed rgb(255 255 255 / 0.16);
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+@container (width >= 48rem) {
+  .dld-of {
+    grid-template-columns: minmax(8rem, 11rem) repeat(var(--groups), minmax(0, 1fr));
+    grid-template-rows: auto repeat(var(--steps), 30px);
+    gap: 6px 10px;
+  }
+
+  .dld-of-names,
+  .dld-of-group,
+  .dld-of-group ol {
+    display: grid;
+    grid-template-rows: subgrid;
+    row-gap: normal;
+  }
+
+  .dld-of-names,
+  .dld-of-group {
+    grid-row: 1 / -1;
+  }
+
+  .dld-of-names span {
+    align-self: center;
+    font-size: 12px;
+    line-height: 14px;
+    color: var(--d-ink-2);
+  }
+
+  .dld-of-group h4 {
+    flex-direction: column;
+    align-items: flex-start;
+    align-self: end;
+    padding-bottom: 6px;
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .dld-of-group ol {
+    grid-row: 2 / -1;
+  }
+
+  .dld-of-group li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The column's own names stay for a screen reader; the eye reads them once, on the left. */
+  .dld-of-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .dld-of .dld-band {
+    height: 100%;
+  }
+
+  .dld-of-group > p {
+    grid-row: 2 / -1;
+    align-self: start;
+  }
+}
+
+/* --- the bubble lens: seven days of spheres over a strip of six months ------------ */
+
+/*
+ * The spheres are drawn once in `defs.tsx` and placed with `<use>`; nothing here
+ * paints them. Each wears the kit's sphere recipe in its agent's own colour.
+ * The controls sit on a floating rail, as every control in Observer does, and
+ * the keys under it are toggles: pressed shows.
+ */
+.dld-lens {
+  position: relative;
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dld-lens-rail {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-self: start;
+  gap: 6px 14px;
+  max-width: 100%;
+  padding: 5px;
+  border-radius: 999px;
+  background: var(--d-control);
+  box-shadow: var(--d-elevation-half);
+}
+
+.dld-lens-rail button {
+  appearance: none;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--d-ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dld-lens-rail button:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.08);
+  color: var(--d-ink);
+}
+
+.dld-lens-rail button:disabled {
+  color: var(--d-ink-4);
+  cursor: default;
+}
+
+.dld-lens-step {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dld-lens-step button {
+  width: 32px;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.dld-lens-when {
+  margin: 0;
+  min-width: 15ch;
+  font-family: var(--d-font-numeric);
+  font-size: 13px;
+  text-align: center;
+  color: var(--d-ink);
+}
+
+.dld-lens-span {
+  display: flex;
+  gap: 2px;
+}
+
+.dld-lens-span button[aria-pressed="true"] {
+  background: var(--d-ink);
+  color: var(--d-card);
+}
+
+.dld-lens-count {
+  margin: 0 12px 0 0;
+  font-size: 12px;
+  color: var(--d-ink-3);
+}
+
+.dld-lens-count b {
+  font-family: var(--d-font-numeric);
+  font-weight: 500;
+  color: var(--d-ink);
+}
+
+.dld-lens-keys {
+  display: grid;
+  gap: 8px;
+}
+
+.dld-lens-keys ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-lens-key {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 3px 12px 3px 8px;
+  border: 1px solid var(--d-hairline);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--d-ink-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    opacity 160ms linear,
+    border-color 160ms linear;
+}
+
+.dld-lens-key:hover {
+  border-color: rgb(255 255 255 / 0.45);
+}
+
+.dld-lens-key b {
+  font-family: var(--d-font-numeric);
+  font-weight: 500;
+  color: var(--d-ink);
+}
+
+.dld-lens-key[aria-pressed="false"] {
+  opacity: 0.4;
+}
+
+.dld-lens-key[aria-pressed="false"] span {
+  text-decoration: line-through;
+}
+
+.dld-lens-swatch {
+  flex: none;
+}
+
+.dld-lens-rail button:focus-visible,
+.dld-lens-key:focus-visible,
+.dld-lens-strip:focus-visible {
+  outline: 2px solid var(--d-accent-2);
+  outline-offset: 2px;
+}
+
+/* The lens. Nothing in it or in the strip is text to select: a drag across them moves the lens. */
+.dld-lens-canvas,
+.dld-lens-strip {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.dld-lens-canvas text {
+  font-family: var(--d-font-numeric);
+  font-size: 11px;
+  fill: var(--d-ink-4);
+}
+
+.dld-root .dld-lens-canvas .dld-lens-day {
+  text-anchor: middle;
+}
+
+.dld-root .dld-lens-canvas .dld-lens-day tspan:first-child {
+  fill: var(--d-ink-3);
+}
+
+.dld-root .dld-lens-column {
+  stroke: var(--d-guide);
+}
+
+.dld-root .dld-lens-floor {
+  stroke: var(--d-grid);
+}
+
+.dld-lens-future rect {
+  fill: rgb(255 255 255 / 0.025);
+}
+
+.dld-root .dld-lens-canvas .dld-lens-future text {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-anchor: middle;
+  fill: var(--d-ink-4);
+}
+
+.dld-lens-bubble {
+  cursor: pointer;
+  transition:
+    transform 380ms var(--d-ease),
+    opacity 220ms linear;
+}
+
+.dld-root .dld-lens-ring {
+  fill: none;
+  stroke: var(--d-ink);
+  stroke-width: 1.5;
+  opacity: 0;
+  transition: opacity 120ms linear;
+}
+
+/* While the strip is dragged, the bubbles follow at once: motion would only trail the pointer. */
+.dld-lens[data-scrub="true"] .dld-lens-bubble {
+  transition: none;
+}
+
+.dld-lens-bubble:hover .dld-lens-ring,
+.dld-lens-bubble[data-held="true"] .dld-lens-ring {
+  opacity: 0.9;
+}
+
+/* The strip: the six months, and the lens's place on them. */
+.dld-lens-strip {
+  margin-top: 14px;
+  border-radius: 4px;
+  cursor: grab;
+  touch-action: pan-y;
+}
+
+.dld-lens-strip:active {
+  cursor: grabbing;
+}
+
+.dld-root .dld-lens-shade {
+  fill: rgb(0 0 0 / 0.6);
+}
+
+.dld-root .dld-lens-window {
+  fill: rgb(255 255 255 / 0.05);
+  stroke: var(--d-ink);
+  stroke-width: 1;
+}
+
+.dld-root .dld-lens-month line {
+  stroke: var(--d-ink-4);
+}
+
+.dld-root .dld-lens-month text {
+  font-family: var(--d-font-numeric);
+  font-size: 11px;
+  fill: var(--d-ink-3);
+}
+
+/* What a pointer resting on a bubble reads; a click holds it. */
+.dld-lens-tip {
+  position: absolute;
+  z-index: 2;
+  width: max-content;
+  max-width: 240px;
+  padding: 10px 12px;
+  border: 1px solid var(--d-hairline);
+  border-radius: 8px;
+  background: var(--d-ground);
+  box-shadow: var(--d-elevation-half);
+  transform: translate(-50%, calc(-100% - 10px));
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--d-ink-3);
+}
+
+.dld-lens-tip[data-held="true"] {
+  border-color: rgb(255 255 255 / 0.45);
+}
+
+.dld-lens-tip p {
+  margin: 0;
+}
+
+.dld-lens-tip .dld-lens-tip-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.dld-lens-tip-head i {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+@container (width < 34rem) {
+  .dld-lens-span {
+    display: none;
+  }
+
+  .dld-lens-rail {
+    border-radius: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dld-lens-bubble,
+  .dld-lens-key,
+  .dld-root .dld-lens-ring {
+    transition: none;
+  }
+}
+
+/* --- dumbbell: the group against everyone else ------------------------------------ */
+
+.dld-dumbbell {
+  display: grid;
+  gap: 12px;
+}
+
+.dld-dumbbell-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--d-ink-2);
+}
+
+.dld-dumbbell-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dld-dumbbell-legend span::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dld-dumbbell-legend [data-end="group"]::before {
+  background: var(--d-accent-2);
+}
+
+.dld-dumbbell-legend [data-end="rest"]::before {
+  background: var(--d-ink-2);
+}
+
+.dld-dumbbell-scale,
+.dld-dumbbell-track {
+  position: relative;
+}
+
+.dld-dumbbell-scale {
+  height: 16px;
+  margin-left: calc(15rem + 16px);
+  margin-right: calc(7rem + 16px);
+}
+
+.dld-dumbbell-scale em {
+  position: absolute;
+  translate: -50% 0;
+  font-style: normal;
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  color: var(--d-ink);
+}
+
+/* The two ends hang inward, so "0%" and "100%" stay inside the scale rather than past the card's edge. */
+.dld-dumbbell-scale em:first-child {
+  translate: 0 0;
+}
+
+.dld-dumbbell-scale em:last-child {
+  translate: -100% 0;
+}
+
+.dld-dumbbell-rows {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-dumbbell-rows li {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr) 7rem;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--d-hairline);
+}
+
+.dld-dumbbell-label {
+  font-size: 14px;
+  color: var(--d-ink-2);
+}
+
+.dld-dumbbell-track {
+  height: 12px;
+  background:
+    linear-gradient(var(--d-grid), var(--d-grid)) 0% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 25% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 50% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 75% 50% / 1px 100% no-repeat,
+    linear-gradient(var(--d-grid), var(--d-grid)) 100% 50% / 1px 100% no-repeat;
+}
+
+/* The kit's bar: 6px, round caps, Spring Green, its glow. */
+.dld-dumbbell-track i {
+  position: absolute;
+  top: 3px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--d-accent-2);
+  box-shadow:
+    0 0.5px 3px rgb(24 255 152 / 0.19),
+    0 2.4px 6px rgb(24 255 152 / 0.31),
+    0 5.8px 12.5px rgb(24 255 152 / 0.39),
+    0 11px 24.5px rgb(24 255 152 / 0.47);
+}
+
+.dld-dumbbell-track b {
+  position: absolute;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  border: 3px solid #000000;
+  border-radius: 50%;
+  translate: -50% -50%;
+  box-sizing: border-box;
+}
+
+.dld-dumbbell-track b[data-end="group"] {
+  background: var(--d-accent-2);
+}
+
+.dld-dumbbell-track b[data-end="rest"] {
+  background: var(--d-ink-2);
+}
+
+.dld-dumbbell-values {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  font-family: var(--d-font-numeric);
+  font-size: 14px;
+}
+
+.dld-dumbbell-values em {
+  font-style: normal;
+}
+
+.dld-dumbbell-values [data-end="group"] {
+  color: var(--d-accent-2);
+}
+
+.dld-dumbbell-values [data-end="rest"] {
+  color: var(--d-ink-2);
+}
+
+@container (width < 34rem) {
+  .dld-dumbbell-scale {
+    margin: 0;
+  }
+
+  .dld-dumbbell-rows li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .dld-dumbbell-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* ============================================================================
+ * ENTRY. THE DATA DRAWS IN, ONCE; A REDUCED-MOTION READER SEES IT DRAWN.
+ *
+ * `DrawIn` writes `data-draw="run"` the first time a drawing is on screen, and
+ * nothing else ever writes it. The waiting frame exists only where script runs
+ * and motion is wanted, so a reader without either sees the final frame at once.
+ * ========================================================================= */
+
+@keyframes dld-sweep {
+  from {
+    clip-path: inset(-12% 100% -12% -2%);
+  }
+  to {
+    clip-path: inset(-12% -2% -12% -2%);
+  }
+}
+
+@keyframes dld-bloom {
+  from {
+    opacity: 0;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes dld-rise {
+  from {
+    scale: 1 0;
+  }
+  to {
+    scale: 1 1;
+  }
+}
+
+@keyframes dld-turn {
+  from {
+    --d-sweep: 0deg;
+  }
+  to {
+    --d-sweep: 360deg;
+  }
+}
+
+@keyframes dld-cell {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  /* The waiting frame, per kind. */
+  .dld-draw[data-draw="wait"][data-kind="sweep"] > .dld-draw-body {
+    clip-path: inset(-12% 100% -12% -2%);
+  }
+
+  .dld-draw[data-draw="wait"][data-kind="bloom"] > .dld-draw-body,
+  .dld-draw[data-draw="wait"][data-kind="rise"] > .dld-draw-body {
+    opacity: 0;
+  }
+
+  .dld-draw[data-draw="wait"][data-kind="turn"] svg {
+    --d-sweep: 0deg;
+  }
+
+  /* The play. */
+  .dld-draw[data-draw="run"][data-kind="sweep"] > .dld-draw-body {
+    animation: dld-sweep 1100ms var(--d-ease) both;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="bloom"] > .dld-draw-body {
+    animation: dld-bloom 700ms var(--d-ease) both;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"] .iris-stacks-column {
+    transform-origin: 50% 100%;
+    animation: dld-rise 800ms var(--d-ease) both;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"] .iris-stacks-item:nth-child(2) .iris-stacks-column {
+    animation-delay: 60ms;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"] .iris-stacks-item:nth-child(3) .iris-stacks-column {
+    animation-delay: 120ms;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="rise"]
+    .iris-stacks-item:nth-child(n + 4)
+    .iris-stacks-column {
+    animation-delay: 180ms;
+  }
+
+  .dld-draw[data-draw="run"][data-kind="turn"] svg {
+    animation: dld-turn 1200ms var(--d-ease) both;
+  }
+
+  /* A cell lights in the order of its own count: the busiest last. */
+  .dld-draw[data-draw="run"] .iris-heat-cell {
+    animation: dld-cell 500ms var(--d-ease) both;
+    animation-delay: calc(var(--v, 0) * 500ms);
+  }
+
+  /*
+   * The ring and the dial turn in on a conic mask, and only while they wait and
+   * turn. A mask clips to the drawing's box, and left on at rest it cut the
+   * ring's glow off in a square; `DrawIn` writes `done` once the turn is over.
+   */
+  .dld-draw:is([data-draw="wait"], [data-draw="run"])[data-kind="turn"] svg {
+    mask-image: conic-gradient(#000 var(--d-sweep), transparent 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dld-draw,
+  .dld-draw * {
+    animation: none !important;
+  }
+}

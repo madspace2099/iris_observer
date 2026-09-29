@@ -50,6 +50,13 @@
  * matters to any actual Observer date: every generated meeting sits inside
  * ordinary working hours, nowhere near a transition.
  */
+import {
+  DAYS,
+  DEFAULT_LANGUAGE,
+  sentence,
+  type Language,
+  type Sentence,
+} from "@observer/readmodels";
 
 export interface ZoneParts {
   readonly year: number;
@@ -192,9 +199,95 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * because comparing a part-quarter with a whole one is the commonest false
  * alarm a dashboard raises.
  */
+/** "the same 12 days of the previous quarter": the part-quarter's baseline, as a label. */
+export const TIME_BASELINE_SENTENCE: Sentence = {
+  en: { text: "the same {count} {days|count} of the previous quarter", words: { days: DAYS.en } },
+  sk: {
+    text: "{baseline|count}",
+    words: {
+      baseline: {
+        one: "rovnaký deň predchádzajúceho štvrťroka",
+        few: "{same|count} {#days|count} dni predchádzajúceho štvrťroka",
+        other: "{same|count} {#days|count} dní predchádzajúceho štvrťroka",
+      },
+      same: { one: "rovnaký", few: "rovnaké", other: "rovnakých" },
+    },
+    /* The first cell is never read: one day is the `one` form, with no numeral. */
+    numerals: { days: ["", "dva", "tri", "štyri", "päť"] },
+  },
+  hu: {
+    text: "{baseline|count}",
+    words: {
+      baseline: {
+        one: "az előző negyedévnek ugyanaz a napja",
+        /* The article follows the numeral as written: "a három", "az öt", "a 6". */
+        other: "az előző negyedévnek ugyanaz {az:#days|count} napja",
+      },
+    },
+    numerals: { days: ["", "két", "három", "négy", "öt"] },
+  },
+};
+
+type PresetKey = "last_28_days" | "quarter_to_date" | "last_quarter" | "year_to_date";
+
+/**
+ * THE PRESETS BY NAME, AND WHAT EACH IS COMPARED WITH, IN EACH LANGUAGE.
+ *
+ * One table for the real clock and the synthetic world, so a period cannot be
+ * called one thing on a delivered project and another on a demonstration one.
+ * The part-quarter's baseline is not here: it counts its days, and is
+ * `TIME_BASELINE_SENTENCE` above. English is what these labels always said;
+ * Slovak and Hungarian are drafts for review (P2-17).
+ */
+const PERIOD_WORDS: Readonly<
+  Record<
+    Language,
+    Readonly<Record<PresetKey, { readonly label: string; readonly baseline: string }>>
+  >
+> = {
+  en: {
+    last_28_days: { label: "Last 28 days", baseline: "the previous 28 days" },
+    quarter_to_date: { label: "Quarter to date", baseline: "" },
+    last_quarter: { label: "Last completed quarter", baseline: "the quarter before it" },
+    year_to_date: { label: "Year to date", baseline: "the same period last year" },
+  },
+  sk: {
+    last_28_days: { label: "Posledných 28 dní", baseline: "predchádzajúcich 28 dní" },
+    quarter_to_date: { label: "Od začiatku štvrťroka", baseline: "" },
+    last_quarter: { label: "Posledný ukončený štvrťrok", baseline: "štvrťrok pred ním" },
+    year_to_date: { label: "Od začiatku roka", baseline: "rovnaké obdobie minulého roka" },
+  },
+  hu: {
+    last_28_days: { label: "Az elmúlt 28 nap", baseline: "az azt megelőző 28 nap" },
+    quarter_to_date: { label: "A negyedév eleje óta", baseline: "" },
+    last_quarter: { label: "Az utolsó lezárt negyedév", baseline: "az azt megelőző negyedév" },
+    year_to_date: { label: "Az év eleje óta", baseline: "az előző év azonos időszaka" },
+  },
+};
+
+/** A preset's label and its baseline's, in `language`; the part-quarter's counts `elapsedDays`. */
+export function periodWords(
+  preset: PresetKey,
+  elapsedDays: number,
+  language: Language = DEFAULT_LANGUAGE,
+): { readonly label: string; readonly baselineLabel: string } {
+  const words = PERIOD_WORDS[language][preset];
+  return {
+    label: words.label,
+    baselineLabel:
+      preset === "quarter_to_date"
+        ? sentence(language, TIME_BASELINE_SENTENCE, {
+            count: elapsedDays,
+            days: String(elapsedDays),
+          })
+        : words.baseline,
+  };
+}
+
 export function periodsAt(
   today: Date,
   timeZone: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): Record<
   "last_28_days" | "quarter_to_date" | "last_quarter" | "year_to_date",
   {
@@ -220,37 +313,33 @@ export function periodsAt(
 
   return {
     last_28_days: {
-      label: "Last 28 days",
+      ...periodWords("last_28_days", elapsedDays, language),
       from: iso(midnight(p.year, p.month, p.day - 28)),
       to: iso(thisMorning),
-      baselineLabel: "the previous 28 days",
       baselineFrom: iso(midnight(p.year, p.month, p.day - 56)),
       baselineTo: iso(midnight(p.year, p.month, p.day - 28)),
       baselineClipped: false,
     },
     quarter_to_date: {
-      label: "Quarter to date",
+      ...periodWords("quarter_to_date", elapsedDays, language),
       from: iso(quarterStart),
       to: iso(thisMorning),
-      baselineLabel: `the same ${String(elapsedDays)} ${elapsedDays === 1 ? "day" : "days"} of the previous quarter`,
       baselineFrom: iso(midnight(p.year, quarterMonth - 3, 1)),
       baselineTo: iso(midnight(p.year, quarterMonth - 3, 1 + elapsedDays)),
       baselineClipped: true,
     },
     last_quarter: {
-      label: "Last completed quarter",
+      ...periodWords("last_quarter", elapsedDays, language),
       from: iso(midnight(p.year, quarterMonth - 3, 1)),
       to: iso(quarterStart),
-      baselineLabel: "the quarter before it",
       baselineFrom: iso(midnight(p.year, quarterMonth - 6, 1)),
       baselineTo: iso(midnight(p.year, quarterMonth - 3, 1)),
       baselineClipped: false,
     },
     year_to_date: {
-      label: "Year to date",
+      ...periodWords("year_to_date", elapsedDays, language),
       from: iso(midnight(p.year, 1, 1)),
       to: iso(thisMorning),
-      baselineLabel: "the same period last year",
       baselineFrom: iso(midnight(p.year - 1, 1, 1)),
       baselineTo: iso(midnight(p.year - 1, p.month, p.day)),
       baselineClipped: true,

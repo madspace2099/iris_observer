@@ -479,7 +479,9 @@ span.obs-when-delivered {
     border-color var(--duration-fast) var(--ease);
 }
 
-.obs-evidence:hover {
+/* Only a pill that goes somewhere answers the pointer: one with no route is text
+   (`EvidenceRef.href`), and a hover change would make it look like a control. */
+a.obs-evidence:hover {
   color: var(--text-primary);
   border-color: var(--line-strong);
 }

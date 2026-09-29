@@ -1,6 +1,5 @@
 import {
   CORE_SECTION_IDS,
-  OUTCOME_LABELS,
   SECTION_IDS,
   SHOWROOM_SECTIONS,
   hasProgressed,
@@ -10,6 +9,8 @@ import {
   type MeetingOutcome,
   type SectionId,
   type ShowroomSession,
+  type TimeOfDayPreset,
+  type WeatherPreset,
 } from "@observer/contracts";
 import type {
   BehaviourChange,
@@ -31,9 +32,33 @@ import type {
   UnitAttentionRow,
   UnitAttentionView,
   ViewContext,
+  EnvironmentUsage,
 } from "@observer/readmodels";
-import { catalogueFor } from "../pulse";
-import { areaWord, roomsWord } from "@observer/readmodels";
+import { catalogueFor, type RawUnit } from "../pulse";
+import {
+  DEFAULT_LANGUAGE,
+  MEETINGS,
+  OUTCOME_WORDS,
+  TIMES,
+  areaWord,
+  aspectWord,
+  duration,
+  hungarianArticle,
+  hungarianRoomAdjective,
+  hungarianRoomAdjectiveAfterCount,
+  plural,
+  roomsWord,
+  sectionWord,
+  sentence,
+  slovakRoomAdjective,
+  type Language,
+  type Numerals,
+  type PluralForms,
+  type Sentence,
+  type SentenceValues,
+} from "@observer/readmodels";
+import type { OrientationInterest, UnitsViewedSummary } from "@observer/readmodels";
+import type { ShowroomUnitInteraction } from "@observer/contracts";
 import {
   clockLabel,
   count,
@@ -45,7 +70,343 @@ import {
   percent,
   signedPercent,
 } from "../format";
-import { agentById, presenterName, presentersIn, SYNTHETIC_AGENTS } from "./sessions";
+import {
+  AGENT_MIN_SAMPLE,
+  attentionIndex,
+  attentionIndexDisplay,
+  insufficient,
+} from "@observer/metrics";
+import { agentById, agentsForProject, presenterName, presentersIn } from "./sessions";
+/* The one definition of "time the source could time" — the agent lane's, not a second one. */
+import { fullyTimed, sectionSeconds, totalSeconds } from "./views3";
+
+/*
+ * The words this file counts in, beside the sentences that use them. The
+ * Slovak and Hungarian forms are the ones a count takes standing alone or as a
+ * subject; a sentence that governs another case chooses its forms when it is
+ * translated.
+ */
+
+/*
+ * English only, these two. Slovak and Hungarian write the sentences that use
+ * them with forms of their own, in the sentences' frames below, and nothing
+ * read their Slovak and Hungarian forms: round L5d removed them.
+ */
+
+/** The two verbs of one clause, agreeing with the same count, so they are one entry. */
+export const PROJECT_NO_OUTCOME: Pick<PluralForms, "en"> = {
+  en: { one: "has no recorded outcome and stands", other: "have no recorded outcome and stand" },
+};
+
+export const PROJECT_UNITS_OPENED: Pick<PluralForms, "en"> = {
+  en: { one: "unit opened", other: "units opened" },
+};
+
+export const PROJECT_VIEWS: PluralForms = {
+  en: { one: "view", other: "views" },
+  sk: { one: "zobrazenie", few: "zobrazenia", other: "zobrazení" },
+  hu: { one: "megtekintés", other: "megtekintés" },
+};
+
+/*
+ * The sentences, each written once per language in that language's own order.
+ * A count of meetings in a subject is the shared `MEETINGS`, occasions the
+ * shared `TIMES`; a count the sentence puts in another case takes that case's
+ * forms here, as its own.
+ */
+
+/** "3 meetings in the period have no recorded outcome and stand in neither cohort." */
+export const PROJECT_NO_OUTCOME_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {meetings|n} in the period {noOutcome|n} in neither cohort.",
+    words: { meetings: MEETINGS.en, noOutcome: PROJECT_NO_OUTCOME.en },
+  },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Pri jednom stretnutí v tomto období nie je zaznamenaný výsledok, preto ho nemožno zaradiť ani do jednej z dvoch skupín.",
+        few: "Pri {#meetingsWord|n} {place|n} v tomto období nie je zaznamenaný výsledok, preto ich nemožno zaradiť ani do jednej z dvoch skupín.",
+        other:
+          "Pri {#meetingsWord|n} {place|n} v tomto období nie je zaznamenaný výsledok, preto ich nemožno zaradiť ani do jednej z dvoch skupín.",
+      },
+      /* After "pri": the locative. */
+      place: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" },
+    },
+    /* The first cell is never read: one meeting is the `one` form. */
+    numerals: { meetingsWord: ["", "dvoch", "troch", "štyroch", "piatich"] },
+  },
+  hu: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Ebben az időszakban egy találkozó eredményét nem rögzítették, így a két csoport egyikébe sem sorolható.",
+        other:
+          "Ebben az időszakban {#meetings|n} találkozó eredményét nem rögzítették, így ezek a két csoport egyikébe sem sorolhatók.",
+      },
+    },
+    /* The first cell is never read: one meeting is the `one` form. */
+    numerals: { meetings: ["", "két", "három", "négy", "öt"] },
+  },
+};
+
+/*
+ * THE UNITS A MEETING OPENED, AS ONE SENTENCE.
+ *
+ * Two or more units take the frame below, their parts joined into it: in
+ * English "3 units opened: 2 with 2 rooms, 1 not in the catalogue; 1
+ * shortlisted.", in Slovak and Hungarian a frame that ends in a full closing
+ * sentence about the favourites. A single unit is a different sentence in
+ * Slovak and Hungarian — the count and the rooms fold into one clause, "Egy
+ * háromszobás lakást nyitottak meg." — so it has three entries of its own, one
+ * per band the unit can be in. English says a single unit with the frame it has
+ * for any count, so the three share it. `unitsViewedSentence` chooses.
+ */
+
+/** Two or more units opened. Its parts follow it. */
+export const PROJECT_UNITS_VIEWED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {opened|n}: {parts}; {shortlist}.",
+    words: { opened: PROJECT_UNITS_OPENED.en },
+  },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        /* Never read: a single unit is one of the three entries that follow. */
+        one: "",
+        few: "Otvorili {count} byty: {parts}. {shortlist}",
+        other: "Otvorili {count} bytov: {parts}. {shortlist}",
+      },
+    },
+  },
+  hu: { text: "{count} lakást nyitottak meg: {parts}. {shortlist}" },
+};
+
+/** One unit opened, its room count known. `roomAdjective` is the site's: `slovakRoomAdjective(rooms, 1)`. */
+export const PROJECT_UNITS_VIEWED_SINGLE_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_VIEWED_SENTENCE.en,
+  sk: { text: "Otvorili jeden {roomAdjective} byt. {shortlist}" },
+  hu: { text: "Egy {roomAdjective} lakást nyitottak meg. {shortlist}" },
+};
+
+/** One unit opened, in the catalogue with no room count stated. */
+export const PROJECT_UNITS_VIEWED_SINGLE_UNSTATED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_VIEWED_SENTENCE.en,
+  sk: { text: "Otvorili jeden byt. Nie je uvedené, koľko má izieb. {shortlist}" },
+  hu: { text: "Egy lakást nyitottak meg. Nincs megadva, hány szobás. {shortlist}" },
+};
+
+/** One unit opened, not in the catalogue. */
+export const PROJECT_UNITS_VIEWED_SINGLE_UNLISTED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_VIEWED_SENTENCE.en,
+  sk: { text: "Otvorili jeden byt, ktorý nie je v katalógu. {shortlist}" },
+  hu: { text: "Egy olyan lakást nyitottak meg, amely nem szerepel a katalógusban. {shortlist}" },
+};
+
+/**
+ * A band of opened units by room count: "2 with 2 rooms". Slovak and Hungarian
+ * name the flat by its rooms, in the adjective the site makes from the band's
+ * rooms and, in Slovak, the band's own count.
+ */
+export const PROJECT_UNITS_BY_ROOMS: Sentence = {
+  en: { text: "{count} with {rooms}" },
+  sk: {
+    text: "{band|n}",
+    words: {
+      band: {
+        one: "{count} je {roomAdjective}",
+        few: "{count} sú {roomAdjective}",
+        other: "{count} je {roomAdjective}",
+      },
+    },
+  },
+  hu: { text: "{count} {roomAdjective}" },
+};
+
+export const PROJECT_UNITS_ROOMS_UNSTATED: Sentence = {
+  en: { text: "{count} with rooms not stated" },
+  sk: {
+    text: "{band|n}",
+    words: {
+      band: {
+        one: "pri jednom byte nie je uvedený počet izieb",
+        few: "pri {#unitsWord|n} {place|n} nie je uvedený počet izieb",
+        other: "pri {#unitsWord|n} {place|n} nie je uvedený počet izieb",
+      },
+      /* After "pri": the locative. */
+      place: { one: "byte", few: "bytoch", other: "bytoch" },
+    },
+    /* The first cell is never read: one unit is the `one` form. */
+    numerals: { unitsWord: ["", "dvoch", "troch", "štyroch", "piatich"] },
+  },
+  hu: { text: "{count} lakásnál nincs megadva a szobaszám" },
+};
+
+export const PROJECT_UNITS_NOT_IN_CATALOGUE: Sentence = {
+  en: { text: "{count} not in the catalogue" },
+  sk: {
+    text: "{band|n}",
+    words: {
+      band: {
+        one: "{count} nie je v katalógu",
+        few: "{count} nie sú v katalógu",
+        other: "{count} nie je v katalógu",
+      },
+    },
+  },
+  hu: { text: "{count} nem szerepel a katalógusban" },
+};
+
+/** The favourites after two or more units: a fragment in English, a closing sentence in Slovak and Hungarian. */
+export const PROJECT_UNITS_SHORTLISTED: Sentence = {
+  en: { text: "{count} shortlisted" },
+  sk: {
+    text: "{closing|n}",
+    words: {
+      closing: {
+        one: "Jeden z nich bol pridaný do zoznamu obľúbených.",
+        few: "{#unitsWord|n} z nich boli pridané do zoznamu obľúbených.",
+        other: "{#unitsWord|n} z nich bolo pridaných do zoznamu obľúbených.",
+      },
+    },
+    /* The first cell is never read: one unit is the `one` form. Capitalised: the numeral opens the sentence. */
+    numerals: { unitsWord: ["", "Dva", "Tri", "Štyri", "Päť"] },
+  },
+  hu: { text: "Közülük {count} felkerült a Kedvencek listára." },
+};
+
+export const PROJECT_UNITS_NONE_SHORTLISTED: Sentence = {
+  en: { text: "nothing was shortlisted" },
+  sk: { text: "Ani jeden nebol pridaný do zoznamu obľúbených." },
+  hu: { text: "Egyetlen lakás sem került fel a Kedvencek listára." },
+};
+
+/** The favourites after a single unit: "z nich" and "Közülük" speak of several, so the singular has its own. */
+export const PROJECT_UNIT_SHORTLISTED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_SHORTLISTED.en,
+  sk: { text: "Bol pridaný do zoznamu obľúbených." },
+  hu: { text: "Felkerült a Kedvencek listára." },
+};
+
+export const PROJECT_UNIT_NONE_SHORTLISTED_SENTENCE: Sentence = {
+  en: PROJECT_UNITS_NONE_SHORTLISTED.en,
+  sk: { text: "Nebol pridaný do zoznamu obľúbených." },
+  hu: { text: "Nem került fel a Kedvencek listára." },
+};
+
+/** No unit opened: the whole answer. */
+export const PROJECT_UNITS_NONE_OPENED_SENTENCE: Sentence = {
+  en: { text: "No apartment was opened." },
+  sk: { text: "Neotvorili ani jeden byt." },
+  hu: { text: "Egyetlen lakást sem nyitottak meg." },
+};
+
+/** "A-101 was opened in 3 meetings, with a median look of 1m 45s." */
+export const PROJECT_UNIT_OPENED_SENTENCE: Sentence = {
+  en: {
+    text: "{unit} was opened in {count} {meetings|n}, with a median look of {look}.",
+    words: { meetings: MEETINGS.en },
+  },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "Byt {unit} otvorili počas jedného stretnutia. Medián času prezerania bol {look}.",
+        few: "Byt {unit} otvorili počas {#meetingsWord|n} stretnutí. Medián času prezerania bol {look}.",
+        other:
+          "Byt {unit} otvorili počas {#meetingsWord|n} stretnutí. Medián času prezerania bol {look}.",
+      },
+    },
+    /* The first cell is never read: one meeting is the `one` form. After "počas": the genitive. */
+    numerals: { meetingsWord: ["", "dvoch", "troch", "štyroch", "piatich"] },
+  },
+  hu: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{Az:unit-s} lakást egy találkozón nyitották meg. A megtekintési idő mediánja {look} volt.",
+        other:
+          "{Az:unit-s} lakást {#meetings|n} találkozón nyitották meg. A megtekintési idő mediánja {look} volt.",
+      },
+    },
+    /* The first cell is never read: one meeting is the `one` form. */
+    numerals: { meetings: ["", "két", "három", "négy", "öt"] },
+  },
+};
+
+/*
+ * HOW MANY TIMES A UNIT WAS ADDED TO FAVOURITES, AND ITS PLAN OPENED.
+ *
+ * Two independent figures, and the finding speaks when either is above nought,
+ * so one of them can be nought: the three entries below are both above, the
+ * favourites alone, and the plan alone. Slovak and Hungarian write how many
+ * times as a word to five, from the tables here, and from six as the figure and
+ * the word after it, "6-krát" and "6 alkalommal". A numeral table ends at five
+ * and hands over to the figure the site passed, so the site passes
+ * `PROJECT_TIMES_FROM_SIX`: a figure alone would read "6".
+ */
+
+/** How many times, one to five: "raz" … "päťkrát". */
+const PROJECT_TIMES_SK: Numerals = ["raz", "dvakrát", "trikrát", "štyrikrát", "päťkrát"];
+
+/** How many times, one to five: "egyszer" … "ötször". */
+const PROJECT_TIMES_HU: Numerals = ["egyszer", "kétszer", "háromszor", "négyszer", "ötször"];
+
+/** How many times, from six: the figure and the word after it. English writes its own count. */
+export const PROJECT_TIMES_FROM_SIX: Sentence = {
+  en: { text: "{figure}" },
+  sk: { text: "{figure}-krát" },
+  hu: { text: "{figure} alkalommal" },
+};
+
+/** Both above nought: "Shortlisted 3 times, floor plan opened 5 times." */
+export const PROJECT_INTENT_SENTENCE: Sentence = {
+  en: {
+    text: "Shortlisted {favourites} {times|f}, floor plan opened {pdfOpens} {times|p}.",
+    words: { times: TIMES.en },
+  },
+  sk: {
+    text: "Byt pridali do zoznamu obľúbených {#favWord|f} a jeho pôdorys otvorili {#planWord|p}.",
+    numerals: { favWord: PROJECT_TIMES_SK, planWord: PROJECT_TIMES_SK },
+  },
+  hu: {
+    text: "A lakást {#favWord|f} felvették a Kedvencek listára, az alaprajzát pedig {#planWord|p} megnyitották.",
+    numerals: { favWord: PROJECT_TIMES_HU, planWord: PROJECT_TIMES_HU },
+  },
+};
+
+/** Added to favourites, the plan never opened. */
+export const PROJECT_INTENT_FAVOURITE_ONLY_SENTENCE: Sentence = {
+  en: {
+    text: "Shortlisted {favourites} {times|f}, floor plan never opened.",
+    words: { times: TIMES.en },
+  },
+  sk: {
+    text: "Byt pridali do zoznamu obľúbených {#favWord|f}, ale jeho pôdorys neotvorili ani raz.",
+    numerals: { favWord: PROJECT_TIMES_SK },
+  },
+  hu: {
+    text: "A lakást {#favWord|f} felvették a Kedvencek listára, az alaprajzát viszont egyszer sem nyitották meg.",
+    numerals: { favWord: PROJECT_TIMES_HU },
+  },
+};
+
+/** The plan opened, never added to favourites. */
+export const PROJECT_INTENT_PLAN_ONLY_SENTENCE: Sentence = {
+  en: {
+    text: "Never shortlisted, floor plan opened {pdfOpens} {times|p}.",
+    words: { times: TIMES.en },
+  },
+  sk: {
+    text: "Pôdorys bytu otvorili {#planWord|p}, ale byt do zoznamu obľúbených nepridali ani raz.",
+    numerals: { planWord: PROJECT_TIMES_SK },
+  },
+  hu: {
+    text: "A lakás alaprajzát {#planWord|p} megnyitották, de a lakást egyszer sem vették fel a Kedvencek listára.",
+    numerals: { planWord: PROJECT_TIMES_HU },
+  },
+};
 
 /**
  * Projections — canonical showroom facts to the shapes the surfaces read.
@@ -110,12 +471,6 @@ function usedCompare(session: ShowroomSession): boolean {
 
 function returnedBeforeEnd(session: ShowroomSession): boolean {
   return session.steps.some((s) => s.isReturn);
-}
-
-function formatDuration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
 }
 
 /* --- coverage -------------------------------------------------------------- */
@@ -216,7 +571,9 @@ export function buildTransitions(sessions: readonly ShowroomSession[]): Presenta
   return [...pairs.entries()]
     .map(([key, n]) => {
       const [from, to] = key.split(">") as [SectionId, SectionId];
-      return { from, to, count: n, share: share(n, outOf.get(from) ?? 1) };
+      /* Set in the same pass as the pair, so the fallback is only for the type. */
+      const out = outOf.get(from) ?? n;
+      return { from, to, count: n, share: share(n, out), outOf: out };
     })
     .sort((a, b) => b.count - a.count);
 }
@@ -234,6 +591,12 @@ const BEHAVIOURS: readonly {
   id: string;
   behaviour: string;
   test: (s: ShowroomSession) => boolean;
+  /**
+   * Which sessions can answer the question at all. Absent, every session can.
+   * A session that cannot answer is outside the rate on both sides — not a
+   * "no" in the denominator, which is what `?? 0` made of it.
+   */
+  answers?: (s: ShowroomSession) => boolean;
   note?: string;
 }[] = [
   {
@@ -261,7 +624,18 @@ const BEHAVIOURS: readonly {
   {
     id: "long_opening",
     behaviour: "Spends over a minute on Home",
-    test: (s) => s.steps.some((step) => step.sectionId === "home" && (step.dwellSeconds ?? 0) > 60),
+    test: (s) =>
+      s.steps.some(
+        (step) => step.sectionId === "home" && step.dwellSeconds !== null && step.dwellSeconds > 60,
+      ),
+    /*
+     * The note promised this exclusion for as long as it existed; the code
+     * counted a timing-blind session as "did not", lowering the rate instead.
+     * Ten timed meetings, five over a minute, beside ten the source could not
+     * time: the note said 50%, the code printed 25%. `fullyTimed` is the one
+     * definition of "the source could time it", the same the agent lane uses.
+     */
+    answers: fullyTimed,
     note: "Timing-blind sessions cannot answer this and are excluded from both sides.",
   },
   {
@@ -271,29 +645,48 @@ const BEHAVIOURS: readonly {
   },
 ];
 
+/**
+ * Both sides at or over the floor when this is called — the caller refuses
+ * the whole comparison otherwise, in one sentence. What remains is the floor
+ * per behaviour: a behaviour only some sessions can answer has a smaller
+ * sample than the lane, and under the floor it is withheld by name rather
+ * than drawn from five meetings, or from none as 0%.
+ */
 export function buildDifferences(
   left: readonly ShowroomSession[],
   right: readonly ShowroomSession[],
-): PresentationDifference[] {
-  return BEHAVIOURS.map((b) => {
-    const l = left.filter(b.test).length;
-    const r = right.filter(b.test).length;
-    const lRate = share(l, left.length);
-    const rRate = share(r, right.length);
-    return {
+): { differences: PresentationDifference[]; withheld: string[] } {
+  const differences: PresentationDifference[] = [];
+  const withheld: string[] = [];
+  for (const b of BEHAVIOURS) {
+    const el = b.answers === undefined ? left : left.filter(b.answers);
+    const er = b.answers === undefined ? right : right.filter(b.answers);
+    if (el.length < AGENT_MIN_SAMPLE || er.length < AGENT_MIN_SAMPLE) {
+      withheld.push(
+        `${b.behaviour}: fewer than ${AGENT_MIN_SAMPLE} meetings on a side could answer it — ${el.length} and ${er.length} — so it is not compared.`,
+      );
+      continue;
+    }
+    const lRate = share(el.filter(b.test).length, el.length);
+    const rRate = share(er.filter(b.test).length, er.length);
+    differences.push({
       id: b.id,
       behaviour: b.behaviour,
       leftDisplay: `${Math.round(lRate * 100)}%`,
       rightDisplay: `${Math.round(rRate * 100)}%`,
       magnitude: Math.abs(lRate - rRate),
-      sampleLeft: left.length,
-      sampleRight: right.length,
+      sampleLeft: el.length,
+      sampleRight: er.length,
       sources: DERIVED,
       note: b.note ?? null,
-    } satisfies PresentationDifference;
-  })
-    .filter((d) => d.magnitude > 0.04)
-    .sort((a, b) => b.magnitude - a.magnitude);
+    } satisfies PresentationDifference);
+  }
+  return {
+    differences: differences
+      .filter((d) => d.magnitude > 0.04)
+      .sort((a, b) => b.magnitude - a.magnitude),
+    withheld,
+  };
 }
 
 const DISCLAIMER =
@@ -525,7 +918,8 @@ export function buildShowroomOverview(
       baseline: `${percent(scored(both), locale)} of ${count(both.length, locale)} against ${percent(scored(rest), locale)} of ${count(rest.length, locale)}`,
       soWhat:
         "Worth looking at in Presentation Intelligence, where the two groups can be put side by side and the exceptions inspected.",
-      nextStep: { label: "Compare the cohorts", href: `${base}/presentation?compare=cohorts` },
+      // `mode` is what Presentation DNA reads; `compare` opened its default, two agents.
+      nextStep: { label: "Compare the cohorts", href: `${base}/presentation?mode=cohorts` },
       evidence: evidenceRef(
         "behaviour-outcome",
         "statistical_association",
@@ -591,14 +985,18 @@ export function buildShowroomOverview(
   return {
     context,
     verdict,
-    verdictDetail: `Median presentation ${formatDuration(median(sessions.map((s) => s.durationSeconds)))}, ${coverage.medianDepth} steps, ${count(unitOpens, locale)} unit openings. Outcome mix is shown as context, not as the finding.`,
+    verdictDetail: `Median presentation ${duration(median(sessions.map((s) => s.durationSeconds)), context.language)}, ${coverage.medianDepth} steps, ${count(unitOpens, locale)} unit openings. Outcome mix is shown as context, not as the finding.`,
     verdictSources: DERIVED,
     figures,
     findings,
     changes,
     coverage,
     outcomeContext: [...outcomeCounts.entries()]
-      .map(([outcome, n2]) => ({ outcome, label: OUTCOME_LABELS[outcome], count: n2 }))
+      .map(([outcome, n2]) => ({
+        outcome,
+        label: OUTCOME_WORDS[context.language ?? DEFAULT_LANGUAGE][outcome],
+        count: n2,
+      }))
       .sort((a, b) => b.count - a.count),
     meetingCount: n,
     evidence: evidenceRef("showroom-overview", "observed_sequence", `${base}/presentation`, n),
@@ -619,6 +1017,7 @@ export function buildPresentationIntelligence(
 ): PresentationIntelligence {
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const locale = context.project.locale;
+  const language = context.language;
 
   const lanes = presentersIn(sessions)
     .map((agent) =>
@@ -633,45 +1032,126 @@ export function buildPresentationIntelligence(
   const teamBenchmark = buildLane("team", "Team benchmark", sessions);
 
   let comparison: PresentationComparison | null = null;
+  let noComparison: string | null = null;
+
+  /*
+   * THE FLOOR IS ON THE VERDICT, NOT ON THE LANES.
+   *
+   * `AGENT_MIN_SAMPLE`'s own rule: below it, no agent figure is presented as a
+   * verdict. A lane is a description with its count in its header, and it
+   * stays on every cell. The finding and the "What differs" rows are
+   * comparative claims about two people or two periods, and those fall silent
+   * under the floor — with the reason beside the counts, not as an empty list
+   * that reads as "no difference".
+   *
+   * A side with NO meetings is not a small sample: it is an absence. `share()`
+   * divides by nought as 0, so a lane nobody presented came out as "0%" on
+   * every behaviour, and the finding read "Akhilesh Undev 0%" on a project he
+   * never presented on — a false statement about a named colleague, drawn by
+   * default. There is no comparison at all in that case, and `noComparison`
+   * says who or what was absent, so the screen's null branch is a reason and
+   * not a shrug.
+   */
+  /*
+   * ONE HALF-SET, ONE NUMBER.
+   *
+   * The evidence behind a comparison is the meetings on its two sides — the
+   * count the finding's `n` is drawn from. Each mode used to pass its own
+   * idea of "observations": cohorts passed the whole slice, so the finding
+   * read "74 records" beside "n = 65 meetings" and the nine meetings with no
+   * recorded outcome were the unexplained gap; periods passed the current
+   * slice alone, so it read "74 records" beside "n = 109", evidence smaller
+   * than the sample. The count is derived here, once, and what stands on
+   * neither side is named in `excluded` rather than left as a difference.
+   */
+  const comparisonOf = (
+    kind: PresentationComparison["mode"],
+    left: { id: string; label: string; sessions: readonly ShowroomSession[] },
+    right: { id: string; label: string; sessions: readonly ShowroomSession[] },
+    evidenceId: string,
+    tier: Parameters<typeof evidenceRef>[1],
+    excluded: string | null,
+  ): PresentationComparison => {
+    const observations = left.sessions.length + right.sessions.length;
+    const underFloor =
+      left.sessions.length < AGENT_MIN_SAMPLE || right.sessions.length < AGENT_MIN_SAMPLE;
+    const compared = underFloor
+      ? { differences: [], withheld: [] }
+      : buildDifferences(left.sessions, right.sessions);
+    return {
+      context,
+      mode: kind,
+      left: buildLane(left.id, left.label, left.sessions),
+      right: buildLane(right.id, right.label, right.sessions),
+      transitionsLeft: buildTransitions(left.sessions),
+      transitionsRight: buildTransitions(right.sessions),
+      differences: compared.differences,
+      verdictRefusal: underFloor ? insufficient(AGENT_MIN_SAMPLE, "meetings on a side") : null,
+      withheld: compared.withheld,
+      excluded,
+      /*
+       * The comparison it rests on, as the reader chose it: the mode, and for two
+       * agents the pair. The bare page reset both, so following the evidence of a
+       * finding about Ján and Lucia opened the default pair instead.
+       */
+      evidence: evidenceRef(
+        evidenceId,
+        tier,
+        kind === "agents"
+          ? `${base}/presentation?mode=agents&left=${encodeURIComponent(left.id)}&right=${encodeURIComponent(right.id)}`
+          : `${base}/presentation?mode=${kind}`,
+        observations,
+      ),
+      disclaimer: DISCLAIMER,
+    };
+  };
 
   if (mode === "cohorts") {
     const progressed = sessions.filter((s) => hasProgressed(s.outcome));
     const didNot = sessions.filter(
       (s) => !hasProgressed(s.outcome) && !outcomeIsUnknown(s.outcome),
     );
-    comparison = {
-      context,
-      mode: "cohorts",
-      left: buildLane("progressed", "Progressed further", progressed),
-      right: buildLane("did_not", "Did not progress", didNot),
-      transitionsLeft: buildTransitions(progressed),
-      transitionsRight: buildTransitions(didNot),
-      differences: buildDifferences(progressed, didNot),
-      evidence: evidenceRef(
+    if (progressed.length === 0 && didNot.length === 0) {
+      noComparison =
+        "No meeting in this period has a recorded outcome, so there is no cohort to compare.";
+    } else if (progressed.length === 0 || didNot.length === 0) {
+      noComparison = `Every meeting with a recorded outcome in this period ${
+        progressed.length === 0 ? "did not progress" : "progressed"
+      } — ${count(progressed.length + didNot.length, locale)} of them — so there is no second cohort to compare.`;
+    } else {
+      /* Neither cohort: the meetings whose outcome was never recorded. Named, not a silent gap. */
+      const unknown = sessions.length - progressed.length - didNot.length;
+      comparison = comparisonOf(
+        "cohorts",
+        { id: "progressed", label: "Progressed further", sessions: progressed },
+        { id: "did_not", label: "Did not progress", sessions: didNot },
         "cohort-comparison",
         "statistical_association",
-        `${base}/presentation`,
-        sessions.length,
-      ),
-      disclaimer: DISCLAIMER,
-    };
+        unknown === 0
+          ? null
+          : sentence(language, PROJECT_NO_OUTCOME_SENTENCE, {
+              count: count(unknown, locale),
+              meetingsWord: count(unknown, locale),
+              meetings: count(unknown, locale),
+              n: unknown,
+            }),
+      );
+    }
   } else if (mode === "periods") {
-    comparison = {
-      context,
-      mode: "periods",
-      left: buildLane("current", context.period.label, sessions),
-      right: buildLane("previous", "Previous period", previous),
-      transitionsLeft: buildTransitions(sessions),
-      transitionsRight: buildTransitions(previous),
-      differences: buildDifferences(sessions, previous),
-      evidence: evidenceRef(
+    if (sessions.length === 0) {
+      noComparison = `No meetings in this period, so there is nothing to compare with ${context.period.baselineLabel}.`;
+    } else if (previous.length === 0) {
+      noComparison = `No meetings in ${context.period.baselineLabel}, so there is nothing to compare ${context.period.label} with.`;
+    } else {
+      comparison = comparisonOf(
+        "periods",
+        { id: "current", label: context.period.label, sessions },
+        { id: "previous", label: "Previous period", sessions: previous },
         "period-comparison",
         "observed_sequence",
-        `${base}/presentation`,
-        sessions.length,
-      ),
-      disclaimer: DISCLAIMER,
-    };
+        null,
+      );
+    }
   } else {
     /*
      * Who is compared when the reader has not chosen. On the synthetic roster
@@ -684,34 +1164,63 @@ export function buildPresentationIntelligence(
      */
     const presenters = presentersIn(sessions);
     const presented = presenters.filter((p) => sessions.some((s) => s.agentId === p.id));
+    /*
+     * WHO MAY BE NAMED HERE AT ALL: this project's own roster, and whoever
+     * presented on it.
+     *
+     * `presentersIn` returns the whole synthetic roster, and the scenario's
+     * pair was looked up there, so Kingsford's page — a Beta project — said
+     * "Monika Kováčová and Akhilesh Undev presented no meeting in this period":
+     * two of another developer's agents, named on this one's screen, which the
+     * dataset's own rule forbids ("An Alpha agent must never appear on a Beta
+     * project"). A key typed into the address is held to the same list, so a
+     * hand-made one cannot reach further. Where the scenario's pair works here,
+     * as on Northgate, it is still the pair.
+     */
+    const roster = agentsForProject(context.project.id as string);
+    const eligible = [...roster, ...presented.filter((p) => !roster.some((a) => a.id === p.id))];
     /* A project that shows only its own data has no roster to fall back on, with meetings or without. */
     const onRoster =
       !context.ownDataOnly &&
       (sessions.length === 0 || sessions.some((s) => agentById(s.agentId) !== undefined));
-    const pick = (key: string | null, scenario: string, index: number) =>
-      (key === null ? undefined : presenters.find((p) => p.id === key)) ??
-      (onRoster ? (agentById(scenario) ?? SYNTHETIC_AGENTS[index]) : presented[index]);
-    const leftAgent = pick(leftKey, "agt_monika", 0);
-    const rightAgent = pick(rightKey, "agt_akhilesh", 1);
-    if (leftAgent !== undefined && rightAgent !== undefined) {
+    const fallback = (scenario: string, other: string | undefined) =>
+      eligible.find((p) => p.id === scenario && p.id !== other) ??
+      eligible.find((p) => p.id !== other);
+    const chosen = (key: string | null) =>
+      key === null ? undefined : eligible.find((p) => p.id === key);
+    const leftAgent =
+      chosen(leftKey) ?? (onRoster ? fallback("agt_monika", undefined) : presented[0]);
+    const rightAgent =
+      chosen(rightKey) ?? (onRoster ? fallback("agt_akhilesh", leftAgent?.id) : presented[1]);
+    if (leftAgent === undefined || rightAgent === undefined) {
+      noComparison = `${
+        presented.length === 0 ? "Nobody" : "Only one person"
+      } has presented on this project in this period, so there is no pair to compare.`;
+    } else {
       const l = sessions.filter((s) => s.agentId === leftAgent.id);
       const r = sessions.filter((s) => s.agentId === rightAgent.id);
-      comparison = {
-        context,
-        mode: "agents",
-        left: buildLane(leftAgent.id, leftAgent.name, l),
-        right: buildLane(rightAgent.id, rightAgent.name, r),
-        transitionsLeft: buildTransitions(l),
-        transitionsRight: buildTransitions(r),
-        differences: buildDifferences(l, r),
-        evidence: evidenceRef(
+      /*
+       * The roster names the scenario's pair whether or not both presented
+       * here — the docblock above describes that stranger for delivered
+       * projects, and the same stranger stood on the synthetic ones: the
+       * review project's default view compared its presenter with a rostered
+       * colleague who has no meetings on it. Absent is absent on either path.
+       */
+      const absent = [leftAgent, rightAgent]
+        .filter((a) => !sessions.some((s) => s.agentId === a.id))
+        .map((a) => a.name);
+      if (absent.length > 0) {
+        noComparison = `${absent.join(" and ")} presented no meeting in this period, so there is nothing to compare.`;
+      } else {
+        comparison = comparisonOf(
+          "agents",
+          { id: leftAgent.id, label: leftAgent.name, sessions: l },
+          { id: rightAgent.id, label: rightAgent.name, sessions: r },
           `agent-comparison-${leftAgent.id}-${rightAgent.id}`,
           "statistical_association",
-          `${base}/presentation`,
-          l.length + r.length,
-        ),
-        disclaimer: DISCLAIMER,
-      };
+          null,
+        );
+      }
     }
   }
 
@@ -728,7 +1237,9 @@ export function buildPresentationIntelligence(
       evidence: comparison.evidence,
       sampleSize: top.sampleLeft + top.sampleRight,
       sources: top.sources,
-      caveat: top.note,
+      /* What stands outside the comparison, then what the row itself excludes. */
+      caveat:
+        [comparison.excluded, top.note].filter((s): s is string => s !== null).join(" ") || null,
     });
   }
 
@@ -738,6 +1249,7 @@ export function buildPresentationIntelligence(
     transitions: buildTransitions(sessions),
     teamBenchmark,
     comparison,
+    noComparison,
     findings,
     evidence: evidenceRef(
       "presentation-intelligence",
@@ -750,11 +1262,467 @@ export function buildPresentationIntelligence(
 
 /* --- C. Meeting Replay ----------------------------------------------------- */
 
+/**
+ * The join the replay's summary sentence needs, done here and nowhere else.
+ *
+ * Every opened code lands in exactly one of three places: a room band the
+ * catalogue states, "rooms unstated" for a code the catalogue holds without a
+ * count, or "not in the catalogue" for a code it does not hold at all. The last
+ * is the guard `buildMeetingRows` already keeps for the same reason — a
+ * showroom records whatever it showed, and a legacy import or a withdrawn flat
+ * leaves a code with nothing behind it. Dropping it would make `opened` lie;
+ * banding it would make a room count up.
+ */
+/** Two opened units make a group. One is a unit, and the journey already speaks of it by code. */
+const MIN_GROUP = 2;
+/** One band, applied twice: between two groups, and for one group against its own share. */
+const BAND = 0.2;
+const ABOVE = 1 + BAND;
+/** The multiplicative mirror of ABOVE, so the band is symmetric on a ratio: 1/1.2 = 0.833. */
+const BELOW = 1 / ABOVE;
+
+/**
+ * Which way the looking time leaned, by aspect. See `OrientationInterest`.
+ *
+ * The index is P2-07's at meeting scope — a group's share of the dwell divided
+ * by its share of the units opened — and both denominators are the whole set of
+ * opened units with a stated aspect. The qualification narrows what the
+ * sentence is about, never what it is measured against: a buyer who opened six
+ * south-facing flats and one west-facing saw seven, and the west-facing one's
+ * forty minutes are a seventh of the supply whatever the sentence ends up
+ * saying.
+ */
+function orientationInterestOf(
+  units: readonly ShowroomUnitInteraction[],
+  catalogue: ReadonlyMap<string, RawUnit>,
+): OrientationInterest {
+  const known = units.filter((u) => catalogue.get(u.unitCode)?.orientation != null);
+  const N = known.length;
+  const dwellTotal = known.reduce((sum, u) => sum + u.dwellSeconds, 0);
+
+  const count = new Map<string, number>();
+  const dwell = new Map<string, number>();
+  for (const u of known) {
+    const aspect = catalogue.get(u.unitCode)?.orientation ?? "";
+    count.set(aspect, (count.get(aspect) ?? 0) + 1);
+    dwell.set(aspect, (dwell.get(aspect) ?? 0) + u.dwellSeconds);
+  }
+
+  if (count.size === 0) {
+    return {
+      shape: "unknown",
+      groups: [],
+      sentence:
+        "No opened unit has a stated aspect, so nothing can be said about where the interest went.",
+    };
+  }
+  if (count.size === 1) {
+    const only = [...count.keys()][0] ?? "";
+    return {
+      shape: "one_orientation",
+      groups: [],
+      sentence: `Every unit opened was ${aspectWord(only)}, so there is no other aspect to compare it with.`,
+    };
+  }
+
+  const groups = [...count.entries()]
+    .filter(([, n]) => n >= MIN_GROUP)
+    .map(([orientation, n]) => ({
+      orientation,
+      units: n,
+      index: dwellTotal === 0 ? 0 : (dwell.get(orientation) ?? 0) / dwellTotal / (n / N),
+    }))
+    .sort((a, b) => b.index - a.index);
+
+  if (groups.length === 0) {
+    return {
+      shape: "no_group",
+      groups,
+      sentence:
+        "No aspect was opened more than once, so there is no group to compare; the journey below is the detail.",
+    };
+  }
+
+  const share = (index: number) => `${index.toFixed(2)}× their share of what was opened`;
+
+  if (groups.length === 1) {
+    const g = groups[0] as (typeof groups)[number];
+    const who = `the ${String(g.units)} units ${aspectWord(g.orientation)}`;
+    const rest = "no other aspect was opened more than once";
+    if (g.index >= ABOVE) {
+      return {
+        shape: "above_share",
+        groups,
+        sentence: `Interest leaned toward ${who}: they drew ${share(g.index)}; ${rest}.`,
+      };
+    }
+    if (g.index <= BELOW) {
+      return {
+        shape: "below_share",
+        groups,
+        sentence: `Interest leaned away from ${who}: they drew ${share(g.index)}; ${rest}.`,
+      };
+    }
+    return {
+      shape: "followed",
+      groups,
+      sentence: `Attention followed supply: ${who} drew ${share(g.index)}; ${rest}.`,
+    };
+  }
+
+  const first = groups[0] as (typeof groups)[number];
+  const second = groups[1] as (typeof groups)[number];
+  const gap = first.index === 0 ? 0 : (first.index - second.index) / first.index;
+
+  if (gap >= BAND) {
+    return {
+      shape: "leader",
+      groups,
+      sentence: `Interest leaned toward the ${String(first.units)} units ${aspectWord(first.orientation)}: they drew ${share(first.index)}, against ${second.index.toFixed(2)}× for the ${String(second.units)} ${aspectWord(second.orientation)}.`,
+    };
+  }
+  return {
+    shape: "split",
+    groups,
+    sentence: `Interest was split between the units ${aspectWord(first.orientation)} and those ${aspectWord(second.orientation)}: ${first.index.toFixed(2)}× and ${second.index.toFixed(2)}× their shares of what was opened, too close to name a leader.`,
+  };
+}
+
+function unitsViewedOf(
+  units: readonly ShowroomUnitInteraction[],
+  catalogue: ReadonlyMap<string, RawUnit>,
+  language: Language,
+  locale: string,
+): UnitsViewedSummary {
+  const bands = new Map<number, number>();
+  let roomsUnstated = 0;
+  let notInCatalogue = 0;
+
+  for (const unit of units) {
+    const held = catalogue.get(unit.unitCode);
+    if (held === undefined) notInCatalogue += 1;
+    else if (held.rooms === null) roomsUnstated += 1;
+    else bands.set(held.rooms, (bands.get(held.rooms) ?? 0) + 1);
+  }
+
+  const byRooms = [...bands.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([rooms, count]) => ({ rooms, count }));
+  const shortlisted = units.filter((u) => u.favourited).length;
+  const opened = units.length;
+
+  return {
+    opened,
+    byRooms,
+    roomsUnstated,
+    notInCatalogue,
+    shortlisted,
+    sentence: unitsViewedSentence(
+      opened,
+      byRooms,
+      roomsUnstated,
+      notInCatalogue,
+      shortlisted,
+      language,
+      locale,
+    ),
+    interest: orientationInterestOf(units, catalogue),
+  };
+}
+
+/**
+ * Singular and nought are answers. "1 unit opened" and "nothing was
+ * shortlisted" are what happened; a sentence that could not say them would fall
+ * silent on a fifth of the smallest scheme's meetings, and the reader would be
+ * left to guess whether nothing was chosen or nothing was measured.
+ *
+ * The three bands exclude one another and add up to `opened`: a unit is out of
+ * the catalogue, or in it with no room count, or in a band of rooms. So a single
+ * unit is in exactly one of them, and the band chooses its sentence.
+ */
+export function unitsViewedSentence(
+  opened: number,
+  byRooms: readonly { readonly rooms: number; readonly count: number }[],
+  roomsUnstated: number,
+  notInCatalogue: number,
+  shortlisted: number,
+  language: Language,
+  locale: string,
+): string {
+  if (opened === 0) return sentence(language, PROJECT_UNITS_NONE_OPENED_SENTENCE, {});
+
+  /*
+   * The adjective Slovak and Hungarian name a flat by. English names the rooms,
+   * through `roomsWord`. In a band it follows the band's count, and Hungarian
+   * puts "db" between the count and a figure ("2 db 11 szobás"); a single unit
+   * has a word before it ("Egy 11 szobás lakást") and takes the plain adjective.
+   */
+  const inBand = (rooms: number, units: number): SentenceValues =>
+    language === "sk"
+      ? { roomAdjective: slovakRoomAdjective(rooms, units) }
+      : language === "hu"
+        ? { roomAdjective: hungarianRoomAdjectiveAfterCount(rooms) }
+        : {};
+  const alone = (rooms: number): SentenceValues =>
+    language === "sk"
+      ? { roomAdjective: slovakRoomAdjective(rooms, 1) }
+      : language === "hu"
+        ? { roomAdjective: hungarianRoomAdjective(rooms) }
+        : {};
+
+  const parts = byRooms.map(({ rooms, count: units }) =>
+    sentence(language, PROJECT_UNITS_BY_ROOMS, {
+      count: count(units, locale),
+      n: units,
+      rooms: roomsWord(rooms, language),
+      ...inBand(rooms, units),
+    }),
+  );
+  if (roomsUnstated > 0) {
+    parts.push(
+      sentence(language, PROJECT_UNITS_ROOMS_UNSTATED, {
+        count: count(roomsUnstated, locale),
+        unitsWord: count(roomsUnstated, locale),
+        n: roomsUnstated,
+      }),
+    );
+  }
+  if (notInCatalogue > 0) {
+    parts.push(
+      sentence(language, PROJECT_UNITS_NOT_IN_CATALOGUE, {
+        count: count(notInCatalogue, locale),
+        n: notInCatalogue,
+      }),
+    );
+  }
+
+  const frame = {
+    count: count(opened, locale),
+    n: opened,
+    parts: parts.join(", "),
+  };
+
+  if (opened === 1) {
+    const shortlist = sentence(
+      language,
+      shortlisted === 0
+        ? PROJECT_UNIT_NONE_SHORTLISTED_SENTENCE
+        : PROJECT_UNIT_SHORTLISTED_SENTENCE,
+      { count: count(shortlisted, locale) },
+    );
+    const [band] = byRooms;
+    if (byRooms.length === 1 && band !== undefined) {
+      return sentence(language, PROJECT_UNITS_VIEWED_SINGLE_SENTENCE, {
+        ...frame,
+        shortlist,
+        ...alone(band.rooms),
+      });
+    }
+    return sentence(
+      language,
+      roomsUnstated === 1
+        ? PROJECT_UNITS_VIEWED_SINGLE_UNSTATED_SENTENCE
+        : PROJECT_UNITS_VIEWED_SINGLE_UNLISTED_SENTENCE,
+      { ...frame, shortlist },
+    );
+  }
+
+  const shortlist =
+    shortlisted === 0
+      ? sentence(language, PROJECT_UNITS_NONE_SHORTLISTED, {})
+      : sentence(language, PROJECT_UNITS_SHORTLISTED, {
+          count: count(shortlisted, locale),
+          unitsWord: count(shortlisted, locale),
+          n: shortlisted,
+        });
+
+  return sentence(language, PROJECT_UNITS_VIEWED_SENTENCE, { ...frame, shortlist });
+}
+
+/**
+ * The intent finding's statement, by which of its two figures are above
+ * nought. The finding is raised only when one of them is, so both at nought
+ * never reaches here, and is refused rather than worded.
+ */
+export function unitIntentSentence(
+  language: Language,
+  locale: string,
+  favourites: number,
+  pdfOpens: number,
+): string {
+  const entry =
+    favourites > 0 && pdfOpens > 0
+      ? PROJECT_INTENT_SENTENCE
+      : favourites > 0 && pdfOpens === 0
+        ? PROJECT_INTENT_FAVOURITE_ONLY_SENTENCE
+        : favourites === 0 && pdfOpens > 0
+          ? PROJECT_INTENT_PLAN_ONLY_SENTENCE
+          : null;
+  if (entry === null) {
+    throw new RangeError(
+      `An intent statement needs a favourite or a plan opened, not ${favourites} and ${pdfOpens}.`,
+    );
+  }
+  const times = (n: number) =>
+    sentence(language, PROJECT_TIMES_FROM_SIX, { figure: count(n, locale) });
+  return sentence(language, entry, {
+    favourites: count(favourites, locale),
+    f: favourites,
+    pdfOpens: count(pdfOpens, locale),
+    p: pdfOpens,
+    favWord: times(favourites),
+    planWord: times(pdfOpens),
+  });
+}
+
+/*
+ * THE REPLAY'S OWN WORDS, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English is what the replay always said. The storytelling presets print as
+ * the showroom sent them in English — "evening · clear" — and by their names
+ * in the others. Slovak and Hungarian are drafts for review (P2-17).
+ */
+type ReplayInteraction = "favourite" | "pdf" | "balcony" | "floor_cut" | "screenshot" | "share";
+
+interface ReplayWords {
+  readonly steps: PluralForms;
+  readonly interactions: Readonly<Record<ReplayInteraction, string>>;
+  readonly compared: (codes: string) => string;
+  readonly noneKept: string;
+  readonly kept: (code: string) => string;
+  readonly timeOfDay: Readonly<Record<TimeOfDayPreset, string>>;
+  readonly weather: Readonly<Record<WeatherPreset, string>>;
+  readonly environmentChanged: string;
+  readonly during: (section: string) => string;
+  readonly recordedByAgent: string;
+  readonly gapLegacy: string;
+  readonly gapInteractions: string;
+  readonly gapFiltersNotEmitted: string;
+  readonly gapNoFilter: string;
+  readonly gapNoComparison: string;
+}
+
+const REPLAY_STEPS: PluralForms = {
+  en: { one: "step", other: "steps" },
+  sk: { one: "krok", few: "kroky", other: "krokov" },
+  hu: { one: "lépés", other: "lépés" },
+};
+
+const REPLAY_WORDS: Readonly<Record<Language, ReplayWords>> = {
+  en: {
+    steps: REPLAY_STEPS,
+    interactions: {
+      favourite: "Shortlisted",
+      pdf: "Floor plan opened",
+      balcony: "Balcony view",
+      floor_cut: "Floor cut",
+      screenshot: "Screenshot taken",
+      share: "Shared",
+    },
+    compared: (codes) => `Compared ${codes}`,
+    noneKept: "No unit was kept",
+    kept: (code) => `${code} was kept`,
+    timeOfDay: {
+      morning: "morning",
+      afternoon: "afternoon",
+      golden: "golden",
+      evening: "evening",
+      night: "night",
+    },
+    weather: { clear: "clear", cloudy: "cloudy", rain: "rain", snow: "snow", fog: "fog" },
+    environmentChanged: "Environment changed",
+    during: (section) => `during ${section}`,
+    recordedByAgent: "Recorded by the agent at the end of the meeting",
+    gapLegacy:
+      "This session came from the legacy analytics, which records the order of sections but not when each was entered. The sequence is real; the pacing is unknown.",
+    gapInteractions:
+      "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
+    gapFiltersNotEmitted:
+      "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.",
+    gapNoFilter: "No filter was applied in this meeting, so there is no search to read.",
+    gapNoComparison:
+      "No comparison was recorded. Compare mode is only measured when the agent opens it.",
+  },
+  sk: {
+    steps: REPLAY_STEPS,
+    interactions: {
+      favourite: "Pridané do obľúbených",
+      pdf: "Otvorený pôdorys",
+      balcony: "Výhľad z balkóna",
+      floor_cut: "Rez podlažím",
+      screenshot: "Snímka obrazovky",
+      share: "Zdieľané",
+    },
+    compared: (codes) => `Porovnané: ${codes}`,
+    noneKept: "Žiadny byt nezostal vybraný",
+    kept: (code) => `${code} zostal vybraný`,
+    timeOfDay: {
+      morning: "ráno",
+      afternoon: "popoludnie",
+      golden: "zlatá hodinka",
+      evening: "večer",
+      night: "noc",
+    },
+    weather: { clear: "jasno", cloudy: "oblačno", rain: "dážď", snow: "sneh", fog: "hmla" },
+    environmentChanged: "Prostredie sa zmenilo",
+    during: (section) => `v sekcii ${section}`,
+    recordedByAgent: "Zaznamenal maklér na konci stretnutia",
+    gapLegacy:
+      "Toto stretnutie pochádza zo staršej analytiky, ktorá zaznamenáva poradie sekcií, ale nie čas vstupu do každej z nich. Poradie je skutočné; tempo nie je známe.",
+    gapInteractions:
+      "Pri úkonoch v rámci sekcie — pridaní bytu do obľúbených, otvorení pôdorysu či zobrazení pohľadu z balkóna — je zaznamenané, v ktorej sekcii nastali, no nie presný okamih. Čas je uvedený len pri vstupe do sekcie.",
+    gapFiltersNotEmitted:
+      "Súčasná verzia showroomu neposiela stav filtrov, preto nie je známe, čo kupujúci hľadal.",
+    gapNoFilter:
+      "Na tomto stretnutí nepoužili žiadny filter, takže niet vyhľadávania, ktoré by sa dalo vyhodnotiť.",
+    gapNoComparison:
+      "Žiadne porovnanie sa nezaznamenalo. Použitie režimu porovnania sa meria iba vtedy, keď ho maklér otvorí.",
+  },
+  hu: {
+    steps: REPLAY_STEPS,
+    interactions: {
+      favourite: "Kedvencekhez adva",
+      pdf: "Alaprajz megnyitva",
+      balcony: "Kilátás az erkélyről",
+      floor_cut: "Szintmetszet",
+      screenshot: "Képernyőkép készült",
+      share: "Megosztva",
+    },
+    compared: (codes) => `Összehasonlítva: ${codes}`,
+    noneKept: "Egyik lakás sem maradt meg",
+    kept: (code) => `${code} maradt meg`,
+    timeOfDay: {
+      morning: "reggel",
+      afternoon: "délután",
+      golden: "aranyóra",
+      evening: "este",
+      night: "éjszaka",
+    },
+    weather: { clear: "derült", cloudy: "felhős", rain: "eső", snow: "havazás", fog: "köd" },
+    environmentChanged: "A környezet megváltozott",
+    during: (section) => `${hungarianArticle(section)} ${section} szakasz alatt`,
+    recordedByAgent: "Az értékesítő rögzítette a találkozó végén",
+    gapLegacy:
+      "Ez a találkozó a korábbi analitikából származik, amely a szakaszok sorrendjét rögzíti, azt viszont nem, hogy mikor léptek be az egyes szakaszokba. A sorrend valós, a tempó ismeretlen.",
+    gapInteractions:
+      "A szakaszon belüli műveletekről — például ha egy lakást a Kedvencek listára tesznek, megnyitják az alaprajzot, vagy megnézik az erkélyről nyíló kilátást — csak az rögzül, melyik szakaszban történtek, a pontos időpontjuk nem. Időadat csak a szakaszba belépéshez tartozik.",
+    gapFiltersNotEmitted:
+      "A showroom jelenlegi változata nem küldi el a szűrők állapotát, ezért nem tudni, mit keresett a vevő.",
+    gapNoFilter: "Ezen a találkozón nem használtak szűrőt, ezért nincs értelmezhető keresés.",
+    gapNoComparison:
+      "Összehasonlítást nem rögzítettek. Az összehasonlító mód használatát csak akkor mérik, ha az értékesítő megnyitja.",
+  },
+};
+
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
   const locale = context.project.locale;
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const words = REPLAY_WORDS[language];
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const agent = agentById(session.agentId);
+  /* The same catalogue `buildMeetingRows` consults, for the same project, keyed by the code a session carries. */
+  const catalogue = new Map(catalogueFor(context.project.id as string).map((u) => [u.code, u]));
   const steps: ReplayStep[] = [];
   let ordinal = 0;
 
@@ -766,10 +1734,10 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
   for (const step of session.steps) {
     push({
       kind: "section",
-      label: sectionLabel(step.sectionId),
+      label: sectionWord(language, step.sectionId),
       detail: step.itemLabel,
       atDisplay: step.enteredAt === null ? null : clockLabel(step.enteredAt, locale, timeZone),
-      dwellDisplay: step.dwellSeconds === null ? null : formatDuration(step.dwellSeconds),
+      dwellDisplay: step.dwellSeconds === null ? null : duration(step.dwellSeconds, language),
       sectionId: step.sectionId,
       unitCode: null,
       isReturn: step.isReturn,
@@ -790,9 +1758,9 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
         push({
           kind: "unit",
           label: unit.unitCode,
-          detail: `${unit.views} view${unit.views === 1 ? "" : "s"} · ${formatDuration(unit.dwellSeconds)}`,
+          detail: `${unit.views} ${plural(language, unit.views, PROJECT_VIEWS)} · ${duration(unit.dwellSeconds, language)}`,
           atDisplay: null,
-          dwellDisplay: formatDuration(unit.longestViewSeconds),
+          dwellDisplay: duration(unit.longestViewSeconds, language),
           sectionId: "residences",
           unitCode: unit.unitCode,
           isReturn: false,
@@ -804,18 +1772,18 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
             unit.views,
           ),
         });
-        for (const [kind, active, label] of [
-          ["favourite", unit.favourited, "Shortlisted"],
-          ["pdf", unit.pdfOpened, "Floor plan opened"],
-          ["balcony", unit.balconyViews > 0, "Balcony view"],
-          ["floor_cut", unit.floorCutViews > 0, "Floor cut"],
-          ["screenshot", unit.screenshots > 0, "Screenshot taken"],
-          ["share", unit.shared, "Shared"],
+        for (const [kind, active] of [
+          ["favourite", unit.favourited],
+          ["pdf", unit.pdfOpened],
+          ["balcony", unit.balconyViews > 0],
+          ["floor_cut", unit.floorCutViews > 0],
+          ["screenshot", unit.screenshots > 0],
+          ["share", unit.shared],
         ] as const) {
           if (!active) continue;
           push({
             kind,
-            label,
+            label: words.interactions[kind],
             detail: unit.unitCode,
             atDisplay: null,
             dwellDisplay: null,
@@ -835,8 +1803,8 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
         const keeper = set.find((u) => u.keptFromComparison === true);
         push({
           kind: "compare",
-          label: `Compared ${set.map((u) => u.unitCode).join(", ")}`,
-          detail: keeper === undefined ? "No unit was kept" : `${keeper.unitCode} was kept`,
+          label: words.compared(set.map((u) => u.unitCode).join(", ")),
+          detail: keeper === undefined ? words.noneKept : words.kept(keeper.unitCode),
           atDisplay: null,
           dwellDisplay: null,
           sectionId: "compare",
@@ -857,8 +1825,17 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
   for (const env of session.environment) {
     push({
       kind: "environment",
-      label: [env.timeOfDay, env.weather].filter(Boolean).join(" · ") || "Environment changed",
-      detail: env.duringSectionId === null ? null : `during ${sectionLabel(env.duringSectionId)}`,
+      label:
+        [
+          env.timeOfDay === null ? null : words.timeOfDay[env.timeOfDay],
+          env.weather === null ? null : words.weather[env.weather],
+        ]
+          .filter(Boolean)
+          .join(" · ") || words.environmentChanged,
+      detail:
+        env.duringSectionId === null
+          ? null
+          : words.during(sectionWord(language, env.duringSectionId)),
       atDisplay: null,
       dwellDisplay: null,
       sectionId: env.duringSectionId,
@@ -871,8 +1848,8 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
 
   push({
     kind: "outcome",
-    label: OUTCOME_LABELS[session.outcome],
-    detail: "Recorded by the agent at the end of the meeting",
+    label: OUTCOME_WORDS[language][session.outcome],
+    detail: words.recordedByAgent,
     atDisplay: clockLabel(session.endedAt, locale, timeZone),
     dwellDisplay: null,
     sectionId: null,
@@ -891,40 +1868,40 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
 
   const gaps: string[] = [];
   if (session.timingUnavailable) {
-    gaps.push(
-      "This session came from the legacy analytics, which records the order of sections but not when each was entered. The sequence is real; the pacing is unknown.",
-    );
+    gaps.push(words.gapLegacy);
   }
-  gaps.push(
-    "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
-  );
+  gaps.push(words.gapInteractions);
   if (session.filters.length === 0) {
     /*
      * Two different absences. The legacy analytics never carried filter state; a
      * source that times its steps does, so an empty list there means nobody
      * filtered, and saying the build cannot emit it would be false.
      */
-    gaps.push(
-      session.timingUnavailable
-        ? "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown."
-        : "No filter was applied in this meeting, so there is no search to read.",
-    );
+    gaps.push(session.timingUnavailable ? words.gapFiltersNotEmitted : words.gapNoFilter);
   }
   if (!session.units.some((u) => u.comparedWith.length > 0)) {
-    gaps.push("No comparison was recorded. Compare mode is only measured when the agent opens it.");
+    gaps.push(words.gapNoComparison);
   }
 
   return {
     context,
     meetingId: session.meetingId,
-    headline: `${formatDuration(session.durationSeconds)}, ${session.steps.length} steps, ${session.units.length} unit${session.units.length === 1 ? "" : "s"} opened.`,
-    agentName: agent?.name ?? presenterName(session.projectId, session.agentId),
+    /*
+     * Length and step count, and no unit count. The count used to sit here as
+     * well, two lines above `unitsViewed.sentence` opening with the very same
+     * number — one fact printed twice, which is the thirteenth column of the
+     * unit register in prose. The sentence beneath carries the count and its
+     * breakdown; the headline keeps what nothing else on the screen says.
+     */
+    headline: `${duration(session.durationSeconds, language)}, ${session.steps.length} ${plural(language, session.steps.length, words.steps)}.`,
+    unitsViewed: unitsViewedOf(session.units, catalogue, language, locale),
+    agentName: agent?.name ?? presenterName(session.projectId, session.agentId, language),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
     agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
     startedDisplay: `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`,
-    durationDisplay: formatDuration(session.durationSeconds),
+    durationDisplay: duration(session.durationSeconds, language),
     outcome: session.outcome,
-    outcomeLabel: OUTCOME_LABELS[session.outcome],
+    outcomeLabel: OUTCOME_WORDS[language][session.outcome],
     steps,
     coverage: coverageOf([session]),
     gaps,
@@ -945,16 +1922,40 @@ export function buildMeetingList(
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
+  /*
+   * NEWEST FIRST, AND THEN BY IDENTIFIER.
+   *
+   * The instant alone is not a total order. Two meetings that start in the same
+   * millisecond leave `sort` free to keep whichever order the input happened to
+   * arrive in, and the input order is not a promise anything here makes: it is
+   * whatever the sessions were assembled in.
+   *
+   * Today's fixtures contain no collision — measured across every project and
+   * every period, at minute granularity, which is coarser than the key, so the
+   * instants cannot collide either. That is a property of the data, not of this
+   * code. Two agents presenting at once, or a second installation in the same
+   * showroom, produce the same second without anything unusual happening, and
+   * the register is the one surface where the reader's position IS the order.
+   *
+   * `meetingId` is the tiebreaker because it is the only field on the session
+   * that is unique by construction. It makes the order total, so it is the same
+   * on every call whatever order the sessions arrived in — which is what a
+   * reader paging, linking or comparing two screenshots is entitled to assume,
+   * and what the caller's caption already states on their behalf.
+   */
   return [...sessions]
-    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
+    .sort((a, b) => {
+      const byInstant = Date.parse(b.startedAt) - Date.parse(a.startedAt);
+      return byInstant !== 0 ? byInstant : a.meetingId.localeCompare(b.meetingId);
+    })
     .map((s) => ({
       meetingId: s.meetingId,
       label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
-      agentName: presenterName(s.projectId, s.agentId),
+      agentName: presenterName(s.projectId, s.agentId, context.language ?? DEFAULT_LANGUAGE),
       startedDisplay: dayLabel(s.startedAt, locale, timeZone),
-      durationDisplay: formatDuration(s.durationSeconds),
+      durationDisplay: duration(s.durationSeconds, context.language),
       outcome: s.outcome,
-      outcomeLabel: OUTCOME_LABELS[s.outcome],
+      outcomeLabel: OUTCOME_WORDS[context.language ?? DEFAULT_LANGUAGE][s.outcome],
       sectionCount: new Set(orderOf(s)).size,
       unitCount: s.units.length,
       href: `${base}/meetings/${s.meetingId}`,
@@ -970,6 +1971,7 @@ export function buildUnitAttention(
   selectedCode: string | null,
 ): UnitAttentionView {
   const locale = context.project.locale;
+  const language = context.language;
   const currency = context.project.currency;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
 
@@ -1055,8 +2057,15 @@ export function buildUnitAttention(
     if (selected.meetings > 0) {
       findings.push({
         id: `unit-${selected.unitCode}-attention`,
-        statement: `${selected.unitCode} was opened in ${count(selected.meetings, locale)} meeting${selected.meetings === 1 ? "" : "s"}, with a median look of ${formatDuration(selected.medianDwellSeconds)}.`,
-        baseline: `the project median is ${formatDuration(Math.round(median(scaled.filter((r) => r.meetings > 0).map((r) => r.medianDwellSeconds))))}`,
+        statement: sentence(language, PROJECT_UNIT_OPENED_SENTENCE, {
+          unit: selected.unitCode,
+          count: count(selected.meetings, locale),
+          meetingsWord: count(selected.meetings, locale),
+          meetings: count(selected.meetings, locale),
+          n: selected.meetings,
+          look: duration(selected.medianDwellSeconds, language),
+        }),
+        baseline: `the project median is ${duration(Math.round(median(scaled.filter((r) => r.meetings > 0).map((r) => r.medianDwellSeconds))), language)}`,
         soWhat:
           selected.medianDwellSeconds >= 60
             ? "Long enough to be an examination rather than a glance."
@@ -1076,7 +2085,7 @@ export function buildUnitAttention(
     if (selected.favourites > 0 || selected.pdfOpens > 0) {
       findings.push({
         id: `unit-${selected.unitCode}-intent`,
-        statement: `Shortlisted ${count(selected.favourites, locale)} time${selected.favourites === 1 ? "" : "s"}, floor plan opened ${count(selected.pdfOpens, locale)} time${selected.pdfOpens === 1 ? "" : "s"}.`,
+        statement: unitIntentSentence(language, locale, selected.favourites, selected.pdfOpens),
         baseline: null,
         soWhat:
           "Shortlisting and taking the plan away are the interactions that most often precede a follow-up.",
@@ -1095,7 +2104,7 @@ export function buildUnitAttention(
 
     detail = {
       row: selected,
-      headline: `${selected.unitCode} · ${roomsWord(selected.rooms)} · ${areaWord(selected.areaSqm)} · ${selected.priceDisplay}`,
+      headline: `${selected.unitCode} · ${roomsWord(selected.rooms, language)} · ${areaWord(selected.areaSqm)} · ${selected.priceDisplay}`,
       findings,
       competitors: [...together.entries()]
         .map(([unitCode, v]) => ({ unitCode, together: v.together, keptOther: v.keptOther }))
@@ -1114,18 +2123,24 @@ export function buildUnitAttention(
 
   const busiest = [...scaled].sort((a, b) => b.totalDwellSeconds - a.totalDwellSeconds)[0];
   const findings: ShowroomFinding[] = [];
-  if (busiest !== undefined && busiest.meetings > 0) {
-    const available = scaled.filter((r) => r.status === "available");
-    const twoRoom = available.filter((r) => r.rooms === 2);
-    const attentionShare = share(
-      twoRoom.reduce((a, r) => a + r.totalDwellSeconds, 0),
-      available.reduce((a, r) => a + r.totalDwellSeconds, 0),
-    );
-    const stockShare = share(twoRoom.length, available.length);
+  /*
+   * The registry's one implementation over the unsold stock (decision
+   * 2026-09-27). This read available units only, on both sides, and printed
+   * 1.39× where `/project` printed 1.41× for the same units and period. A
+   * project with no unsold two-room unit, or no looking time on its unsold
+   * stock, has no index to state, and the finding is not made.
+   */
+  const twoRoomReading = attentionIndex(
+    scaled.map((r) => ({ code: r.unitCode, status: r.status, rooms: r.rooms })),
+    scaled.map((r) => ({ unitCode: r.unitCode, dwellSeconds: r.totalDwellSeconds })),
+    (u) => u.rooms === 2,
+  );
+  if (busiest !== undefined && busiest.meetings > 0 && twoRoomReading.index !== null) {
+    const { stockShare, attentionShare } = twoRoomReading;
     findings.push({
       id: "unit-segment-attention",
-      statement: `Two-room units are ${percent(stockShare, locale)} of available stock and take ${percent(attentionShare, locale)} of the time spent looking at units.`,
-      baseline: `an index of ${(attentionShare / Math.max(0.01, stockShare)).toFixed(2)}× their share`,
+      statement: `Two-room units are ${percent(stockShare, locale)} of the unsold stock and take ${percent(attentionShare, locale)} of the time spent looking at it.`,
+      baseline: `an index of ${attentionIndexDisplay(twoRoomReading.index)} their share`,
       soWhat:
         "A segment drawing more attention than its size is either priced right or priced wrong; the unit list tells which.",
       nextStep: { label: "Open the busiest unit", href: `${base}/units?unit=${busiest.unitCode}` },
@@ -1162,6 +2177,31 @@ export function buildUnitAttention(
  * of green "new" badges, which is the flattering answer the state exists to
  * refuse.
  */
+/**
+ * How much of the timed presentation time went to Time & weather.
+ *
+ * One definition, borrowed rather than written: `sectionSeconds` and
+ * `totalSeconds` are the agent lane's, so this share and the agent's
+ * `timeShare` for the same section are the same arithmetic at two scopes. The
+ * set is the fully timed meetings and nothing else — a meeting with one untimed
+ * step is outside both sides, and `timedMeetings` says how many that left.
+ *
+ * `null`, not nought, when no meeting was fully timed.
+ */
+function environmentTimeShare(sessions: readonly ShowroomSession[]): EnvironmentUsage["timeShare"] {
+  const timed = sessions.filter(fullyTimed);
+  const timedSeconds = timed.reduce((a, s) => a + totalSeconds(s), 0);
+  if (timed.length === 0 || timedSeconds === 0) return null;
+  const environmentSeconds = timed.reduce((a, s) => a + sectionSeconds(s, "environment"), 0);
+  return {
+    share: environmentSeconds / timedSeconds,
+    environmentSeconds,
+    timedSeconds,
+    timedMeetings: timed.length,
+    meetingsTotal: sessions.length,
+  };
+}
+
 export function buildStorytelling(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -1267,7 +2307,7 @@ export function buildStorytelling(
     findings.push({
       id: "glanced_section",
       statement: `${glanced.label} is opened in ${percent(glanced.reachRate, locale)} of meetings but left within ${MEANINGFUL_DWELL_SECONDS} seconds ${percent(glanced.glanceRate, locale)} of the time.`,
-      baseline: `median dwell ${glanced.medianDwellSeconds === null ? "unknown" : formatDuration(glanced.medianDwellSeconds)}`,
+      baseline: `median dwell ${glanced.medianDwellSeconds === null ? "unknown" : duration(glanced.medianDwellSeconds, context.language)}`,
       soWhat:
         "Either the section is not carrying an argument, or it is being opened by accident on the way somewhere else.",
       nextStep: { label: "See the transitions", href: `${base}/presentation` },
@@ -1284,7 +2324,13 @@ export function buildStorytelling(
   }
 
   const topPair = pairings[0];
-  if (topPair !== undefined && topPair.lift > 1.15) {
+  /*
+   * The floor the screen holds its pair table to (`features/page.tsx`, `ranked`).
+   * Without it, a project under twenty meetings stated this association under
+   * "What stands out" while the table beneath said it is not reported at this
+   * sample: one screen, two answers to one question.
+   */
+  if (topPair !== undefined && topPair.lift > 1.15 && n >= AGENT_MIN_SAMPLE) {
     findings.push({
       id: "pairing",
       statement: `${sectionLabel(topPair.a)} and ${sectionLabel(topPair.b)} appear together in ${count(topPair.together, locale)} meetings — ${topPair.lift.toFixed(2)}× what independent use would produce.`,
@@ -1344,6 +2390,7 @@ export function buildStorytelling(
       })),
       meetingsUsingEnvironment: sessions.filter((s) => s.environment.length > 0).length,
       meetingsTotal: n,
+      timeShare: environmentTimeShare(sessions),
     },
     beforeShortlist,
     findings,

@@ -10,6 +10,7 @@ import {
   type ShowroomSessionSource,
   type TenantSummary,
   type Viewer,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 
 import { SyntheticObserverRepository } from "../src/repository";
@@ -76,6 +77,7 @@ const query = {
   tenantSlug: tenant.slug,
   projectSlug: project.slug,
   period: "last_28_days",
+  language: DEFAULT_LANGUAGE,
 } as const;
 
 function meeting(id: string, agentId: string): ShowroomSession {
@@ -158,6 +160,7 @@ describe("a meeting shows who presented it", () => {
       tenantSlug: tenant.slug,
       projectSlug: project.slug,
       meetingId: FIRST as never,
+      language: DEFAULT_LANGUAGE,
     });
     expect(replay.agentName).toBe("Monika Kováčová");
     // A real roster entry gets a real page. An unresolved id gets null rather

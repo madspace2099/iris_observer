@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { NotFoundError, NotPermittedError, type PeriodPreset } from "@observer/readmodels";
+import {
+  NotFoundError,
+  NotPermittedError,
+  type PeriodPreset,
+  DEFAULT_LANGUAGE,
+} from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
 import { maySeeSurface } from "@/lib/routes";
@@ -26,7 +31,14 @@ import {
   type DataColumn,
   type DataRow,
 } from "@/components/product";
-import { MeetingRegister, Missing, ShareFigure, StageFunnel } from "@/components/agents";
+import {
+  MeetingRegister,
+  Missing,
+  ShareFigure,
+  StageFunnel,
+  agentAnswer,
+} from "@/components/agents";
+import { ExportReport } from "@/components/report";
 import { OutcomeKey, OutcomeRing, PairedRates } from "@/showroom/charts";
 import { SectionSequence, TrendLine } from "@/showroom/charts2";
 
@@ -77,8 +89,8 @@ export const metadata: Metadata = { title: "Sales agent" };
  * whatever the caption says, and a direction is a trend.
  *
  * Kingsford Yard is the project that forces this: three weeks live, seven
- * meetings, no CRM. Opened there, this page shows counts, four kinds of stated
- * absence, no trend and no verdict.
+ * meetings. Opened there, this page shows counts, the absences the read model
+ * states, no trend and no verdict.
  */
 export default async function AgentPage({
   params,
@@ -108,32 +120,24 @@ export default async function AgentPage({
    * not be distinguishable from a person who is not there.
    */
   let view;
+  let report;
   try {
-    view = await repository.getAgentDetail({ viewer, tenantSlug, projectSlug, period }, agentId);
+    const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
+    [view, report] = await Promise.all([
+      repository.getAgentDetail(query, agentId),
+      /* The same person, as a report scope, for the export in the aside. */
+      repository.getReportScope(query, { agentId }),
+    ]);
   } catch (error) {
     if (error instanceof NotFoundError || error instanceof NotPermittedError) notFound();
     throw error;
   }
 
   const periodLabel = view.context.period.label;
-  const crmConnected = view.context.project.connectedSources.includes("crm");
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
 
-  /*
-   * The ten-second answer, and the two things it may be.
-   *
-   * Below the floor it is the suppression sentence: how many meetings, how far
-   * short, and what the page will therefore not say. Above it, the strongest
-   * association the read model produced about how this person presents. Where
-   * there is neither, the head carries no answer rather than an invented one —
-   * a confident sentence with nothing behind it is the failure the whole
-   * absence vocabulary exists to prevent.
-   */
-  const answer =
-    view.suppressionNote ??
-    (view.profile.signature === null
-      ? null
-      : `${view.name} spends ${view.profile.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${view.profile.signature.label}.`);
+  /* The ten-second answer: `agentAnswer`, shared with the printed summary. */
+  const answer = agentAnswer(view);
 
   /*
    * WHETHER THE PAGE HAS AN EVIDENCE REFERENCE TO OFFER AT ALL.
@@ -145,12 +149,12 @@ export default async function AgentPage({
    * where none does says so once, below the figures.
    *
    * The agent read models return `evidence: null` on every metric in
-   * `activity`, `followUp`, `verifiedOutcomes` and `funnel`, even though the
+   * `activity`, `followUp`, `recordedOutcomes` and `funnel`, even though the
    * view itself carries one. That is reported as a gap rather than papered over
    * with a reference this page would have had to invent.
    */
   const activityHasEvidence = view.activity.some((metric) => metric.evidence !== null);
-  const outcomesHaveEvidence = view.verifiedOutcomes.some((o) => o.metric.evidence !== null);
+  const outcomesHaveEvidence = view.recordedOutcomes.some((o) => o.metric.evidence !== null);
   const funnelHasEvidence = view.funnel.some((step) => step.metric.evidence !== null);
 
   /*
@@ -224,6 +228,10 @@ export default async function AgentPage({
             <Synthetic />
             <Sample n={view.sampleSize} noun="meetings" />
             <Evidence evidence={view.evidence} period={period} />
+            <ExportReport
+              report={report}
+              pageHref={withPeriod(`${root}/report?agent=${view.agentId}`, period)}
+            />
           </>
         }
         period={period}
@@ -231,33 +239,15 @@ export default async function AgentPage({
 
       <div className="ox-body">
         {/*
-         * THE MISSING SOURCE, STATED ONCE FOR THE WHOLE PAGE.
+         * No page-level "the CRM is not connected" any more.
          *
-         * Without a CRM this screen holds eight figures that cannot exist —
-         * follow-ups recorded, two verified outcomes, two funnel stages, and
-         * the outcome-recorded rate under them. `docs/12-visual-autopsy.md` §9
-         * is four panels in one viewport each repeating "The CRM is not
-         * connected", and eight would be worse. Each of those figures carries
-         * the terse missing mark that `Figure` draws, and the reason is here,
-         * once, above all of them, on the graphite ground where a reader arrives.
-         *
-         * It sits above the plates rather than inside one because the region it
-         * governs is the page, not a section: the same absence reaches the
-         * activity plate, the funnel plate and the chart band.
+         * A band used to stand here saying that without a CRM this page held
+         * figures that could not exist — follow-ups recorded, two funnel
+         * stages, the outcome-recorded rate. Every one of those is the outcome
+         * the agent recorded in the room, which the read model now carries on
+         * every project; nothing on this page is withheld for want of a CRM,
+         * so there is nothing for a band to explain.
          */}
-        {crmConnected ? null : (
-          <section className="ox-plane">
-            <Unavailable
-              what="Outcome, follow-up and conversion figures"
-              why={
-                view.followUp.recorded.message ??
-                "No CRM is connected to this project, so a meeting has no outcome to read."
-              }
-              action={null}
-              period={period}
-            />
-          </section>
-        )}
 
         {/* --- ACTIVITY, on the measured ground ------------------------- */}
 
@@ -321,36 +311,41 @@ export default async function AgentPage({
              * "Recorded as needed" and "actually done" are two questions, and
              * the second has no source at all — not even a connected CRM
              * answers it, since Observer holds the meeting and the activity
-             * after it belongs elsewhere. On a project with no CRM this band is
-             * not drawn: the page-level statement above already covers every
-             * figure the CRM would have answered, and repeating the sentence in
-             * a second panel a screen further down is the defect
-             * `docs/12-visual-autopsy.md` §9 recorded, at a slower scroll.
+             * after it belongs elsewhere. Drawn on every project: the first
+             * figure now stands everywhere, so the second's absence has to be
+             * stated everywhere, or a reader takes the reminder for the call.
              *
-             * No action is offered either way. Connecting a CRM belongs to the
-             * MADSPACE administration surface and is not this reader's to do,
-             * and a control that looks ready and does nothing is forbidden.
+             * No action is offered. Connecting a CRM belongs to the MADSPACE
+             * administration surface and is not this reader's to do, and a
+             * control that looks ready and does nothing is forbidden.
              */}
-            {crmConnected ? (
-              <Unavailable
-                what="Follow-ups completed"
-                why={
-                  view.followUp.completed.message ??
-                  "No source records whether a follow-up happened."
-                }
-                action={null}
-                period={period}
-              />
-            ) : null}
+            <Unavailable
+              what="Follow-ups completed"
+              why={
+                view.followUp.completed.message ?? "No source records whether a follow-up happened."
+              }
+              action={null}
+              period={period}
+            />
 
             <p className="ox-section-note">{view.followUp.note}</p>
 
-            {/* --- outcomes a record stands behind ---------------------- */}
+            {/*
+             * THE OUTCOMES THEY RECORDED, BY THEIR COMMERCIAL WORD.
+             *
+             * This subhead read "Verified outcomes" over a count of the
+             * agent's own entries, said a system of record stood behind it,
+             * and drew the region only where a CRM was connected — the
+             * register's removed "Verified outcome" column, on a second
+             * surface. No deal is linked to a meeting (ADR-0039), so nothing
+             * here can be confirmed outside the showroom; the replay says the
+             * same of the same fact, and this says it in the same words.
+             */}
 
-            <p className="ox-subhead">Verified outcomes</p>
+            <p className="ox-subhead">Outcomes they recorded</p>
 
             <Tally>
-              {view.verifiedOutcomes.map((outcome) => (
+              {view.recordedOutcomes.map((outcome) => (
                 <TallyItem
                   key={outcome.outcome}
                   label={outcome.label}
@@ -369,10 +364,12 @@ export default async function AgentPage({
             </Tally>
 
             <p className="ox-section-note">
-              A commercial result a system of record stands behind, kept apart from the outcome mix
-              below, which is every outcome including the ones nobody recorded. The tier on each
-              says how strong the claim is; the source says what kind of fact it rests on. The two
-              are separate axes and neither stands for the other.
+              What {view.name} entered on the showroom&rsquo;s outcome widget as a purchase or a
+              reservation. It is the agent&rsquo;s own record — not a reservation and not a sale,
+              and no CRM or other system of record has confirmed it: Observer links no deal to a
+              meeting. Kept apart from the outcome mix below, which is every outcome including the
+              ones nobody recorded. The tier on each says how strong the claim is; the source says
+              what kind of fact it rests on.
               {outcomesHaveEvidence
                 ? ""
                 : " Neither figure carries a drill-down reference; the meetings behind them are in the register at the foot of this page."}
@@ -499,16 +496,46 @@ export default async function AgentPage({
             )}
           </div>
 
+          {/*
+           * THE TEAM'S MEDIAN IS THE COMPARISON THE FLOOR SUPPRESSES HERE.
+           *
+           * The same rule as "What their buyers opened" two charts up, which
+           * withholds the project's rate below the floor and says why. This
+           * chart printed the team's median beside every stop regardless, and
+           * its summary — what a screen reader gets — said "team median" too.
+           * Below the floor neither does, and the reason stands under the
+           * chart in the same words.
+           */}
           <ChartFrame
             title={`${view.name}: running order and time in each section`}
             period={periodLabel}
-            note="The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop; the team's median is printed beside it, since a section time on its own has no scale."
-            summary={`${view.profile.sections.length} sections, in running order: ${view.profile.sections.map((s) => `${s.order}. ${s.label}, median ${s.dwellDisplay}, team median ${s.teamDwellDisplay}`).join("; ")}.`}
+            note={
+              view.belowMinimum
+                ? "The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop."
+                : "The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop; the team's median is printed beside it, since a section time on its own has no scale."
+            }
+            summary={`${view.profile.sections.length} sections, in running order: ${view.profile.sections
+              .map(
+                (s) =>
+                  `${s.order}. ${s.label}, median ${s.dwellDisplay}${
+                    view.belowMinimum ? "" : `, team median ${s.teamDwellDisplay}`
+                  }`,
+              )
+              .join("; ")}.`}
           >
             <SectionSequence
               rows={view.profile.sections}
               agentLabel={view.name.split(" ")[0] ?? "This agent"}
+              showTeam={!view.belowMinimum}
             />
+            {view.belowMinimum ? (
+              <p className="ox-chart-note">
+                The team&rsquo;s median is not printed beside their stops: at {view.sampleSize}{" "}
+                meetings, {view.minimumSampleSize - view.sampleSize} short of{" "}
+                {view.minimumSampleSize}, that comparison would be a judgement about how somebody
+                works drawn from a sample too thin to carry one.
+              </p>
+            ) : null}
           </ChartFrame>
 
           {/*
@@ -640,20 +667,49 @@ export default async function AgentPage({
           <div className="ox-plate-inner">
             <div className="ox-section-head">
               <h2 className="ox-section-title">Their most recent meetings</h2>
-              <p className="ox-section-note">
-                No buyer is named here and none can be. The visitor column is a privacy-safe label
-                built from a closed vocabulary and a count of previous meetings; the type it comes
-                from has no field a name, an address or a telephone number could sit in.
-              </p>
             </div>
 
-            <MeetingRegister
-              rows={view.recentMeetings}
-              period={period}
-              canOpen={maySeeSurface(viewer.role, "[meetingId]")}
-              caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight. Open one for the presentation reconstructed step by step.`}
-              emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
-            />
+            {/*
+             * THE GATE, DECIDED HERE AND NOT BY A STYLESHEET.
+             *
+             * The register is the meeting drill-down's own material, one row
+             * per meeting, and it keeps the drill-down's audience
+             * (`AGENT_REGISTER_ROLES`, the web's `[meetingId]` roles):
+             * docs/22 §5's decision (B) narrows this region, not the page.
+             * A reader outside it gets no table in the document at all — a
+             * hidden element is not a gate — and a sentence that says what is
+             * missing and why. Everything else on the page stays theirs.
+             */}
+            {maySeeSurface(viewer.role, "[meetingId]") ? (
+              <>
+                <p className="ox-section-note">
+                  A buyer is named here where the contact gave consent to be, and the name is joined
+                  for this page as it is drawn and stored nowhere. Otherwise the visitor column is a
+                  privacy-safe label built from a closed vocabulary and a count of previous
+                  meetings.
+                </p>
+                <MeetingRegister
+                  rows={view.recentMeetings}
+                  period={period}
+                  canOpen
+                  caption={`${view.name}'s most recent meetings in ${periodLabel.toLowerCase()}, newest first, at most eight. Open one for the presentation reconstructed step by step.`}
+                  emptyNote={`No meeting of ${view.name}'s falls inside ${periodLabel.toLowerCase()}.`}
+                />
+              </>
+            ) : (
+              <p className="ox-result">
+                <span className="ox-chip" data-tone="none">
+                  <span className="ox-chip-mark" aria-hidden="true" />
+                  Kept for the sales team
+                </span>
+                <span>
+                  The rows of this register are the meeting drill-down&rsquo;s own material, which
+                  this account does not open: what is about one buyer stays on the sales
+                  team&rsquo;s surfaces. Every one of these meetings is counted in the figures
+                  above.
+                </span>
+              </p>
+            )}
 
             {/*
              * The screen's action. Eight rows is a sample of the register and

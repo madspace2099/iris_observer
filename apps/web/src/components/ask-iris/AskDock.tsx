@@ -1,9 +1,10 @@
 import { AskBarField } from "./AskBarField";
+import { PeriodField } from "./PeriodField";
 import { PromptGlow } from "./PromptGlow";
 import { Microphone, Send } from "./icons";
 
 /**
- * THE PROMPT BAR, DOCKED AT THE FOOT OF EVERY SURFACE EXCEPT ASK IRIS.
+ * THE PROMPT BAR, AT THE END OF EVERY SURFACE EXCEPT ASK IRIS.
  *
  * The user delivered this as its own export and asked for it on Sales Flow,
  * Project and Sales Agents in place of the floating "Ask Observer" panel that
@@ -18,6 +19,17 @@ import { Microphone, Send } from "./icons";
  * answer, and everything else about a conversation belongs on the surface that
  * holds conversations.
  *
+ * ## In the flow, not fixed
+ *
+ * It was `position: fixed` at the foot of the viewport. A fixed bar over a
+ * scrolling document covers something at some scroll position whatever its
+ * size — measured on the roster at four sizes and three positions, a
+ * focusable link sat under it in nine of twenty-four — so "it covers
+ * nothing" was a rule narrowed after each measurement. The layout renders it
+ * as the last child of `<main>`, after the page's content, and
+ * `fixed-covers-nothing.spec.ts` is the guard the rule never had. From the
+ * top of a long page the header's ASK IRIS item is the door.
+ *
  * ## Asking from here opens the answer over there
  *
  * A `GET` submit to `/{tenant}/{project}/ask`, so a question typed on Sales
@@ -28,7 +40,10 @@ import { Microphone, Send } from "./icons";
  *
  * The period travels with it, because "why did demand fall" is a different
  * question over 28 days than over a quarter, and a prompt that dropped the
- * period would answer the wrong one without saying so.
+ * period would answer the wrong one without saying so. It did drop it: the
+ * layout that renders this bar cannot see the query, so it passed an empty
+ * period and this paragraph was false. `PeriodField` reads the period off
+ * the URL in the browser, as the shell reads its own.
  *
  * ## Hidden on Ask IRIS by the stylesheet, not by a prop
  *
@@ -40,12 +55,10 @@ import { Microphone, Send } from "./icons";
  */
 export function AskDock({
   root,
-  periodParam,
   projectLabel,
 }: {
   /** `/{tenant}/{project}`. */
   readonly root: string;
-  readonly periodParam: string;
   readonly projectLabel: string;
 }) {
   return (
@@ -60,7 +73,7 @@ export function AskDock({
           <PromptGlow />
 
           <form className="ask-bar" method="get" action={`${root}/ask`} data-glow-card="">
-            {periodParam !== "" ? <input type="hidden" name="period" value={periodParam} /> : null}
+            <PeriodField />
 
             <AskBarField name="q" label={`Ask IRIS about ${projectLabel}`} />
 

@@ -994,12 +994,70 @@
 }
 
 /*
+ * THE COMPARISON LEADS WHEN THE PLANES STACK.
+ *
+ * On Presentation DNA the raised plane is the comparison — two lanes, what
+ * differs, the sample and the refusal — and the other plane is the material it
+ * is read against: every lane, the transitions, the finding. Side by side the
+ * order is not a narrative: both are on the first screen and the eye goes
+ * where it likes, so the composition stays as it was. Stacked, the order IS
+ * the narrative, and the material ran to 1,700px before the first "What
+ * differs" row — 950px of scroll at 1440×900, 1,082px at 1366×768, measured
+ * live. So the comparison comes first in the DOM, where reading order, focus
+ * order and the single column agree, and the two-column branch places it on
+ * the right by grid column rather than by source order. The hairline that
+ * separates the stacked planes stays between them: on the plane that now
+ * comes second.
+ *
+ * Opted into by the page, not inherited: `Replay.tsx` shares `.iris-two` and
+ * its raised plane is evidence, not a question.
+ */
+.iris-two[data-lead="aside"] > .iris-plane:not(.iris-plane--raised) {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.iris-two[data-lead="aside"] > .iris-plane--raised {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+@media (max-width: 90rem) {
+  .iris-two[data-lead="aside"] > .iris-plane:not(.iris-plane--raised),
+  .iris-two[data-lead="aside"] > .iris-plane--raised {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .iris-two[data-lead="aside"] > .iris-plane--raised {
+    border-top: 0;
+  }
+
+  .iris-two[data-lead="aside"] > .iris-plane:not(.iris-plane--raised) {
+    border-top: 1px solid var(--rule);
+  }
+}
+
+/*
  * A transition label is two section names and an arrow, so it needs more room
  * than a single section name. Truncating "amenities → residences" to
  * "amenities → residenc…" loses the half that carries the meaning.
  */
 .iris-bars[data-wide-labels="true"] .iris-bar {
   grid-template-columns: 13rem 1fr 4rem;
+}
+
+/*
+ * A share whose denominator changes from row to row prints the fraction
+ * beneath the figure, and "187 of 187" is ten monospace characters: a rem
+ * more than the percentage alone was given.
+ */
+.iris-bars[data-fraction="true"] .iris-bar {
+  grid-template-columns: 13rem 1fr 5rem;
+}
+
+.iris-bar-of {
+  display: block;
 }
 
 /*
@@ -1763,6 +1821,15 @@
   text-align: right;
 }
 
+/* What the rates are shares of, once, under the head. */
+.iris-paired-of {
+  margin: 0;
+  padding: 0.5rem 0 0.125rem;
+  max-width: 62ch;
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
 .iris-paired-value[data-muted="true"] {
   color: var(--ink-2);
 }
@@ -1808,7 +1875,8 @@
 
 .iris-parity-row {
   display: grid;
-  grid-template-columns: 8rem minmax(0, 1fr) 3.5rem;
+  /* Wide enough for the label and, under it, the two shares the index is made of. */
+  grid-template-columns: 14rem minmax(0, 1fr) 3.5rem;
   align-items: center;
   gap: 0.75rem;
 }
@@ -1865,6 +1933,15 @@
   font-weight: 600;
   text-align: right;
   color: var(--loss);
+}
+
+/* The two shares under the label: what the index is a quotient of, printed, not hovered. */
+.iris-parity-note {
+  display: block;
+  margin-top: 0.125rem;
+  font-style: normal;
+  font-size: 0.75rem;
+  color: var(--ink-2);
 }
 
 .iris-parity-value[data-over="true"] {
@@ -2160,12 +2237,18 @@
   color: var(--watch);
 }
 
-/* A demand row whose filter matched nothing is the finding, so it is marked. */
+/*
+ * The two count columns were 7rem: room for a number. Their heads carry the
+ * sets the counts are of now — "Times applied, of 74 presentations" — so
+ * they get the width at which such a head wraps to two lines, measured.
+ */
 .iris-matrix[data-columns="demand"] .iris-matrix-head,
 .iris-matrix[data-columns="demand"] .iris-matrix-row {
-  grid-template-columns: 8rem 1fr 7rem 7rem;
+  grid-template-columns: 8rem 1fr 13rem 13rem;
   gap: 1rem;
 }
+
+/* A demand row whose filter matched nothing is the finding, so it is marked. */
 
 .iris-matrix-row[data-empty="true"] {
   box-shadow: inset 2px 0 0 var(--loss);
@@ -2226,7 +2309,8 @@
 
   .iris-matrix[data-columns="demand"] .iris-matrix-head,
   .iris-matrix[data-columns="demand"] .iris-matrix-row {
-    grid-template-columns: 6rem 1fr 4rem 4rem;
+    /* Widened with the heads above; not photographed at this width this round. */
+    grid-template-columns: 6rem 1fr 9rem 9rem;
   }
 }
 
@@ -2344,6 +2428,46 @@
   .iris-matrix[data-columns="audience"] .iris-matrix-head > :nth-child(2),
   .iris-matrix[data-columns="audience"] .iris-matrix-row > :nth-child(2) {
     display: none;
+  }
+}
+
+/*
+ * Why a row matched, and what that stands on, row by row: the contract says
+ * every surface reading an unrecorded place says so, and a row is a claim.
+ */
+.iris-audience-why {
+  display: grid;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.iris-audience-basis {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--ink-2);
+}
+
+/*
+ * A phone: the reason takes the row's width and wraps. In the three-track row
+ * it was cut to five characters, so the claim it makes was never on screen.
+ */
+@container matrix (max-width: 40rem) {
+  .iris-matrix[data-columns="audience"] .iris-matrix-head {
+    display: none;
+  }
+
+  .iris-matrix[data-columns="audience"] .iris-matrix-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    row-gap: 0.25rem;
+  }
+
+  .iris-matrix[data-columns="audience"] .iris-audience-why {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .iris-matrix[data-columns="audience"] .iris-audience-why .iris-bar-label {
+    white-space: normal;
   }
 }
 

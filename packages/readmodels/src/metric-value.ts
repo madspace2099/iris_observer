@@ -45,7 +45,14 @@ export interface MetricComparison {
 export interface EvidenceRef {
   readonly evidenceId: EvidenceId;
   readonly tier: EvidenceTier;
-  /** Where clicking goes. Already resolved to a route by the read model. */
+  /**
+   * Where clicking goes. Already resolved to a route by the read model.
+   *
+   * EMPTY when no page lists these records — one contact's, since Observer
+   * has no contact page (ADR-0033, P2-16). The tier and the count are still
+   * true, so the reference is drawn as text, never as a link and never as
+   * `#`; every renderer of an `EvidenceRef` honours this.
+   */
   readonly href: string;
   /** How many underlying records. The honest denominator for the reader. */
   readonly observationCount: number;

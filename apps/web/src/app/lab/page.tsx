@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 
+import { labGate } from "./gate";
+
 export const metadata: Metadata = { title: "Design laboratory" };
 
-export default function LabIndex() {
+export default async function LabIndex() {
+  await labGate();
   return (
     <main style={{ padding: "3rem", maxWidth: "42rem" }}>
       <h1 style={{ fontSize: "1.5rem", margin: 0 }}>Design laboratory</h1>

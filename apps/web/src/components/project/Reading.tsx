@@ -1,4 +1,10 @@
-import type { DemandTrend } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type DemandTrend,
+  type Language,
+  type PluralForms,
+} from "@observer/readmodels";
 
 /**
  * READINGS THAT ARE NOT `MetricValue`, AND THE HONESTY THEY STILL OWE.
@@ -135,15 +141,21 @@ export function shareText(value: number, locale: string): string {
 }
 
 /**
- * A count and the noun it counts, agreeing in number.
+ * A count and the noun it counts, agreeing in number in the reader's language.
  *
  * "1 meetings" is the kind of detail that makes a reader trust the figure
  * beside it slightly less, and it is written in enough places on this screen —
  * every chart summary, every ranked row's subtitle — that spelling it inline
- * each time would eventually get one of them wrong.
+ * each time would eventually get one of them wrong. The noun arrives with its
+ * three languages' forms, written beside the sentence that uses it, and the
+ * language's own rules choose among them.
  */
-export function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+export function counted(
+  n: number,
+  forms: PluralForms,
+  language: Language = DEFAULT_LANGUAGE,
+): string {
+  return `${n} ${plural(language, n, forms)}`;
 }
 
 /** The three words `DemandTrend` can take, so no caller spells one for itself. */

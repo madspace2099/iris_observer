@@ -54,12 +54,33 @@ export interface KpiFigure {
   readonly points: readonly number[];
 }
 
+/**
+ * One of the summary row's four groups (R05, item 2): Volume, Progress,
+ * Conversion, Cycle time, each named and defined.
+ *
+ * A group nothing on the page measures is printed as empty, with what is
+ * missing, rather than dropped. A group quietly left out is the same lie as a
+ * zero standing in for a value nobody measured (`report/page.tsx`).
+ */
+export interface KpiGroup {
+  readonly id: "volume" | "progress" | "conversion" | "cycle_time";
+  readonly label: string;
+  readonly definition: string;
+  /** Ids from `KpiPanel.figures`, in the order drawn. Empty when nothing measures the group. */
+  readonly figureIds: readonly string[];
+  /** For an empty group, what is missing. Null when the group holds figures. */
+  readonly missing: string | null;
+}
+
 export interface KpiPanel {
   readonly window: KpiWindowId;
   readonly windowLabel: string;
   readonly figures: readonly KpiFigure[];
   /** Stated when the window holds too little to read. */
   readonly caveat: string | null;
+  readonly groups: readonly KpiGroup[];
+  /** Figures that belong to none of the groups, drawn in the row beside them. */
+  readonly ungrouped: readonly string[];
 }
 
 /* --- when meetings actually happen ------------------------------------------ */
@@ -127,12 +148,64 @@ export interface RadarProfile {
   readonly tone: string;
   /** Normalised 0–1 against the strongest agent on each axis. */
   readonly values: readonly number[];
+  /**
+   * `meetings < AGENT_MIN_SAMPLE`. A shape scaled against the strongest
+   * colleague on every axis is a ranking without numbers, and below the floor
+   * no agent figure is presented as a verdict: the card prints `note` and not
+   * the shape.
+   */
+  readonly belowMinimum: boolean;
+  /** The floor's own sentence, null when the sample clears it. */
+  readonly note: string | null;
 }
 
 export interface AgentRadar {
   readonly axes: readonly string[];
   readonly axisNotes: readonly string[];
   readonly profiles: readonly RadarProfile[];
+}
+
+/* --- which parts of the showroom an agent uses ---------------------------------- */
+
+/**
+ * One way of using the showroom.
+ *
+ * Not the radar's six. Those describe how a presentation is paced; these are
+ * the tools in it — the compare view, the favourite, the floor cut — and
+ * whether an agent reaches for them at all.
+ */
+export interface FeatureUsageAxis {
+  readonly id: string;
+  readonly label: string;
+  /** What the axis counts, in words a reader without the metric vocabulary follows. */
+  readonly note: string;
+  /**
+   * For an axis the current build cannot answer: what is missing, and why,
+   * as a KPI group with nothing to measure says it (`KpiGroup.missing`). Null
+   * when the axis is measured. A missing axis is shown as missing — never left
+   * out, never drawn at nought.
+   */
+  readonly missing: string | null;
+}
+
+export interface FeatureUsageProfile {
+  readonly id: string;
+  readonly label: string;
+  readonly meetings: number;
+  /**
+   * One per axis, in the axes' order: the part of this agent's meetings that
+   * used it at least once, 0 to 1. Null on an axis that is not measured.
+   */
+  readonly values: readonly (number | null)[];
+  /** `meetings < AGENT_MIN_SAMPLE`: the figures stand, and no shape is drawn from them. */
+  readonly belowMinimum: boolean;
+  /** The floor's own sentence, null when the sample clears it. */
+  readonly note: string | null;
+}
+
+export interface FeatureUsage {
+  readonly axes: readonly FeatureUsageAxis[];
+  readonly profiles: readonly FeatureUsageProfile[];
 }
 
 /* --- an ordered list where the order is the finding ---------------------------- */
@@ -243,6 +316,7 @@ export interface ProjectCharts {
 export interface AgentCharts {
   readonly radar: AgentRadar;
   readonly ranked: readonly RankedRow[];
+  readonly featureUsage: FeatureUsage;
 }
 
 export type { SectionId };

@@ -1,8 +1,15 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { WRAPPERS, renderWrapper, extractBody } from "../../scripts/release/wrap-migration";
+import {
+  STAGED_REMEDY,
+  VERBATIM,
+  WRAPPERS,
+  extractBody,
+  missingStaged,
+  renderWrapper,
+} from "../../scripts/release/wrap-migration";
 
 /**
  * The contract migration's own instructions must state the corrected
@@ -24,7 +31,17 @@ const ROOT = join(import.meta.dirname, "..", "..");
 const SOURCE = "supabase/migrations/20260826090000_observer_audit_facade_cleanup.sql";
 const WRAPPER = "_sql-to-paste/observer-migration-2-contract.sql";
 
-const read = (p: string): string => readFileSync(join(ROOT, p), "utf8");
+/**
+ * A read of the generated directory names the gap rather than failing on a
+ * bare ENOENT: measured with it moved away, 30 cases here said nothing else.
+ */
+const bytes = (p: string): Buffer => {
+  if (p.startsWith("_sql-to-paste") && !existsSync(join(ROOT, p))) {
+    throw new Error(`${p} is missing. ${STAGED_REMEDY}`);
+  }
+  return readFileSync(join(ROOT, p));
+};
+const read = (p: string): string => bytes(p).toString("utf8");
 
 /** Comments stripped, whitespace collapsed: what the server actually runs. */
 const strip = (sql: string): string =>
@@ -171,6 +188,25 @@ describe("every paste wrapper is generated from its source", () => {
        * self-consistent.
        */
       expect(read(join("_sql-to-paste", spec.out))).toBe(renderWrapper(spec, ROOT));
+    },
+  );
+});
+
+describe("the generated directory is there and current, or says what makes it", () => {
+  /*
+   * `_sql-to-paste/` is gitignored and holds no tracked file, so a fresh clone
+   * has none of it. With the directory moved away, every reader here failed on
+   * a bare ENOENT: red, but naming nothing. This test is the one that names it.
+   */
+  it("holds every file the generator writes", () => {
+    expect(missingStaged(ROOT), STAGED_REMEDY).toEqual([]);
+  });
+
+  it.each(VERBATIM.map((v) => [v.out, v] as const))(
+    "%s is byte-identical to its tracked source",
+    (_name, spec) => {
+      const staged = bytes(join("_sql-to-paste", spec.out));
+      expect(staged.equals(bytes(spec.source)), `stale. ${STAGED_REMEDY}`).toBe(true);
     },
   );
 });

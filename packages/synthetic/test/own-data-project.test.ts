@@ -9,6 +9,7 @@ import {
   type ShowroomSessionSource,
   type TenantSummary,
   type Viewer,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 
 import { SyntheticObserverRepository } from "../src/repository";
@@ -58,6 +59,7 @@ const query = {
   tenantSlug: tenant.slug,
   projectSlug: project.slug,
   period: "last_28_days",
+  language: DEFAULT_LANGUAGE,
 } as const;
 
 function meeting(id: string, agentId: string, projectId: string): ShowroomSession {
@@ -130,6 +132,7 @@ describe("a quiet period on a showroom that works is still a count", () => {
         tenantSlug: "madspace-integration",
         projectSlug: "akhilesh-demo-source",
         period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
       },
       NO_FILTERS,
     );
@@ -194,6 +197,7 @@ describe("every meeting shows who presented it", () => {
       tenantSlug: tenant.slug,
       projectSlug: project.slug,
       meetingId: named.meetingId as never,
+      language: DEFAULT_LANGUAGE,
     });
     expect(replay.agentName).toBe("Monika Kováčová");
     expect(replay.agentHref).toBe("/alder-homes/alder-court/agents/AG-1");
@@ -208,6 +212,7 @@ describe("every meeting shows who presented it", () => {
         tenantSlug: "madspace-integration",
         projectSlug: "akhilesh-demo-source",
         period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
       },
       NO_FILTERS,
     );

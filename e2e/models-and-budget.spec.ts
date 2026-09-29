@@ -1,5 +1,6 @@
 import { expect, test, type APIResponse, type Page } from "@playwright/test";
 import { signIn } from "./sign-in";
+import { credentialStoreMissing } from "./secrets";
 
 /**
  * MODEL CHOICE AND THE MONTHLY BUDGET, THROUGH THE BROWSER.
@@ -258,6 +259,8 @@ test.afterAll(async ({ browser }) => {
   const page = await context.newPage();
   for (const account of [PETRA, MONIKA]) {
     await signIn(page, account);
+    /* Without a credential store nothing could have been connected or spent, and the forms that would reset them are disabled. */
+    if ((await credentialStoreMissing(page)) !== null) continue;
     await disconnect(page, "openai");
     await setBudget(page, 0);
   }
@@ -288,6 +291,11 @@ test.describe("the budget belongs to one account", () => {
 
     /* Petra: a ceiling, and some of it spent. */
     await signIn(page, PETRA);
+    const missing = await credentialStoreMissing(page);
+    test.skip(
+      missing !== null,
+      `${missing ?? ""} — not measured: whether spending on one account leaves the other's budget untouched`,
+    );
     await connect(page, "openai", GOOD);
     await setHeadroom(page, 1);
     const petraAnswered = await ask(page);
@@ -594,6 +602,11 @@ test.describe("what a reader is shown", () => {
 
   test("tells an account with no key what to do about it", async ({ page }) => {
     await signIn(page, MONIKA);
+    const missing = await credentialStoreMissing(page);
+    test.skip(
+      missing !== null,
+      `${missing ?? ""} — not measured: whether an account with no key is told what to do about it`,
+    );
     await settings(page);
 
     /* Whatever is stored is removed first, so the empty state is under test. */

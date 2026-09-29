@@ -1,10 +1,16 @@
 import Link from "next/link";
-import type { MeetingReplay, PeriodPreset, ReportScopeView } from "@observer/readmodels";
+import type {
+  MeetingFilters,
+  MeetingReplay,
+  PeriodPreset,
+  ReportScopeView,
+} from "@observer/readmodels";
 import { ExportReport } from "@/components/report";
 
 import { Evidence, PageHead, Sources, Synthetic } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
+import { withMeetingFilters } from "./filters";
 import { MeetingJourney } from "./MeetingJourney";
 import { MeetingOutcomes } from "./MeetingOutcomes";
 
@@ -43,14 +49,17 @@ import { MeetingOutcomes } from "./MeetingOutcomes";
  * the contract's own name for `IRIS_SHOWROOM_DERIVED`. Nothing on this screen
  * asks the reader to guess which sentences Observer worked out.
  *
- * The summary the brief asks for — three two-bedroom apartments viewed, two
+ * The summary the brief asks for — three two-room flats opened, two
  * shortlisted, the strongest interest in the south-facing units — needs the
- * unit CATALOGUE beside the replay: rooms, orientation and price band are unit
- * attributes and `MeetingReplay` carries unit codes. Producing that sentence
- * here would mean joining two read models in a component, which ADR-0012
- * forbids outright, so the read model's own headline is what is shown and the
- * richer summary is reported as a missing field rather than assembled on the
- * page.
+ * unit CATALOGUE beside the replay: rooms and orientation are unit attributes
+ * and `MeetingReplay` carries unit codes. This file used to report that
+ * sentence as a missing field, because assembling it here would join two read
+ * models in a component, which ADR-0012 forbids. It is no longer missing: the
+ * join lives in `buildMeetingReplay` (`packages/synthetic/src/showroom/project.ts`),
+ * where the catalogue and the session are both already in hand, and arrives
+ * here as `MeetingReplay.unitsViewed` — one sentence for the rooms and the
+ * shortlist, one for where the looking time leaned. Both are derived, so both
+ * sit under the same title and the same source chip as the headline.
  *
  * ## ADR-0018 is a property of the route, not of this file
  *
@@ -64,6 +73,7 @@ export function MeetingReplayView({
   replay,
   period,
   base,
+  filters,
   crmConnected,
   report,
 }: {
@@ -73,8 +83,16 @@ export function MeetingReplayView({
   readonly period: PeriodPreset;
   /** `/{tenantSlug}/{projectSlug}`. The register and the project hang off it. */
   readonly base: string;
+  /**
+   * The register the reader opened this meeting from, as the row's link
+   * carried it. Both ways back return to that register, not to the whole
+   * period (P2-16: list → detail → back keeps the scope).
+   */
+  readonly filters: MeetingFilters;
   readonly crmConnected: boolean;
 }) {
+  const register = withMeetingFilters(`${base}/meetings`, filters);
+  const narrowed = filters.agentId !== null || filters.channel !== null || filters.outcome !== null;
   return (
     <div className="ox-page">
       <PageHead
@@ -104,14 +122,18 @@ export function MeetingReplayView({
         }
         crumbs={[
           { label: "Project", href: `${base}/project` },
-          { label: "Meetings", href: `${base}/meetings` },
+          { label: "Meetings", href: register },
           { label: replay.startedDisplay },
         ]}
         aside={
           <>
             <Synthetic />
-            <Link className="ox-btn" href={dynamicRoute(withPeriod(`${base}/meetings`, period))}>
-              Every meeting in the period
+            {/*
+             * The label follows the destination (rule 21): a link back to
+             * three filtered meetings does not say "every meeting".
+             */}
+            <Link className="ox-btn" href={dynamicRoute(withPeriod(register, period))}>
+              {narrowed ? "Back to the narrowed register" : "Every meeting in the period"}
             </Link>
             <ExportReport
               report={report}
@@ -133,6 +155,15 @@ export function MeetingReplayView({
           </div>
 
           <p className="ox-answer">{replay.headline}</p>
+          {/*
+           * Joined in the read model, never here. `unitsViewed` is the
+           * catalogue laid beside the session inside `buildMeetingReplay`; this
+           * component draws the two sentences it was handed and computes nothing.
+           * They are derived exactly as the headline is, and the one title and
+           * one source chip below cover all three.
+           */}
+          <p className="ox-lede">{replay.unitsViewed.sentence}</p>
+          <p className="ox-lede">{replay.unitsViewed.interest.sentence}</p>
 
           <div className="ox-finding-foot">
             <Sources sources={["IRIS_SHOWROOM_DERIVED"]} />

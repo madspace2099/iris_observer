@@ -17,9 +17,198 @@ import type {
   ProjectSource,
   ViewContext,
 } from "@observer/readmodels";
-import { ATTENTION_KIND_DEFINITIONS } from "@observer/readmodels";
+import {
+  ATTENTION_KIND_DEFINITIONS,
+  sentence,
+  slovakZForm,
+  type PluralForms,
+  type Sentence,
+} from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import { count, dayLabel, evidenceRef, percent } from "../format";
+
+/*
+ * The words the attention findings count in, beside the findings that use
+ * them. The Slovak and Hungarian forms are the ones a count takes standing
+ * alone or as a subject; a sentence that governs another case chooses its
+ * forms when it is translated.
+ */
+
+export const ATTENTION_UNITS: PluralForms = {
+  en: { one: "unit", other: "units" },
+  sk: { one: "jednotka", few: "jednotky", other: "jednotiek" },
+  hu: { one: "egység", other: "egység" },
+};
+
+export const ATTENTION_SOURCES_SILENT: PluralForms = {
+  en: { one: "connected source has sent nothing", other: "connected sources have sent nothing" },
+  sk: {
+    one: "pripojený zdroj neposlal nič",
+    few: "pripojené zdroje neposlali nič",
+    other: "pripojených zdrojov neposlalo nič",
+  },
+  hu: {
+    one: "csatlakoztatott forrás nem küldött semmit",
+    other: "csatlakoztatott forrás nem küldött semmit",
+  },
+};
+
+export const ATTENTION_SOURCES_LISTED: PluralForms = {
+  en: { one: "source is listed", other: "sources are listed" },
+  sk: { one: "zdroj je uvedený", few: "zdroje sú uvedené", other: "zdrojov je uvedených" },
+  hu: { one: "forrás szerepel", other: "forrás szerepel" },
+};
+
+export const ATTENTION_NEVER_REPORTED: PluralForms = {
+  en: { one: "has never reported", other: "have never reported" },
+  sk: { one: "sa nikdy neozval", few: "sa nikdy neozvali", other: "sa nikdy neozvalo" },
+  hu: { one: "soha nem jelentkezett", other: "soha nem jelentkezett" },
+};
+
+export const ATTENTION_NEVER_SHORTLISTED: PluralForms = {
+  en: { one: "was never shortlisted", other: "were never shortlisted" },
+  sk: {
+    one: "nebola nikdy vybraná",
+    few: "neboli nikdy vybrané",
+    other: "nebolo nikdy vybraných",
+  },
+  hu: { one: "soha nem került kiválasztásra", other: "soha nem került kiválasztásra" },
+};
+
+/*
+ * The findings' sentences, each written once per language in that language's
+ * own order. A baseline label is given in parentheses, where it reads whatever
+ * language it was written in.
+ */
+
+/** "3 units drew materially fewer views than in the previous quarter." */
+export const ATTENTION_FALLING_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {units|n} drew materially fewer views than in {baseline}.",
+    words: { units: ATTENTION_UNITS.en },
+  },
+  sk: {
+    text: "{falling|n}",
+    words: {
+      falling: {
+        one: "Jeden byt mal výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+        few: "{#units|n} byty mali výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+        other:
+          "{#units|n} bytov malo výrazne menej zobrazení než v porovnávacom období ({baseline}).",
+      },
+    },
+    /* Capitalised: the numeral starts the sentence. */
+    numerals: { units: ["Jeden", "Dva", "Tri", "Štyri", "Päť"] },
+  },
+  hu: {
+    text: "{falling|n}",
+    words: {
+      falling: {
+        one: "Egy lakást jóval kevesebbszer néztek meg, mint az összehasonlító időszakban ({baseline}).",
+        other:
+          "{#units|n} lakást jóval kevesebbszer néztek meg, mint az összehasonlító időszakban ({baseline}).",
+      },
+    },
+    numerals: { units: ["Egy", "Két", "Három", "Négy", "Öt"] },
+  },
+};
+
+/** "3 connected sources have sent nothing for more than 72 hours." */
+export const ATTENTION_SILENT_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {silent|n} for more than {hours} {hoursWord|h}.",
+    words: { silent: ATTENTION_SOURCES_SILENT.en, hoursWord: { one: "hour", other: "hours" } },
+  },
+  sk: {
+    text: "{silent|n}",
+    words: {
+      silent: {
+        one: "Jeden pripojený zdroj už viac ako {hours} {hoursWord|h} neposlal žiadne údaje.",
+        few: "{#sources|n} pripojené zdroje už viac ako {hours} {hoursWord|h} neposlali žiadne údaje.",
+        other:
+          "{#sources|n} pripojených zdrojov už viac ako {hours} {hoursWord|h} neposlalo žiadne údaje.",
+      },
+      /* After "viac ako": the accusative. 72 takes `other`, "72 hodín". */
+      hoursWord: { one: "hodinu", few: "hodiny", other: "hodín" },
+    },
+    numerals: { sources: ["Jeden", "Dva", "Tri", "Štyri", "Päť"] },
+  },
+  hu: {
+    text: "{silent|n}",
+    words: {
+      silent: {
+        one: "Egy csatlakoztatott adatforrás már több mint {hours} órája nem küldött adatot.",
+        other:
+          "{#sources|n} csatlakoztatott adatforrás már több mint {hours} órája nem küldött adatot.",
+      },
+    },
+    numerals: { sources: ["Egy", "Két", "Három", "Négy", "Öt"] },
+  },
+};
+
+/** "3 sources are listed on this project and have never reported." */
+export const ATTENTION_NEVER_REPORTED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {listed|n} on this project and {never|n}.",
+    words: { listed: ATTENTION_SOURCES_LISTED.en, never: ATTENTION_NEVER_REPORTED.en },
+  },
+  sk: {
+    text: "{reported|n}",
+    words: {
+      reported: {
+        one: "Jeden zdroj priradený k tomuto projektu ešte nikdy neposlal údaje.",
+        few: "{#sources|n} zdroje priradené k tomuto projektu ešte nikdy neposlali údaje.",
+        other: "{#sources|n} zdrojov priradených k tomuto projektu ešte nikdy neposlalo údaje.",
+      },
+    },
+    numerals: { sources: ["Jeden", "Dva", "Tri", "Štyri", "Päť"] },
+  },
+  hu: {
+    text: "{reported|n}",
+    words: {
+      reported: {
+        one: "Az ehhez a projekthez rendelt adatforrások közül egy még soha nem küldött adatot.",
+        other:
+          "Az ehhez a projekthez rendelt adatforrások közül {#sources|n} még soha nem küldött adatot.",
+      },
+    },
+    /* Lower case: the numeral does not start the sentence. */
+    numerals: { sources: ["egy", "két", "három", "négy", "öt"] },
+  },
+};
+
+/** "3 units with at least 10 observations were never shortlisted in this period." */
+export const ATTENTION_NEVER_SHORTLISTED_SENTENCE: Sentence = {
+  en: {
+    text: "{count} {units|n} with at least {minimum} observations {never|n} in this period.",
+    words: { units: ATTENTION_UNITS.en, never: ATTENTION_NEVER_SHORTLISTED.en },
+  },
+  sk: {
+    text: "{never|n}",
+    words: {
+      never: {
+        one: "Jeden byt otvorili aspoň {minimum}-krát, no v tomto období sa ani raz nedostal do zoznamu obľúbených.",
+        few: "Každý {fromWord} {#units|n} bytov bol otvorený aspoň {minimum}-krát, no v tomto období sa ani jeden nedostal do zoznamu obľúbených.",
+        other:
+          "Každý {fromWord} {#units|n} bytov bol otvorený aspoň {minimum}-krát, no v tomto období sa ani jeden nedostal do zoznamu obľúbených.",
+      },
+    },
+    /* The first cell is never read: one unit is the `one` form. "z" or "zo" is `fromWord`, from `slovakZForm`. */
+    numerals: { units: ["", "dvoch", "troch", "štyroch", "piatich"] },
+  },
+  hu: {
+    text: "{never|n}",
+    words: {
+      never: {
+        one: "Egy lakást legalább {minimum} alkalommal megnyitottak, de ebben az időszakban egyszer sem került fel a Kedvencek listára.",
+        other:
+          "{#units|n} lakás mindegyikét legalább {minimum} alkalommal megnyitották, de ebben az időszakban egyik sem került fel a Kedvencek listára.",
+      },
+    },
+    /* The first cell is never read. */
+    numerals: { units: ["", "Két", "Három", "Négy", "Öt"] },
+  },
+};
 
 /**
  * What is worth a person's attention, across every screen at once.
@@ -100,6 +289,7 @@ export function buildAttention(
   previous: readonly ShowroomSession[],
 ): AttentionView {
   const locale = context.project.locale;
+  const language = context.language;
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const crm = context.project.connectedSources.includes("crm");
 
@@ -166,12 +356,32 @@ export function buildAttention(
         belowMinimum: shortlisted.length < UNIT_MIN_SAMPLE,
         tier: "observed_sequence",
         sources: WITH_OUTCOME,
-        actionLabel: "Open those meetings",
+        /*
+         * What the link opens, said plainly. It read "Open those meetings" and
+         * opened the whole register: the register has no filter for "shortlisted,
+         * and no outcome that asks for a follow-up", so the five named above are
+         * the ones a reader can reach from here.
+         */
+        actionLabel: "Open the meeting register",
         actionHref: `${root}/meetings`,
         observationCount: stranded.length,
       });
     }
   }
+
+  /* --- 1b. lateness -------------------------------------------------------- */
+
+  /*
+   * Asked, and not evaluated. A follow-up is late only against a task, the
+   * deadline it was given and whether it was done, and none of the three
+   * reaches Observer: the room records that a follow-up was asked for, never
+   * by when, nor whether it happened. Days since the meeting are not a
+   * deadline, so no follow-up is called late, on time or clear.
+   */
+  cannotAsk(
+    "follow_up_lateness",
+    "Lateness needs a follow-up task, the deadline it was given and whether it was done. None of the three is recorded, so no follow-up is called late, on time or clear.",
+  );
 
   /* --- 2. demand falling --------------------------------------------------- */
 
@@ -204,7 +414,12 @@ export function buildAttention(
         kind: "demand_dropping",
         severity: falling.length >= 3 ? "warning" : "info",
         title: "Attention falling on units that used to draw it",
-        detail: `${count(falling.length, locale)} unit${falling.length === 1 ? "" : "s"} drew materially fewer views than in ${context.period.baselineLabel}.`,
+        detail: sentence(language, ATTENTION_FALLING_SENTENCE, {
+          count: count(falling.length, locale),
+          units: count(falling.length, locale),
+          n: falling.length,
+          baseline: context.period.baselineLabel,
+        }),
         subjects: falling.slice(0, 5).map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.before, locale)} → ${count(u.now, locale)}`,
@@ -224,6 +439,17 @@ export function buildAttention(
 
   /* --- 3. outcomes nothing verifies ---------------------------------------- */
 
+  /*
+   * Two checks, two counters (decided 2026-09-27). This one asks whether a
+   * system of record can confirm what a presentation ended in; the next asks
+   * whether the room recorded an outcome at all. They were one check with two
+   * mutually exclusive branches, so a project with a CRM was only ever asked
+   * the second question, under the first one's name.
+   *
+   * It is raised before the recorded check on purpose: where both are raised
+   * at the same size, the ranking keeps the order they were raised in, and
+   * the missing CRM is the cause the reader can act on.
+   */
   const unrecorded = sessions.filter((s) => outcomeIsUnknown(s.outcome)).length;
   if (sessions.length === 0) {
     cannotAsk(
@@ -241,8 +467,27 @@ export function buildAttention(
        */
       severity: "warning",
       title: "No outcome can be verified on this project",
-      detail: `None of the ${count(sessions.length, locale)} presentations in this period has a recorded outcome, and no CRM is connected to supply one.`,
-      subjects: [{ id: "crm", label: "Connect a CRM", href: null }],
+      /*
+       * WHAT THE BRANCH KNOWS, AND NOT MORE.
+       *
+       * The condition here is `!crm`, and it establishes exactly one thing:
+       * nothing can confirm what a presentation ended in. It used to add that
+       * none of them HAS a recorded outcome, which is a different fact and one
+       * this branch never tested — an agent records an outcome in the room, and
+       * a project with a CRM still had eleven of eighty-two unrecorded. The two
+       * coincide on the only fixture that reaches this branch, which is how a
+       * sentence stronger than its condition survives being read.
+       *
+       * The title was already right: verification is what is missing.
+       */
+      detail: `No CRM is connected to this project, so nothing can confirm what the ${count(sessions.length, locale)} presentations in this period ended in.`,
+      /*
+       * The list is labelled "What this is about" and it held "Connect a CRM",
+       * which is what to DO about it. Naming the remedy where the affected
+       * thing belongs leaves a reader with one item and no idea what it is one
+       * OF. The scope is every presentation in the period, so it says that.
+       */
+      subjects: [{ id: "crm", label: "Every presentation in this period", href: null }],
       sampleSize: sessions.length,
       minimumSampleSize: UNIT_MIN_SAMPLE,
       belowMinimum: false,
@@ -252,22 +497,44 @@ export function buildAttention(
       actionHref: null,
       observationCount: sessions.length,
     });
+  } else {
+    /*
+     * Connected, and still not evaluated. The CRM's deals are joined to units
+     * and contacts, never to a meeting, so no presentation's outcome can be
+     * confirmed by it one meeting at a time. Calling that Clear would claim a
+     * verification that never ran.
+     */
+    cannotAsk(
+      "crm_verification_missing",
+      `The CRM is connected, but its deals are not linked to meetings, so none of the ${count(sessions.length, locale)} presentations in this period can have its outcome confirmed by it.`,
+    );
+  }
+
+  /* --- 3b. outcomes nobody recorded ---------------------------------------- */
+
+  if (sessions.length === 0) {
+    cannotAsk(
+      "outcome_not_recorded",
+      "No presentations were recorded in this period, so there is no outcome to look for.",
+    );
   } else if (unrecorded === 0) {
     clear(
-      "crm_verification_missing",
+      "outcome_not_recorded",
       `Every one of the ${count(sessions.length, locale)} presentations in this period carries a recorded outcome.`,
     );
   } else {
     const rate = share(unrecorded, sessions.length);
     raise({
-      kind: "crm_verification_missing",
+      kind: "outcome_not_recorded",
       /*
-       * Red here, and only here. The CRM is connected, the meetings happened,
-       * and more than half of them left no record — the source exists and the
-       * facts are being lost, which is the one situation on this surface that a
-       * reader has to act on today.
+       * Red only with a CRM connected: the meetings happened, the source that
+       * carries their outcomes exists, and more than half of them left no
+       * record — facts are being lost, which a reader has to act on today.
+       * Without a CRM no presentation here carries an outcome at all, a
+       * configuration state every surface already says out loud, so it stays
+       * at warning, as the verification check beside it does.
        */
-      severity: rate > 0.5 ? "critical" : rate > 0.25 ? "warning" : "info",
+      severity: rate > 0.5 && crm ? "critical" : rate > 0.25 ? "warning" : "info",
       title: "Meetings ending without a recorded outcome",
       detail: `${count(unrecorded, locale)} of ${count(sessions.length, locale)} presentations (${percent(rate, locale)}) ended with no outcome recorded.`,
       subjects: sessions
@@ -282,9 +549,15 @@ export function buildAttention(
       minimumSampleSize: UNIT_MIN_SAMPLE,
       belowMinimum: false,
       tier: "observed_sequence",
-      sources: WITH_OUTCOME,
+      sources: crm ? WITH_OUTCOME : OBSERVED,
       actionLabel: "See the meetings",
-      actionHref: `${root}/meetings`,
+      /*
+       * The meetings this state counts, and no others: the register filtered to
+       * the recorded outcome it names, so the list it opens holds as many rows
+       * as the card says. It opened the whole register, 74 rows under a card
+       * about nine.
+       */
+      actionHref: `${root}/meetings?outcome=skipped`,
       observationCount: unrecorded,
     });
   }
@@ -317,8 +590,18 @@ export function buildAttention(
       title: quiet.length > 0 ? "A connected source has gone quiet" : "A source has never reported",
       detail:
         quiet.length > 0
-          ? `${count(quiet.length, locale)} connected source${quiet.length === 1 ? " has" : "s have"} sent nothing for more than ${QUIET_AFTER_HOURS} hours.`
-          : `${count(neverSeen.length, locale)} source${neverSeen.length === 1 ? " is" : "s are"} listed on this project and ${neverSeen.length === 1 ? "has" : "have"} never reported.`,
+          ? sentence(language, ATTENTION_SILENT_SENTENCE, {
+              count: count(quiet.length, locale),
+              sources: count(quiet.length, locale),
+              n: quiet.length,
+              hours: count(QUIET_AFTER_HOURS, locale),
+              h: QUIET_AFTER_HOURS,
+            })
+          : sentence(language, ATTENTION_NEVER_REPORTED_SENTENCE, {
+              count: count(neverSeen.length, locale),
+              sources: count(neverSeen.length, locale),
+              n: neverSeen.length,
+            }),
       subjects: [...quiet, ...neverSeen].map((s) => ({
         id: s.id,
         label:
@@ -385,7 +668,13 @@ export function buildAttention(
         kind: "viewed_never_shortlisted",
         severity: never.length >= 3 ? "warning" : "info",
         title: "Opened repeatedly, never shortlisted",
-        detail: `${count(never.length, locale)} unit${never.length === 1 ? "" : "s"} with at least ${UNIT_MIN_SAMPLE} observations ${never.length === 1 ? "was" : "were"} never shortlisted in this period.`,
+        detail: sentence(language, ATTENTION_NEVER_SHORTLISTED_SENTENCE, {
+          count: count(never.length, locale),
+          units: count(never.length, locale),
+          n: never.length,
+          fromWord: slovakZForm(never.length),
+          minimum: count(UNIT_MIN_SAMPLE, locale),
+        }),
         subjects: never.slice(0, 5).map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.views, locale)} views, ${count(u.meetings, locale)} meetings`,

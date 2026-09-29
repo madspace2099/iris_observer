@@ -86,3 +86,10 @@ These drive the developer-facing screens rather than the identity logic.
 4. **Independent.** Any scenario can be loaded into an empty project on its own.
 5. **Honest volumes.** Roughly 100 visitors per week per project, meetings in the tens per month. A demo
    with 50,000 meetings would hide every small-sample problem the product is designed to surface.
+
+A **rehearsal** is not a scenario, and rule 5 stands for the world. `showroomPaceRehearsal` draws one
+project at showroom pace — every agent, every day, three to five meetings — through the same generator,
+agents, catalogue, clock and outcome model, so that a drawing meant for that volume can be judged at it
+(design lab D's bubble lens). It never enters the world: `showroomSessions` does not return it, no
+repository reads it, its identifiers carry an `r` so none can name a recorded meeting, and a surface that
+draws it says it is a rehearsal.

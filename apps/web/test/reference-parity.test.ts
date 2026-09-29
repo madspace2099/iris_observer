@@ -206,6 +206,12 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
   "/design-lab/stress/[screen]/[variant]",
 
   /*
+   * Variant D, the product's charts under the Hyper kit's treatment. The lab's
+   * gate, and a route of its own: its subject is the charts, not a screen.
+   */
+  "/design-lab/variants/d",
+
+  /*
    * Integrations — the CRM behind one project, on the MADSPACE operations
    * surface (ADR-0036). Reached from the project's own page; the daily sync
    * and the Lomnio webhook are API handlers beside it and are not pages.

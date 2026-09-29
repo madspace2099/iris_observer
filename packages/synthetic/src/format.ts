@@ -1,4 +1,12 @@
-import type { EvidenceRef, MetricValue, MetricComparison } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  plural,
+  type EvidenceRef,
+  type Language,
+  type MetricValue,
+  type MetricComparison,
+  type PluralForms,
+} from "@observer/readmodels";
 import { EvidenceIdSchema, type EvidenceTier } from "@observer/contracts";
 
 /**
@@ -11,10 +19,22 @@ import { EvidenceIdSchema, type EvidenceTier } from "@observer/contracts";
  * feel unfinished.
  */
 
+/**
+ * A price, in the project's locale and currency.
+ *
+ * `currencyDisplay: "narrowSymbol"`, because on a Hungarian locale the euro is
+ * otherwise written "240 000 EUR", not "240 000 €". For the euro on the
+ * Slovak and English locales it changes nothing: "240 000 €", "€240,000". A
+ * currency other than the euro is written with its narrow symbol on every
+ * locale — "Kč 240,000" where it was "CZK 240,000", "$240,000" where it was
+ * "US$240,000"; every synthetic project is priced in euros or pounds, where
+ * nothing changes.
+ */
 export function money(value: number, currency: string, locale: string): string {
   return new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
+    currencyDisplay: "narrowSymbol",
     maximumFractionDigits: 0,
   }).format(value);
 }
@@ -54,6 +74,17 @@ export function count(value: number, locale: string): string {
 }
 
 /**
+ * A share as the reader sees it: a whole percent in the project's locale, and
+ * never "0%" for something that happened. A share that rounds away to nothing
+ * but is not nothing prints as "<1%" — a bare "0%" reads as absence, the one
+ * thing a rounding may not say. The threshold is half a percent, below which
+ * `percent` would print 0%.
+ */
+export function shareDisplay(value: number, locale: string): string {
+  return value > 0 && value < 0.005 ? `<${percent(0.01, locale)}` : percent(value, locale);
+}
+
+/**
  * A signed delta with a true minus sign rather than a hyphen.
  *
  * A value that rounds away to nothing is reported as no change. "−0%" is
@@ -88,9 +119,16 @@ export function movement(
   return { direction: delta > 0 ? "up" : "down", deltaDisplay };
 }
 
-export function days(value: number): string {
+/** A span of days. It is printed to a tenth, so a fraction takes Slovak's fourth form. */
+export const FORMAT_DAYS: PluralForms = {
+  en: { one: "day", other: "days" },
+  sk: { one: "deň", few: "dni", many: "dňa", other: "dní" },
+  hu: { one: "nap", other: "nap" },
+};
+
+export function days(value: number, language: Language = DEFAULT_LANGUAGE): string {
   const rounded = Math.round(value * 10) / 10;
-  return `${rounded} ${rounded === 1 ? "day" : "days"}`;
+  return `${rounded} ${plural(language, rounded, FORMAT_DAYS)}`;
 }
 
 /* --- dates and times, in the project's own zone --------------------------- */
@@ -151,6 +189,20 @@ export function monthYearLabel(iso: string | Date, locale: string, timeZone: str
 }
 
 /* --- builders -------------------------------------------------------------- */
+
+/**
+ * THE ROUTE OF RECORDS NO PAGE LISTS.
+ *
+ * One contact's records — their visits, their favourites, the buyers behind a
+ * follow-up count — have no page in Observer: `/people` redirects to the
+ * agents roster (ADR-0033) and identity resolution is deferred (ADR-0011).
+ * An evidence reference to them keeps its tier and its count, which are true,
+ * and carries this empty route, which renderers draw as text and never as a
+ * link (`Evidence` in the web app's Provenance, `EvidenceLink` in the UI
+ * package). Pointing it at another page instead would be the same guess
+ * under another name (P2-16).
+ */
+export const NO_PAGE = "";
 
 /**
  * Evidence identifiers are derived from the reference itself rather than from

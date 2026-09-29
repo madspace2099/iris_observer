@@ -1,4 +1,18 @@
 import type { ReactNode } from "react";
+import { DEFAULT_LANGUAGE, slovakZForm, type Language } from "@observer/readmodels";
+
+/*
+ * The shortfall a share below the floor prints beside itself, in each language
+ * a report can be printed in; the noun is the caller's in English. Drafts for
+ * review in Slovak and Hungarian (P2-17).
+ */
+const SHORTFALL: Readonly<Record<Language, (n: number, minimum: number, noun: string) => string>> =
+  {
+    en: (n, minimum, noun) => `${String(n)} of ${String(minimum)} ${noun} needed`,
+    sk: (n, minimum) =>
+      `${String(n)} ${slovakZForm(minimum)} ${String(minimum)} potrebných stretnutí`,
+    hu: (n, minimum) => `${String(minimum)} szükséges találkozóból ${String(n)}`,
+  };
 
 /**
  * THE THREE THINGS THE AGENT SURFACES HAVE TO DRAW THAT `Figure` CANNOT.
@@ -54,6 +68,7 @@ export function ShareFigure({
   locale,
   qualifier = null,
   shortfallNoun = "meetings",
+  language = DEFAULT_LANGUAGE,
 }: {
   /** 0 to 1, as every share on the read models is. */
   readonly share: number;
@@ -63,6 +78,8 @@ export function ShareFigure({
   /** The denominator, in words. No metric without one. */
   readonly qualifier?: ReactNode;
   readonly shortfallNoun?: string;
+  /** The words' language: English on the screens, the reader's choice on a printed report. */
+  readonly language?: Language;
 }) {
   const display = new Intl.NumberFormat(locale, {
     style: "percent",
@@ -80,7 +97,7 @@ export function ShareFigure({
       <span className="ox-insufficient">
         <span className="ox-figure">{display}</span>
         <span className="ox-shortfall">
-          {sampleSize} of {minimumSampleSize} {shortfallNoun} needed
+          {SHORTFALL[language](sampleSize, minimumSampleSize, shortfallNoun)}
         </span>
       </span>
     );

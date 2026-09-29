@@ -7,6 +7,7 @@ import type { MetricValue, Viewer } from "@observer/readmodels";
 import { entitled, NOT_IN_PLAN } from "../src/lib/entitled-repository";
 import type { Plan } from "../src/lib/entitlements";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * A FIGURE A PLAN DOES NOT REACH NEVER LEAVES THE SERVER.
  *
@@ -37,6 +38,7 @@ const NORTHGATE = {
   tenantSlug: "alpha",
   projectSlug: "northgate",
   period: "quarter_to_date",
+  language: DEFAULT_LANGUAGE,
 } as const;
 
 /** Prices the executive family above the base plan; everything else stays FREE. */
@@ -173,6 +175,7 @@ describe("the refusal says nothing about what it refused", () => {
       tenantSlug: "beta",
       projectSlug: "kingsford",
       period: "quarter_to_date",
+      language: DEFAULT_LANGUAGE,
     } as const;
 
     const gate = entitled(plain(), PRICED);

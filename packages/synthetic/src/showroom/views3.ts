@@ -11,14 +11,17 @@ import {
   type MeetingOutcome,
   type PlaceCategory,
   type SectionId,
+  type ShowroomPlaceInteraction,
   type ShowroomSession,
 } from "@observer/contracts";
 import type {
   AgentOutcomeRing,
   AgentProfile,
+  AttentionView,
   AgentSectionUse,
   AgentsView,
   AudienceCriteria,
+  AudienceUnavailable,
   AudienceView,
   DeliveredDeals,
   FlowPeriod,
@@ -36,7 +39,25 @@ import type {
   StatedDemand,
   ViewContext,
 } from "@observer/readmodels";
-import { nothingReceivedYet } from "@observer/readmodels";
+import {
+  DAYS,
+  DEFAULT_LANGUAGE,
+  MEETINGS,
+  OUTCOME_WORDS,
+  actionWorthTaking,
+  duration,
+  hungarianArticle,
+  hungarianRoomAdjective,
+  nothingReceivedYet,
+  plural,
+  pluralCategory,
+  sectionWord,
+  sentence,
+  slovakRoomAdjective,
+  slovakZForm,
+  type Language,
+  type Sentence,
+} from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
   catalogueFor,
@@ -44,10 +65,15 @@ import {
   roomCounts,
   roomLabel,
 } from "../pulse";
-import { AGENT_MIN_SAMPLE, DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
+import {
+  AGENT_MIN_SAMPLE,
+  DEFAULT_IRIS_ASSIST_POLICY,
+  attentionIndex,
+  attentionIndexDisplay,
+} from "@observer/metrics";
 import { buildAssistedSales, buildDealLadder } from "../deals";
-import { count, dayLabel, evidenceRef, percent } from "../format";
-import { startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
+import { count, dayLabel, evidenceRef, percent, shareDisplay } from "../format";
+import { endOfDayIn, startOfDayIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { agentById, presenterName, presentersIn } from "./sessions";
 
 /**
@@ -67,9 +93,90 @@ const WITH_OUTCOME = [
   "CRM_OUTCOME_CONTEXT",
 ] as const;
 
+/*
+ * A count of meetings standing alone or as a subject: the shared `MEETINGS`.
+ * A sentence that puts a count in another case keeps that case's forms as its
+ * own, below.
+ */
+
 /** "1 meetings" is the kind of small wrongness that makes a product feel unfinished. */
-export function meetings(n: number, locale: string): string {
-  return `${count(n, locale)} meeting${n === 1 ? "" : "s"}`;
+export function meetings(n: number, locale: string, language: Language = DEFAULT_LANGUAGE): string {
+  return `${count(n, locale)} ${plural(language, n, MEETINGS)}`;
+}
+
+/** "12 meetings this period.": the verdict where the buckets are not all present. */
+export const VIEWS3_PERIOD_MEETINGS: Sentence = {
+  en: { text: "{count} {meetings|n} this period.", words: { meetings: MEETINGS.en } },
+  sk: {
+    text: "V tomto období {was|n} {count} {meetings|n}.",
+    words: { was: { one: "bolo", few: "boli", other: "bolo" }, meetings: MEETINGS.sk },
+  },
+  hu: { text: "Ebben az időszakban {count} találkozó volt." },
+};
+
+/**
+ * The sentence a figure prints under the agent floor, built once.
+ *
+ * The roster card, the radar card, the workload list and the agent page all
+ * say it. Two builders of a nearly identical sentence — the agent page's own
+ * copy said "presentations" where this said "meetings" — is what the header of
+ * `packages/metrics/src/registry/shared.ts` was written against.
+ *
+ * Two named forms of the one sentence, not two sentences. `"short"` is the
+ * figure alone — "8 of 20 meetings" — for a slot one line wide: the workload
+ * list's sub line truncated the sentence to "8 meetings in this period, 12
+ * short o…", and a withholding that reaches the reader truncated has not
+ * happened. The slot gets what fits; the sentence stands where it already
+ * stood, on the card.
+ */
+export function suppressionNoteFor(
+  held: number,
+  locale: string,
+  form: "sentence" | "short" = "sentence",
+  language: Language = DEFAULT_LANGUAGE,
+): string {
+  const minimum = String(AGENT_MIN_SAMPLE);
+  const short = count(AGENT_MIN_SAMPLE - held, locale);
+  if (language === "sk") {
+    return form === "short"
+      ? `${count(held, locale)} ${slovakZForm(AGENT_MIN_SAMPLE)} ${minimum} stretnutí`
+      : `V tomto období mal/a ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`;
+  }
+  if (language === "hu") {
+    return form === "short"
+      ? `${minimum} találkozóból ${count(held, locale)}`
+      : `Ebben az időszakban ${meetings(held, locale, language)}; az értékeléshez ${minimum} kell, ${short} hiányzik. Az adatok láthatók, rangsor és trend nem készül.`;
+  }
+  if (form === "short") return `${count(held, locale)} of ${minimum} meetings`;
+  return `${meetings(held, locale, language)} in this period, ${short} short of the ${minimum} needed for a verdict. Figures are shown; no rank or trend is drawn.`;
+}
+
+/**
+ * The sentence for a habit the floor withholds on the TIMED set.
+ *
+ * "Leans on" and the signature finding stand on the meetings the source could
+ * time end to end, and that set is smaller than the meetings held wherever the
+ * legacy import reaches (every last-quarter cell). A gate that counted the
+ * meetings held let a verdict through on a set it had not counted — the ring's
+ * "41% over 21 where it was 7 of 17", a fourth time. This names the set it
+ * measured, so the reader is not told twenty when the habit stands on fifteen.
+ */
+export function timedSetNoteFor(
+  timed: number,
+  held: number,
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
+): string {
+  const minimum = String(AGENT_MIN_SAMPLE);
+  const short = count(AGENT_MIN_SAMPLE - timed, locale);
+  const heldFigure = count(held, locale);
+  if (language === "sk") {
+    return `Z ${heldFigure} stretnutí sa dalo od začiatku do konca zmerať ${count(timed, locale)}; zvyk potrebuje ${minimum}, aby sa dal čítať ako hodnotenie, chýba ${short}. Čísla sú zobrazené, poradie ani trend sa neurčuje.`;
+  }
+  if (language === "hu") {
+    return `${hungarianArticle(heldFigure, true)} ${heldFigure} megtartott találkozóból ${count(timed, locale)} volt végig mérhető; egy szokás értékeléséhez ${minimum} kell, ${short} hiányzik. Az adatok láthatók, rangsor és trend nem készül.`;
+  }
+  return `${meetings(timed, locale, language)} of the ${heldFigure} held could be timed end to end, ${short} short of the ${minimum} a habit needs before it is read as a verdict. Figures are shown; no rank or trend is drawn.`;
 }
 
 /* --- helpers ----------------------------------------------------------------- */
@@ -102,20 +209,39 @@ export function trend(ratio: number, floor: number): Trend {
   return "flat";
 }
 
-function duration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  const s = Math.round(seconds % 60);
-  return m === 0 ? `${s}s` : `${m}m ${String(s).padStart(2, "0")}s`;
-}
-
-function sectionSeconds(session: ShowroomSession, sectionId: SectionId): number {
+/**
+ * Seconds the source could time, and only those.
+ *
+ * `dwellSeconds` is null where the source cannot say — "never inferred", the
+ * contract says at `packages/contracts/src/showroom.ts:168`. These two used to
+ * read `?? 0`, which turned that null into a nought and added it to both the
+ * numerator and the denominator of every share built on them. Measured before
+ * the change: the fixtures' nulls are whole sessions (25 untimed across two
+ * schemes), which contribute nought to both sides and move no share — but the
+ * ingest path can deliver a session with SOME steps timed, and there a zeroed
+ * unknown shrinks the denominator and inflates every section at once.
+ *
+ * A null step is skipped, not counted. What that leaves is "the time the
+ * source could time", and the readers that publish a share of it now also
+ * publish how many meetings that is — `AgentProfile.timedMeetings`,
+ * `AgentsView.timedMeetingCount` — so "share of presentation time" is a claim
+ * about a stated set rather than an implied whole.
+ */
+export function sectionSeconds(session: ShowroomSession, sectionId: SectionId): number {
   return session.steps
-    .filter((s) => s.sectionId === sectionId)
+    .filter((s) => s.sectionId === sectionId && s.dwellSeconds !== null)
     .reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
 }
 
-function totalSeconds(session: ShowroomSession): number {
-  return session.steps.reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
+export function totalSeconds(session: ShowroomSession): number {
+  return session.steps
+    .filter((s) => s.dwellSeconds !== null)
+    .reduce((a, s) => a + (s.dwellSeconds ?? 0), 0);
+}
+
+/** A meeting every step of which the source could time. The set a share of time stands on. */
+export function fullyTimed(session: ShowroomSession): boolean {
+  return session.steps.length > 0 && session.steps.every((s) => s.dwellSeconds !== null);
 }
 
 /** The distinct sections a session touched, in the order it first touched them. */
@@ -166,7 +292,66 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  * no project (the tests hand-place sessions at UTC midnights) keeps its
  * arithmetic literal.
  */
-export function bucketBounds(today: Date, timeZone = "UTC") {
+/** "Last week, first 3 days": a bucket's label where the week is still running. */
+export const VIEWS3_LAST_WEEK_SENTENCE: Sentence = {
+  en: { text: "Last week, first {count} {days|count}", words: { days: DAYS.en } },
+  sk: {
+    text: "Minulý týždeň, {first|count} {count} {days|count}",
+    words: { first: { one: "prvý", few: "prvé", other: "prvých" }, days: DAYS.sk },
+  },
+  hu: { text: "Előző hét, első {count} nap" },
+};
+
+/** "Last month, first 24 days". */
+export const VIEWS3_LAST_MONTH_SENTENCE: Sentence = {
+  en: { text: "Last month, first {count} {days|count}", words: { days: DAYS.en } },
+  sk: {
+    text: "Minulý mesiac, {first|count} {count} {days|count}",
+    words: { first: { one: "prvý", few: "prvé", other: "prvých" }, days: DAYS.sk },
+  },
+  hu: { text: "Előző hónap, első {count} nap" },
+};
+
+/** The recency windows by name, in each language a report can be printed in. Slovak and Hungarian are drafts (P2-17). */
+const WINDOW_WORDS: Readonly<
+  Record<
+    Language,
+    Readonly<
+      Record<
+        "today" | "yesterday" | "this_week" | "last_week" | "this_month" | "last_month",
+        string
+      >
+    >
+  >
+> = {
+  en: {
+    today: "Today",
+    yesterday: "Yesterday",
+    this_week: "This week",
+    last_week: "Last week",
+    this_month: "This month",
+    last_month: "Last month",
+  },
+  sk: {
+    today: "Dnes",
+    yesterday: "Včera",
+    this_week: "Tento týždeň",
+    last_week: "Minulý týždeň",
+    this_month: "Tento mesiac",
+    last_month: "Minulý mesiac",
+  },
+  hu: {
+    today: "Ma",
+    yesterday: "Tegnap",
+    this_week: "Ez a hét",
+    last_week: "Előző hét",
+    this_month: "Ez a hónap",
+    last_month: "Előző hónap",
+  },
+};
+
+export function bucketBounds(today: Date, timeZone = "UTC", language: Language = DEFAULT_LANGUAGE) {
+  const windows = WINDOW_WORDS[language];
   const day = 24 * 60 * 60 * 1000;
   const t0 = startOfDayIn(today, timeZone).getTime();
   // Monday-based week, which is how Central European sales weeks are counted.
@@ -188,9 +373,9 @@ export function bucketBounds(today: Date, timeZone = "UTC") {
   const lastMonthElapsed = Math.min(elapsedDaysInMonth, lastMonthLength);
 
   return [
-    { id: "today" as const, label: "Today", from: t0, to: t0 + day },
-    { id: "yesterday" as const, label: "Yesterday", from: t0 - day, to: t0 },
-    { id: "this_week" as const, label: "This week", from: thisWeek, to: t0 + day },
+    { id: "today" as const, label: windows.today, from: t0, to: t0 + day },
+    { id: "yesterday" as const, label: windows.yesterday, from: t0 - day, to: t0 },
+    { id: "this_week" as const, label: windows.this_week, from: thisWeek, to: t0 + day },
     /*
      * Last week is clipped to the same number of days.
      *
@@ -202,12 +387,12 @@ export function bucketBounds(today: Date, timeZone = "UTC") {
       id: "last_week" as const,
       label:
         elapsedDays === 7
-          ? "Last week"
-          : `Last week, first ${elapsedDays} day${elapsedDays === 1 ? "" : "s"}`,
+          ? windows.last_week
+          : sentence(language, VIEWS3_LAST_WEEK_SENTENCE, { count: elapsedDays }),
       from: thisWeek - 7 * day,
       to: thisWeek - 7 * day + elapsedDays * day,
     },
-    { id: "this_month" as const, label: "This month", from: thisMonth, to: t0 + day },
+    { id: "this_month" as const, label: windows.this_month, from: thisMonth, to: t0 + day },
     /*
      * Last month gets the same clipping last week already has, above.
      *
@@ -219,23 +404,58 @@ export function bucketBounds(today: Date, timeZone = "UTC") {
       id: "last_month" as const,
       label:
         lastMonthElapsed === lastMonthLength
-          ? "Last month"
-          : `Last month, first ${lastMonthElapsed} day${lastMonthElapsed === 1 ? "" : "s"}`,
+          ? windows.last_month
+          : sentence(language, VIEWS3_LAST_MONTH_SENTENCE, { count: lastMonthElapsed }),
       from: lastMonth,
       to: lastMonth + lastMonthElapsed * day,
     },
   ];
 }
 
+/**
+ * The instants the period's meetings are sliced from, both ends included.
+ *
+ * One function for the repository's `slices()`, which cuts the period's
+ * meetings with it, and for the builders that name its buckets: a period still
+ * running reaches the end of today, a closed one stops at its own end.
+ *
+ * "The end of today" is the project's. It was the UTC end of the day, which
+ * east of UTC ran two hours into tomorrow and west of it cut the local evening
+ * off: a meeting at 21:00 in a New York showroom fell outside its own running
+ * period, and Sales Flow's Today read "Not in this period". Every project
+ * today is at or east of UTC, so nothing on screen moves.
+ */
+export function sliceSpan(
+  context: ViewContext,
+  today: Date,
+): { readonly from: number; readonly to: number } {
+  const endOfToday = endOfDayIn(today, context.project.timeZone);
+  const stillRunning =
+    new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
+  return {
+    from: Date.parse(context.period.from),
+    to: stillRunning ? endOfToday.getTime() : Date.parse(context.period.to),
+  };
+}
+
 function buildPeriods(
   sessions: readonly ShowroomSession[],
   today: Date,
   timeZone: string,
+  language: Language,
+  span: { readonly from: number; readonly to: number },
 ): FlowPeriod[] {
-  return bucketBounds(today, timeZone).map((b) => {
+  return bucketBounds(today, timeZone, language).map((b) => {
+    /*
+     * Only a bucket the slice holds whole is counted. `sessions` is already the
+     * period's, so a bucket before it began counted nothing and printed "0" —
+     * "Last month: 0" inside the last 28 days, six zeros inside a completed
+     * quarter — and one the period cuts across would count part of itself.
+     */
+    const inPeriod = b.from >= span.from && b.to - 1 <= span.to;
     const inside = sessions.filter((s) => {
       const at = Date.parse(s.startedAt);
-      return at >= b.from && at < b.to;
+      return inPeriod && at >= b.from && at < b.to;
     });
     const timed = inside.filter((s) => !s.timingUnavailable).map((s) => s.durationSeconds);
     const med = timed.length === 0 ? null : Math.round(median(timed));
@@ -243,11 +463,12 @@ function buildPeriods(
     return {
       id: b.id,
       label: b.label,
+      inPeriod,
       meetings: inside.length,
       medianDurationSeconds: med,
       // Never "0m 00s" for a period with no meetings: there is no duration to
       // report, which is a different statement from a duration of zero.
-      medianDurationDisplay: med === null ? "—" : duration(med),
+      medianDurationDisplay: med === null ? "—" : duration(med, language),
       outcomeRecorded: inside.filter((s) => !outcomeIsUnknown(s.outcome)).length,
       progressed: inside.filter((s) => hasProgressed(s.outcome)).length,
     } satisfies FlowPeriod;
@@ -256,7 +477,10 @@ function buildPeriods(
 
 /* --- outcome rings ----------------------------------------------------------- */
 
-function outcomeSlices(sessions: readonly ShowroomSession[]): OutcomeSlice[] {
+function outcomeSlices(
+  sessions: readonly ShowroomSession[],
+  language: Language = DEFAULT_LANGUAGE,
+): OutcomeSlice[] {
   const counts = new Map<MeetingOutcome, number>();
   for (const s of sessions) counts.set(s.outcome, (counts.get(s.outcome) ?? 0) + 1);
   const order: MeetingOutcome[] = [
@@ -272,7 +496,7 @@ function outcomeSlices(sessions: readonly ShowroomSession[]): OutcomeSlice[] {
     .filter((o) => (counts.get(o) ?? 0) > 0)
     .map((o) => ({
       outcome: o,
-      label: OUTCOME_LABELS[o],
+      label: OUTCOME_WORDS[language][o],
       count: counts.get(o) ?? 0,
       share: share(counts.get(o) ?? 0, sessions.length),
     }));
@@ -289,14 +513,25 @@ function outcomeSlices(sessions: readonly ShowroomSession[]): OutcomeSlice[] {
 function outcomeFlag(
   sessions: readonly ShowroomSession[],
   teamProgressed: number,
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): AgentOutcomeRing["flag"] {
   if (sessions.length < 8) return null;
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
+  /* Slovak agrees the verb with the count before "z": 1 and 5 "skončilo", 2 to 4 "skončili". */
+  const ended = (n: number) => (pluralCategory("sk", n) === "few" ? "skončili" : "skončilo");
   if (decided.length < 6) {
+    const unrecorded = sessions.length - decided.length;
     return {
       severity: "watch",
-      text: `${sessions.length - decided.length} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
+      text:
+        language === "sk"
+          ? `${unrecorded} ${slovakZForm(sessions.length)} ${sessions.length} stretnutí sa ${ended(unrecorded)} bez zaznamenaného výsledku, takže väčšinu z nich nemožno vôbec vyhodnotiť.`
+          : language === "hu"
+            ? `${sessions.length} találkozóból ${unrecorded} eredmény rögzítése nélkül zárult, így ezek többsége egyáltalán nem értékelhető.`
+            : `${unrecorded} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
       sampleSize: sessions.length,
+      measure: "unrecorded",
     };
   }
   const notInterested = decided.filter((s) => s.outcome === "not_interested").length;
@@ -305,15 +540,27 @@ function outcomeFlag(
   if (share(notInterested, decided.length) > 0.35) {
     return {
       severity: "concern",
-      text: `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
+      text:
+        language === "sk"
+          ? `${notInterested} ${slovakZForm(decided.length)} ${decided.length} zaznamenaných stretnutí sa ${ended(notInterested)} výsledkom „bez záujmu“ — oplatí sa sledovať samotnú prezentáciu, nielen obchodný lievik.`
+          : language === "hu"
+            ? `${decided.length} rögzített találkozóból ${notInterested} „nem érdeklődik” eredménnyel zárult — érdemes magát a bemutatót is figyelni, nem csak az értékesítési folyamatot.`
+            : `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
       sampleSize: decided.length,
+      measure: "not_interested",
     };
   }
   if (progressed < teamProgressed * 0.75) {
     return {
       severity: "watch",
-      text: `${percent(progressed, "en-GB")} progressed against ${percent(teamProgressed, "en-GB")} for the team, over ${decided.length} recorded meetings.`,
+      text:
+        language === "sk"
+          ? `${percent(progressed, locale)} pokročilo ďalej oproti ${percent(teamProgressed, locale)} v tíme, zo ${decided.length} zaznamenaných stretnutí.`
+          : language === "hu"
+            ? `${decided.length} rögzített találkozóból ${percent(progressed, locale)} lépett tovább, szemben a csapat ${percent(teamProgressed, locale)}-os arányával.`
+            : `${percent(progressed, locale)} progressed against ${percent(teamProgressed, locale)} for the team, over ${decided.length} recorded meetings.`,
       sampleSize: decided.length,
+      measure: "progressed",
     };
   }
   return null;
@@ -325,15 +572,19 @@ function buildRing(
   name: string,
   base: string,
   teamProgressed: number,
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): AgentOutcomeRing {
   const decided = session.filter((s) => !outcomeIsUnknown(s.outcome));
   return {
     agentId,
     name,
     meetings: session.length,
-    slices: outcomeSlices(session),
+    /* The rate's own denominator, on the read model, so no screen has to count it. */
+    decidedMeetings: decided.length,
+    slices: outcomeSlices(session, language),
     progressedShare: share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length),
-    flag: outcomeFlag(session, teamProgressed),
+    flag: outcomeFlag(session, teamProgressed, locale, language),
     href: `${base}/agents/${agentId}`,
   };
 }
@@ -369,35 +620,216 @@ function summarizePeriod(sessions: readonly ShowroomSession[], label: string): P
  * produce it the same way, from the same two-summary shape, rather than
  * duplicating four states and a deadbanded signal twice.
  */
-function verdictFrom(current: PeriodSummary, prior: PeriodSummary, locale: string): string {
+/*
+ * THE VERDICT'S AND THE FINDINGS' WORDS, IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
+ *
+ * English is what these sentences always said. A window's name is a value in
+ * them, and Slovak and Hungarian carry it in parentheses, since no one case
+ * fits every name the window can have. Slovak and Hungarian are drafts for
+ * review (P2-17).
+ */
+interface VerdictWords {
+  readonly volume: (
+    meetings: string,
+    current: string,
+    prior: { readonly count: string; readonly label: string } | null,
+  ) => string;
+  readonly nothingRecorded: (current: string) => string;
+  readonly noOutcomes: string;
+  readonly tooEarly: (volume: string, now: string, current: string) => string;
+  /** A baseline with meetings and no recorded outcome: the rate has nothing to stand against. */
+  readonly nothingToCompare: (
+    volume: string,
+    now: string,
+    current: string,
+    prior: string,
+  ) => string;
+  /** Both sides recorded, one of them short of the floor: the figures, and no verdict. */
+  readonly belowSample: (
+    volume: string,
+    now: string,
+    before: string,
+    short: { readonly count: string; readonly label: string },
+    needed: string,
+  ) => string;
+  readonly signal: (
+    signal: "good" | "poor" | "attention",
+    volume: string,
+    now: string,
+    before: string,
+  ) => string;
+}
+
+const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
+  en: {
+    volume: (m, current, prior) =>
+      prior === null ? `${m} ${current}` : `${m} ${current} against ${prior.count} ${prior.label}`,
+    nothingRecorded: (current) => `No presentations were recorded ${current}.`,
+    noOutcomes: "The showroom is running; no outcomes are being recorded.",
+    tooEarly: (volume, now, current) =>
+      `Too early to call: ${volume}, and ${now} of recorded meetings progressed ${current}. There's no earlier comparable period yet.`,
+    nothingToCompare: (volume, now, current, prior) =>
+      `Too early to call: ${volume}, and ${now} of recorded meetings progressed ${current}. No meeting ${prior} has a recorded outcome to compare against.`,
+    belowSample: (volume, now, before, short, needed) =>
+      `Too few to call: ${volume}, and ${now} of recorded meetings progressed, against ${before} before. Recorded outcomes ${short.label}: ${short.count}; ${needed} are needed for a verdict.`,
+    signal: (signal, volume, now, before) =>
+      `${signal === "good" ? "Meetings are holding up and progressing well" : signal === "poor" ? "Worth a look" : "A mixed signal"}: ${volume}, and ${now} of recorded meetings progressed, against ${before} before.`,
+  },
+  sk: {
+    volume: (m, current, prior) =>
+      prior === null
+        ? `${m} (${current})`
+        : `${m} (${current}) oproti ${prior.count} (${prior.label})`,
+    nothingRecorded: (current) => `Nezaznamenala sa žiadna prezentácia (${current}).`,
+    noOutcomes: "Showroom funguje, ale výsledky stretnutí sa nezaznamenávajú.",
+    tooEarly: (volume, now, current) =>
+      `Na hodnotenie je priskoro: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej (${current}). Porovnateľné skoršie obdobie zatiaľ nie je.`,
+    nothingToCompare: (volume, now, current, prior) =>
+      `Na hodnotenie je priskoro: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej (${current}). Obdobie ${prior} nemá zaznamenaný výsledok na porovnanie.`,
+    belowSample: (volume, now, before, short, needed) =>
+      `Na hodnotenie je málo údajov: ${volume} a ${now} zaznamenaných stretnutí pokročilo ďalej, oproti ${before} predtým. Zaznamenané výsledky (${short.label}): ${short.count}; na hodnotenie treba ${needed}.`,
+    signal: (signal, volume, now, before) =>
+      `${signal === "good" ? "Počet stretnutí sa drží a stretnutia napredujú dobre" : signal === "poor" ? "Stojí za pozornosť" : "Nejednoznačný signál"}: ${volume}. Zo zaznamenaných stretnutí postúpilo ďalej ${now} oproti predchádzajúcim ${before}.`,
+  },
+  hu: {
+    volume: (m, current, prior) =>
+      prior === null
+        ? `${m} (${current})`
+        : `${m} (${current}), szemben ${prior.count} találkozóval (${prior.label})`,
+    nothingRecorded: (current) => `Nem rögzítettek bemutatót (${current}).`,
+    noOutcomes: "A showroom működik, de az eredményeket nem rögzítik.",
+    tooEarly: (volume, now, current) =>
+      `Még korai megítélni: ${volume}, és a rögzített találkozók ${now}-a lépett tovább (${current}). Korábbi összehasonlítható időszak még nincs.`,
+    nothingToCompare: (volume, now, current, prior) =>
+      `Még korai megítélni: ${volume}, és a rögzített találkozók ${now}-a lépett tovább (${current}). A korábbi időszakban (${prior}) nincs rögzített eredmény az összevetéshez.`,
+    belowSample: (volume, now, before, short, needed) =>
+      `Kevés az adat az ítélethez: ${volume}, és a rögzített találkozók ${now}-a lépett tovább, szemben a korábbi ${before}-kal. Rögzített eredmények (${short.label}): ${short.count}; az ítélethez ${needed} kell.`,
+    signal: (signal, volume, now, before) =>
+      `${signal === "good" ? "A találkozók száma stabil, és az eredményük is kedvezően alakul" : signal === "poor" ? "Érdemes megnézni" : "Vegyes jelzés"}: ${volume}. A rögzített találkozók ${now}-a lépett tovább a korábbi ${before}-hoz képest.`,
+  },
+};
+
+interface FlowWords {
+  readonly teamBaseline: (share: string) => string;
+  readonly periodBaseline: (share: string) => string;
+  readonly flagSoWhat: string;
+  readonly unrecordedSoWhat: string;
+  readonly open: (firstName: string) => string;
+  readonly seeMeetings: string;
+}
+
+const FLOW_WORDS: Readonly<Record<Language, FlowWords>> = {
+  en: {
+    teamBaseline: (share) => `${share} for the team`,
+    periodBaseline: (share) => `${share} of the period`,
+    flagSoWhat:
+      "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
+    unrecordedSoWhat:
+      "Every comparison that uses outcome silently drops these. The fix is a habit at the end of the meeting, not a change to the data.",
+    open: (firstName) => `Open ${firstName}`,
+    seeMeetings: "See the meetings",
+  },
+  sk: {
+    teamBaseline: (share) => `${share} v tíme`,
+    periodBaseline: (share) => `${share} obdobia`,
+    flagSoWhat:
+      "Ak sa ukáže vzorec v tom, ako sa stretnutia končia, je to dôvod pozrieť sa na ich priebeh: na prezentáciu, tempo aj to, čo sa ukazuje. Nie je to hodnotenie človeka.",
+    unrecordedSoWhat:
+      "Každé porovnanie, ktoré pracuje s výsledkom, ich potichu vynecháva. Riešením je návyk na konci stretnutia, nie zmena údajov.",
+    open: (firstName) => `Otvoriť: ${firstName}`,
+    seeMeetings: "Zobraziť stretnutia",
+  },
+  hu: {
+    teamBaseline: (share) => `a csapatban ${share}`,
+    periodBaseline: (share) => `az időszak ${share}-a`,
+    flagSoWhat:
+      "Ha kirajzolódik egy minta abban, hogyan végződnek a találkozók, érdemes megnézni a menetüket: a bemutatót, a tempót és azt, mit mutatnak meg. Ez nem az értékesítő személyének megítélése.",
+    unrecordedSoWhat:
+      "Minden eredményalapú összevetés szó nélkül kihagyja ezeket. A megoldás egy szokás a találkozó végén, nem az adatok módosítása.",
+    open: (firstName) => `${firstName} megnyitása`,
+    seeMeetings: "A találkozók megtekintése",
+  },
+};
+
+/** "9 of 74 meetings ended with no outcome recorded." */
+export const FLOW_UNRECORDED_SENTENCE: Sentence = {
+  en: { text: "{count} of {total} meetings ended with no outcome recorded." },
+  sk: {
+    text: "{frame|n}",
+    words: {
+      frame: {
+        one: "{count} {from} {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
+        few: "{count} {from} {total} stretnutí sa skončili bez zaznamenaného výsledku.",
+        other: "{count} {from} {total} stretnutí sa skončilo bez zaznamenaného výsledku.",
+      },
+    },
+  },
+  hu: { text: "{total} találkozóból {count} eredmény rögzítése nélkül zárult." },
+};
+
+function verdictFrom(
+  current: PeriodSummary,
+  prior: PeriodSummary,
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
+): string {
   const outcomesRecorded = current.outcomeRecorded > 0;
   const hasBaseline = prior.meetings > 0;
 
-  const volumeClause = hasBaseline
-    ? `${meetings(current.meetings, locale)} ${current.label.toLowerCase()} against ${count(prior.meetings, locale)} ${prior.label.toLowerCase()}`
-    : `${meetings(current.meetings, locale)} ${current.label.toLowerCase()}`;
+  const words = VERDICT_WORDS[language];
+  const currentLabel = current.label.toLowerCase();
+  const volumeClause = words.volume(
+    meetings(current.meetings, locale, language),
+    currentLabel,
+    hasBaseline ? { count: count(prior.meetings, locale), label: prior.label.toLowerCase() } : null,
+  );
 
   if (!outcomesRecorded) {
     /*
      * Same fact as the opening screen's equivalent state; same sentence. And the
      * same limit on it: a showroom is running only if meetings came.
      */
-    return current.meetings === 0
-      ? `No presentations were recorded ${current.label.toLowerCase()}.`
-      : "The showroom is running; no outcomes are being recorded.";
+    return current.meetings === 0 ? words.nothingRecorded(currentLabel) : words.noOutcomes;
   }
   if (!hasBaseline) {
     const currentProgressed = share(current.progressed, current.outcomeRecorded);
-    return `Too early to call: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed ${current.label.toLowerCase()}. There's no earlier comparable period yet.`;
+    return words.tooEarly(volumeClause, percent(currentProgressed, locale), currentLabel);
   }
 
   const currentProgressed = share(current.progressed, current.outcomeRecorded);
-  const priorProgressed =
-    prior.outcomeRecorded === 0 ? 0 : share(prior.progressed, prior.outcomeRecorded);
+  /*
+   * NO CALL BELOW THE FLOOR (decided 2026-09-27 for the Briefing; the same rule
+   * here). A baseline with meetings and no recorded outcome printed "against 0%
+   * before", a rate nothing measured; and four recorded meetings against five
+   * could read "holding up and progressing well". Short of `AGENT_MIN_SAMPLE`
+   * recorded outcomes on either side, the figures are stated and not called.
+   */
+  if (prior.outcomeRecorded === 0) {
+    return words.nothingToCompare(
+      volumeClause,
+      percent(currentProgressed, locale),
+      currentLabel,
+      prior.label.toLowerCase(),
+    );
+  }
+  const priorProgressed = share(prior.progressed, prior.outcomeRecorded);
+  if (current.outcomeRecorded < AGENT_MIN_SAMPLE || prior.outcomeRecorded < AGENT_MIN_SAMPLE) {
+    const short =
+      current.outcomeRecorded < AGENT_MIN_SAMPLE
+        ? { count: count(current.outcomeRecorded, locale), label: currentLabel }
+        : { count: count(prior.outcomeRecorded, locale), label: prior.label.toLowerCase() };
+    return words.belowSample(
+      volumeClause,
+      percent(currentProgressed, locale),
+      percent(priorProgressed, locale),
+      short,
+      count(AGENT_MIN_SAMPLE, locale),
+    );
+  }
   const volumeTrend = trend(current.meetings / prior.meetings, 0.8);
   const progressTrend: Trend =
-    prior.outcomeRecorded === 0
-      ? currentProgressed > 0.3
+    priorProgressed === 0
+      ? currentProgressed > 0
         ? "up"
         : "flat"
       : trend(currentProgressed / priorProgressed, 0.9);
@@ -410,11 +842,12 @@ function verdictFrom(current: PeriodSummary, prior: PeriodSummary, locale: strin
 
   // "Against", never "up from" or "down from" -- see the docblock this
   // reasoning was moved from, immediately below in `buildSalesFlow`.
-  return signal === "good"
-    ? `Meetings are holding up and progressing well: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
-    : signal === "poor"
-      ? `Worth a look: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`
-      : `A mixed signal: ${volumeClause}, and ${percent(currentProgressed, locale)} of recorded meetings progressed, against ${percent(priorProgressed, locale)} before.`;
+  return words.signal(
+    signal,
+    volumeClause,
+    percent(currentProgressed, locale),
+    percent(priorProgressed, locale),
+  );
 }
 
 /* --- 1. Sales Flow ----------------------------------------------------------- */
@@ -434,7 +867,13 @@ export function buildSalesFlow(
 ): SalesFlowView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const periods = buildPeriods(sessions, today, context.project.timeZone);
+  const periods = buildPeriods(
+    sessions,
+    today,
+    context.project.timeZone,
+    context.language,
+    sliceSpan(context, today),
+  );
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   const teamProgressed = share(
     decided.filter((s) => hasProgressed(s.outcome)).length,
@@ -449,14 +888,35 @@ export function buildSalesFlow(
         a.name,
         base,
         teamProgressed,
+        locale,
+        context.language,
       ),
     )
     .filter((r) => r.meetings > 0);
 
   const unrecorded = sessions.length - decided.length;
   const findings: ShowroomFinding[] = [];
+  /* A context built without a language — a test's, say — reads as English, like every word helper. */
+  const language = context.language ?? DEFAULT_LANGUAGE;
+  const flowWords = FLOW_WORDS[language];
 
   const flagged = rings.filter((r) => r.flag !== null);
+  /*
+   * The team's figure for what the flag counts. It was always the team's
+   * progression, so "10 of 10 meetings ended with no outcome recorded" stood
+   * "against 0% for the team" on a project that records no outcome at all —
+   * a rate with no denominator printed as a zero, beside a figure of a
+   * different kind. On that project the team's own share is 100%, which is
+   * the fact the reader needs: it is the project, not the person.
+   */
+  const teamFigure = {
+    unrecorded: share(unrecorded, sessions.length),
+    not_interested: share(
+      decided.filter((s) => s.outcome === "not_interested").length,
+      decided.length,
+    ),
+    progressed: teamProgressed,
+  };
   if (flagged[0]?.flag != null) {
     // The evidence below cites `flag.sampleSize`, not `flagged[0].meetings` --
     // the flag's own text is stated over the population that number names
@@ -465,10 +925,12 @@ export function buildSalesFlow(
     findings.push({
       id: `flow-flag-${flagged[0].agentId}`,
       statement: `${flagged[0].name}: ${flagged[0].flag.text}`,
-      baseline: `${percent(teamProgressed, locale)} for the team`,
-      soWhat:
-        "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
-      nextStep: { label: `Open ${flagged[0].name.split(" ")[0]}`, href: flagged[0].href },
+      baseline: flowWords.teamBaseline(percent(teamFigure[flagged[0].flag.measure], locale)),
+      soWhat: flowWords.flagSoWhat,
+      nextStep: {
+        label: flowWords.open(flagged[0].name.split(" ")[0] ?? ""),
+        href: flagged[0].href,
+      },
       evidence: evidenceRef(
         `flow-${flagged[0].agentId}`,
         "statistical_association",
@@ -484,12 +946,22 @@ export function buildSalesFlow(
   if (unrecorded > 0) {
     findings.push({
       id: "flow-unrecorded",
-      statement: `${count(unrecorded, locale)} of ${count(sessions.length, locale)} meetings ended with no outcome recorded.`,
-      baseline: `${percent(share(unrecorded, sessions.length), locale)} of the period`,
-      soWhat:
-        "Every comparison that uses outcome silently drops these. The fix is a habit at the end of the meeting, not a change to the data.",
-      nextStep: { label: "See the meetings", href: `${base}/meetings` },
-      evidence: evidenceRef("flow-unrecorded", "observed_sequence", `${base}/meetings`, unrecorded),
+      statement: sentence(language, FLOW_UNRECORDED_SENTENCE, {
+        count: count(unrecorded, locale),
+        total: count(sessions.length, locale),
+        from: slovakZForm(sessions.length),
+        n: unrecorded,
+      }),
+      baseline: flowWords.periodBaseline(percent(share(unrecorded, sessions.length), locale)),
+      soWhat: flowWords.unrecordedSoWhat,
+      // The meetings it counts, as What needs attention's same state opens them (24e573e).
+      nextStep: { label: flowWords.seeMeetings, href: `${base}/meetings?outcome=skipped` },
+      evidence: evidenceRef(
+        "flow-unrecorded",
+        "observed_sequence",
+        `${base}/meetings?outcome=skipped`,
+        unrecorded,
+      ),
       sampleSize: sessions.length,
       sources: [...WITH_OUTCOME],
       caveat: null,
@@ -551,20 +1023,36 @@ export function buildSalesFlow(
       month === undefined ||
       lastMonth === undefined
     ) {
-      verdict = `${count(sessions.length, locale)} meetings this period.`;
+      verdict = sentence(context.language, VIEWS3_PERIOD_MEETINGS, {
+        count: count(sessions.length, locale),
+        n: sessions.length,
+      });
     } else {
       const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
-      verdict = verdictFrom(
-        weekIsReadable ? week : month,
-        weekIsReadable ? lastWeek : lastMonth,
-        locale,
-      );
+      const [now, before] = weekIsReadable ? [week, lastWeek] : [month, lastMonth];
+      /*
+       * A pair the period does not hold whole is not a comparison. Last month
+       * lies before the last 28 days began, and read from this slice it was
+       * empty: "there's no earlier comparable period yet", printed above a
+       * baseline of 28 recorded days. The period against its own baseline, as
+       * a closed period is read below, is the comparison it does hold.
+       */
+      verdict =
+        now.inPeriod && before.inPeriod
+          ? verdictFrom(now, before, locale, context.language)
+          : verdictFrom(
+              summarizePeriod(sessions, context.period.label),
+              summarizePeriod(previous, context.period.baselineLabel),
+              locale,
+              context.language,
+            );
     }
   } else {
     verdict = verdictFrom(
       summarizePeriod(sessions, context.period.label),
       summarizePeriod(previous, context.period.baselineLabel),
       locale,
+      context.language,
     );
   }
   verdict = nothingReceivedYet(context) ?? verdict;
@@ -584,12 +1072,12 @@ export function buildSalesFlow(
     context,
     verdict,
     periods,
-    outcomes: outcomeSlices(sessions),
+    outcomes: outcomeSlices(sessions, context.language),
     rings,
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
-    ladder: buildDealLadder(deals, locale, context.project.timeZone, unitHref),
+    ladder: buildDealLadder(deals, locale, context.project.timeZone, unitHref, context.language),
     assisted: buildAssistedSales(
       deals,
       projectSessions,
@@ -598,6 +1086,7 @@ export function buildSalesFlow(
       context.project.timeZone,
       unitHref,
       (meetingId) => `${base}/meetings/${encodeURIComponent(meetingId)}`,
+      context.language,
     ),
   };
 }
@@ -625,18 +1114,42 @@ interface RoomSegmentSpec {
  * catalogue did not state — its own row, never folded into a guess, so the
  * scale still covers the stock (ADR-0036).
  */
+/*
+ * A room-count segment by name, in each language a report can be printed in.
+ * English is `roomLabel`, "Two-room". Slovak and Hungarian name the flats by
+ * the adjective their rooms make, in the plural a segment of several takes —
+ * "Dvojizbové", "Kétszobás" — from the same helpers the replay's sentence
+ * uses. The unstated row's name is a draft for review (P2-17), like the rest.
+ */
+const UNSTATED_ROOMS_WORDS: Readonly<Record<Language, string>> = {
+  en: UNSTATED_ROOMS_SEGMENT.label,
+  sk: "Počet izieb neuvedený",
+  hu: "Szobaszám nincs megadva",
+};
+
+function capitalised(word: string): string {
+  return `${word.charAt(0).toUpperCase()}${word.slice(1)}`;
+}
+
+export function segmentName(rooms: number, language: Language): string {
+  if (language === "sk") return capitalised(slovakRoomAdjective(rooms, 2));
+  if (language === "hu") return capitalised(hungarianRoomAdjective(rooms));
+  return roomLabel(rooms);
+}
+
 function roomSegments(
   catalogue: ReadonlyArray<{ readonly rooms: number | null }>,
+  language: Language = DEFAULT_LANGUAGE,
 ): RoomSegmentSpec[] {
   const stated = roomCounts(catalogue).map((rooms) => ({
     id: `rooms-${rooms}`,
-    label: roomLabel(rooms),
+    label: segmentName(rooms, language),
     rooms,
   }));
   return hasUnstatedRooms(catalogue)
     ? [
         ...stated,
-        { id: UNSTATED_ROOMS_SEGMENT.id, label: UNSTATED_ROOMS_SEGMENT.label, rooms: null },
+        { id: UNSTATED_ROOMS_SEGMENT.id, label: UNSTATED_ROOMS_WORDS[language], rooms: null },
       ]
     : stated;
 }
@@ -648,8 +1161,11 @@ function roomSegments(
  */
 const SEGMENT_SENTENCE_FLOOR = 5;
 
-function leadSegment(segments: readonly SegmentInterest[]): SegmentInterest | undefined {
+function leadSegment(
+  segments: readonly SegmentInterest[],
+): (SegmentInterest & { readonly index: number }) | undefined {
   return [...segments]
+    .filter((s): s is SegmentInterest & { readonly index: number } => s.index !== null)
     .filter((s) => s.meetings > SEGMENT_SENTENCE_FLOOR)
     .sort((a, b) => Math.abs(b.index - 1) - Math.abs(a.index - 1))[0];
 }
@@ -671,13 +1187,17 @@ function buildSegment(
   const catalogue = catalogueFor(context.project.id as string);
   const inSegment = new Set(catalogue.filter((u) => u.rooms === spec.rooms).map((u) => u.code));
   const available = catalogue.filter((u) => u.rooms === spec.rooms && u.status === "available");
-  const allAvailable = catalogue.filter((u) => u.status === "available");
 
   const touches = sessions.flatMap((s) => s.units);
   const mine = touches.filter((t) => inSegment.has(t.unitCode));
 
-  const totalDwell = touches.reduce((a, t) => a + t.dwellSeconds, 0);
-  const myDwell = mine.reduce((a, t) => a + t.dwellSeconds, 0);
+  /*
+   * The index, from the registry's one implementation: the segment's share of
+   * the looking time on the unsold stock over its share of that stock. It was
+   * looking time on every unit against available units here, a third
+   * population beside `/units` and the Ask pulse (decision 2026-09-27).
+   */
+  const reading = attentionIndex(catalogue, touches, (u) => u.rooms === spec.rooms);
 
   const favAll = touches.filter((t) => t.favourited).length;
   const cmpAll = touches.filter((t) => t.comparedWith.length > 0).length;
@@ -707,9 +1227,7 @@ function buildSegment(
   }));
   const sectionTotal = sectionSecs.reduce((a, s) => a + s.secs, 0);
 
-  const stockShare = share(available.length, allAvailable.length);
-  const attentionShare = share(myDwell, totalDwell);
-  const index = stockShare === 0 ? 0 : attentionShare / stockShare;
+  const { stockShare, attentionShare, index } = reading;
 
   const topPlace = [...placeSeconds.values()].sort((a, b) => b.secs - a.secs)[0];
 
@@ -738,7 +1256,11 @@ function buildSegment(
     ? "No CRM is connected, so no outcome is recorded and conversion cannot be read."
     : decidedMeetings.length < AGENT_MIN_SAMPLE
       ? `Not enough decided meetings yet (${String(decidedMeetings.length)} of ${String(AGENT_MIN_SAMPLE)}).`
-      : null;
+      : index === null
+        ? reading.segmentUnits === 0
+          ? "Every unit of the segment is sold, and the index is taken over the unsold stock."
+          : "Nobody looked at the unsold stock in this period, so there is no index to place."
+        : null;
   const conversion: SegmentConversion = {
     decided: decidedMeetings.length,
     progressed,
@@ -746,7 +1268,7 @@ function buildSegment(
     projectShare,
     minimum: AGENT_MIN_SAMPLE,
     quadrant:
-      withheld !== null || conversionShare === null || projectShare === null
+      withheld !== null || index === null || conversionShare === null || projectShare === null
         ? null
         : index >= 1
           ? conversionShare >= projectShare
@@ -792,6 +1314,8 @@ function buildSegment(
     availableUnits: available.length,
     stockShare,
     attentionShare,
+    stockShareDisplay: shareDisplay(stockShare, locale),
+    attentionShareDisplay: shareDisplay(attentionShare, locale),
     favouriteShare: share(mine.filter((t) => t.favourited).length, favAll),
     compareShare: share(mine.filter((t) => t.comparedWith.length > 0).length, cmpAll),
     shareShare: share(mine.filter((t) => t.shared).length, shrAll),
@@ -800,7 +1324,12 @@ function buildSegment(
     attendedTo: [...placeSeconds.values()]
       .sort((a, b) => b.secs - a.secs)
       .slice(0, 6)
-      .map((e) => ({ label: e.label, category: e.category, share: share(e.secs, placeTotal) })),
+      .map((e) => ({
+        label: e.label,
+        category: e.category,
+        share: share(e.secs, placeTotal),
+        shareDisplay: shareDisplay(share(e.secs, placeTotal), locale),
+      })),
     sections: sectionSecs
       .filter((s) => s.secs > 0)
       .sort((a, b) => b.secs - a.secs)
@@ -814,11 +1343,18 @@ function buildSegment(
      * "what should the next campaign show".
      */
     examinedHow,
+    /* The sets the rates above stand on, printed beside them. */
+    unitsOpened: mine.length,
+    otherUnitsOpened: others.length,
     conversion,
     soWhat:
-      topPlace === undefined
-        ? `${spec.label} units are ${percent(stockShare, locale)} of available stock and take ${percent(attentionShare, locale)} of the time spent looking at units.`
-        : `${spec.label} units take ${percent(attentionShare, locale)} of looking time on ${percent(stockShare, locale)} of the stock. The buyers who opened them spent longest on ${topPlace.label}, and ${percent(examinedHow[0]?.rate ?? 0, locale)} of the units they opened got a ${(examinedHow[0]?.label ?? "closer look").toLowerCase()}.`,
+      index === null
+        ? reading.segmentUnits === 0
+          ? `${spec.label} units are all sold, and the attention index is taken over the unsold stock, so this segment has none.`
+          : `Nobody looked at the unsold stock in this period, so ${spec.label} units have no attention index.`
+        : topPlace === undefined
+          ? `${spec.label} units are ${percent(stockShare, locale)} of the unsold stock and take ${percent(attentionShare, locale)} of the time spent looking at it.`
+          : `${spec.label} units take ${percent(attentionShare, locale)} of looking time on ${percent(stockShare, locale)} of the unsold stock. The buyers who opened them spent longest on ${topPlace.label}, and ${percent(examinedHow[0]?.rate ?? 0, locale)} of the units they opened got a ${(examinedHow[0]?.label ?? "closer look").toLowerCase()}.`,
   };
 }
 
@@ -829,7 +1365,8 @@ export function buildProjectView(
 ): ProjectView {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const segments = roomSegments(catalogueFor(context.project.id as string)).map((spec) =>
+  const catalogue = catalogueFor(context.project.id as string);
+  const segments = roomSegments(catalogue, context.language ?? DEFAULT_LANGUAGE).map((spec) =>
     buildSegment(context, sessions, spec),
   );
   /*
@@ -920,6 +1457,7 @@ export function buildProjectView(
       category,
       label: PLACE_CATEGORY_LABELS[category],
       share: share(e.secs, categoryGrand),
+      shareDisplay: shareDisplay(share(e.secs, categoryGrand), locale),
       meetings: e.meetings.size,
     }))
     .sort((a, b) => b.share - a.share);
@@ -930,8 +1468,8 @@ export function buildProjectView(
   if (lead !== undefined) {
     findings.push({
       id: "project-segment",
-      statement: `${lead.label} units draw ${lead.index.toFixed(2)}× their share of looking time, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
-      baseline: `${percent(lead.stockShare, locale)} of available stock`,
+      statement: `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of looking time on the unsold stock, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
+      baseline: `${percent(lead.stockShare, locale)} of the unsold stock`,
       soWhat: lead.soWhat,
       nextStep: { label: `Open ${lead.label}`, href: `${base}/project?segment=${lead.id}` },
       evidence: evidenceRef(
@@ -998,11 +1536,11 @@ export function buildProjectView(
     context,
     verdict:
       lead === undefined
-        ? (nothingReceivedYet(context) ?? `${meetings(sessions.length, locale)}.`)
-        : `${lead.label} units are ${percent(lead.stockShare, locale)} of the stock and take ${percent(lead.attentionShare, locale)} of the attention.`,
+        ? (nothingReceivedYet(context) ?? `${meetings(sessions.length, locale, context.language)}.`)
+        : `${lead.label} units are ${percent(lead.stockShare, locale)} of the unsold stock and take ${percent(lead.attentionShare, locale)} of the time spent looking at it.`,
     segments,
     matrixNote: context.project.connectedSources.includes("crm")
-      ? `Attention is the segment's share of looking time against its share of available stock; conversion is the share of decided meetings that progressed, against ${percent(
+      ? `Attention is the segment's share of the looking time on the unsold stock (available, reserved and pre-reserved) against its share of that stock; conversion is the share of decided meetings that progressed, against ${percent(
           share(
             sessions.filter((s) => !outcomeIsUnknown(s.outcome) && hasProgressed(s.outcome)).length,
             sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
@@ -1014,6 +1552,8 @@ export function buildProjectView(
     demand,
     places: places.slice(0, 18),
     placeCategories,
+    /* What "units matching" a search is a count of: the catalogue's available units, now. */
+    availableUnits: catalogue.filter((u) => u.status === "available").length,
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("project-view", "observed_sequence", `${base}/project`, sessions.length),
@@ -1022,26 +1562,102 @@ export function buildProjectView(
 
 /* --- 3. Sales Agents --------------------------------------------------------- */
 
+/*
+ * A meeting whose visitor is not linked to a contact is not a first meeting
+ * (decided 2026-09-27): a walk-in has no history, so whether it was their first
+ * cannot be said. It is counted apart, in the meeting register's own words,
+ * and every row keeps all meetings as its denominator, so the rows still add
+ * up to the whole.
+ */
 function repeatDistribution(sessions: readonly ShowroomSession[]): RepeatDistribution[] {
+  const linked = sessions.filter((s) => s.contactId !== null);
   const buckets = [0, 1, 2, 3];
-  return buckets
-    .map((visits) => {
-      const inside = sessions.filter((s) =>
-        visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits,
-      );
+  const rows: RepeatDistribution[] = buckets.map((visits) => {
+    const inside = linked.filter((s) =>
+      visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits,
+    );
+    return {
+      visits,
+      label:
+        visits === 0
+          ? "First meeting"
+          : visits === 3
+            ? "Fourth or later"
+            : `${visits + 1}${visits === 1 ? "nd" : "rd"} meeting`,
+      meetings: inside.length,
+      share: share(inside.length, sessions.length),
+    };
+  });
+  const unlinked = sessions.length - linked.length;
+  return [
+    ...rows,
+    {
+      visits: null,
+      label: "Not linked to a contact",
+      meetings: unlinked,
+      share: share(unlinked, sessions.length),
+    },
+  ].filter((b) => b.meetings > 0);
+}
+
+/**
+ * One row per section reached, for one scope against the team.
+ *
+ * Order, median time, reach, returns, and the team's figure beside each —
+ * rather than a share-of-time chart here and an order-and-timing chart
+ * somewhere else. Two views of the same measurement in two places is how a
+ * reader ends up comparing a chart against itself.
+ *
+ * One definition at two scopes, as `sectionSeconds` and `totalSeconds` are:
+ * an agent's lane (`mine` is their meetings) and the team's own list (`mine`
+ * is every meeting). The report's team table used to read the first agent's
+ * rows — the team's fields, on an array that had passed that agent's own
+ * `reachRate > 0` filter — so a section they never opened was missing from
+ * the team's table. `AgentsView.teamSections` is built here on every meeting.
+ */
+function sectionUses(
+  mine: readonly ShowroomSession[],
+  sessions: readonly ShowroomSession[],
+  teamSectionSecs: ReadonlyMap<SectionId, number>,
+  teamTotal: number,
+  language: Language,
+): AgentSectionUse[] {
+  /* The set a share of time stands on, at this scope: every step timed. */
+  const timedMine = mine.filter(fullyTimed);
+  const myTotal = timedMine.reduce((acc, s) => acc + totalSeconds(s), 0);
+  return (
+    SECTION_IDS.map((id) => {
+      const secs = timedMine.reduce((acc, s) => acc + sectionSeconds(s, id), 0);
+      const dwell = sectionDwell(mine, id);
+      const teamDwell = sectionDwell(sessions, id);
       return {
-        visits,
-        label:
-          visits === 0
-            ? "First meeting"
-            : visits === 3
-              ? "Fourth or later"
-              : `${visits + 1}${visits === 1 ? "nd" : "rd"} meeting`,
-        meetings: inside.length,
-        share: share(inside.length, sessions.length),
-      };
+        sectionId: id,
+        label: sectionWord(language, id),
+        order: 0,
+        position: meanPosition(mine, id),
+        medianDwellSeconds: dwell,
+        // Null, never zero: a section nobody's session could time has no median,
+        // and printing 0s would claim they passed through it instantly.
+        dwellDisplay: dwell === null ? "—" : duration(dwell, language),
+        timeShare: share(secs, myTotal),
+        teamShare: share(teamSectionSecs.get(id) ?? 0, teamTotal),
+        teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell, language),
+        reachRate: share(
+          mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length,
+          mine.length,
+        ),
+        returnRate: share(
+          mine.filter((s) => s.steps.some((x) => x.sectionId === id && x.isReturn)).length,
+          Math.max(1, mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length),
+        ),
+        availability: dwell === null ? "requires_ue5_v2_event" : "legacy_available",
+      } satisfies AgentSectionUse;
     })
-    .filter((b) => b.meetings > 0);
+      .filter((s) => s.reachRate > 0)
+      // Running order, because the question is what they open and in what order.
+      .sort((x, y) => x.position - y.position)
+      .map((s, i) => ({ ...s, order: i + 1 }))
+  );
 }
 
 export function buildAgentsView(
@@ -1057,60 +1673,37 @@ export function buildAgentsView(
     decided.length,
   );
 
+  /*
+   * THE SET A SHARE OF TIME STANDS ON: the meetings every step of which the
+   * source could time, and nothing else — the definition the Features page
+   * already keeps (`environmentTimeShare`) and the docblocks on
+   * `timedMeetings` and `timeShare` already claimed while this summed every
+   * meeting's timed steps. A partly timed meeting contributes to no share on
+   * either side; measured across the fixtures the change moves nothing,
+   * because their unknowns are whole meetings.
+   */
+  const timedSessions = sessions.filter(fullyTimed);
   const teamSectionSecs = new Map<SectionId, number>();
-  for (const s of sessions) {
+  for (const s of timedSessions) {
     for (const id of SECTION_IDS) {
       teamSectionSecs.set(id, (teamSectionSecs.get(id) ?? 0) + sectionSeconds(s, id));
     }
   }
   const teamTotal = [...teamSectionSecs.values()].reduce((a, b) => a + b, 0);
 
-  const agents: AgentProfile[] = presentersIn(sessions).flatMap<AgentProfile>((a) => {
+  const agents: AgentProfile[] = presentersIn(
+    sessions,
+    context.language ?? DEFAULT_LANGUAGE,
+  ).flatMap<AgentProfile>((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
 
     const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
 
-    const myTotal = mine.reduce((acc, s) => acc + totalSeconds(s), 0);
-    /*
-     * One row per section, carrying the whole answer.
-     *
-     * Order, median time, reach, returns, and the team's figure beside each —
-     * rather than a share-of-time chart here and an order-and-timing chart
-     * somewhere else. Two views of the same measurement in two places is how a
-     * reader ends up comparing a chart against itself.
-     */
-    const sections: AgentSectionUse[] = SECTION_IDS.map((id) => {
-      const secs = mine.reduce((acc, s) => acc + sectionSeconds(s, id), 0);
-      const dwell = sectionDwell(mine, id);
-      const teamDwell = sectionDwell(sessions, id);
-      return {
-        sectionId: id,
-        label: sectionLabel(id),
-        order: 0,
-        position: meanPosition(mine, id),
-        medianDwellSeconds: dwell,
-        // Null, never zero: a section nobody's session could time has no median,
-        // and printing 0s would claim they passed through it instantly.
-        dwellDisplay: dwell === null ? "—" : duration(dwell),
-        timeShare: share(secs, myTotal),
-        teamShare: share(teamSectionSecs.get(id) ?? 0, teamTotal),
-        teamDwellDisplay: teamDwell === null ? "—" : duration(teamDwell),
-        reachRate: share(
-          mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length,
-          mine.length,
-        ),
-        returnRate: share(
-          mine.filter((s) => s.steps.some((x) => x.sectionId === id && x.isReturn)).length,
-          Math.max(1, mine.filter((s) => s.steps.some((x) => x.sectionId === id)).length),
-        ),
-        availability: dwell === null ? "requires_ue5_v2_event" : "legacy_available",
-      } satisfies AgentSectionUse;
-    })
-      .filter((s) => s.reachRate > 0)
-      // Running order, because the question is what they open and in what order.
-      .sort((x, y) => x.position - y.position)
-      .map((s, i) => ({ ...s, order: i + 1 }));
+    /* The same set, at the agent's scope. */
+    const timedMine = mine.filter(fullyTimed);
+    /* One row per section, carrying the whole answer: `sectionUses`, at the agent's scope. */
+    const sections = sectionUses(mine, sessions, teamSectionSecs, teamTotal, context.language);
 
     const over = [...sections]
       .filter((s) => s.teamShare > 0.02)
@@ -1124,12 +1717,23 @@ export function buildAgentsView(
       name: a.name,
       organisationName: a.organisationName,
       meetings: mine.length,
+      /* The meetings the section shares stand on: every step timed. Stated, so the share is of a known set. */
+      timedMeetings: timedMine.length,
       belowMinimum,
       suppressionNote: belowMinimum
-        ? `${meetings(mine.length, locale)} in this period, ${count(AGENT_MIN_SAMPLE - mine.length, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`
+        ? suppressionNoteFor(mine.length, locale, "sentence", context.language)
         : null,
-      medianDurationDisplay: timed.length === 0 ? "—" : duration(Math.round(median(timed))),
-      ring: buildRing(mine, a.id, a.name, base, teamProgressed),
+      /*
+       * The habit's own floor, on the set the habit stands on. Null above it;
+       * null too under `belowMinimum`, whose note already speaks for the card.
+       */
+      signatureNote:
+        !belowMinimum && timedMine.length < AGENT_MIN_SAMPLE
+          ? timedSetNoteFor(timedMine.length, mine.length, locale, context.language)
+          : null,
+      medianDurationDisplay:
+        timed.length === 0 ? "—" : duration(Math.round(median(timed)), context.language),
+      ring: buildRing(mine, a.id, a.name, base, teamProgressed, locale, context.language),
       repeats: repeatDistribution(mine),
       sections,
       signature:
@@ -1148,9 +1752,32 @@ export function buildAgentsView(
   });
 
   const findings: ShowroomFinding[] = [];
-  const distinct = agents
-    .filter((a) => a.signature !== null)
-    .sort((x, y) => (y.signature?.overIndex ?? 0) - (x.signature?.overIndex ?? 0))[0];
+
+  /*
+   * THE FLOOR IS ON THE VERDICT, HERE TOO.
+   *
+   * The card withholds "leans on" below `AGENT_MIN_SAMPLE`. The lead finding
+   * used to pick the largest over-index across every agent regardless, so on
+   * 11 of 15 cells it said about a person what the card beside it had just
+   * refused to say — a four-meeting habit as the page's first sentence. An
+   * agent under the floor is not a candidate. Where nobody clears it, the
+   * refusal is a finding in the card's own words rather than a missing one.
+   */
+  /*
+   * The gate reads the set the claim stands on. The habit is a share of the
+   * TIMED meetings, so a presenter whose held meetings clear the floor while
+   * the timed ones do not is not a candidate either — the last-quarter cells
+   * hold such rows — and "the most anyone presented" is measured on the same
+   * set, or the case where everyone clears twenty held and nobody twenty timed
+   * would fall through both branches with nothing said.
+   */
+  const eligible = agents.filter(
+    (a) => a.signature !== null && !a.belowMinimum && a.timedMeetings >= AGENT_MIN_SAMPLE,
+  );
+  const distinct = [...eligible].sort(
+    (x, y) => (y.signature?.overIndex ?? 0) - (x.signature?.overIndex ?? 0),
+  )[0];
+  const largest = [...agents].sort((x, y) => y.timedMeetings - x.timedMeetings)[0];
 
   /*
    * A share of the TEAM's time needs a team. With one presenter the figure is
@@ -1161,7 +1788,8 @@ export function buildAgentsView(
     findings.push({
       id: "agents-signature",
       statement: `${distinct.name} spends ${distinct.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${distinct.signature.label}.`,
-      baseline: `${count(distinct.meetings, locale)} meetings`,
+      /* The set the share stands on, not the meetings held: the two differ by the meetings the source could not time. */
+      baseline: `${count(distinct.timedMeetings, locale)} of ${count(distinct.meetings, locale)} meetings the source could time end to end`,
       soWhat:
         "A presenter's habit is visible long before its result is. Whether it is worth copying or worth changing is a coaching conversation this figure can start.",
       nextStep: { label: `Open ${distinct.name.split(" ")[0]}`, href: distinct.href },
@@ -1169,9 +1797,31 @@ export function buildAgentsView(
         `agent-signature-${distinct.agentId}`,
         "observed_sequence",
         distinct.href,
-        distinct.meetings,
+        distinct.timedMeetings,
       ),
-      sampleSize: distinct.meetings,
+      sampleSize: distinct.timedMeetings,
+      sources: [...DERIVED],
+      caveat: null,
+    });
+  } else if (
+    agents.length > 1 &&
+    largest !== undefined &&
+    largest.timedMeetings < AGENT_MIN_SAMPLE
+  ) {
+    findings.push({
+      id: "agents-signature-withheld",
+      statement: `No presenter's habit is read as a finding: the most anyone presented that the source could time end to end was ${meetings(largest.timedMeetings, locale, context.language)} of ${count(largest.meetings, locale)} held, ${count(AGENT_MIN_SAMPLE - largest.timedMeetings, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`,
+      baseline: `${count(agents.length, locale)} agents`,
+      soWhat:
+        "A habit read from fewer meetings than the floor would be a verdict about a person drawn from a handful. The cards above carry every figure with its count.",
+      nextStep: null,
+      evidence: evidenceRef(
+        "agents-signature-withheld",
+        "observed_sequence",
+        `${base}/agents`,
+        sessions.length,
+      ),
+      sampleSize: largest.timedMeetings,
       sources: [...DERIVED],
       caveat: null,
     });
@@ -1196,7 +1846,7 @@ export function buildAgentsView(
       sampleSize: sessions.length,
       sources: [...DERIVED],
       caveat:
-        "Only a contact Observer already knows can be counted as returning; a walk-in has no history.",
+        "Only a contact Observer already knows is counted as a first or a returning visit; a meeting not linked to a contact is counted apart.",
     });
   }
 
@@ -1209,18 +1859,72 @@ export function buildAgentsView(
           (nothingReceivedYet(context) ??
           `Nobody presented in ${context.period.label.toLowerCase()}.`)
         : agents.length === 1
-          ? `One agent presented ${meetings(sessions.length, locale)}.`
-          : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale)}, and they do not present alike.`,
+          ? `One agent presented ${meetings(sessions.length, locale, context.language)}.`
+          : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale, context.language)}, and they do not present alike.`,
     agents,
     repeats,
     findings,
     showRatings,
     meetingCount: sessions.length,
+    /* The team's section shares stand on these, not on `meetingCount`. */
+    timedMeetingCount: sessions.filter(fullyTimed).length,
+    /* Every meeting, not the first agent's rows: a section only somebody else opened is here. */
+    teamSections: sectionUses(sessions, sessions, teamSectionSecs, teamTotal, context.language),
     evidence: evidenceRef("agents-view", "observed_sequence", `${base}/agents`, sessions.length),
   };
 }
 
 /* --- the audience builder ---------------------------------------------------- */
+
+/**
+ * Whether a place may select a meeting, or be named as why it matched.
+ *
+ * Only where its presentation was recorded. The contract says of Surroundings
+ * points of interest that `availability` is `requires_ue5_v2_event` "and every
+ * surface reading them says so" (`ShowroomPlaceInteraction`); this builder read
+ * them on category and dwell alone, so a list of transport places was built
+ * entirely from presentations nobody recorded (P2-18). `partially_derivable`
+ * does not qualify either: for a point of interest it means the section was
+ * reached and nothing more (`docs/16` §2.6), the general Surroundings data no
+ * list may be built from.
+ */
+function recordedPlace(place: ShowroomPlaceInteraction): boolean {
+  return place.availability === "legacy_available";
+}
+
+/**
+ * No list, and why, when the kind of place asked for has nothing recorded
+ * behind it.
+ *
+ * Empty is a different answer. A kind with recorded places that nobody lingered
+ * on this period gets "nothing matched". A kind whose only places are
+ * unrecorded, or a project with no recorded place at all, has no input to
+ * answer from, and "nothing matched" there would send the reader to loosen
+ * criteria that cannot help.
+ */
+function audienceUnavailable(
+  sessions: readonly ShowroomSession[],
+  asked: PlaceCategory | null,
+): AudienceUnavailable | null {
+  if (asked === null || sessions.length === 0) return null;
+  const reached = sessions.flatMap((s) => s.places.filter((p) => p.category === asked));
+  if (reached.some(recordedPlace)) return null;
+  if (!sessions.some((s) => s.places.some(recordedPlace))) {
+    return {
+      headline: "No list: no meeting in this period has a recorded place.",
+      missing:
+        "A place selects a meeting only where its presentation was recorded. That needs either the UE5 v2 event that names which point of interest in Surroundings was presented, or the legacy Amenities items mapped to places.",
+    };
+  }
+  if (reached.some((p) => p.availability === "requires_ue5_v2_event")) {
+    return {
+      headline: "No list: no place of this kind was recorded in this period.",
+      missing:
+        "These meetings reached places of this kind, but which one was presented needs the UE5 v2 event that names it. Until that event exists, they select no meeting.",
+    };
+  }
+  return null;
+}
 
 export function buildAudience(
   context: ViewContext,
@@ -1248,14 +1952,20 @@ export function buildAudience(
         criteria.placeCategory === null ||
         s.places.some(
           (p) =>
-            p.category === criteria.placeCategory && p.dwellSeconds >= criteria.minimumPlaceSeconds,
+            recordedPlace(p) &&
+            p.category === criteria.placeCategory &&
+            p.dwellSeconds >= criteria.minimumPlaceSeconds,
         );
       return unitOk && placeOk;
     })
     .map((s) => {
       const agent = agentById(s.agentId);
       const places = s.places
-        .filter((p) => criteria.placeCategory === null || p.category === criteria.placeCategory)
+        .filter(
+          (p) =>
+            recordedPlace(p) &&
+            (criteria.placeCategory === null || p.category === criteria.placeCategory),
+        )
         .sort((a, b) => b.dwellSeconds - a.dwellSeconds)
         .slice(0, 2);
       const units = (criteria.favouritedOnly ? s.units.filter((u) => u.favourited) : s.units)
@@ -1266,13 +1976,27 @@ export function buildAudience(
       return {
         meetingId: s.meetingId,
         startedDisplay: dayLabel(s.startedAt, locale, timeZone),
-        agentName: agent?.name ?? presenterName(s.projectId, s.agentId),
+        agentName:
+          agent?.name ??
+          presenterName(s.projectId, s.agentId, context.language ?? DEFAULT_LANGUAGE),
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
           places.length === 0
             ? `${units.join(", ")}`
             : `${units.join(", ")} · ${places.map((p) => `${p.placeName} ${p.dwellSeconds}s`).join(", ")}`,
         href: `${base}/meetings/${s.meetingId}`,
+        // The showroom's own record of the meeting: its units and its places.
+        source: "IRIS_SHOWROOM_OBSERVED" as const,
+        /*
+         * Units are recorded (`docs/16` §2.5); the places are the ones `because`
+         * names, and each states its own availability. Read from the place, not
+         * from `recordedPlace`: asking the gate would repeat its verdict, and a
+         * gate that let an unrecorded place through would have every row say
+         * "recorded". Measured: with the gate removed, the rows said so.
+         */
+        availability:
+          places.find((p) => p.availability !== "legacy_available")?.availability ??
+          "legacy_available",
       };
     });
 
@@ -1296,15 +2020,12 @@ export function buildAudience(
     matches,
     total: matches.length,
     ofMeetings: sessions.length,
+    unavailable: audienceUnavailable(sessions, criteria.placeCategory),
     caveats: [
-      "This selects meetings, not people. Open a meeting to reach the contact — identity stays on the surface that already governs it.",
+      "This selects meetings, not people. A meeting's replay names no contact, and Observer has no page for one: each row names the agent who ran the meeting.",
       // A privacy guarantee, not a product-boundary note: it stays on screen.
       "Time spent on a category of place is a behaviour, not a fact about anyone's household. Family status is never inferred from it.",
-      ...(criteria.placeCategory === null
-        ? []
-        : [
-            "Points of interest in Surroundings need a UE5 v2 event. Amenity items are recorded today; both are shown here as a demonstration.",
-          ]),
+      "Only places whose presentation was recorded count. Which point of interest in Surroundings was presented needs a UE5 v2 event, so Surroundings places select no meeting and appear in no row.",
     ],
     evidence: evidenceRef(
       `audience-${criteria.rooms ?? "any"}-${criteria.placeCategory ?? "any"}`,
@@ -1322,6 +2043,14 @@ export function buildHome(
   sessions: readonly ShowroomSession[],
   previous: readonly ShowroomSession[],
   today: Date,
+  /**
+   * The same view **What needs attention** renders, not a second reading of it.
+   *
+   * Passed in rather than built here: both are composed from the same slices in
+   * the repository, so handing this one over costs no extra work and means the
+   * two screens cannot disagree about what is raised. See `actionWorthTaking`.
+   */
+  attention: AttentionView,
 ): ShowroomHome {
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -1329,14 +2058,17 @@ export function buildHome(
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   const progressed = share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length);
   const previousDecided = previous.filter((s) => !outcomeIsUnknown(s.outcome));
-  const previousProgressed = share(
-    previousDecided.filter((s) => hasProgressed(s.outcome)).length,
-    previousDecided.length,
-  );
 
-  const periods = buildPeriods(sessions, today, context.project.timeZone);
-  const week = periods.find((p) => p.id === "this_week")?.meetings ?? 0;
-  const lastWeek = periods.find((p) => p.id === "last_week")?.meetings ?? 0;
+  const periods = buildPeriods(
+    sessions,
+    today,
+    context.project.timeZone,
+    context.language,
+    sliceSpan(context, today),
+  );
+  const bucket = (id: FlowPeriod["id"]) => periods.find((p) => p.id === id);
+  const week = bucket("this_week")?.meetings ?? 0;
+  const lastWeek = bucket("last_week")?.meetings ?? 0;
 
   /*
    * The signal.
@@ -1349,9 +2081,43 @@ export function buildHome(
    * meeting against two is a difference of one meeting, and calling that a
    * downturn on the opening screen would train the reader to ignore the signal.
    */
-  const month = periods.find((p) => p.id === "this_month")?.meetings ?? 0;
-  const lastMonth = periods.find((p) => p.id === "last_month")?.meetings ?? 0;
+  const month = bucket("this_month")?.meetings ?? 0;
+  const lastMonth = bucket("last_month")?.meetings ?? 0;
   const weekIsReadable = week + lastWeek >= 8;
+  /*
+   * A pair the period does not hold whole is not compared. Last month lies
+   * before the last 28 days began, so this read "32 meetings this month
+   * against 0 last month" and called the showroom on course on the strength
+   * of it; a completed quarter holds neither month, and read "0 meetings this
+   * month". The period against its own baseline is what those periods hold.
+   */
+  const pair = weekIsReadable
+    ? [bucket("this_week"), bucket("last_week")]
+    : [bucket("this_month"), bucket("last_month")];
+  const spanned = !pair.every((p) => p?.inPeriod === true);
+  const volume = spanned
+    ? {
+        now: sessions.length,
+        before: previous.length,
+        nowWords: `in ${context.period.label.toLowerCase()}`,
+        beforeWords: `in ${context.period.baselineLabel}`,
+        label: `Meetings in ${context.period.label.toLowerCase()}`,
+      }
+    : weekIsReadable
+      ? {
+          now: week,
+          before: lastWeek,
+          nowWords: "this week",
+          beforeWords: "last week",
+          label: "Meetings this week",
+        }
+      : {
+          now: month,
+          before: lastMonth,
+          nowWords: "this month",
+          beforeWords: "last month",
+          label: "Meetings this month",
+        };
   /*
    * Three states, not two: better, worse, and *unknowable*.
    *
@@ -1365,6 +2131,44 @@ export function buildHome(
   const hasBaseline = previous.length > 0;
 
   /*
+   * ONE WINDOW (decided 2026-09-27).
+   *
+   * The progression beside a month's meetings is that month's. The sentence
+   * read "32 meetings this month against 32 last month, and 40% of recorded
+   * meetings progressing against 34% before": the 40% was the whole period's,
+   * and Sales Flow gave the same month 45%. Volume, progression and the signal
+   * now read the window the volume names, against that window's own pair.
+   */
+  const [nowBucket, beforeBucket] = pair;
+  const windowDecided = spanned ? decided.length : (nowBucket?.outcomeRecorded ?? 0);
+  const windowProgressed = spanned
+    ? decided.filter((s) => hasProgressed(s.outcome)).length
+    : (nowBucket?.progressed ?? 0);
+  const beforeDecided = !hasBaseline
+    ? 0
+    : spanned
+      ? previousDecided.length
+      : (beforeBucket?.outcomeRecorded ?? 0);
+  const beforeProgressed = !hasBaseline
+    ? 0
+    : spanned
+      ? previousDecided.filter((s) => hasProgressed(s.outcome)).length
+      : (beforeBucket?.progressed ?? 0);
+  const rate = share(windowProgressed, windowDecided);
+  const beforeRate = share(beforeProgressed, beforeDecided);
+
+  /*
+   * NO VERDICT BELOW THE SAMPLE (decided 2026-09-27).
+   *
+   * The signal is a comparison, so it needs both sides of one: an earlier
+   * period, and at least `AGENT_MIN_SAMPLE` recorded outcomes on each side of
+   * the window. Short of that there is no verdict. Four meetings with no
+   * earlier period read "on course" here, from thresholds nobody had named.
+   */
+  const readable =
+    hasBaseline && windowDecided >= AGENT_MIN_SAMPLE && beforeDecided >= AGENT_MIN_SAMPLE;
+
+  /*
    * Down, flat, or up — not a boolean.
    *
    * `trend()`'s deadband is what keeps one extra meeting from flipping the
@@ -1373,33 +2177,21 @@ export function buildHome(
    * only ever produce `"attention"` below, never tip the signal to `"good"`
    * or `"poor"` on its own.
    */
-  const volumeTrend: Trend = weekIsReadable
-    ? trend(week / lastWeek, 0.8)
-    : lastMonth === 0
-      ? month > 0
-        ? "up"
-        : "flat"
-      : trend(month / lastMonth, 0.8);
+  const volumeTrend: Trend =
+    volume.before === 0 ? (volume.now > 0 ? "up" : "flat") : trend(volume.now / volume.before, 0.8);
   const progressTrend: Trend =
-    previousProgressed === 0
-      ? progressed > 0.3
-        ? "up"
-        : "flat"
-      : trend(progressed / previousProgressed, 0.9);
+    beforeRate === 0 ? (rate > 0 ? "up" : "flat") : trend(rate / beforeRate, 0.9);
 
-  /*
-   * Without outcomes the signal rests on volume alone, and says so.
-   *
-   * Grading a project on a rate it cannot measure would put a confident colour
-   * on the screen with nothing behind it.
-   */
-  const signal: ShowroomSignal = !outcomesRecorded
-    ? "attention"
+  const signal: ShowroomSignal = !readable
+    ? "no_verdict"
     : volumeTrend === "up" && progressTrend === "up"
       ? "good"
       : volumeTrend === "down" && progressTrend === "down"
         ? "poor"
         : "attention";
+
+  const outcomes = (n: number) =>
+    `${count(n, locale)} recorded ${n === 1 ? "outcome" : "outcomes"}`;
 
   /*
    * "The showroom is running" is a claim, and with no meeting at all it was made
@@ -1411,11 +2203,17 @@ export function buildHome(
       (sessions.length === 0
         ? `No presentations were recorded in ${context.period.label.toLowerCase()}.`
         : "The showroom is running; no outcomes are being recorded."))
-    : signal === "good"
-      ? "The showroom is on course."
-      : signal === "poor"
-        ? "The showroom is going the wrong way."
-        : "The showroom needs a look.";
+    : readable
+      ? signal === "good"
+        ? "The showroom is on course."
+        : signal === "poor"
+          ? "The showroom is going the wrong way."
+          : "The showroom needs a look."
+      : windowDecided < AGENT_MIN_SAMPLE
+        ? `${outcomes(windowDecided)} ${volume.nowWords}; ${count(AGENT_MIN_SAMPLE, locale)} needed for a verdict.`
+        : !hasBaseline
+          ? "There is no earlier period to compare against, so there is no verdict."
+          : `${outcomes(beforeDecided)} ${volume.beforeWords} to compare against; ${count(AGENT_MIN_SAMPLE, locale)} needed for a verdict.`;
 
   /*
    * The progression clause, or an honest statement that there is none.
@@ -1428,9 +2226,13 @@ export function buildHome(
     ? `. No meeting outcome has been recorded on this project, so no progression rate can be computed.${
         hasBaseline ? "" : " There is no earlier period to compare against either."
       }`
-    : hasBaseline
-      ? `, and ${percent(progressed, locale)} of recorded meetings progressing against ${percent(previousProgressed, locale)} before.`
-      : `, and ${percent(progressed, locale)} of recorded meetings progressing. There is no earlier period to compare against.`;
+    : windowDecided === 0
+      ? `. No meeting ${volume.nowWords} carries a recorded outcome, so no progression rate can be computed for it.`
+      : !hasBaseline
+        ? `, and ${percent(rate, locale)} of the recorded meetings ${volume.nowWords} progressing. There is no earlier period to compare against.`
+        : beforeDecided === 0
+          ? `, and ${percent(rate, locale)} of the recorded meetings ${volume.nowWords} progressing. No meeting ${volume.beforeWords} carries a recorded outcome to compare against.`
+          : `, and ${percent(rate, locale)} of the recorded meetings ${volume.nowWords} progressing against ${percent(beforeRate, locale)} ${volume.beforeWords}.`;
 
   /*
    * A project with no history is not a project that did badly.
@@ -1443,64 +2245,64 @@ export function buildHome(
    * it was still making the claim.
    */
   const volumeClause = hasBaseline
-    ? weekIsReadable
-      ? `${meetings(week, locale)} this week against ${count(lastWeek, locale)} last week`
-      : `${meetings(month, locale)} this month against ${count(lastMonth, locale)} last month`
-    : `${meetings(weekIsReadable ? week : month, locale)} ${weekIsReadable ? "this week" : "this month"}`;
+    ? `${meetings(volume.now, locale, context.language)} ${volume.nowWords} against ${count(volume.before, locale)} ${volume.beforeWords}`
+    : `${meetings(volume.now, locale, context.language)} ${volume.nowWords}`;
 
-  const because = weekIsReadable
-    ? `${volumeClause}${progressClause}`
-    : `${volumeClause}${progressClause}` + " This week is too early to read on its own.";
+  // Why the week was not read; a period read whole needs no such note.
+  const because =
+    weekIsReadable || spanned
+      ? `${volumeClause}${progressClause}`
+      : `${volumeClause}${progressClause}` + " This week is too early to read on its own.";
 
   const figures: HomeFigure[] = [
     {
       id: "meetings",
-      label: weekIsReadable ? "Meetings this week" : "Meetings this month",
-      value: count(weekIsReadable ? week : month, locale),
+      label: volume.label,
+      value: count(volume.now, locale),
       // Same rule as the sentence above: no baseline, no comparison, and no
       // arrow — an arrow is a claim about a direction there is nothing to move
       // from.
       against: !hasBaseline
         ? "no earlier period to compare"
-        : weekIsReadable
-          ? `${count(lastWeek, locale)} last week`
-          : `${count(lastMonth, locale)} last month`,
+        : `${count(volume.before, locale)} ${volume.beforeWords}`,
       direction: !hasBaseline
         ? "flat"
-        : weekIsReadable
-          ? week > lastWeek
-            ? "up"
-            : week < lastWeek
-              ? "down"
-              : "flat"
-          : month > lastMonth
-            ? "up"
-            : month < lastMonth
-              ? "down"
-              : "flat",
+        : volume.now > volume.before
+          ? "up"
+          : volume.now < volume.before
+            ? "down"
+            : "flat",
       better: !hasBaseline ? "neither" : "up",
       measurementId: "showroom.presentations",
     },
     {
       id: "progressed",
-      label: "Progressing",
+      /*
+       * The sentence's window, named: beside "Meetings this month" a bare
+       * "Progressing" read as the month's while it held the whole period's.
+       */
+      label: `Progressing ${volume.nowWords}`,
       // An em dash, not a zero. The figure is unavailable, not nil.
-      value: outcomesRecorded ? percent(progressed, locale) : "—",
+      value: windowDecided > 0 ? percent(rate, locale) : "—",
       against: !outcomesRecorded
         ? "no outcome recorded on this project"
-        : hasBaseline
-          ? `${percent(previousProgressed, locale)} in the previous period`
-          : "no earlier period to compare",
+        : windowDecided === 0
+          ? `no outcome recorded ${volume.nowWords}`
+          : !hasBaseline
+            ? "no earlier period to compare"
+            : beforeDecided === 0
+              ? `no outcome recorded ${volume.beforeWords}`
+              : `${percent(beforeRate, locale)} ${volume.beforeWords}`,
       direction:
-        !outcomesRecorded || !hasBaseline
+        windowDecided === 0 || beforeDecided === 0
           ? "flat"
-          : progressed > previousProgressed
+          : rate > beforeRate
             ? "up"
-            : progressed < previousProgressed
+            : rate < beforeRate
               ? "down"
               : "flat",
       // Nothing to grade when nothing was measured.
-      better: outcomesRecorded && hasBaseline ? "up" : "neither",
+      better: windowDecided > 0 && beforeDecided > 0 ? "up" : "neither",
       measurementId: null,
     },
     {
@@ -1514,22 +2316,50 @@ export function buildHome(
     },
   ];
 
-  /* The one thing worth acting on. */
-  const teamProgressed = progressed;
-  const flagged = presentersIn(sessions)
-    .map((a) => {
-      const mine = sessions.filter((s) => s.agentId === a.id);
-      return { agent: a, flag: outcomeFlag(mine, teamProgressed), meetings: mine.length };
-    })
-    .filter((f) => f.flag?.severity === "concern")[0];
+  /*
+   * The one thing worth acting on — the SAME one the attention screen leads with.
+   *
+   * This used to scan presenters for an outcome flag of its own and take the
+   * first with a "concern" severity. Nothing wrong with the arithmetic; the
+   * problem was that it was a second arithmetic. Two screens answering "what
+   * should I do about this period" from two computations agree until the day
+   * they do not, and the day they do not is the day a reader stops believing
+   * either. `actionWorthTaking` is now the only place that choice is made.
+   */
+  const leading = actionWorthTaking(attention);
 
+  /*
+   * LEAD WITH WHAT IS RAISED, WHETHER OR NOT IT CAN BE OPENED.
+   *
+   * The earlier version required the leading state to carry its own route, and
+   * fell back to null when it did not. That is how Riverside came to print
+   * "Nothing in this period is waiting on a decision from you" over four raised
+   * states including a warning: the state with nowhere to send a reader — no
+   * CRM connected, which is an administrator's job rather than this reader's —
+   * silently became no state at all.
+   *
+   * A missing route is a fact about one state. It is not a fact about the
+   * period, and it is the period the sentence is about. So "Clear" now means
+   * the checks raised nothing, which is the only thing that was ever true of
+   * it, and a state without its own action sends the reader to the register
+   * where it sits in full. `StateList` already draws an unopenable subject as
+   * text rather than a dead link; this is the same rule one level up, which is
+   * the level it was missing from.
+   */
   const alert =
-    flagged?.flag == null
+    leading === null
       ? null
-      : {
-          text: `${flagged.agent.name}: ${flagged.flag.text}`,
-          href: `${base}/agents/${flagged.agent.id}`,
-        };
+      : leading.alert.actionHref === null
+        ? {
+            text: leading.alert.title,
+            href: `${base}/attention`,
+            actionLabel: "Open what needs attention",
+          }
+        : {
+            text: leading.alert.title,
+            href: leading.alert.actionHref,
+            actionLabel: "Look at it",
+          };
 
   const project = buildProjectView(context, sessions, null);
   const lead = leadSegment(project.segments);
@@ -1547,7 +2377,11 @@ export function buildHome(
         id: "flow",
         label: "Sales Flow",
         question: "How is the process performing?",
-        headline: `${meetings(sessions.length, locale)} · ${percent(progressed, locale)} progressing`,
+        // Where nothing records an outcome there is no rate: not "0% progressing",
+        // the reading the "Progressing" figure above was already corrected from.
+        headline: `${meetings(sessions.length, locale, context.language)} · ${
+          outcomesRecorded ? `${percent(progressed, locale)} progressing` : "no outcome recorded"
+        }`,
         href: `${base}/flow`,
       },
       {
@@ -1557,14 +2391,18 @@ export function buildHome(
         headline:
           lead === undefined
             ? "Segments, filters and places"
-            : `${lead.label} units draw ${lead.index.toFixed(1)}× their share of attention`,
+            : `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of attention`,
         href: `${base}/project`,
       },
       {
         id: "agents",
         label: "Sales Agents",
         question: "How does each person present, and how do their meetings end?",
-        headline: `${count(agents, locale)} agents · outcome mix side by side`,
+        // One presenter has no one to stand beside: "1 agents · … side by side" read on a live project.
+        headline:
+          agents === 1
+            ? "1 agent · outcome mix"
+            : `${count(agents, locale)} agents · outcome mix side by side`,
         href: `${base}/agents`,
       },
     ],

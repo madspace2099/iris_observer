@@ -30,6 +30,7 @@ import {
   DEPLOYMENT_INVENTORY_PROVENANCE,
 } from "./live-snapshot";
 import { HISTORICAL_CONTROL_CHAR_COMMITS } from "./transport-safe";
+import { STAGED_REMEDY } from "./wrap-migration";
 import {
   renderMappingTable,
   renderObservedMapping,
@@ -117,6 +118,12 @@ const sha256 = (path: string): string =>
   createHash("sha256")
     .update(readFileSync(join(REPO_ROOT, path)))
     .digest("hex");
+
+/** A generated staged file's hash, or the sentence that says it was never generated. */
+const stagedSha256 = (path: string): string => {
+  if (!existsSync(join(REPO_ROOT, path))) throw new Error(`${path} is missing. ${STAGED_REMEDY}`);
+  return sha256(path);
+};
 
 /** Executable SQL only: comments stripped, whitespace collapsed. */
 export const strip = (sql: string): string =>
@@ -702,12 +709,12 @@ export interface RedGateAttempt {
 export const RED_GATE_ATTEMPTS: readonly RedGateAttempt[] = [
   {
     commit: "abeca3a",
-    record: ".release/gate-results-FAILED-abeca3a-3064e88a1d30bd14.json",
+    record: "docs/release/red-gate-records/gate-results-FAILED-abeca3a-3064e88a1d30bd14.json",
     why: "a tracked test file carried a forbidden secret-shaped assignment",
   },
   {
     commit: "ebeb916",
-    record: ".release/gate-results-FAILED-ebeb916-94ad69855e655aaf.json",
+    record: "docs/release/red-gate-records/gate-results-FAILED-ebeb916-94ad69855e655aaf.json",
     why: "the commit message describing the fix reproduced the same shape",
   },
 ];
@@ -748,15 +755,11 @@ export const HISTORY_REPAIR = Object.freeze({
  * beside the thing instead of taken from it. It is derived now, and the
  * rendered prose says however many there are.
  */
-/**
- * The tree the replaced history had.
- *
- * DECLARED, because it cannot be derived: its commit is no longer reachable
- * from this branch. The hash-accounting rule admits it only after git confirms
- * the object is genuinely a tree, so a mistyped identifier refuses the build
- * rather than being printed as evidence.
+/*
+ * The tree the replaced history had is not cited. It exists only in the
+ * operator's local repository, and publishing it would undo the repair; an
+ * identifier no clone can resolve is not evidence (decided 2026-09-27).
  */
-export const HISTORY_REPAIR_OLD_TREE = "799515f23a680f10b1f9c494f0f02ff23304ab40";
 
 export function historyReplacementCommits(): readonly string[] {
   return git("log", "--format=%h", `${HISTORY_REPAIR.protectedBase}..HEAD`)
@@ -777,7 +780,6 @@ export function historyRepairFacts(): Readonly<Record<string, string>> {
     HISTORY_REPLACEMENT_LIST: replacements.join(", "),
     HISTORY_OLD_RANGE: `${base}..ebeb916`,
     HISTORY_NEW_RANGE: `${base}..${git("rev-parse", "--short", "HEAD")}`,
-    HISTORY_OLD_TREE: HISTORY_REPAIR_OLD_TREE,
     HISTORY_NEW_TREE: git("rev-parse", "HEAD^{tree}"),
   };
 }
@@ -962,7 +964,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
   });
 
   const cronHealth = sha256("supabase/verifiers/observer-cron-health.sql");
-  const cronHealthWrapper = sha256("_sql-to-paste/observer-cron-health.sql");
+  const cronHealthWrapper = stagedSha256("_sql-to-paste/observer-cron-health.sql");
   /* Prior deliveries, excluding the candidate this package will become. */
   const priorBundles = INVENTORY_RECORDED_IN.filter((b) => b !== headShort);
   const bundles = word(priorBundles.length).toLowerCase();
@@ -1132,7 +1134,7 @@ export function facts(shape: PackageShape): Readonly<Record<string, string>> {
     DEPLOYMENT_INVENTORY_LINE: deploymentInventoryLine(),
 
     M4_SOURCE_SHA: sha256(M4),
-    M4_WRAPPER_SHA: sha256("_sql-to-paste/observer-migration-4-retention.sql"),
+    M4_WRAPPER_SHA: stagedSha256("_sql-to-paste/observer-migration-4-retention.sql"),
     M4_EXEC_SHA: m4ExecNow,
     M4_HISTORY_BLOCK: m4HistoryBlock,
     CRON_HEALTH_SHA: cronHealth,

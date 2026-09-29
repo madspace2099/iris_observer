@@ -930,6 +930,15 @@
   color: var(--ox-ink);
 }
 
+/*
+ * A section a link lands on stops below the sticky header and context band,
+ * not under them: a finding's step to "Meetings that opened it" scrolled the
+ * heading to the top of the viewport, behind both.
+ */
+.ox-section-title[id] {
+  scroll-margin-top: calc(var(--iris-header-height, 70px) + 4.5rem);
+}
+
 .ox-section-note {
   max-width: 58ch;
   margin: 0;
@@ -1649,10 +1658,14 @@
   box-shadow: 0 -1px 0 var(--ox-line-hair);
 }
 
+/*
+ * No sticky header (decided 2026-09-27, R08 option c). The table always sits
+ * in `.ox-table-scroll`, a sideways scroller, and a header cannot stick to the
+ * page from inside one: `position: sticky` here stuck to a box that never
+ * scrolls vertically, so it never held. Sideways scrolling stays; the header
+ * scrolls away with its rows.
+ */
 .ox-table thead th {
-  position: sticky;
-  top: 0;
-  z-index: 1;
   background: var(--ox-panel);
   font-size: var(--ox-micro);
   font-weight: var(--weight-semibold);
@@ -2492,6 +2505,21 @@
   font-size: var(--ox-micro);
   color: var(--ox-watch);
   white-space: nowrap;
+}
+
+/*
+ * A SHORTFALL SENTENCE WRAPS WHERE IT STANDS.
+ *
+ * `nowrap` above is the sheet row's, where the shortfall is the short form
+ * beside a figure. A tally cell is a column with a width, and the read
+ * model's sentence — "Fewer than 20 meetings for this agent — shown as a raw
+ * figure, not as a verdict" — could not wrap in it: on the agent page three
+ * of them ran across their cells into one unreadable line, a withholding the
+ * reader never received. Eleven cells on two surfaces draw a `Figure` inside
+ * this grid, so the grid owns the rule rather than each cell.
+ */
+.ox-tally .ox-shortfall {
+  white-space: normal;
 }
 
 .ox-error {

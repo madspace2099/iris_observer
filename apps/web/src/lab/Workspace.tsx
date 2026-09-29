@@ -9,6 +9,7 @@ import type {
   PulseUnit,
 } from "@observer/readmodels";
 import type { ExecutiveOverview } from "@observer/readmodels";
+import { EvidencePill } from "@/showroom/parts";
 import { areaWord, aspectWord, floorWord, roomsWord } from "@observer/readmodels";
 
 /**
@@ -339,10 +340,10 @@ function AnswerSheet({
         </dl>
 
         {answer.evidence === null ? null : (
-          <a className="iris-evidence" href={answer.evidence.href}>
+          <EvidencePill href={answer.evidence.href}>
             <i />
             {answer.evidence.observationCount} records · {answer.evidence.tier.replace(/_/g, " ")}
-          </a>
+          </EvidencePill>
         )}
 
         {answer.caveat === null ? null : (
@@ -427,13 +428,17 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
       };
     }
     if (segment !== null) {
-      const over = segment.attentionIndex >= 1;
+      const index = segment.attentionIndex;
+      const over = index !== null && index >= 1;
       const conv = segment.conversionRatio;
       return {
         kicker: `${segment.label} · ${segment.unitIds.length} units`,
-        text: `${segment.label} units draw ${segment.attentionIndex}× their share of attention${
-          conv === null ? "." : ` and convert at ${conv}× the project average.`
-        }`,
+        text:
+          index === null
+            ? `${segment.label} units have no attention index in this period.`
+            : `${segment.label} units draw ${index.toFixed(2)}× their share of attention${
+                conv === null ? "." : ` and convert at ${conv}× the project average.`
+              }`,
         lede:
           over && conv !== null && conv < 1
             ? `The interest is real; the price probably is not. ${segment.available} of them are still available.`
@@ -483,7 +488,7 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
             setUnit(null);
           }}
         >
-          {s.label} <b>{s.attentionIndex}×</b>
+          {s.label} <b>{s.attentionIndex === null ? "—" : `${s.attentionIndex.toFixed(2)}×`}</b>
         </button>
       ))}
     </div>
@@ -551,10 +556,10 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
           <div>
             <p className="iris-body">{s.text}</p>
             {s.evidence === null ? null : (
-              <a className="iris-evidence" href={s.evidence.href} style={{ marginTop: ".5rem" }}>
+              <EvidencePill href={s.evidence.href} style={{ marginTop: ".5rem" }}>
                 <i />
                 {s.evidence.observationCount} records · {s.tier.replace(/_/g, " ")}
-              </a>
+              </EvidencePill>
             )}
           </div>
         </div>
@@ -778,14 +783,13 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
                 <div>
                   <p className="iris-body">{overview.briefing.statements[0]?.text}</p>
                   {overview.briefing.statements[0]?.evidence == null ? null : (
-                    <a
-                      className="iris-evidence"
+                    <EvidencePill
                       href={overview.briefing.statements[0].evidence.href}
                       style={{ marginTop: ".5rem" }}
                     >
                       <i />
                       {overview.briefing.statements[0].evidence.observationCount} records
-                    </a>
+                    </EvidencePill>
                   )}
                 </div>
               </div>

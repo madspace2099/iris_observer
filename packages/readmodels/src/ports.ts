@@ -1,8 +1,9 @@
 import type { Evidence, MeetingId, ProjectId, TenantId } from "@observer/contracts";
 import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from "./context";
+import type { Language } from "./language";
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
 import type { AskHistoryView, AskSession, AskThread, ProjectPulse } from "./pulse";
-import type { ReportScopeView } from "./report";
+import type { ReportScopeSelector, ReportScopeView } from "./report";
 import type {
   AgentDetailView,
   AttentionView,
@@ -46,6 +47,8 @@ export interface OverviewQuery {
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly period: PeriodPreset;
+  /** The words' language. Never derived from the project's locale, which formats the figures. */
+  readonly language: Language;
 }
 
 export interface BriefQuery {
@@ -53,6 +56,8 @@ export interface BriefQuery {
   readonly tenantSlug: string;
   readonly projectSlug: string;
   readonly meetingId: MeetingId;
+  /** As on `OverviewQuery`. */
+  readonly language: Language;
 }
 
 /** Raised when a viewer asks for something outside their grants. */
@@ -244,8 +249,14 @@ export interface ObserverRepository {
    * The sections and their availability come from the project's own sources, so
    * a scheme with no CRM is told which parts of its report would be blank
    * before it asks for one rather than afterwards.
+   *
+   * Without a selector the scope is the project. With one it is a single
+   * meeting or a single agent of this project, and one that is not this
+   * project's — another project's meeting id, an agent who did not present
+   * here in the period, an id that exists nowhere — is `NotFoundError`, by
+   * the rule the replay and the agent screen already apply.
    */
-  getReportScope(query: OverviewQuery, meetingId?: string | null): Promise<ReportScopeView>;
+  getReportScope(query: OverviewQuery, of?: ReportScopeSelector | null): Promise<ReportScopeView>;
 
   /**
    * The people presenting on this project, in this period.

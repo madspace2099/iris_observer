@@ -1,9 +1,13 @@
 import Link from "next/link";
-import type {
-  AttentionCheck,
-  AttentionKind,
-  AttentionState,
-  PeriodPreset,
+import {
+  DEFAULT_LANGUAGE,
+  sentence,
+  type AttentionCheck,
+  type AttentionKind,
+  type AttentionState,
+  type Language,
+  type PeriodPreset,
+  type Sentence,
 } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
@@ -19,7 +23,7 @@ import { AttentionList, Sample } from "@/components/product";
  * is invisible in a table sorted by views, because the two columns that
  * disagree sit ten inches apart.
  *
- * Two of the six checks in `ATTENTION_KIND_DEFINITIONS` ask exactly that pair
+ * Two of the checks in `ATTENTION_KIND_DEFINITIONS` ask exactly that pair
  * of questions, from the two ends:
  *
  *   viewed_never_shortlisted     opened again and again, never kept.
@@ -57,12 +61,34 @@ const SAMPLE_NOUNS: Readonly<Record<string, string>> = {
   high_interest_no_follow_up: "meetings that shortlisted a unit",
 };
 
+/*
+ * "Asked of 3 meetings in quarter to date." A single meeting is spelled out,
+ * in each language; after "z" Slovak takes the genitive.
+ */
+export const DEMAND_ATTENTION_ASKED_SENTENCE: Sentence = {
+  en: {
+    text: "Asked of {meetings|count} in {period}.",
+    words: { meetings: { one: "one meeting", other: "{count} meetings" } },
+  },
+  sk: {
+    text: "Vyhodnotené z {meetings|count} v období {period}.",
+    words: {
+      meetings: { one: "jedného stretnutia", few: "{count} stretnutí", other: "{count} stretnutí" },
+    },
+  },
+  hu: {
+    text: "{meetings|count} alapján vizsgálva, {az:period} időszakban.",
+    words: { meetings: { one: "Egy találkozó", other: "{count} találkozó" } },
+  },
+};
+
 export function DemandAttention({
   states,
   checks,
   period,
   meetingCount,
   periodLabel,
+  language = DEFAULT_LANGUAGE,
 }: {
   /** Every raised state from `getAttention`. Filtered here, never recomputed. */
   readonly states: readonly AttentionState[];
@@ -71,6 +97,8 @@ export function DemandAttention({
   /** Meetings the checks were asked of. The denominator for the whole region. */
   readonly meetingCount: number;
   readonly periodLabel: string;
+  /** The words' language; the page passes the reader's once there is a choice. */
+  readonly language?: Language;
 }) {
   const mine = states.filter((state) => KINDS.includes(state.kind));
   const asked = checks.filter((check) => KINDS.includes(check.kind));
@@ -80,9 +108,12 @@ export function DemandAttention({
       <div className="ox-section-head">
         <h2 className="ox-section-title">High interest, low conversion</h2>
         <p className="ox-section-note">
-          Asked of {meetingCount === 1 ? "one meeting" : `${meetingCount} meetings`} in{" "}
-          {periodLabel}. A unit opened repeatedly and never kept, and a unit kept with nothing
-          recorded afterwards, are two ends of one question the register cannot show in a column.
+          {sentence(language, DEMAND_ATTENTION_ASKED_SENTENCE, {
+            count: meetingCount,
+            period: periodLabel,
+          })}{" "}
+          A unit opened repeatedly and never kept, and a unit kept with nothing recorded afterwards,
+          are two ends of one question the register cannot show in a column.
         </p>
       </div>
 

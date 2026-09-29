@@ -12,7 +12,7 @@ import {
   type DataRow,
   type FilterField,
 } from "@/components/product";
-import { StatusChip, VerifiedOutcome } from "./UnitStatus";
+import { StatusChip } from "./UnitStatus";
 import {
   REGISTER_PAGE,
   ROOMS_UNSTATED,
@@ -29,7 +29,7 @@ import {
 /**
  * THE UNIT DEMAND REGISTER — the densest table in the product.
  *
- * Thirteen columns of one flat each, on the paper ground, and the ground is the
+ * Twelve columns of one flat each, on the paper ground, and the ground is the
  * argument. ADR-0034 divides the product by CONTENT rather than by page: above
  * the seam is what we conclude and what a reader may do about it, below it is
  * what was measured. A register is nothing but measurement — a code, a floor, a
@@ -37,7 +37,7 @@ import {
  * written for, and it is the one place in Observer where a reader is expected
  * to work down a column rather than read a sentence.
  *
- * ## Why a real table, with all thirteen columns
+ * ## Why a real table, with all twelve columns
  *
  * The surface this replaces was cut to six columns after review, on the correct
  * ground that eight abbreviated ones are a spreadsheet rather than an answer.
@@ -50,8 +50,8 @@ import {
  *
  * Below 48rem the stylesheet turns each row into a stacked record and prints
  * every cell's own column name in front of it, which is why `DataTable` writes
- * `data-label` from the column unconditionally. A thirteen-column table is not
- * a thirteen-column table on a phone; it is forty-eight records.
+ * `data-label` from the column unconditionally. A twelve-column table is not
+ * a twelve-column table on a phone; it is forty-eight records.
  *
  * ## The order is the reader's, and it is not a ranking
  *
@@ -74,7 +74,7 @@ import {
 
 /** One column, its heading, and the sentence that says what is behind it. */
 interface RegisterColumn {
-  readonly key: UnitSortKey | "verified";
+  readonly key: UnitSortKey;
   readonly label: string;
   readonly numeric: boolean;
   /** Null for the columns whose heading is already the whole definition. */
@@ -137,12 +137,32 @@ const COLUMNS: readonly RegisterColumn[] = [
     numeric: false,
     note: "DERIVED. This unit's share of the looking time the busiest unit in the project drew, over the same period. It is an ordering aid and not a verdict: below the minimum sample the unit's own page states the shortfall instead of a direction.",
   },
-  {
-    key: "verified",
-    label: "Verified outcome",
-    numeric: false,
-    note: "What a system of record confirms about this unit. The unit catalogue is the only one Observer holds — no offer, contract or CRM fact reaches this product against a single flat.",
-  },
+  /*
+   * A THIRTEENTH COLUMN USED TO SIT HERE, AND WHY IT DOES NOT.
+   *
+   * "Verified outcome" was drawn from `row.status` — the same field the
+   * Status column two places from the left already draws. It was never a
+   * second source agreeing with the first; it was the first source, printed
+   * again eleven columns away, wearing the tone this system reserves for
+   * "a person decided this". In two of the three states the two cells printed
+   * the same word, and a `pre_reserved` unit, which the contract layer folds
+   * into `reserved` (`packages/contracts/src/catalogue.ts:152-157`), arrived
+   * in it as a confirmed reservation.
+   *
+   * The argument that removed it is not that it was redundant. It is that a
+   * reader who meets Status=Sold and Verified=Sold is entitled to conclude
+   * that two systems agree, and no two systems did. An empty space makes no
+   * claim; that column made a false one.
+   *
+   * A real verified sale exists and is not this. `AssistedSale`
+   * (`packages/readmodels/src/deal-source.ts:133-151`) is keyed by
+   * `unitCode` and carries the CRM's stage, its stage date and its
+   * `dateBasis`. Putting it in a column is wanted and is not free: it runs on
+   * a second clock, it does not exist for every flat, and its coverage is
+   * partial, so it needs both clocks named, a denominator, and the missing
+   * rows told apart from the zeroes. That is its own piece of work and half of
+   * it would be worse than none.
+   */
 ];
 
 /**
@@ -287,15 +307,6 @@ export function UnitRegister({
   ];
 
   const columns: readonly DataColumn[] = COLUMNS.map((column) => {
-    if (column.key === "verified") {
-      /*
-       * The one unsortable column, and deliberately so. It restates the status
-       * column from the same field, so offering a second ordering of one fact
-       * would give the reader two controls that do the same thing and no way to
-       * tell that they do.
-       */
-      return { key: column.key, label: column.label, numeric: column.numeric };
-    }
     const state = sortStateFor(column.key, base, query);
     return {
       key: column.key,
@@ -310,7 +321,20 @@ export function UnitRegister({
     const cells: Readonly<Record<string, ReactNode>> = {
       code: (
         <Link
-          href={dynamicRoute(withPeriod(`${base}/${row.unitCode}`, period))}
+          /*
+           * The register the reader built travels with them.
+           *
+           * This file's own folder states the rule — "the query string is the
+           * register's whole state" — and a link that leaves without it hands
+           * the unit page no way to send the reader back to the register they
+           * were reading. `registerHref` omits the period deliberately, because
+           * `withPeriod` adds it at the point of render; the two compose.
+           *
+           * The same argument the period already won here: a link that quietly
+           * resets the reader's scope is the defect whether or not the
+           * destination cares about the scope.
+           */
+          href={dynamicRoute(withPeriod(registerHref(`${base}/${row.unitCode}`, query), period))}
           /*
            * `aria-current="true"`, not `"page"` and not `aria-pressed`.
            *
@@ -337,7 +361,6 @@ export function UnitRegister({
       plans: row.pdfOpens,
       comparisons: <Comparisons row={row} />,
       demand: <Demand row={row} />,
-      verified: <VerifiedOutcome status={row.status} />,
     };
     return { key: row.unitId, cells };
   });

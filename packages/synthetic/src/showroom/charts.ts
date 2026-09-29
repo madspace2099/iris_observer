@@ -14,10 +14,12 @@ import type {
   AgentCharts,
   AgentRadar,
   BehaviourFunnel,
+  FeatureUsage,
   FlowCharts,
   BehaviourStep,
   JourneyFlowModel,
   KpiFigure,
+  KpiGroup,
   KpiPanel,
   KpiWindowId,
   OutcomeComposition,
@@ -27,7 +29,7 @@ import type {
   TrendSeries,
   ViewContext,
 } from "@observer/readmodels";
-import { KPI_WINDOWS } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, KPI_WINDOWS, duration, type Language } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
   count,
@@ -38,9 +40,10 @@ import {
   percent,
   signedPercent,
 } from "../format";
-import { endOfDayIn, monthKeyIn, startOfWeekIn, zoneParts } from "../time";
+import { endOfDayIn, monthKeyIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { presenterName, presentersIn } from "./sessions";
-import { meetings } from "./views3";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { meetings, sliceSpan, suppressionNoteFor } from "./views3";
 
 /**
  * The figures behind the chart vocabulary.
@@ -62,13 +65,6 @@ function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;
 }
 
-function duration(seconds: number): string {
-  const m = Math.floor(seconds / 60);
-  return m === 0
-    ? `${Math.round(seconds)}s`
-    : `${m}m ${String(Math.round(seconds % 60)).padStart(2, "0")}s`;
-}
-
 function within(sessions: readonly ShowroomSession[], from: number, to: number): ShowroomSession[] {
   return sessions.filter((s) => {
     const at = Date.parse(s.startedAt);
@@ -78,12 +74,70 @@ function within(sessions: readonly ShowroomSession[], from: number, to: number):
 
 /* --- KPI cards over a chosen window ----------------------------------------- */
 
+/**
+ * The summary row's four groups (R05 item 2, approved by Máté on 2026-09-24).
+ *
+ * Measured before any was built. Two hold a figure this row already draws. Two
+ * hold none, and are printed empty with what is missing:
+ * - Conversion. The deal ladder is stock, not path (`deal-source.ts`), and the
+ *   registry's `flow.stage_conversion` is defined but computed nowhere.
+ *   Progressing is a meeting ratio, which the plan excludes as conversion.
+ * - Cycle time. `sale-cycle.ts` is rendered nowhere, and P2-06 is blocked on
+ *   the inputs named below.
+ *
+ * "Typical length" belongs to none. It measures workload, and under Volume the
+ * group's name would say something untrue about it, so it stays in the row
+ * outside the groups.
+ */
+const KPI_GROUPS: readonly KpiGroup[] = [
+  {
+    id: "volume",
+    label: "Volume",
+    definition:
+      "How much the showroom was used: the presentations given, and the units opened in them.",
+    figureIds: ["presentations", "units"],
+    missing: null,
+  },
+  {
+    id: "progress",
+    label: "Progress",
+    definition:
+      "How far the meetings went: of those with an outcome recorded, the share that ended at a follow-up or better.",
+    figureIds: ["progressed"],
+    missing: null,
+  },
+  {
+    id: "conversion",
+    label: "Conversion",
+    // The registry's own words for `flow.stage_conversion`.
+    definition:
+      "The share of buyers who move forward from each rung to the next, counted by when they entered it rather than when they moved.",
+    figureIds: [],
+    missing:
+      "Not measured yet. The deal ladder counts where each deal stands, not the path it took, and the stage-to-stage figure is defined but not computed. Progress above is about meetings, not deals.",
+  },
+  {
+    id: "cycle_time",
+    label: "Cycle time",
+    /*
+     * End to end, as `flow.sales_cycle_duration` says, and no more. Where the
+     * cycle starts is the open decision: the registry counts from a buyer's
+     * first contact, while P2-06 measured from a unit's first opening.
+     */
+    definition: "How long a sale took, end to end.",
+    figureIds: [],
+    missing:
+      "Blocked. It needs each unit's first opening across its whole history, and a decision on whether the cycle starts at a buyer's first contact or at the unit's first showing.",
+  },
+];
+
 export function buildKpis(
   all: readonly ShowroomSession[],
   today: Date,
   windowId: KpiWindowId,
   locale: string,
   timeZone: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): KpiPanel {
   const spec = KPI_WINDOWS.find((w) => w.id === windowId) ?? KPI_WINDOWS[2];
   const day = 24 * 60 * 60 * 1000;
@@ -149,14 +203,34 @@ export function buildKpis(
     return a > b === (better === "up") ? "good" : "bad";
   };
 
+  /*
+   * Spelled once. Every card carries the window it answers to, and three of
+   * them used to leave it to the chip row above — which is the same distance
+   * "Progressing" already decided was too far.
+   */
+  const windowWords = spec.label.toLowerCase();
+
   const figures: KpiFigure[] = [
     {
       id: "presentations",
       label: "Presentations",
       measurementId: "showroom.presentations",
       value: count(now.length, locale),
+      /*
+       * The window, on the card.
+       *
+       * "Progressing" below has named its own window since the round that
+       * noticed why it had to — this figure and the Sales Flow headline are
+       * two different claims over two different spans, and the chip row that
+       * sets this one sits several lines away. The rule was right and was
+       * applied to one figure out of four: a reader meeting "Presentations 41"
+       * above a page whose other counts are quarter-to-date had nothing on the
+       * card to tell them why 41 is not 74.
+       */
       qualifier:
-        before.length === 0 ? "no earlier window" : `${count(before.length, locale)} before`,
+        before.length === 0
+          ? `${windowWords} · no earlier window`
+          : `${windowWords} · ${count(before.length, locale)} before`,
       delta:
         before.length === 0
           ? null
@@ -169,8 +243,11 @@ export function buildKpis(
       label: "Typical length",
       measurementId: null,
       // Null, not zero: a window with no timed session has no median to report.
-      value: medNow === null ? "—" : duration(medNow),
-      qualifier: medBefore === null ? "no earlier median" : `${duration(medBefore)} before`,
+      value: medNow === null ? "—" : duration(medNow, language),
+      qualifier:
+        medBefore === null
+          ? `${windowWords} · no earlier median`
+          : `${windowWords} · ${duration(medBefore, language)} before`,
       delta:
         medNow === null || medBefore === null || medBefore === 0
           ? null
@@ -219,7 +296,7 @@ export function buildKpis(
       label: "Units opened",
       measurementId: "showroom.units_opened",
       value: count(units, locale),
-      qualifier: `${count(new Set(now.flatMap((s) => s.units.map((u) => u.unitCode))).size, locale)} distinct`,
+      qualifier: `${windowWords} · ${count(new Set(now.flatMap((s) => s.units.map((u) => u.unitCode))).size, locale)} distinct`,
       delta: unitsBefore === 0 ? null : signedPercent((units - unitsBefore) / unitsBefore, locale),
       // Neutral, same reasoning as Typical length above: which units get
       // opened is decided by buyer interest, not by the showroom, so a
@@ -237,8 +314,10 @@ export function buildKpis(
       now.length === 0
         ? `No meetings fall inside ${spec.label.toLowerCase()}. That is an observation about the window, not a gap in the data.`
         : now.length < 5
-          ? `${meetings(now.length, locale)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
+          ? `${meetings(now.length, locale, language)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
           : null,
+    groups: KPI_GROUPS,
+    ungrouped: ["duration"],
   };
 }
 
@@ -330,6 +409,7 @@ const BEHAVIOURS = [
 export function buildBehaviourFunnel(
   sessions: readonly ShowroomSession[],
   locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): BehaviourFunnel {
   const cohort = sessions.filter((s) => s.outcome === "not_interested");
   const rest = sessions.filter(
@@ -358,12 +438,12 @@ export function buildBehaviourFunnel(
    */
   if (cohort.length === 0) {
     return {
-      cohortLabel: `Ended "not interested" · ${meetings(0, locale)}`,
+      cohortLabel: `Ended "not interested" · ${meetings(0, locale, language)}`,
       steps: [],
       empty:
         sessions.length === 0
           ? "No meeting was recorded in this period, so there is no group to describe."
-          : `None of the ${meetings(sessions.length, locale)} in this period ended "not interested", so there is no group to describe.`,
+          : `None of the ${meetings(sessions.length, locale, language)} in this period ended "not interested", so there is no group to describe.`,
       comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
       disclaimer: "",
     };
@@ -392,7 +472,7 @@ export function buildBehaviourFunnel(
   }
 
   return {
-    cohortLabel: `Ended "not interested" · ${meetings(cohort.length, locale)}`,
+    cohortLabel: `Ended "not interested" · ${meetings(cohort.length, locale, language)}`,
     steps,
     empty: null,
     comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
@@ -440,6 +520,7 @@ export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
   base: string,
   locale: string,
+  language: Language = DEFAULT_LANGUAGE,
 ): AgentCharts {
   const raw = presentersIn(sessions).flatMap((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
@@ -449,6 +530,13 @@ export function buildAgentCharts(
         id: a.id,
         label: a.name,
         meetings: mine.length,
+        /*
+         * The floor is on the verdict. A radar shape scaled against the
+         * strongest colleague is a comparison, and a median in the workload
+         * list is the figure the agent page returns as `insufficient` below
+         * the floor; both used to be drawn from four meetings.
+         */
+        belowMinimum: mine.length < AGENT_MIN_SAMPLE,
         values: [
           median(
             mine.map((s) =>
@@ -486,9 +574,17 @@ export function buildAgentCharts(
     axisNotes: RADAR_AXES.map((a) => a.note),
     profiles: raw.map((r, i) => ({
       id: r.id,
-      label: `${r.label} · ${meetings(r.meetings, locale)}`,
+      /*
+       * One number, one place. Above the floor the label carries the count
+       * beside the shape. Below it the note carries the count — "19 meetings
+       * in this period, 1 short of the 20…" — so the label is the name alone,
+       * or the card read "19 meetings — 19 meetings in this period".
+       */
+      label: r.belowMinimum ? r.label : `${r.label} · ${meetings(r.meetings, locale, language)}`,
       tone: RADAR_TONES[i % RADAR_TONES.length] ?? "var(--accent)",
       values: r.values.map((v, axis) => v / (peaks[axis] ?? 1)),
+      belowMinimum: r.belowMinimum,
+      note: r.belowMinimum ? suppressionNoteFor(r.meetings, locale, "sentence", language) : null,
     })),
   };
 
@@ -508,7 +604,12 @@ export function buildAgentCharts(
       return {
         id: r.id,
         label: r.label,
-        sub: timed.length === 0 ? "no timed session" : `median ${duration(median(timed))}`,
+        /* The slot is one line wide: the short form, "8 of 20 meetings". The sentence stands on the card. */
+        sub: r.belowMinimum
+          ? suppressionNoteFor(r.meetings, locale, "short", language)
+          : timed.length === 0
+            ? "no timed session"
+            : `median ${duration(median(timed), language)}`,
         value: mine.length,
         display: count(mine.length, locale),
         href: `${base}/agents/${r.id}`,
@@ -516,7 +617,129 @@ export function buildAgentCharts(
     })
     .sort((a, b) => b.value - a.value);
 
-  return { radar, ranked };
+  return { radar, ranked, featureUsage: buildFeatureUsage(sessions, locale, language) };
+}
+
+/* --- which parts of the showroom an agent uses ------------------------------------- */
+
+/*
+ * Ten ways of using the showroom, in the order a reader meets them: the seven
+ * the current build can answer, then the three it cannot.
+ *
+ * A measured axis is the part of an agent's meetings that used the tool at
+ * least once, read from fields every session already carries. An axis the
+ * build cannot answer carries what is missing and why, in the words a KPI
+ * group with nothing to measure uses — and no value at all. A session that
+ * happens to hold something shaped like it (a Surroundings place the build
+ * marks `requires_ue5_v2_event`, a demonstration filter) is not read: that
+ * would be inventing the measurement the axis says does not exist.
+ */
+const FEATURE_AXES: readonly {
+  readonly id: string;
+  readonly label: string;
+  readonly note: string;
+  readonly used: ((s: ShowroomSession) => boolean) | null;
+  readonly missing: string | null;
+}[] = [
+  {
+    id: "locating",
+    label: "Locating",
+    note: "How many of their meetings stopped on a named place in Amenities.",
+    used: (s) => s.places.some((p) => p.section === "amenities"),
+    missing: null,
+  },
+  {
+    id: "comparing",
+    label: "Comparing",
+    note: "How many of their meetings put one apartment beside another in Compare. How long the comparison stayed open is not recorded.",
+    used: (s) => s.units.some((u) => u.comparedWith.length > 0),
+    missing: null,
+  },
+  {
+    id: "shortlisting",
+    label: "Shortlisting",
+    note: "How many of their meetings marked an apartment as a favourite.",
+    used: (s) => s.units.some((u) => u.favourited),
+    missing: null,
+  },
+  {
+    id: "capturing",
+    label: "Capturing",
+    note: "How many of their meetings took a screenshot of an apartment.",
+    used: (s) => s.units.some((u) => u.screenshots > 0),
+    missing: null,
+  },
+  {
+    id: "slicing",
+    label: "Slicing",
+    note: "How many of their meetings opened an apartment's floor cut.",
+    used: (s) => s.units.some((u) => u.floorCutViews > 0),
+    missing: null,
+  },
+  {
+    id: "reading",
+    label: "Reading",
+    note: "How many of their meetings opened an apartment's PDF.",
+    used: (s) => s.units.some((u) => u.pdfOpened),
+    missing: null,
+  },
+  {
+    id: "sharing",
+    label: "Sharing",
+    note: "How many of their meetings shared an apartment.",
+    used: (s) => s.units.some((u) => u.shared),
+    missing: null,
+  },
+  {
+    id: "exploring",
+    label: "Exploring",
+    note: "How many of their meetings stopped on a named place in Surroundings.",
+    used: null,
+    missing:
+      "Not measured yet. Surroundings is recorded only as a section reached, never place by place; the contract's word for it is requires_ue5_v2_event.",
+  },
+  {
+    id: "filtering",
+    label: "Filtering",
+    note: "How many of their meetings filtered the apartments on show.",
+    used: null,
+    missing:
+      "Not measured yet. The contract has a place for a filter, but the current build sends no filter event at all.",
+  },
+  {
+    id: "walking",
+    label: "Walking",
+    note: "How many of their meetings walked the site in spaceman mode.",
+    used: null,
+    missing: "Not measured yet. Spaceman mode is not modelled in the contract at all.",
+  },
+];
+
+export function buildFeatureUsage(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+  language: Language = DEFAULT_LANGUAGE,
+): FeatureUsage {
+  return {
+    axes: FEATURE_AXES.map(({ id, label, note, missing }) => ({ id, label, note, missing })),
+    profiles: presentersIn(sessions).flatMap((agent) => {
+      const mine = sessions.filter((s) => s.agentId === agent.id);
+      if (mine.length === 0) return [];
+      const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
+      return [
+        {
+          id: agent.id,
+          label: agent.name,
+          meetings: mine.length,
+          values: FEATURE_AXES.map((axis) =>
+            axis.used === null ? null : share(mine.filter(axis.used).length, mine.length),
+          ),
+          belowMinimum,
+          note: belowMinimum ? suppressionNoteFor(mine.length, locale, "sentence", language) : null,
+        },
+      ];
+    }),
+  };
 }
 
 /* --- ordered lists -------------------------------------------------------------- */
@@ -526,6 +749,7 @@ export function buildLongestMeetings(
   base: string,
   locale: string,
   timeZone: string,
+  language: Language,
 ): RankedRow[] {
   return [...sessions]
     .filter((s) => !s.timingUnavailable)
@@ -536,7 +760,7 @@ export function buildLongestMeetings(
       label: dayLabel(s.startedAt, locale, timeZone),
       sub: `${presenterName(s.projectId, s.agentId)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
-      display: duration(s.durationSeconds),
+      display: duration(s.durationSeconds, language),
       href: `${base}/meetings/${s.meetingId}`,
     }));
 }
@@ -565,6 +789,8 @@ export function buildComposition(
   sessions: readonly ShowroomSession[],
   locale: string,
   timeZone: string,
+  /** The period's slice (`sliceSpan`); without one, every month is taken as whole. */
+  span: { readonly from: number; readonly to: number } = { from: -Infinity, to: Infinity },
 ): OutcomeComposition {
   const months = new Map<string, ShowroomSession[]>();
   for (const s of sessions) {
@@ -586,11 +812,30 @@ export function buildComposition(
   return {
     columns: [...months.entries()]
       .sort((a, b) => a[0].localeCompare(b[0]))
-      .map(([key, xs]) => ({
-        label: monthLabel(xs[0]?.startedAt ?? `${key}-15T12:00:00.000Z`, locale, timeZone),
-        total: xs.length,
-        parts: Object.fromEntries(order.map((o) => [o, xs.filter((s) => s.outcome === o).length])),
-      })),
+      .map(([key, xs]) => {
+        const at = xs[0]?.startedAt ?? `${key}-15T12:00:00.000Z`;
+        /*
+         * A month the period cuts says which of its days it holds. August on
+         * the 24th stood beside a whole July as "Aug", and its shorter column
+         * read as a falling month: a part against a whole, the comparison the
+         * weekly line below no longer draws either.
+         */
+        const start = startOfMonthIn(Date.parse(at), timeZone).getTime();
+        const end = startOfMonthIn(Date.parse(at), timeZone, 1).getTime() - 1;
+        const first = Math.max(start, span.from);
+        const last = Math.min(end, span.to);
+        const month = monthLabel(at, locale, timeZone);
+        return {
+          label:
+            first === start && last === end
+              ? month
+              : `${month} ${String(zoneParts(first, timeZone).day)}–${String(zoneParts(last, timeZone).day)}`,
+          total: xs.length,
+          parts: Object.fromEntries(
+            order.map((o) => [o, xs.filter((s) => s.outcome === o).length]),
+          ),
+        };
+      }),
     keys: order.map((o) => ({ id: o, label: OUTCOME_LABELS[o], colour: OUTCOME_COLOURS[o] })),
   };
 }
@@ -601,6 +846,8 @@ export function buildTrend(
   sessions: readonly ShowroomSession[],
   locale: string,
   timeZone: string,
+  /** The period's slice (`sliceSpan`); without one, every week the meetings fall in is drawn. */
+  span: { readonly from: number; readonly to: number } = { from: -Infinity, to: Infinity },
 ): TrendSeries {
   /*
    * Weeks start on the project's Monday, at its own midnight. They used to
@@ -626,13 +873,23 @@ export function buildTrend(
   if (first !== undefined && last !== undefined) {
     const day = 24 * 60 * 60 * 1000;
     for (let week = first; week <= last;) {
-      points.push({
-        label: dayLabel(new Date(week), locale, timeZone),
-        value: weeks.get(week) ?? 0,
-      });
       // Seven days on, re-anchored to Monday midnight so a clock change inside
       // the week cannot drift the next start by an hour.
-      week = startOfWeekIn(week + 7 * day + 12 * 60 * 60 * 1000, timeZone).getTime();
+      const next = startOfWeekIn(week + 7 * day + 12 * 60 * 60 * 1000, timeZone).getTime();
+      /*
+       * Only a week the period holds whole is a point. The week still running
+       * — one day old on a Monday — was drawn as a week and marked "±9 against
+       * the week before", and a quarter that ends on a Wednesday ended on a
+       * two-day week marked the same way: part-weeks against whole ones, the
+       * comparison Sales Flow says it never makes.
+       */
+      if (week >= span.from && next - 1 <= span.to) {
+        points.push({
+          label: dayLabel(new Date(week), locale, timeZone),
+          value: weeks.get(week) ?? 0,
+        });
+      }
+      week = next;
     }
   }
 
@@ -780,17 +1037,27 @@ export function buildFlowCharts(
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const charts = buildAgentCharts(sessions, base, locale);
+  const charts = buildAgentCharts(sessions, base, locale, context.language);
+  const span = sliceSpan(context, today);
+  /*
+   * A running slice ends at the end of today in UTC, which in Bratislava is
+   * two hours into tomorrow; a month's label names the project's own days, so
+   * it stops at the end of the project's today.
+   */
+  const monthSpan = {
+    from: span.from,
+    to: Math.min(span.to, endOfDayIn(today, timeZone).getTime()),
+  };
 
   return {
     context,
-    kpis: buildKpis(all, today, windowId, locale, timeZone),
+    kpis: buildKpis(all, today, windowId, locale, timeZone, context.language),
     activity: buildActivity(sessions, timeZone),
-    composition: buildComposition(sessions, locale, timeZone),
-    trend: buildTrend(sessions, locale, timeZone),
-    funnel: buildBehaviourFunnel(sessions, locale),
+    composition: buildComposition(sessions, locale, timeZone, monthSpan),
+    trend: buildTrend(sessions, locale, timeZone, span),
+    funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,
-    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone),
+    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone, context.language),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }

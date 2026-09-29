@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac } from "node:crypto";
+import { devicePepperFrom } from "@/lib/device-pepper";
 import type { EnvSource } from "@/lib/supabase-env";
 
 /**
@@ -29,26 +30,25 @@ import type { EnvSource } from "@/lib/supabase-env";
  * counters, and a single value doing both would build a correlation between a
  * vendor's records and ours that nobody asked for.
  *
- * A missing `DEVICE_CREDENTIAL_PEPPER` is not a crash — the safety identifier
- * is a refinement, and the vendor gets an opaque string either way. A missing
- * pseudonym key *is* a crash, for reasons set out where it lives.
+ * A missing `DEVICE_CREDENTIAL_PEPPER` is a named refusal outside development,
+ * like the pseudonym key below and the session secret: the process stops at
+ * boot and every call throws (`lib/device-pepper.ts`). Until 2026-09-23 it
+ * was "not a crash" — a fixed string readable in this file stood in for it
+ * everywhere, which made the identifier a pseudonym in name only: the viewer
+ * ids come from a six-entry directory, so with a public key the mapping is a
+ * table anybody can build and the identifier one anybody can forge.
  */
 
 const PREFIX = "obs";
 
 /**
- * Where the pepper comes from.
- *
- * `DEVICE_CREDENTIAL_PEPPER` already exists in this deployment's vocabulary for
- * exactly this class of use, so it is reused rather than multiplied. Falling
- * back to a fixed string is safe in the way that matters: the identifier is
- * still opaque to the vendor, and only resistance to offline enumeration by
- * somebody who already has the source is lost.
+ * Where the pepper comes from: `DEVICE_CREDENTIAL_PEPPER`, configured and kept
+ * the same across deployments so the identifier stays stable, with a
+ * development-only stand-in that is stated not to be a secret. The rule and
+ * the refusal live in `lib/device-pepper.ts`, beside the session secret's.
  */
 function pepper(): string {
-  const configured = process.env["DEVICE_CREDENTIAL_PEPPER"];
-  if (configured !== undefined && configured.length > 0) return configured;
-  return "observer-safety-identifier-unpeppered";
+  return devicePepperFrom(process.env);
 }
 
 /**

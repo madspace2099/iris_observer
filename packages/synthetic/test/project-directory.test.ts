@@ -9,6 +9,7 @@ import {
   type ShowroomSessionSource,
   type TenantSummary,
   type Viewer,
+  DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
 
 import { SyntheticObserverRepository } from "../src/repository";
@@ -85,6 +86,7 @@ const query = {
   tenantSlug: tenant.slug,
   projectSlug: project.slug,
   period: "last_28_days",
+  language: DEFAULT_LANGUAGE,
 } as const;
 
 const repository = new SyntheticObserverRepository({ projectDirectory: directory, now: () => NOW });
@@ -185,6 +187,7 @@ describe("it runs on the real clock from the moment it exists", () => {
         tenantSlug: "alpha",
         projectSlug: "northgate",
         period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
       },
       NO_FILTERS,
     );
@@ -244,6 +247,7 @@ describe("nothing of a fixture reaches it", () => {
         tenantSlug: "alpha",
         projectSlug: "northgate",
         period: "last_28_days",
+        language: DEFAULT_LANGUAGE,
       },
       NO_FILTERS,
     );

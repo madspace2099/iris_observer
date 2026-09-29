@@ -10,6 +10,7 @@ import type {
 
 import { SyntheticObserverRepository, VIEWERS } from "../src/index";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 /**
  * THE BUILDING, LIT BY THE PROJECT'S OWN MEETINGS.
  *
@@ -25,6 +26,7 @@ const ISTER: OverviewQuery = {
   tenantSlug: "alpha",
   projectSlug: "ister-tower",
   period: "last_28_days",
+  language: DEFAULT_LANGUAGE,
 };
 
 function unit(code: string, floor: number): CatalogueUnit {

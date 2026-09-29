@@ -498,10 +498,11 @@ export function Shell({
    * way the sheet closes (the close mark, Escape, an outside tap, a nav link)
    * clears it through one path, and unmounting clears it unconditionally.
    *
-   * The composer lives outside `.irs-shell` altogether — a `<body>`-level
-   * sibling rendered by the project layout — so it can only be reached by
-   * selector. `#main` is queried the same way for symmetry; both are stable,
-   * documented anchors (`AskDock.tsx`, this file's own `<main id="main">`).
+   * The composer is the last child of `<main>` now, so `inert` on `#main`
+   * already covers it. It stays in the list because
+   * `mobile-menu-containment.spec.ts` reads the element's own `inert`
+   * property, which an ancestor's does not set; both are stable, documented
+   * anchors (`AskDock.tsx`, this file's own `<main id="main">`).
    *
    * `<header>` covers a third case the first pass missed: `Brand` always
    * renders a real `<Link>` there (`href` is always passed from this
@@ -522,6 +523,7 @@ export function Shell({
     const covered = () =>
       [
         document.getElementById("main"),
+        /* Inside `#main` already; listed for the spec that reads its own property. */
         document.querySelector<HTMLElement>(".ask-dock"),
         document.querySelector<HTMLElement>(".irs-header"),
       ].filter((el): el is HTMLElement => el !== null);

@@ -13,6 +13,7 @@ import {
   type MeetingSearch,
 } from "@/components/meetings";
 
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Meetings" };
 
 /**
@@ -70,17 +71,13 @@ export default async function MeetingsPage({
   const period = presetFrom(search.period);
   const filters = parseMeetingFilters(search);
 
-  const view = await repository.getMeetings({ viewer, tenantSlug, projectSlug, period }, filters);
+  const view = await repository.getMeetings(
+    { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
+    filters,
+  );
 
   const { context } = view;
   const periodLabel = context.period.label.toLowerCase();
-  /*
-   * Whether the project has a CRM at all, read from the project's own declared
-   * sources rather than inferred from a row. It decides one thing on this
-   * screen: whether the follow-up column has a source to answer from, which is
-   * stated once above the table instead of forty times inside it.
-   */
-  const crmConnected = context.project.connectedSources.includes("crm");
   const narrowed = view.total !== view.periodTotal;
 
   return (
@@ -154,10 +151,10 @@ export default async function MeetingsPage({
             <MeetingRegister
               rows={view.rows}
               period={period}
+              filters={view.filters}
               canOpen={maySeeSurface(viewer.role, "[meetingId]")}
               caption={`Showroom presentations on ${context.project.name}, newest first. ${view.total} of ${view.periodTotal} in ${periodLabel}.`}
               emptyState={view.emptyState}
-              crmConnected={crmConnected}
             />
           </div>
         </div>

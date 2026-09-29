@@ -1,5 +1,6 @@
 import type { AgentId, ProjectId, TenantId } from "@observer/contracts";
 import type { Role } from "@observer/metrics";
+import type { Language } from "./language";
 
 /**
  * Who is asking, and about what.
@@ -139,6 +140,13 @@ export interface ViewContext {
   readonly project: ProjectSummary;
   readonly period: Period;
   readonly generatedAt: string;
+  /**
+   * The language the view's words are chosen in, as the request asked for it.
+   * `project.locale` formats the figures: the project's own on every screen, and
+   * on a request in Slovak or Hungarian — the printed report — that language's
+   * (`formattingLocale`). `project.currency` is the project's in every language.
+   */
+  readonly language: Language;
   /**
    * True when this project's meetings were delivered by its own source — its
    * showrooms' ingested events, or a telemetry connector — rather than by the

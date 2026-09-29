@@ -10,8 +10,12 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import { ProjectIdSchema, type ShowroomSession } from "@observer/contracts";
-import { meaningfulDwellThresholdMs } from "@observer/metrics";
-import { evidenceRef, moneyOr } from "./format";
+import {
+  attentionIndex,
+  attentionIndexDisplay,
+  meaningfulDwellThresholdMs,
+} from "@observer/metrics";
+import { NO_PAGE, evidenceRef, moneyOr } from "./format";
 import { unitsForProject } from "./world";
 
 /**
@@ -24,9 +28,10 @@ import { unitsForProject } from "./world";
  * This is an honest extension of the documented synthetic model, not data
  * invented to make a picture work. Every figure is derived from the unit's own
  * attributes by a stated rule, the five hand-written units keep their exact
- * values, and the aggregate reproduces the story the Overview already tells —
- * two-room units drawing about twice their share of attention while converting
- * at half the project average.
+ * values, and the aggregate gives two-room units more than their share of
+ * attention. What they convert at is measured on `/project`, not stated here:
+ * this comment once said "half the project average", and the figures said the
+ * opposite (41% against 40%, measured 2026-09-29).
  */
 
 /**
@@ -47,6 +52,16 @@ export interface BuildingSpec {
   readonly soldPressure: number;
   /** Units written by hand in the scenario document, pinned against drift. */
   readonly pinned: Readonly<Record<string, Partial<PulseUnit> & { status: UnitStatus }>>;
+  /**
+   * How many of this scheme's sales fall inside the period, when its scenario
+   * states a figure.
+   *
+   * Optional, and absent means `null` rather than somebody else's number.
+   * Nothing in this builder can derive it: a unit carries a status and no sale
+   * date, and a meeting is not a sale. So it is a figure a scenario holds or a
+   * figure nobody has.
+   */
+  readonly soldInPeriod?: number;
 }
 
 /**
@@ -77,6 +92,8 @@ export const BUILDINGS: Readonly<Record<string, BuildingSpec>> = {
     orientation: { A: "S", B: "SW", C: "W" },
     soldPressure: 0.25,
     pinned: NORTHGATE_PINNED,
+    /* The scenario document's own figure for Northgate, and only for Northgate. */
+    soldInPeriod: 7,
   },
   // Riverside is a smaller waterside scheme: two blocks, six floors, and a
   // different aspect — its stock faces the water, east and north-east.
@@ -453,11 +470,24 @@ function readingsFrom(observed: ObservedMeetings): {
   return { byCode };
 }
 
+/**
+ * The figure this scheme's scenario states, or none.
+ *
+ * Keyed by project, like `BUILDINGS` itself and for the reason this file
+ * already states about the geometry a few hundred lines up: "An unknown
+ * project gets nothing, not Northgate." The rule was written once, applied to
+ * the building, and not applied here.
+ */
+function scenarioSoldInPeriod(projectId: string): number | null {
+  return BUILDINGS[projectId]?.soldInPeriod ?? null;
+}
+
 export function buildProjectPulse(
   context: ViewContext,
   meetings: ObservedMeetings | null = null,
 ): ProjectPulse {
-  const raw = catalogueFor(context.project.id as string);
+  const projectId = context.project.id as string;
+  const raw = catalogueFor(projectId);
   const { locale, currency } = {
     locale: context.project.locale,
     currency: context.project.currency,
@@ -593,7 +623,14 @@ export function buildProjectPulse(
         floorUnits.reduce((sum, u) => sum + u.attention, 0) / Math.max(1, floorUnits.length),
     }));
 
-  const totalAttention = units.reduce((sum, u) => sum + u.attention, 0);
+  /*
+   * The period's looking time, unit by unit, for the index. The index used to
+   * be taken here from the scoring above — opening scores over the whole
+   * building, a third population beside `/project` and `/units` — so one
+   * segment had three figures. It is now the registry's one implementation
+   * over the period's meetings; without them there is no index to state.
+   */
+  const looks = meetings === null ? null : meetings.current.flatMap((s) => s.units);
 
   function segment(
     id: string,
@@ -603,15 +640,12 @@ export function buildProjectPulse(
     conversionRatio: number | null,
   ): PulseSegment {
     const members = units.filter(predicate);
-    const share =
-      members.reduce((sum, u) => sum + u.attention, 0) / Math.max(0.0001, totalAttention);
-    const inventoryShare = members.length / Math.max(1, units.length);
     return {
       id,
       dimension,
       label,
       unitIds: members.map((u) => u.unitId),
-      attentionIndex: inventoryShare === 0 ? 0 : Number((share / inventoryShare).toFixed(2)),
+      attentionIndex: looks === null ? null : attentionIndex(units, looks, predicate).index,
       conversionRatio,
       available: members.filter((u) => u.status === "available").length,
     };
@@ -695,13 +729,26 @@ export function buildProjectPulse(
       reserved: units.filter((u) => u.status === "reserved").length,
       sold: units.filter((u) => u.status === "sold").length,
       /*
-       * Seven is the scenario's figure; a delivered catalogue has no observed
-       * period yet. Neither answer is honest for a project with no units at
-       * all — there is no scenario to hold a figure for, sold or otherwise —
-       * so an empty catalogue keeps the same "not observed" `null` rather
-       * than inheriting Northgate's number by default.
+       * THE SCENARIO'S OWN FIGURE, OR NONE.
+       *
+       * This was the literal `7` for every observed project with a non-empty
+       * catalogue. Seven is NORTHGATE's number. Ister Tower sold three flats
+       * and reported seven of them in the period; Kingsford Yard, which exists
+       * in this world precisely because "almost nothing moved yet", sold none
+       * and reported seven — across a tenant boundary. `soldInPeriod > sold`
+       * is arithmetically impossible, and both surfaces that draw the sentence
+       * drew it.
+       *
+       * The comment that stood here named this exact failure — "rather than
+       * inheriting Northgate's number by default" — and then guarded only the
+       * empty catalogue, which is the one project the number could not reach
+       * anyway. A reason can be present and still be watching the wrong edge.
+       *
+       * `null` is not a gap. The three surfaces that read this already word it:
+       * "how many of them in this period is not observed yet". A scheme whose
+       * scenario states no figure is exactly that, and saying so is the answer.
        */
-      soldInPeriod: observed && raw.length > 0 ? 7 : null,
+      soldInPeriod: observed && raw.length > 0 ? scenarioSoldInPeriod(projectId) : null,
     },
     peakViews,
     /*
@@ -720,6 +767,11 @@ export function buildProjectPulse(
 }
 
 /* --- Ask Observer, deterministic ------------------------------------------ */
+
+/** An index as an answer prints it: the registry's two decimals, or a dash where there is none. */
+function indexWords(index: number | null | undefined): string {
+  return index === null || index === undefined ? "—" : attentionIndexDisplay(index);
+}
 
 /**
  * Deterministic answers behind the interface a model will later call.
@@ -747,7 +799,7 @@ export function buildAskSession(
         { label: "Offers", value: "12", note: "was 17" },
         {
           label: "Two-room attention index",
-          value: String(twoRoom?.attentionIndex ?? "—"),
+          value: indexWords(twoRoom?.attentionIndex),
           note: "above 1 means over-indexed",
         },
       ],
@@ -793,22 +845,23 @@ export function buildAskSession(
         { label: "No contact recorded after a meeting", value: "4", note: "median gap 11 days" },
         { label: "Affected by a sold unit", value: "1", note: "Viktória Halász, A-505" },
       ],
-      evidence: evidenceRef("ask.contact", "observed_sequence", `${root}/people`, 4),
+      evidence: evidenceRef("ask.contact", "observed_sequence", NO_PAGE, 4),
       actionLabel: "Open the follow-up list",
-      actionHref: `${root}/people`,
+      /* No follow-up list exists to open; the label is drawn as a sentence (P2-16). */
+      actionHref: null,
       followUps: ["Prepare me for Viktória's meeting", "Who has the longest gap since a meeting?"],
       caveat: null,
     },
     {
       question: "Prepare me for Viktória's meeting.",
       answer:
-        "Three visits in three weeks, two units shortlisted, both two-room and south-facing. She kept A-505 in a direct comparison and it sold four days after her last visit.",
+        "Three visits in three weeks, two units shortlisted, both two-room and south-facing. She kept A-505 in a direct comparison, and it has since sold.",
       figures: [
         { label: "Visits", value: "3", note: "last one 3 days ago" },
         { label: "Shortlisted", value: "A-402, A-505", note: "A-505 now sold" },
         { label: "Price range", value: "Never stated", note: "she set no price filter" },
       ],
-      evidence: evidenceRef("ask.viktoria", "observed_sequence", `${root}/people`, 3),
+      evidence: evidenceRef("ask.viktoria", "observed_sequence", NO_PAGE, 3),
       actionLabel: "Open the full brief",
       actionHref: `${root}/meetings/mtg_viktoria0827`,
       followUps: [
@@ -820,17 +873,18 @@ export function buildAskSession(
     },
     {
       question: "Which apartment attributes are gaining demand?",
-      answer: `South-facing units draw ${
-        pulse.segments.find((s) => s.id === "aspect-s")?.attentionIndex ?? "—"
-      }× their share of attention, and floors 4 to 6 draw ${
-        pulse.segments.find((s) => s.id === "floors-mid")?.attentionIndex ?? "—"
-      }×.`,
+      answer: `South-facing units draw ${indexWords(
+        pulse.segments.find((s) => s.id === "aspect-s")?.attentionIndex,
+      )} their share of attention, and floors 4 to 6 draw ${indexWords(
+        pulse.segments.find((s) => s.id === "floors-mid")?.attentionIndex,
+      )}.`,
       figures: pulse.segments
+        .filter((s): s is PulseSegment & { attentionIndex: number } => s.attentionIndex !== null)
         .filter((s) => s.attentionIndex >= 1)
         .slice(0, 3)
         .map((s) => ({
           label: s.label,
-          value: `${s.attentionIndex}×`,
+          value: attentionIndexDisplay(s.attentionIndex),
           note: `${s.available} available`,
         })),
       evidence: evidenceRef("ask.attributes", "statistical_association", `${root}/project`, 48),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ATTENTION_KIND_DEFINITIONS, NotFoundError } from "@observer/readmodels";
+import { ATTENTION_KIND_DEFINITIONS, NotFoundError, DEFAULT_LANGUAGE } from "@observer/readmodels";
 import type { AlertSeverity, MeetingFilters, OverviewQuery, Viewer } from "@observer/readmodels";
 import { AGENT_MIN_SAMPLE, UNIT_MIN_SAMPLE } from "@observer/metrics";
 import { SyntheticObserverRepository, SYNTHETIC_AGENTS, VIEWERS } from "../src/index";
@@ -24,7 +24,7 @@ const repo = new SyntheticObserverRepository();
 const NO_FILTERS: MeetingFilters = { agentId: null, channel: null, outcome: null };
 
 function query(viewer: Viewer, tenantSlug: string, projectSlug: string): OverviewQuery {
-  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date" };
+  return { viewer, tenantSlug, projectSlug, period: "quarter_to_date", language: DEFAULT_LANGUAGE };
 }
 
 const ISTER = query(VIEWERS.developer as Viewer, "alpha", "ister-tower");
@@ -117,11 +117,17 @@ describe("getMeetings", () => {
     expect(filtered.options.channels.find((o) => o.id === "showroom")?.count).toBe(showroom?.count);
   });
 
-  it("states the absence of a CRM instead of showing a meeting with no follow-up", async () => {
+  it("reads the follow-up off the recorded outcome, whatever the CRM", async () => {
+    /*
+     * Riverside has no CRM and records no outcomes, so every row is
+     * "not_recorded" — the absence of an outcome, not the absence of a CRM.
+     * This used to assert "unavailable", which said the CRM produced a fact
+     * the room records.
+     */
     const view = await repo.getMeetings(RIVERSIDE, NO_FILTERS);
     expect(view.rows.length).toBeGreaterThan(0);
     for (const row of view.rows) {
-      expect(row.followUp).toBe("unavailable");
+      expect(row.followUp).toBe("not_recorded");
     }
   });
 
@@ -250,14 +256,18 @@ describe("getAgentDetail", () => {
     }
   });
 
-  it("shows outcomes as unavailable where no CRM can verify them", async () => {
+  it("withholds nothing about the recorded outcome for want of a CRM", async () => {
+    /*
+     * Riverside has no CRM and records no outcomes. The recorded outcomes and
+     * the funnel's outcome stages are therefore EMPTY — a real answer about
+     * the record — and never "unavailable", which said the CRM produced a
+     * fact the room records. Both assertions used to say the opposite.
+     */
     const view = await repo.getAgentDetail(RIVERSIDE, "agt_lucia");
-    for (const outcome of view.verifiedOutcomes) {
-      expect(outcome.metric.state).toBe("unavailable");
+    for (const outcome of view.recordedOutcomes) {
+      expect(outcome.metric.state, outcome.label).not.toBe("unavailable");
     }
-    expect(view.funnel.find((s) => s.label === "Outcome recorded")?.metric.state).toBe(
-      "unavailable",
-    );
+    expect(view.funnel.find((s) => s.label === "Outcome recorded")?.metric.state).toBe("empty");
   });
 
   it("lists other projects only within the reader's own grants", async () => {
@@ -330,9 +340,47 @@ describe("getAttention", () => {
     const view = await repo.getAttention(RIVERSIDE);
     const verification = view.states.find((s) => s.kind === "crm_verification_missing");
     expect(verification?.alert.severity).toBe("warning");
+    const recorded = view.states.find((s) => s.kind === "outcome_not_recorded");
+    expect(recorded?.alert.severity).toBe("warning");
     expect(view.checks.find((c) => c.kind === "high_interest_no_follow_up")?.state).toBe(
       "unavailable",
     );
+  });
+
+  /*
+   * Two checks, two counters (decided 2026-09-27). The recorded outcome is
+   * counted against the meeting register's own filter, a second path to the
+   * same meetings; verification is raised only where no CRM is connected and
+   * is never called clear where one is, because no deal is linked to a meeting.
+   */
+  it("asks the recorded outcome and its verification as two checks", async () => {
+    for (const project of [NORTHGATE, RIVERSIDE]) {
+      const view = await repo.getAttention(project);
+      const where = project.projectSlug;
+      const skipped = (await repo.getMeetings(project, { ...NO_FILTERS, outcome: "skipped" })).rows
+        .length;
+      expect(skipped, `${where}: the fixture has unrecorded meetings`).toBeGreaterThan(0);
+      const recorded = view.states.find((s) => s.kind === "outcome_not_recorded");
+      expect(recorded?.alert.evidence?.observationCount, where).toBe(skipped);
+
+      const verification = view.checks.find((c) => c.kind === "crm_verification_missing");
+      const crm = view.context.project.connectedSources.includes("crm");
+      expect(verification?.state, where).toBe(crm ? "unavailable" : "raised");
+    }
+    const riverside = await repo.getAttention(RIVERSIDE);
+    expect(riverside.states.find((s) => s.kind === "crm_verification_missing")?.sampleSize).toBe(
+      riverside.meetingCount,
+    );
+  });
+
+  it("asks about lateness and answers Not evaluated, never late or clear", async () => {
+    for (const project of EVERY_PROJECT) {
+      const view = await repo.getAttention(project);
+      const lateness = view.checks.find((c) => c.kind === "follow_up_lateness");
+      expect(lateness?.label, project.projectSlug).toBe("Lateness");
+      expect(lateness?.state, project.projectSlug).toBe("unavailable");
+      expect(view.states.some((s) => s.kind === "follow_up_lateness")).toBe(false);
+    }
   });
 
   it("cannot ask about falling demand on a project with no baseline", async () => {
@@ -415,6 +463,67 @@ describe("getReportScope", () => {
     expect(northgate.sections.find((s) => s.id === "channel-split")?.availability).toBe(
       "unavailable",
     );
+  });
+});
+
+/*
+ * ONE AGENT'S SUMMARY: THE MANIFEST ANSWERS FOR THE RIGHT PERSON, AND FOR
+ * NOBODY ELSE.
+ *
+ * The scope is asked for by agent id under a project the viewer holds, and
+ * the rule is `getAgentDetail`'s: an agent who did not present on this
+ * project in this period is not found here, whether they present on a
+ * project the reader cannot see (Akhilesh presents on Northgate and on
+ * Kingsford Yard, never on ISTER TOWER) or exist nowhere at all. Martin holds
+ * the tower's largest sample; Lucia Horváth is its thin one, fourteen
+ * meetings against a floor of twenty.
+ */
+describe("getReportScope for one agent", () => {
+  it("names the agent, the project and the period, and no meeting", async () => {
+    const view = await repo.getReportScope(ISTER, { agentId: "agt_martinkovac" });
+    expect(view.scope).toEqual({
+      kind: "agent",
+      agentId: "agt_martinkovac",
+      meetingId: null,
+      label: `Martin Kováč · ${view.periodLabel}`,
+      projectName: view.context.project.name,
+    });
+  });
+
+  it("an agent this project's meetings do not name is not found", async () => {
+    await expect(repo.getReportScope(ISTER, { agentId: "agt_akhilesh" })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it("an id that exists nowhere is not found", async () => {
+    await expect(repo.getReportScope(ISTER, { agentId: "agt_nobody" })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
+  });
+
+  it("the running-order section's sample is the timed set, in its own noun", async () => {
+    const [view, detail] = await Promise.all([
+      repo.getReportScope(ISTER, { agentId: "agt_martinkovac" }),
+      repo.getAgentDetail(ISTER, "agt_martinkovac"),
+    ]);
+    const section = view.sections.find((s) => s.id === "agent-presentation");
+    expect({ sampleSize: section?.sampleSize, sampleNoun: section?.sampleNoun }).toEqual({
+      sampleSize: detail.profile.timedMeetings,
+      sampleNoun: "timed meetings",
+    });
+  });
+
+  it("below the floor, a section of rates is partial and its reason is the suppression sentence", async () => {
+    const [view, detail] = await Promise.all([
+      repo.getReportScope(ISTER, { agentId: "agt_luciahorvath" }),
+      repo.getAgentDetail(ISTER, "agt_luciahorvath"),
+    ]);
+    const section = view.sections.find((s) => s.id === "agent-activity");
+    expect({ availability: section?.availability, reason: section?.reason }).toEqual({
+      availability: "partial",
+      reason: detail.suppressionNote,
+    });
   });
 });
 

@@ -59,7 +59,10 @@ entirely synthetic. It would not be acceptable for authentication, and
 authentication will not be built on it — `docs/11-preproduction-gates.md` gates
 production on a real identity provider with revocable sessions.
 
-**The signing secret.** `OBSERVER_SESSION_SECRET` when set. Otherwise derived
-from the deployment id, which is not secret — stated plainly rather than hidden,
-because a forged token buys nothing that the sign-in screen does not already give
-away.
+**The signing secret.** `OBSERVER_SESSION_SECRET` when set. Otherwise — on a
+developer's own machine only — derived from the deployment id, which is not secret
+and is stated so. _Amended 2026-09-23:_ the stand-in is refused outside
+development and on every deployment platform; a process without the secret stops
+at boot with the variable named (`apps/web/src/lib/session-secret.ts`). The
+earlier reasoning — that a forged token bought nothing the sign-in screen did not
+already give away — held for synthetic data and ends where the data does.
