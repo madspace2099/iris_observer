@@ -855,7 +855,7 @@ export function buildAskSession(
     {
       question: "Prepare me for Viktória's meeting.",
       answer:
-        "Three visits in three weeks, two units shortlisted, both two-room and south-facing. She kept A-505 in a direct comparison and it sold four days after her last visit.",
+        "Three visits in three weeks, two units shortlisted, both two-room and south-facing. She kept A-505 in a direct comparison, and it has since sold.",
       figures: [
         { label: "Visits", value: "3", note: "last one 3 days ago" },
         { label: "Shortlisted", value: "A-402, A-505", note: "A-505 now sold" },

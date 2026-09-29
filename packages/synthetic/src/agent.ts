@@ -17,6 +17,7 @@ import {
   type UpcomingMeeting,
   type ViewContext,
 } from "@observer/readmodels";
+import { hasProgressed, outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
 import { daysBetween } from "./deals";
 import {
   NO_PAGE,
@@ -29,6 +30,7 @@ import {
   percent,
   unavailable,
 } from "./format";
+import { sessionsForProject } from "./showroom/sessions";
 import { TODAY, UNITS, unitById } from "./world";
 
 /**
@@ -267,7 +269,7 @@ function viktoriaBrief(
       previouslyInterestedNowUnavailable: [unit("unt_a505000003")],
       changesSinceLastVisit: [
         {
-          text: "A-505, the unit she kept in her comparison, sold on 25 August — four days after her last visit.",
+          text: "A-505, the unit she kept in her comparison, has since sold.",
           tier: "observed_sequence",
           evidenceId: evidence["a505sold"]!.evidenceId,
         },
@@ -433,7 +435,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
           participantNames: ["Viktória Halász"],
           isReturningBuyer: false,
           headline:
-            "Two-room, south-facing. Shortlisted A-505, which sold on Monday — have the answer ready.",
+            "Two-room, south-facing. Shortlisted A-505, which has since sold — have the answer ready.",
           briefHref: `${root}/meetings/${VIKTORIA_MEETING_ID}`,
           briefReady: true,
           briefCaveat: null,
@@ -473,6 +475,36 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
     },
   ];
 
+  /*
+   * THE AGENT'S OWN MEETINGS, OR NONE.
+   *
+   * These figures were typed: "14 meetings", "9 of 14", "13 of 14", 93%. They
+   * are read now from the meetings the viewer's own agent id presented, in the
+   * period and in its baseline. Where that id presents nothing on this project
+   * — Monika's account is agt_monika0001 and the showroom records agt_monika —
+   * the figures are unavailable: matching the two by name would be an identity
+   * join nothing in the product makes (measured 2026-09-29).
+   */
+  const own = sessionsForProject(context.project.id as string).filter(
+    (s) => s.agentId === context.viewer.agentId,
+  );
+  const linked = own.length > 0;
+  const inWindow = (from: string, to: string) =>
+    own.filter(
+      (s) =>
+        Date.parse(s.startedAt) >= Date.parse(from) && Date.parse(s.startedAt) < Date.parse(to),
+    );
+  const mine = inWindow(context.period.from, context.period.to);
+  const before = inWindow(context.period.baselineFrom, context.period.baselineTo);
+  const summarised = (xs: readonly ShowroomSession[]) =>
+    xs.filter((s) => s.units.some((u) => u.shared)).length;
+  const recorded = mine.filter((s) => !outcomeIsUnknown(s.outcome)).length;
+  const yours = `yours in ${context.period.baselineLabel}`;
+  const signed = (n: number) => `${n >= 0 ? "+" : "−"}${String(Math.abs(n))}`;
+  const UNLINKED =
+    "No showroom meeting on this project is recorded under your agent id, so your own figures cannot be read.";
+  const decided = mine.filter((s) => !outcomeIsUnknown(s.outcome));
+
   return {
     context,
     verdict: {
@@ -490,67 +522,103 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
           rule: `No buyer left without a recorded contact for more than ${String(FOLLOW_UP_THRESHOLD_DAYS)} days after a meeting`,
           outcome: danielDaysSinceMeeting > FOLLOW_UP_THRESHOLD_DAYS ? "fail" : "pass",
         },
-        {
-          metricId: "unit.shares",
-          label: "Summaries sent",
-          display: "9 of 14",
-          rule: "A summary sent after at least half of meetings",
-          outcome: "pass",
-        },
-        {
-          metricId: "exec.data_completeness",
-          label: "Your outcomes recorded",
-          display: "13 of 14",
-          rule: "Every meeting has a recorded outcome",
-          outcome: "watch",
-        },
+        ...(linked && mine.length > 0
+          ? [
+              {
+                metricId: "unit.shares",
+                label: "Summaries sent",
+                display: `${String(summarised(mine))} of ${String(mine.length)}`,
+                rule: "A summary sent after at least half of meetings",
+                outcome:
+                  summarised(mine) * 2 >= mine.length ? ("pass" as const) : ("fail" as const),
+              },
+              {
+                metricId: "exec.data_completeness",
+                label: "Your outcomes recorded",
+                display: `${String(recorded)} of ${String(mine.length)}`,
+                rule: "Every meeting has a recorded outcome",
+                outcome: recorded === mine.length ? ("pass" as const) : ("watch" as const),
+              },
+            ]
+          : []),
       ],
     },
     upcoming,
     followUps,
-    personal: [
-      ok({
-        metricId: "people.meetings_by_agent",
-        label: "Your meetings",
-        display: count(14, context.project.locale),
-        raw: 14,
-        qualifier: "this quarter",
-        sampleSize: 14,
-        minimumSampleSize: 1,
-        comparison: comparison("your previous quarter", "+2", "up", "up"),
-      }),
-      ok({
-        metricId: "unit.shares",
-        label: "Summaries sent",
-        display: count(9, context.project.locale),
-        raw: 9,
-        qualifier: "of 14 meetings",
-        sampleSize: 14,
-        minimumSampleSize: 1,
-        comparison: comparison("your previous quarter", "+4", "up", "up"),
-      }),
-      ok({
-        metricId: "people.follow_up_delay",
-        label: "Your follow-up delay",
-        display: days(6, context.language),
-        raw: 6,
-        qualifier: "median, 80th percentile 13",
-        sampleSize: 14,
-        minimumSampleSize: 15,
-        comparison: comparison("your previous quarter", "−1 day", "down", "down"),
-      }),
-      unavailable(
-        "people.agent_conversion",
-        "Your conversion",
-        20,
-        "Fewer than 20 meetings for this agent — shown as a raw figure, not as a verdict.",
-      ),
-    ],
+    personal: linked
+      ? [
+          ok({
+            metricId: "people.meetings_by_agent",
+            label: "Your meetings",
+            display: count(mine.length, context.project.locale),
+            raw: mine.length,
+            qualifier: context.period.label.toLowerCase(),
+            sampleSize: mine.length,
+            minimumSampleSize: 1,
+            comparison: comparison(
+              yours,
+              signed(mine.length - before.length),
+              mine.length >= before.length ? "up" : "down",
+              "up",
+            ),
+          }),
+          ok({
+            metricId: "unit.shares",
+            label: "Summaries sent",
+            display: count(summarised(mine), context.project.locale),
+            raw: summarised(mine),
+            qualifier: `of ${String(mine.length)} meetings`,
+            sampleSize: mine.length,
+            minimumSampleSize: 1,
+            comparison: comparison(
+              yours,
+              signed(summarised(mine) - summarised(before)),
+              summarised(mine) >= summarised(before) ? "up" : "down",
+              "up",
+            ),
+          }),
+          unavailable(
+            "people.follow_up_delay",
+            "Your follow-up delay",
+            15,
+            "No contact after a meeting is recorded, so the delay cannot be measured.",
+          ),
+          decided.length < 20
+            ? unavailable(
+                "people.agent_conversion",
+                "Your conversion",
+                20,
+                `Fewer than 20 decided meetings for this agent (${String(decided.length)}) — no rate is formed.`,
+              )
+            : ok({
+                metricId: "people.agent_conversion",
+                label: "Your conversion",
+                display: percent(
+                  decided.filter((s) => hasProgressed(s.outcome)).length / decided.length,
+                  context.project.locale,
+                ),
+                raw: decided.filter((s) => hasProgressed(s.outcome)).length / decided.length,
+                qualifier: `of ${String(decided.length)} decided meetings progressed`,
+                sampleSize: decided.length,
+                minimumSampleSize: 20,
+              }),
+        ]
+      : [
+          unavailable("people.meetings_by_agent", "Your meetings", 1, UNLINKED),
+          unavailable("unit.shares", "Summaries sent", 1, UNLINKED),
+          unavailable("people.follow_up_delay", "Your follow-up delay", 15, UNLINKED),
+          unavailable(
+            "people.agent_conversion",
+            "Your conversion",
+            20,
+            `${UNLINKED} A rate needs 20 decided meetings.`,
+          ),
+        ],
     briefing: {
       heading: "Before Thursday",
       statements: [
         {
-          text: "Viktória Halász kept A-505 over A-402 in a direct comparison. A-505 sold on 25 August.",
+          text: "Viktória Halász kept A-505 over A-402 in a direct comparison. A-505 has since sold.",
           tier: "observed_sequence",
           evidence: ev("viktoria.a505sold", "observed_sequence", `${root}/project`, 1),
         },
@@ -565,18 +633,31 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
       caveat: null,
     },
     dataHealth: {
-      completeness: ok({
-        metricId: "exec.data_completeness",
-        label: "Your data completeness",
-        display: percent(0.93, context.project.locale),
-        raw: 0.93,
-        qualifier: "of your meetings fully recorded",
-        sampleSize: 14,
-        minimumSampleSize: 5,
-      }),
+      completeness:
+        !linked || mine.length === 0
+          ? unavailable(
+              "exec.data_completeness",
+              "Your data completeness",
+              5,
+              linked ? "No meeting of yours in this period." : UNLINKED,
+            )
+          : ok({
+              metricId: "exec.data_completeness",
+              label: "Your data completeness",
+              display: percent(recorded / mine.length, context.project.locale),
+              raw: recorded / mine.length,
+              qualifier: "of your meetings carry a recorded outcome",
+              sampleSize: mine.length,
+              minimumSampleSize: 5,
+            }),
       sourcesPresent: ["WEBIRIS", "Showroom", "Catalogue"],
       sourcesMissing: [],
-      note: "One of your 14 meetings has no recorded outcome.",
+      note:
+        !linked || mine.length === 0
+          ? null
+          : recorded === mine.length
+            ? `All ${String(mine.length)} of your meetings carry a recorded outcome.`
+            : `${String(mine.length - recorded)} of your ${String(mine.length)} meetings have no recorded outcome.`,
     },
   };
 }
