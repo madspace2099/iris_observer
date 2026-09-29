@@ -1,5 +1,33 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-09-30 — accepted with known gaps
+
+This section is added beside the measurement below, which is not changed: it was made on 2026-09-27
+on `feature/observer-ux-overhaul-phase2` (its checklist lines cite `c9d89e5`; it was last updated in
+`5068f27`) and stays true of the branch as it then stood. What is true of `main` since is this.
+
+1. **The decision.** On 2026-09-30 Máté accepted Phase 2 with its known gaps. The merge commit is
+   `8b88997` and the production deployment ran from it. This is an acceptance, not a claim that the
+   88 items are done: they are not, and nothing below says otherwise.
+2. **What was open when it was decided.** The count below stood: 38 verified, 30 partial, 9 not done
+   and 11 blocked, with the document's own five-point list under "What Phase 2 needs to be accepted"
+   still open. The 11 blocked items wait on inputs that are not this phase's to produce — a tier
+   store, the meeting↔deal and contact links, the sale cycle's start and online sessions, a
+   conversation store and environment switch times — not on anything Phase 2 was to build.
+3. **What changed after the measurement.** The executive overview's figures are computed or not
+   shown, and its "half the project average" is gone (`acae174`); the agent overview's typed "14
+   meetings" and A-505's dated sale are gone (`37bd1b7`) — both were recorded below under "Recorded,
+   not changed". `/lab` is behind the design lab's gate (`9dbced3`); a production build with no
+   shared ceiling refuses AI questions instead of admitting them unmetered (`66f9965`); the
+   plan-gate test pairs figures by position and states why a figure is null (`bdd5b86`). The release
+   evidence names no unpublished tree and its red gate records are tracked (`ba5ca4e`, `a212cd6`).
+   The first pass of P2-17 is in (`ecfe7a0`, `94ac758`, `e40f05d`): of the 86 Slovak and Hungarian
+   texts of the 43 long report paragraphs, 52 went in byte for byte; the rest are listed in its
+   review with the reason each did not fit.
+4. **What comes next.** The remaining P2-17 passes (the 101 sentences and the 257 short labels); R02's
+   "On course" chip; where the 1.51× was read (P1-04); and the measurement again — screenshots, the
+   88 items and the four end-to-end projects — on today's code.
+
 **Measured 2026-09-27 on `feature/observer-ux-overhaul-phase2`. Phase 2 is not accepted.** Every one
 of the thirteen screens the plan was drawn from has a real route, a real after screenshot and
 end-to-end tests that ran green today. But one clause of the gate fails outright — the sales
