@@ -4,6 +4,8 @@ import { repository } from "@/lib/repository";
 import { viewerFor } from "@/lib/session";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
+
+import { labGate } from "../gate";
 export const metadata: Metadata = { title: "Concept B — spatial-first" };
 
 /**
@@ -14,6 +16,7 @@ export const metadata: Metadata = { title: "Concept B — spatial-first" };
  * concept is about composition rather than about the session adapter.
  */
 export default async function Page() {
+  await labGate();
   const query = {
     viewer: viewerFor("developer"),
     tenantSlug: "alpha",
