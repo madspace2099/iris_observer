@@ -167,7 +167,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
         "Pozornosť byt po byte, ktoré segmenty priťahujú viac záujmu, než zodpovedá ich podielu na ponuke, a čo si kupujúci prezerali na bytoch, ktoré otvorili.",
     },
     salesAgents: {
-      label: "Realitní makléri",
+      label: "Makléri",
       summary:
         "Ako kto prezentuje, ako sa končia jeho stretnutia a v čom sa jeho poradie líši od poradia tímu.",
     },
@@ -235,7 +235,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
         "A figyelem lakásonként: mely szegmensek vonzanak több érdeklődést, mint amekkora a kínálatban a részesedésük, és mit néztek meg a vevők a megnyitott lakásokon.",
     },
     salesAgents: {
-      label: "Ingatlanértékesítők",
+      label: "Értékesítők",
       summary:
         "Ki hogyan mutat be, hogyan végződnek a találkozói, és miben tér el a bemutatási sorrendje a csapatétól.",
     },
