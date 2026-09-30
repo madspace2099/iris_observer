@@ -1,6 +1,6 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { MeetingOutcome, ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildAgentDetail } from "../src/showroom/screens";
 
 /**
@@ -23,7 +23,7 @@ import { buildAgentDetail } from "../src/showroom/screens";
  * One measured assertion per test, so a mutation is read by which one fails.
  */
 
-const PROJECT_ID = "prj_test_recorded_outcomes"; // never a real project
+const PROJECT_ID = "prj_testrecordedoutcomes"; // never a real project
 
 function step(ordinal: number, sectionId: ShowroomStep["sectionId"]): ShowroomStep {
   return {
@@ -63,8 +63,7 @@ function session(meetingId: string, outcome: MeetingOutcome): ShowroomSession {
 }
 
 /** No CRM among the connected sources: the case the region used to refuse. */
-const NO_CRM_CONTEXT = {
-  viewer: { role: "developer" },
+const NO_CRM_CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
     id: PROJECT_ID,
@@ -81,7 +80,7 @@ const NO_CRM_CONTEXT = {
     baselineLabel: "last quarter",
   },
   ownDataOnly: false,
-} as unknown as ViewContext;
+});
 
 const many = (n: number, outcome: MeetingOutcome, prefix: string) =>
   Array.from({ length: n }, (_, i) => session(`${prefix}${i}`, outcome));

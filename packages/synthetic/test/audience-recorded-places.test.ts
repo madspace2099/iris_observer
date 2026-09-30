@@ -1,3 +1,4 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import {
   SURROUNDINGS,
@@ -38,7 +39,7 @@ const FAMILY: AudienceCriteria = {
 };
 
 function contextFor(projectId: string): ViewContext {
-  return {
+  return viewContext({
     tenant: { slug: "test-tenant" },
     project: {
       id: projectId,
@@ -46,7 +47,7 @@ function contextFor(projectId: string): ViewContext {
       locale: "en-GB",
       timeZone: "Europe/Bratislava",
     },
-  } as unknown as ViewContext;
+  });
 }
 
 describe("the synthetic world, against the measurement", () => {
@@ -90,7 +91,7 @@ describe("the synthetic world, against the measurement", () => {
 });
 
 describe("one meeting at a time", () => {
-  const PROJECT_ID = "prj_test_audience_places"; // never a real project
+  const PROJECT_ID = "prj_testaudienceplaces"; // never a real project
 
   function place(
     placeName: string,

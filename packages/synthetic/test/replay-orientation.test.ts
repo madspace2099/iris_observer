@@ -1,6 +1,7 @@
+import { viewContext } from "./view-context";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ShowroomSession, ShowroomUnitInteraction } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { buildMeetingReplay } from "../src/showroom/project";
 import { provideCatalogue, type RawUnit } from "../src/pulse";
 
@@ -24,7 +25,7 @@ import { provideCatalogue, type RawUnit } from "../src/pulse";
  * `replay-units.test.ts` and `views3.test.ts` established.
  */
 
-const PROJECT_ID = "prj_test_replay_aspect"; // never a real project: isolation is provable, not coincidental
+const PROJECT_ID = "prj_testreplayaspect"; // never a real project: isolation is provable, not coincidental
 
 function unit(unitCode: string, dwellSeconds: number): ShowroomUnitInteraction {
   return {
@@ -81,11 +82,11 @@ function raw(code: string, orientation: RawUnit["orientation"]): RawUnit {
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: { id: PROJECT_ID, slug: "test-project", locale: "en-GB", timeZone: "Europe/Bratislava" },
   language: DEFAULT_LANGUAGE,
-} as unknown as ViewContext;
+});
 
 /** Three south, three west, one north, one with no stated aspect. */
 const CATALOGUE: readonly RawUnit[] = [

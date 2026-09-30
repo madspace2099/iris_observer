@@ -1,3 +1,4 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type {
   MeetingOutcome,
@@ -5,7 +6,7 @@ import type {
   ShowroomStep,
   ShowroomUnitInteraction,
 } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { provideCatalogue } from "../src/pulse";
 import { buildAgentDetail, buildMeetingRows, buildUnitDetail } from "../src/showroom/screens";
 
@@ -28,7 +29,7 @@ import { buildAgentDetail, buildMeetingRows, buildUnitDetail } from "../src/show
  * One measured assertion per test, so a mutation is read by which one fails.
  */
 
-const PROJECT_ID = "prj_test_outcome_sweep"; // never a real project
+const PROJECT_ID = "prj_testoutcomesweep"; // never a real project
 const UNIT = "T-1";
 
 function step(ordinal: number, sectionId: ShowroomStep["sectionId"]): ShowroomStep {
@@ -91,8 +92,7 @@ function session(
 }
 
 /** No CRM among the connected sources: the case every one of these used to refuse. */
-const NO_CRM = {
-  viewer: { role: "developer" },
+const NO_CRM = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
     id: PROJECT_ID,
@@ -111,7 +111,7 @@ const NO_CRM = {
   },
   ownDataOnly: false,
   language: DEFAULT_LANGUAGE,
-} as unknown as ViewContext;
+});
 
 const many = (
   n: number,

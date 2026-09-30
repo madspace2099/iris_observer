@@ -1,6 +1,7 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { ShowroomSession } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { buildSalesFlow } from "../src/showroom/views3";
 
 /**
@@ -13,7 +14,7 @@ import { buildSalesFlow } from "../src/showroom/views3";
  * zero, beside a count of a different kind. Constructed sessions; the
  * expected shares are counted by hand.
  */
-const PROJECT_ID = "prj_test_flag_baseline"; // never a real project
+const PROJECT_ID = "prj_testflagbaseline"; // never a real project
 
 let seq = 0;
 function meeting(agentId: string, outcome: ShowroomSession["outcome"]): ShowroomSession {
@@ -44,7 +45,7 @@ function meeting(agentId: string, outcome: ShowroomSession["outcome"]): Showroom
 const times = (n: number, agentId: string, outcome: ShowroomSession["outcome"]) =>
   Array.from({ length: n }, () => meeting(agentId, outcome));
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: { id: PROJECT_ID, slug: "test-project", locale: "en-GB", timeZone: "UTC" },
   period: {
@@ -54,7 +55,7 @@ const CONTEXT = {
     baselineLabel: "before",
   },
   language: DEFAULT_LANGUAGE,
-} as unknown as ViewContext;
+});
 
 const flagFinding = (sessions: readonly ShowroomSession[]) =>
   buildSalesFlow(CONTEXT, sessions, new Date("2027-06-15T12:00:00.000Z"), []).findings.find((f) =>

@@ -1,6 +1,7 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { MeetingOutcome, ShowroomSession, ShowroomStep } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { buildPresentationIntelligence } from "../src/showroom/project";
 
 /**
@@ -22,7 +23,7 @@ import { buildPresentationIntelligence } from "../src/showroom/project";
  * One measured assertion per test, so a mutation is read by which one fails.
  */
 
-const PROJECT_ID = "prj_test_dna_evidence"; // never a real project
+const PROJECT_ID = "prj_testdnaevidence"; // never a real project
 
 function step(ordinal: number, sectionId: ShowroomStep["sectionId"]): ShowroomStep {
   return {
@@ -68,7 +69,7 @@ function session(
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
     id: PROJECT_ID,
@@ -79,7 +80,7 @@ const CONTEXT = {
   },
   period: { to: "9999-01-01T00:00:00.000Z", label: "This quarter", baselineLabel: "last quarter" },
   language: DEFAULT_LANGUAGE,
-} as unknown as ViewContext;
+});
 
 const many = (n: number, make: (i: number) => ShowroomSession) =>
   Array.from({ length: n }, (_, i) => make(i));

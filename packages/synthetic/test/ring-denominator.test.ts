@@ -1,6 +1,6 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { MeetingOutcome, ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildAgentsView } from "../src/showroom/views3";
 
 /**
@@ -14,7 +14,7 @@ import { buildAgentsView } from "../src/showroom/views3";
  * One measured assertion per test, so a mutation is read by which one fails.
  */
 
-const PROJECT_ID = "prj_test_ring_denominator"; // never a real project
+const PROJECT_ID = "prj_testringdenominator"; // never a real project
 
 function step(ordinal: number, sectionId: ShowroomStep["sectionId"]): ShowroomStep {
   return {
@@ -53,11 +53,11 @@ function session(meetingId: string, outcome: MeetingOutcome): ShowroomSession {
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: { id: PROJECT_ID, slug: "test-project", locale: "en-GB", timeZone: "Europe/Bratislava" },
   period: { to: "9999-01-01T00:00:00.000Z", label: "the period", baselineLabel: "before" },
-} as unknown as ViewContext;
+});
 
 const many = (n: number, outcome: MeetingOutcome, prefix: string) =>
   Array.from({ length: n }, (_, i) => session(`${prefix}${i}`, outcome));

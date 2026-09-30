@@ -1,7 +1,7 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import type { ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildStorytelling } from "../src/showroom/project";
 
 /**
@@ -14,7 +14,7 @@ import { buildStorytelling } from "../src/showroom/project";
  * half the meetings open Compare and Shortlist together and half open neither,
  * which is twice what independent use would produce.
  */
-const PROJECT_ID = "prj_test_pairing_floor"; // never a real project
+const PROJECT_ID = "prj_testpairingfloor"; // never a real project
 
 function step(ordinal: number, sectionId: ShowroomStep["sectionId"]): ShowroomStep {
   return {
@@ -53,7 +53,7 @@ function session(meetingId: string, steps: readonly ShowroomStep[]): ShowroomSes
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
     id: PROJECT_ID,
@@ -63,7 +63,7 @@ const CONTEXT = {
     connectedSources: [],
   },
   period: { to: "9999-01-01T00:00:00.000Z", label: "This quarter", baselineLabel: "last quarter" },
-} as unknown as ViewContext;
+});
 
 /* Half of `n` meetings open Compare and Shortlist together; the other half open neither. */
 const paired = (n: number) =>

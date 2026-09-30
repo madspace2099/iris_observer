@@ -1,7 +1,8 @@
+import { ProjectIdSchema } from "@observer/contracts";
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import type { ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildPresentationIntelligence } from "../src/showroom/project";
 
 /**
@@ -28,7 +29,7 @@ import { buildPresentationIntelligence } from "../src/showroom/project";
  * One measured assertion per test, so a mutation is read by which one fails.
  */
 
-const PROJECT_ID = "prj_test_dna_floor"; // never a real project: isolation is provable, not coincidental
+const PROJECT_ID = "prj_testdnafloor"; // never a real project: isolation is provable, not coincidental
 
 function step(ordinal: number, sectionId: ShowroomStep["sectionId"]): ShowroomStep {
   return {
@@ -71,7 +72,7 @@ function session(
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
     id: PROJECT_ID,
@@ -81,7 +82,7 @@ const CONTEXT = {
     connectedSources: [],
   },
   period: { to: "9999-01-01T00:00:00.000Z", label: "This quarter", baselineLabel: "last quarter" },
-} as unknown as ViewContext;
+});
 
 /** Opens Compare mode — the behaviour the two sides are built to differ on. */
 const compares = (i: number, agentId = "agent_test") =>
@@ -115,7 +116,7 @@ describe("a side with no meetings is an absence, not a rate", () => {
    * and the sessions are still these constructed ones.
    */
   const roster = buildPresentationIntelligence(
-    { ...CONTEXT, project: { ...CONTEXT.project, id: "prj_northgate01" } } as ViewContext,
+    { ...CONTEXT, project: { ...CONTEXT.project, id: ProjectIdSchema.parse("prj_northgate01") } },
     many(25, (i) => compares(i, "agt_monika")),
     [],
     "agents",

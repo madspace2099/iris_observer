@@ -1,6 +1,7 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { ShowroomSession } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { VIEWERS, showroomSessions, syntheticRepository } from "../src";
 import { buildSalesFlow } from "../src/showroom/views3";
 
@@ -190,7 +191,7 @@ describe("a window the period cuts across", () => {
     ({
       sessionId: `s-${meetingId}`,
       meetingId,
-      projectId: "prj_test_period_buckets", // never a real project
+      projectId: "prj_testperiodbuckets", // never a real project
       agentId: "agent_test",
       channel: "showroom",
       contactId: null,
@@ -209,10 +210,10 @@ describe("a window the period cuts across", () => {
       timingUnavailable: false,
     }) as ShowroomSession;
 
-  const context = {
+  const context = viewContext({
     tenant: { slug: "test-tenant" },
     project: {
-      id: "prj_test_period_buckets",
+      id: "prj_testperiodbuckets",
       slug: "test-project",
       locale: "en-GB",
       timeZone: "Europe/Bratislava",
@@ -227,7 +228,7 @@ describe("a window the period cuts across", () => {
     ownDataOnly: false,
     sessionsDelivered: true,
     language: DEFAULT_LANGUAGE,
-  } as unknown as ViewContext;
+  });
 
   const today = new Date("2026-03-13T11:00:00Z");
   const flow = buildSalesFlow(
