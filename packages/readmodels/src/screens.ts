@@ -16,7 +16,7 @@ import type {
 } from "./metric-value";
 import type { MeetingSummary, ShowroomFinding, UnitAttentionRow } from "./showroom";
 import type { AgentProfile, OutcomeSlice } from "./views3";
-import { DEFAULT_LANGUAGE, type Language } from "./language";
+import type { Language } from "./language";
 
 /**
  * The drill-down surfaces, as read models.
@@ -164,7 +164,7 @@ const VISITOR_WORDS: Readonly<
 export function visitorLabel(
   kind: VisitorLabelKind,
   priorMeetings: number | null,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): VisitorLabel {
   const words = VISITOR_WORDS[language];
   if (kind === "unlinked") {

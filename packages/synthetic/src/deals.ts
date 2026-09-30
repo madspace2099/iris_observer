@@ -7,7 +7,6 @@ import {
 import type { IrisAssistPolicy } from "@observer/metrics";
 import {
   DAYS,
-  DEFAULT_LANGUAGE,
   hungarianArticle,
   plural,
   pluralCategory,
@@ -575,7 +574,7 @@ export function buildDealLadder(
   timeZone: string,
   unitHref: (unitCode: string) => string | null = () => null,
   /** The words' language; `locale` still formats the figures. */
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): DealLadder {
   const noteWords = LADDER_NOTE_WORDS[language];
   if (deals === null) return { source: "not_connected", note: noteWords.notConnected };
@@ -788,7 +787,7 @@ export function assistedSaleOf(
   locale: string,
   timeZone: string,
   meetingHref: (meetingId: string) => string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): AssistedSale | null {
   if (deals === null) return null;
   const sold = deals.deals.filter(
@@ -832,7 +831,7 @@ export function buildAssistedSales(
   unitHref: (unitCode: string) => string | null,
   meetingHref: (meetingId: string) => string,
   /** The words' language; `locale` still formats the figures. */
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): AssistedSales {
   if (deals === null) return { source: "not_connected", note: NOT_CONNECTED_NOTE };
 

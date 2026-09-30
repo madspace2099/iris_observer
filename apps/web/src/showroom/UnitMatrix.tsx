@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { UnitAttentionRow } from "@observer/readmodels";
+import type { Language, UnitAttentionRow } from "@observer/readmodels";
 import { areaWord, roomsWord } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { Measure } from "./Measure";
@@ -33,11 +33,13 @@ export function UnitMatrix({
   rows,
   selectedCode,
   hrefFor,
+  language,
 }: {
   rows: readonly UnitAttentionRow[];
   selectedCode: string | null;
   /** Resolved on the server: a function cannot cross the boundary. */
   hrefFor: readonly { readonly code: string; readonly href: string }[];
+  language: Language;
 }) {
   const [showAll, setShowAll] = useState(false);
 
@@ -87,7 +89,7 @@ export function UnitMatrix({
             <span className="iris-matrix-code">
               {row.unitCode}
               <em>
-                {roomsWord(row.rooms)} · {areaWord(row.areaSqm)}
+                {roomsWord(row.rooms, language)} · {areaWord(row.areaSqm)}
               </em>
             </span>
             {/*

@@ -29,7 +29,7 @@ import type {
   TrendSeries,
   ViewContext,
 } from "@observer/readmodels";
-import { DEFAULT_LANGUAGE, KPI_WINDOWS, duration, type Language } from "@observer/readmodels";
+import { KPI_WINDOWS, duration, type Language } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
   count,
@@ -137,7 +137,7 @@ export function buildKpis(
   windowId: KpiWindowId,
   locale: string,
   timeZone: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): KpiPanel {
   const spec = KPI_WINDOWS.find((w) => w.id === windowId) ?? KPI_WINDOWS[2];
   const day = 24 * 60 * 60 * 1000;
@@ -409,7 +409,7 @@ const BEHAVIOURS = [
 export function buildBehaviourFunnel(
   sessions: readonly ShowroomSession[],
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): BehaviourFunnel {
   const cohort = sessions.filter((s) => s.outcome === "not_interested");
   const rest = sessions.filter(
@@ -520,9 +520,9 @@ export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
   base: string,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): AgentCharts {
-  const raw = presentersIn(sessions).flatMap((a) => {
+  const raw = presentersIn(sessions, language).flatMap((a) => {
     const mine = sessions.filter((s) => s.agentId === a.id);
     if (mine.length === 0) return [];
     return [
@@ -718,11 +718,11 @@ const FEATURE_AXES: readonly {
 export function buildFeatureUsage(
   sessions: readonly ShowroomSession[],
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): FeatureUsage {
   return {
     axes: FEATURE_AXES.map(({ id, label, note, missing }) => ({ id, label, note, missing })),
-    profiles: presentersIn(sessions).flatMap((agent) => {
+    profiles: presentersIn(sessions, language).flatMap((agent) => {
       const mine = sessions.filter((s) => s.agentId === agent.id);
       if (mine.length === 0) return [];
       const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
@@ -758,7 +758,7 @@ export function buildLongestMeetings(
     .map((s) => ({
       id: s.meetingId,
       label: dayLabel(s.startedAt, locale, timeZone),
-      sub: `${presenterName(s.projectId, s.agentId)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
+      sub: `${presenterName(s.projectId, s.agentId, language)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
       display: duration(s.durationSeconds, language),
       href: `${base}/meetings/${s.meetingId}`,

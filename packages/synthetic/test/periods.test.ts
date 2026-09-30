@@ -14,7 +14,7 @@ const bounds = (p: { from: string; to: string; baselineFrom: string; baselineTo:
   [p.from, p.to, p.baselineFrom, p.baselineTo].map(at);
 
 describe("the period presets against a real today", () => {
-  const periods = periodsAt(new Date("2026-08-24T09:00:00.000+02:00"), "Europe/Bratislava");
+  const periods = periodsAt(new Date("2026-08-24T09:00:00.000+02:00"), "Europe/Bratislava", "en");
 
   it("reproduces the synthetic world's last 28 days", () => {
     expect(bounds(periods.last_28_days)).toEqual(
@@ -63,7 +63,7 @@ describe("the period presets against a real today", () => {
   });
 
   it("steps back over a year boundary in January", () => {
-    const january = periodsAt(new Date("2027-01-15T10:00:00.000+01:00"), "Europe/Bratislava");
+    const january = periodsAt(new Date("2027-01-15T10:00:00.000+01:00"), "Europe/Bratislava", "en");
     expect(bounds(january.last_quarter)).toEqual(
       [
         "2026-10-01T00:00:00.000+02:00",
@@ -85,10 +85,10 @@ describe("the period presets against a real today", () => {
 
   it("reads the day in the project's zone, not the host's", () => {
     /* 23:30 UTC on the 30th is already the 1st of October in Bratislava. */
-    const late = periodsAt(new Date("2026-09-30T23:30:00.000Z"), "Europe/Bratislava");
+    const late = periodsAt(new Date("2026-09-30T23:30:00.000Z"), "Europe/Bratislava", "en");
     expect(at(late.quarter_to_date.from)).toBe(at("2026-10-01T00:00:00.000+02:00"));
     /* And still the 30th of September in New York, four hours behind UTC. */
-    const newYork = periodsAt(new Date("2026-09-30T23:30:00.000Z"), "America/New_York");
+    const newYork = periodsAt(new Date("2026-09-30T23:30:00.000Z"), "America/New_York", "en");
     expect(at(newYork.quarter_to_date.from)).toBe(at("2026-07-01T00:00:00.000-04:00"));
   });
 });

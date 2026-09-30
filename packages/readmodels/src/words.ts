@@ -15,13 +15,7 @@ import {
   type MeetingOutcome,
   type SectionId,
 } from "@observer/contracts";
-import {
-  DEFAULT_LANGUAGE,
-  plural,
-  pluralCategory,
-  type Language,
-  type PluralForms,
-} from "./language";
+import { plural, pluralCategory, type Language, type PluralForms } from "./language";
 
 export const NOT_STATED = "Not stated";
 
@@ -62,7 +56,7 @@ export const TIMES: PluralForms = {
 };
 
 /** "2 rooms", "1 room", or the word for a count the catalogue did not state. */
-export function roomsWord(rooms: number | null, language: Language = DEFAULT_LANGUAGE): string {
+export function roomsWord(rooms: number | null, language: Language): string {
   if (rooms === null) return "Rooms not stated";
   return `${String(rooms)} ${plural(language, rooms, ROOMS_WORD)}`;
 }
@@ -393,15 +387,11 @@ export const NOT_IN_DIRECTORY: Readonly<Record<Language, string>> = {
 };
 
 /** Whether `name` is the word `presenterWord` stands in a name's place, not a name. */
-export function isUnnamedPresenter(name: string, language: Language = DEFAULT_LANGUAGE): boolean {
+export function isUnnamedPresenter(name: string, language: Language): boolean {
   return name.startsWith(`${PRESENTER_NOT_NAMED_WORDS[language]} · `);
 }
 
-export function presenterWord(
-  name: string | null,
-  agentId: string,
-  language: Language = DEFAULT_LANGUAGE,
-): string {
+export function presenterWord(name: string | null, agentId: string, language: Language): string {
   return name === null || name.trim().length === 0
     ? `${PRESENTER_NOT_NAMED_WORDS[language]} · ${agentId}`
     : name;

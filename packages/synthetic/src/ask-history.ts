@@ -250,7 +250,7 @@ function plans(context: ViewContext, sessions: readonly ShowroomSession[]): read
           question: "Who is presenting this project, and how much has each of them done?",
           answer: `${count(roster.length, locale)} people presented ${count(n, locale)} meetings ${period}.`,
           figures: roster.map(([id, meetings]) => ({
-            label: presenterName(context.project.id as string, id),
+            label: presenterName(context.project.id as string, id, context.language),
             value: count(meetings, locale),
             note: `${percent(share(meetings, n), locale)} of the period`,
           })),

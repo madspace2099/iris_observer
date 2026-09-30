@@ -107,8 +107,8 @@ describe.each(EXPECTED)("$sites", ({ entry, en, sk, hu }) => {
 
 describe("Reading's count and noun", () => {
   it("prints the count raw and the noun in the language asked for", () => {
-    expect(counted(1, MEETINGS)).toBe("1 meeting");
-    expect(counted(12, DEMAND_MINUTES)).toBe("12 minutes");
+    expect(counted(1, MEETINGS, "en")).toBe("1 meeting");
+    expect(counted(12, DEMAND_MINUTES, "en")).toBe("12 minutes");
     expect(counted(3, MEETINGS, "sk")).toBe("3 stretnutia");
     expect(counted(7, DEMAND_MINUTES, "hu")).toBe("7 perc");
   });

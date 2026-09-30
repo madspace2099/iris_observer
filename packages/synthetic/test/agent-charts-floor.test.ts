@@ -63,6 +63,7 @@ const charts = buildAgentCharts(
   [...many(AGENT_MIN_SAMPLE + 5, "agt_monika"), ...many(5, "agt_akhilesh")],
   "/test-tenant/test-project",
   "en-GB",
+  "en",
 );
 const profile = (id: string) => charts.radar.profiles.find((p) => p.id === id);
 const row = (id: string) => charts.ranked.find((r) => r.id === id);

@@ -50,13 +50,7 @@
  * matters to any actual Observer date: every generated meeting sits inside
  * ordinary working hours, nowhere near a transition.
  */
-import {
-  DAYS,
-  DEFAULT_LANGUAGE,
-  sentence,
-  type Language,
-  type Sentence,
-} from "@observer/readmodels";
+import { DAYS, sentence, type Language, type Sentence } from "@observer/readmodels";
 
 export interface ZoneParts {
   readonly year: number;
@@ -269,7 +263,7 @@ const PERIOD_WORDS: Readonly<
 export function periodWords(
   preset: PresetKey,
   elapsedDays: number,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): { readonly label: string; readonly baselineLabel: string } {
   const words = PERIOD_WORDS[language][preset];
   return {
@@ -287,7 +281,7 @@ export function periodWords(
 export function periodsAt(
   today: Date,
   timeZone: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): Record<
   "last_28_days" | "quarter_to_date" | "last_quarter" | "year_to_date",
   {

@@ -95,7 +95,7 @@ function readAxis(
   parts: Parameters<typeof meeting>[1],
 ): { value: number | null | undefined; missing: string | null | undefined } {
   const sessions = [meeting("1", parts), meeting("2"), meeting("3"), meeting("4")];
-  const usage = buildFeatureUsage(sessions, LOCALE);
+  const usage = buildFeatureUsage(sessions, LOCALE, "en");
   const at = usage.axes.findIndex((axis) => axis.id === id);
   const profile = usage.profiles.find((p) => p.id === AGENT);
   return { value: at < 0 ? undefined : profile?.values[at], missing: usage.axes[at]?.missing };
@@ -147,7 +147,7 @@ describe("buildFeatureUsage: the seven axes the current build can answer", () =>
   });
 
   it("a meeting that used nothing reads nought on every measured axis, not no value", () => {
-    const usage = buildFeatureUsage([meeting("1"), meeting("2")], LOCALE);
+    const usage = buildFeatureUsage([meeting("1"), meeting("2")], LOCALE, "en");
     const profile = usage.profiles.find((p) => p.id === AGENT);
     usage.axes.forEach((axis, i) => {
       if (axis.missing === null) expect(profile?.values[i]).toBe(0);
@@ -188,7 +188,7 @@ describe("buildFeatureUsage: the three axes the current build cannot answer", ()
   });
 
   it("the three reasons are three different sentences, and no measured axis carries one", () => {
-    const usage = buildFeatureUsage([meeting("1")], LOCALE);
+    const usage = buildFeatureUsage([meeting("1")], LOCALE, "en");
     const reasons = usage.axes.flatMap((axis) => (axis.missing === null ? [] : [axis.missing]));
     expect(new Set(reasons).size).toBe(3);
     expect(usage.axes.map((axis) => axis.id)).toEqual([
@@ -210,13 +210,13 @@ describe("buildFeatureUsage: the three axes the current build cannot answer", ()
 describe("the feature-usage model rides on the agent charts, under the same floor", () => {
   it("is carried by buildAgentCharts, and an agent under the floor is flagged with the floor's sentence", () => {
     const few = Array.from({ length: AGENT_MIN_SAMPLE - 1 }, (_, i) => meeting(String(i)));
-    const [profile] = buildAgentCharts(few, "/alpha/prj", LOCALE).featureUsage.profiles;
+    const [profile] = buildAgentCharts(few, "/alpha/prj", LOCALE, "en").featureUsage.profiles;
     expect(profile?.meetings).toBe(AGENT_MIN_SAMPLE - 1);
     expect(profile?.belowMinimum).toBe(true);
     expect(profile?.note).toContain(`short of the ${String(AGENT_MIN_SAMPLE)}`);
 
     const enough = Array.from({ length: AGENT_MIN_SAMPLE }, (_, i) => meeting(String(i)));
-    const [cleared] = buildAgentCharts(enough, "/alpha/prj", LOCALE).featureUsage.profiles;
+    const [cleared] = buildAgentCharts(enough, "/alpha/prj", LOCALE, "en").featureUsage.profiles;
     expect(cleared?.belowMinimum).toBe(false);
     expect(cleared?.note).toBeNull();
   });

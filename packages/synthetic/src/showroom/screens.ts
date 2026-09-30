@@ -525,7 +525,9 @@ export function buildMeetings(
   }
 
   const active = [
-    filters.agentId === null ? null : presenterName(context.project.id as string, filters.agentId),
+    filters.agentId === null
+      ? null
+      : presenterName(context.project.id as string, filters.agentId, context.language),
     filters.channel === null ? null : SESSION_CHANNEL_LABELS[filters.channel],
     filters.outcome === null ? null : OUTCOME_LABELS[filters.outcome],
   ].filter((x): x is string => x !== null);
@@ -546,8 +548,8 @@ export function buildMeetings(
     filters,
     options: {
       agents: optionsFrom(
-        (id) => presenterName(context.project.id as string, id),
-        presentersIn(sessions).map((a) => a.id),
+        (id) => presenterName(context.project.id as string, id, context.language),
+        presentersIn(sessions, context.language).map((a) => a.id),
         agentCounts,
       ),
       channels: optionsFrom(
@@ -741,7 +743,7 @@ export function buildUnitDetail(
   )) {
     const touch = session.units.find((u) => u.unitCode === unitCode);
     if (touch === undefined) continue;
-    const agentName = presenterName(session.projectId, session.agentId);
+    const agentName = presenterName(session.projectId, session.agentId, language);
     const meetingHref = `${root}/meetings/${session.meetingId}`;
     const channelLabel = SESSION_CHANNEL_LABELS[session.channel];
     const stamp = `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`;
@@ -990,7 +992,7 @@ export function buildUnitDetail(
 
   /* --- who showed it ------------------------------------------------------- */
 
-  const relatedAgents: readonly UnitAgentInterest[] = presentersIn(sessions)
+  const relatedAgents: readonly UnitAgentInterest[] = presentersIn(sessions, language)
     .flatMap<UnitAgentInterest>((agent) => {
       const theirs = touchedBy.filter((s) => s.agentId === agent.id);
       if (theirs.length === 0) return [];

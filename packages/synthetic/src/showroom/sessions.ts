@@ -17,12 +17,7 @@ import {
   type TimeOfDayPreset,
   type WeatherPreset,
 } from "@observer/contracts";
-import {
-  DEFAULT_LANGUAGE,
-  NOT_IN_DIRECTORY,
-  presenterWord,
-  type Language,
-} from "@observer/readmodels";
+import { NOT_IN_DIRECTORY, presenterWord, type Language } from "@observer/readmodels";
 import { money } from "../format";
 import { syntheticCatalogueFor, type RawUnit } from "../pulse";
 import { zoneParts, zonedInstant } from "../time";
@@ -309,11 +304,7 @@ export function provideAgentNames(
  * "agent-guid" in a name's place and has no way to tell it apart from somebody
  * actually called that.
  */
-export function presenterName(
-  projectId: string,
-  agentId: string,
-  language: Language = DEFAULT_LANGUAGE,
-): string {
+export function presenterName(projectId: string, agentId: string, language: Language): string {
   const named = agentById(agentId)?.name ?? providedNames.get(projectId)?.get(agentId) ?? null;
   return presenterWord(named, agentId, language);
 }
@@ -345,7 +336,7 @@ export type Presenter = Pick<SyntheticAgent, "id" | "name" | "organisationName">
  */
 export function presentersIn(
   sessions: readonly ShowroomSession[],
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): readonly Presenter[] {
   const rostered = new Set(SYNTHETIC_AGENTS.map((a) => a.id));
   const beyond = [...new Set(sessions.map((s) => s.agentId))]

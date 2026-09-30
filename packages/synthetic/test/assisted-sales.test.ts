@@ -94,6 +94,7 @@ const build = (deals: DeliveredDeals | null, sessions: ShowroomSession[]) =>
     "Europe/Bratislava",
     (code) => (code === "A-1" ? "/alpha/x/units/A-1" : null),
     (id) => `/alpha/x/meetings/${id}`,
+    "en",
   );
 
 describe("which sales followed a showing", () => {
@@ -227,6 +228,7 @@ describe("a CRM that states no stage instant", () => {
     "Europe/Bratislava",
     () => null,
     (id) => `/alpha/x/meetings/${id}`,
+    "en",
   );
   if (view.source !== "crm") throw new Error("expected a connected view");
   const bySale = new Map(view.sales.map((s) => [s.externalId, s]));

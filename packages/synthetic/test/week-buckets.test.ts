@@ -75,7 +75,7 @@ function meeting(startedAt: string): ShowroomSession {
 describe("weeklyBuckets cuts a period into calendar weeks", () => {
   it("year to date 2026: the first week is cut at 1 January and ends on Monday 5 January", () => {
     /* A year to date short enough that the twelve-week cap keeps its first week. */
-    const ytd = periodsAt(new Date("2026-02-20T12:00:00+01:00"), ZONE).year_to_date;
+    const ytd = periodsAt(new Date("2026-02-20T12:00:00+01:00"), ZONE, "en").year_to_date;
     expect(Date.parse(ytd.from)).toBe(Date.parse("2026-01-01T00:00:00+01:00"));
 
     const buckets = weeklyBuckets(ytd.from, ytd.to, LOCALE, ZONE);
@@ -99,7 +99,7 @@ describe("weeklyBuckets cuts a period into calendar weeks", () => {
   });
 
   it("every week but the first starts on a Monday, at local midnight, and the weeks meet end to start", () => {
-    const ytd = periodsAt(new Date("2026-02-20T12:00:00+01:00"), ZONE).year_to_date;
+    const ytd = periodsAt(new Date("2026-02-20T12:00:00+01:00"), ZONE, "en").year_to_date;
     const buckets = weeklyBuckets(ytd.from, ytd.to, LOCALE, ZONE);
     expect(buckets).toHaveLength(8);
     expect(reading(buckets[0]?.from ?? 0).weekday).toBe("Thu");
@@ -111,7 +111,7 @@ describe("weeklyBuckets cuts a period into calendar weeks", () => {
   });
 
   it("on the synthetic world's own year to date the cap keeps twelve whole Monday weeks, the last ending with the period", () => {
-    const ytd = periodsAt(new Date("2026-08-24T12:00:00+02:00"), ZONE).year_to_date;
+    const ytd = periodsAt(new Date("2026-08-24T12:00:00+02:00"), ZONE, "en").year_to_date;
     const buckets = weeklyBuckets(ytd.from, ytd.to, LOCALE, ZONE);
     expect(buckets).toHaveLength(12);
     expect(buckets[0]?.from).toBe(Date.parse("2026-06-01T00:00:00+02:00"));

@@ -137,7 +137,7 @@ export default async function AgentPage({
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
 
   /* The ten-second answer: `agentAnswer`, shared with the printed summary. */
-  const answer = agentAnswer(view);
+  const answer = agentAnswer(view, view.context.language);
 
   /*
    * WHETHER THE PAGE HAS AN EVIDENCE REFERENCE TO OFFER AT ALL.

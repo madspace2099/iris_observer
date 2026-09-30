@@ -98,7 +98,7 @@ describe("trend — classification immediately below, at, and above every cutoff
 
 describe("bucketBounds — last month clipped like last week already is", () => {
   it("first day of a month: last month is clipped to a single day", () => {
-    const bounds = bucketBounds(utc(2027, 4, 1)); // 1 May 2027
+    const bounds = bucketBounds(utc(2027, 4, 1), "UTC", "en"); // 1 May 2027
     const lastMonth = bounds.find((b) => b.id === "last_month");
     expect(lastMonth?.label).toBe("Last month, first 1 day");
     expect(lastMonth?.from).toBe(Date.UTC(2027, 3, 1));
@@ -106,7 +106,7 @@ describe("bucketBounds — last month clipped like last week already is", () => 
   });
 
   it("last day of a month at least as long as the one before it: no clip needed", () => {
-    const bounds = bucketBounds(utc(2027, 6, 31)); // 31 July 2027 — June has 30 days
+    const bounds = bucketBounds(utc(2027, 6, 31), "UTC", "en"); // 31 July 2027 — June has 30 days
     const lastMonth = bounds.find((b) => b.id === "last_month");
     expect(lastMonth?.label).toBe("Last month");
     expect(lastMonth?.from).toBe(Date.UTC(2027, 5, 1));
@@ -117,7 +117,7 @@ describe("bucketBounds — last month clipped like last week already is", () => 
     // 29 March 2027 — 29 days into March, but February 2027 (non-leap) only
     // has 28. The guard must show all of February rather than ask it for a
     // 29th day it does not have, and label it as complete, not clipped.
-    const bounds = bucketBounds(utc(2027, 2, 29));
+    const bounds = bucketBounds(utc(2027, 2, 29), "UTC", "en");
     const lastMonth = bounds.find((b) => b.id === "last_month");
     expect(lastMonth?.label).toBe("Last month");
     expect(lastMonth?.from).toBe(Date.UTC(2027, 1, 1));

@@ -56,9 +56,9 @@ const ROWS = [
 
 describe("the words for what a catalogue did not state", () => {
   it("say the absence rather than a figure", () => {
-    expect(roomsWord(null)).toBe("Rooms not stated");
-    expect(roomsWord(1)).toBe("1 room");
-    expect(roomsWord(3)).toBe("3 rooms");
+    expect(roomsWord(null, "en")).toBe("Rooms not stated");
+    expect(roomsWord(1, "en")).toBe("1 room");
+    expect(roomsWord(3, "en")).toBe("3 rooms");
     expect(areaWord(null)).toBe("Area not stated");
     expect(areaWord(54.5)).toBe("54.5 m²");
     expect(floorWord(null)).toBe("Floor not stated");

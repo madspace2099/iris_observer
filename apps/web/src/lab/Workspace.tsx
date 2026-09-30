@@ -166,7 +166,7 @@ function Pulse({
                 data-match={matchedUnitIds?.has(unit.unitId) ? "true" : undefined}
                 aria-pressed={selectedUnitId === unit.unitId}
                 onClick={() => onSelectUnit(selectedUnitId === unit.unitId ? null : unit)}
-                title={`${unit.code} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)} · ${unit.status} · ${unit.meaningfulViews} meaningful views`}
+                title={`${unit.code} · ${roomsWord(unit.rooms, pulse.context.language)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)} · ${unit.status} · ${unit.meaningfulViews} meaningful views`}
               >
                 <span className="iris-sr">
                   {unit.code}, {unit.status}, {unit.meaningfulViews} meaningful views
@@ -424,7 +424,7 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
       return {
         kicker: `${unit.code} · ${floorWord(unit.floor).toLowerCase()} · ${aspectWord(unit.orientation)}`,
         text: `${unit.code} is ${status} at ${unit.priceDisplay}, and ${unit.uniqueContacts} people have looked at it properly.`,
-        lede: `${roomsWord(unit.rooms)}, ${areaWord(unit.areaSqm)}, ${unit.meaningfulViews} meaningful views this period. Interest is ${unit.trend}.`,
+        lede: `${roomsWord(unit.rooms, pulse.context.language)}, ${areaWord(unit.areaSqm)}, ${unit.meaningfulViews} meaningful views this period. Interest is ${unit.trend}.`,
       };
     }
     if (segment !== null) {
@@ -609,7 +609,7 @@ export function Workspace({ variant, overview, pulse, ask }: Props) {
         <dl>
           <dt>Type</dt>
           <dd>
-            {roomsWord(unit.rooms)} · {areaWord(unit.areaSqm)}
+            {roomsWord(unit.rooms, pulse.context.language)} · {areaWord(unit.areaSqm)}
           </dd>
           <dt>Aspect</dt>
           <dd>

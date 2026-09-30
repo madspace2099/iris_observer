@@ -240,6 +240,7 @@ export default async function UnitsPage({
               query={registerQuery}
               period={period}
               periodLabel={periodLabel}
+              language={view.context.language}
               caption={`Every unit in ${view.context.project.name}, with what buyers did with it in ${periodLabel}.`}
             />
           </div>

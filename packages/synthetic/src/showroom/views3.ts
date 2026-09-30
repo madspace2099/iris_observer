@@ -41,7 +41,6 @@ import type {
 } from "@observer/readmodels";
 import {
   DAYS,
-  DEFAULT_LANGUAGE,
   MEETINGS,
   OUTCOME_WORDS,
   actionWorthTaking,
@@ -101,7 +100,7 @@ const WITH_OUTCOME = [
  */
 
 /** "1 meetings" is the kind of small wrongness that makes a product feel unfinished. */
-export function meetings(n: number, locale: string, language: Language = DEFAULT_LANGUAGE): string {
+export function meetings(n: number, locale: string, language: Language): string {
   return `${count(n, locale)} ${plural(language, n, MEETINGS)}`;
 }
 
@@ -134,7 +133,7 @@ export function suppressionNoteFor(
   held: number,
   locale: string,
   form: "sentence" | "short" = "sentence",
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
   /**
    * Who the note is about, where the approved Slovak says it differently for a
    * presenter no directory names: in the roster and on the agent's own page
@@ -179,7 +178,7 @@ export function timedSetNoteFor(
   timed: number,
   held: number,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): string {
   const minimum = String(AGENT_MIN_SAMPLE);
   const short = count(AGENT_MIN_SAMPLE - timed, locale);
@@ -364,7 +363,7 @@ const WINDOW_WORDS: Readonly<
   },
 };
 
-export function bucketBounds(today: Date, timeZone = "UTC", language: Language = DEFAULT_LANGUAGE) {
+export function bucketBounds(today: Date, timeZone = "UTC", language: Language) {
   const windows = WINDOW_WORDS[language];
   const day = 24 * 60 * 60 * 1000;
   const t0 = startOfDayIn(today, timeZone).getTime();
@@ -491,10 +490,7 @@ function buildPeriods(
 
 /* --- outcome rings ----------------------------------------------------------- */
 
-function outcomeSlices(
-  sessions: readonly ShowroomSession[],
-  language: Language = DEFAULT_LANGUAGE,
-): OutcomeSlice[] {
+function outcomeSlices(sessions: readonly ShowroomSession[], language: Language): OutcomeSlice[] {
   const counts = new Map<MeetingOutcome, number>();
   for (const s of sessions) counts.set(s.outcome, (counts.get(s.outcome) ?? 0) + 1);
   const order: MeetingOutcome[] = [
@@ -528,7 +524,7 @@ function outcomeFlag(
   sessions: readonly ShowroomSession[],
   teamProgressed: number,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): AgentOutcomeRing["flag"] {
   if (sessions.length < 8) return null;
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
@@ -587,7 +583,7 @@ function buildRing(
   base: string,
   teamProgressed: number,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): AgentOutcomeRing {
   const decided = session.filter((s) => !outcomeIsUnknown(s.outcome));
   return {
@@ -785,7 +781,7 @@ function verdictFrom(
   current: PeriodSummary,
   prior: PeriodSummary,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): string {
   const outcomesRecorded = current.outcomeRecorded > 0;
   const hasBaseline = prior.meetings > 0;
@@ -894,7 +890,7 @@ export function buildSalesFlow(
     decided.length,
   );
 
-  const rings = presentersIn(sessions)
+  const rings = presentersIn(sessions, context.language)
     .map((a) =>
       buildRing(
         sessions.filter((s) => s.agentId === a.id),
@@ -1153,7 +1149,7 @@ export function segmentName(rooms: number, language: Language): string {
 
 function roomSegments(
   catalogue: ReadonlyArray<{ readonly rooms: number | null }>,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): RoomSegmentSpec[] {
   const stated = roomCounts(catalogue).map((rooms) => ({
     id: `rooms-${rooms}`,

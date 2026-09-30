@@ -823,7 +823,7 @@ export function buildShowroomOverview(
    * not look alike. This states the largest gap and sends the reader to the
    * comparison rather than drawing a conclusion from it.
    */
-  const perAgent = presentersIn(sessions)
+  const perAgent = presentersIn(sessions, context.language)
     .map((agent) => ({
       agent,
       sessions: sessions.filter((s) => s.agentId === agent.id),
@@ -1018,7 +1018,7 @@ export function buildPresentationIntelligence(
   const locale = context.project.locale;
   const language = context.language;
 
-  const lanes = presentersIn(sessions)
+  const lanes = presentersIn(sessions, language)
     .map((agent) =>
       buildLane(
         agent.id,
@@ -1161,7 +1161,7 @@ export function buildPresentationIntelligence(
      * there compared a real presenter with a stranger who has no meetings on
      * the project.
      */
-    const presenters = presentersIn(sessions);
+    const presenters = presentersIn(sessions, language);
     const presented = presenters.filter((p) => sessions.some((s) => s.agentId === p.id));
     /*
      * WHO MAY BE NAMED HERE AT ALL: this project's own roster, and whoever

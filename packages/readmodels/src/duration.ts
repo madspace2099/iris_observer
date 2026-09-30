@@ -1,4 +1,4 @@
-import { DEFAULT_LANGUAGE, plural, type Language, type PluralForms } from "./language";
+import { plural, type Language, type PluralForms } from "./language";
 
 /**
  * A LENGTH OF TIME, IN MINUTES AND SECONDS, AS EACH LANGUAGE WRITES IT.
@@ -36,7 +36,7 @@ const SECONDS: PluralForms = {
   hu: { one: "másodperc", other: "másodperc" },
 };
 
-export function duration(seconds: number, language: Language = DEFAULT_LANGUAGE): string {
+export function duration(seconds: number, language: Language): string {
   const whole = Math.round(seconds);
   const m = Math.floor(whole / 60);
   const s = whole % 60;

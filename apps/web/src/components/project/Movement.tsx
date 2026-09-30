@@ -123,7 +123,7 @@ export function Movement({
                 {unit.code}
               </Link>
             ),
-            apartment: `${floorWord(unit.floor)}, block ${unit.block} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)}`,
+            apartment: `${floorWord(unit.floor)}, block ${unit.block} · ${roomsWord(unit.rooms, pulse.context.language)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)}`,
             price: <span className="ox-figure">{unit.priceDisplay}</span>,
             status: (
               <span className="ox-chip" data-tone={STATUS_TONES[unit.status]}>
