@@ -213,10 +213,10 @@ const NOTHING_RECEIVED_YET_WORDS: Readonly<Record<Language, string>> = {
 export function nothingReceivedYet(context: {
   readonly ownDataOnly: boolean;
   readonly sessionsDelivered: boolean;
-  readonly language?: Language;
+  readonly language: Language;
 }): string | null {
   return context.ownDataOnly && !context.sessionsDelivered
-    ? NOTHING_RECEIVED_YET_WORDS[context.language ?? DEFAULT_LANGUAGE]
+    ? NOTHING_RECEIVED_YET_WORDS[context.language]
     : null;
 }
 
@@ -282,9 +282,8 @@ const SECTION_NAMES: Readonly<
 
 /** A showroom section by its name in `language`; English is the contract's own `sectionLabel`. */
 export function sectionWord(language: Language, id: SectionId): string {
-  /* A caller without a language — a test's hand-built context, say — reads English, like every word helper. */
-  const lang = language;
-  return lang === "en" ? sectionLabel(id) : SECTION_NAMES[lang][id];
+  /* The language is required: the caller passes the one its request was made in. */
+  return language === "en" ? sectionLabel(id) : SECTION_NAMES[language][id];
 }
 
 /** "facing S", or the word for an aspect the catalogue did not state. */
