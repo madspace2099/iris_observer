@@ -190,6 +190,8 @@
      */
     "apps/web/test/surface-authorisation.test.ts",
     /* Walks the tree for a default, a fallback or a cast on the language (LANG1C). */
-    "apps/web/test/language-required.test.ts"
+    "apps/web/test/language-required.test.ts",
+    /* Feeds one value into the preflight step 1 table (CONF1). */
+    "supabase/test/preflight-step1.test.ts"
   ]
 }
