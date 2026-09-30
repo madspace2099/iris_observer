@@ -60,6 +60,26 @@ export default tseslint.config(
   },
   {
     /*
+     * A CONDITION THE TYPES ALREADY DECIDED (LANG1, 2026-09-30).
+     *
+     * Fourteen `context.language ?? DEFAULT_LANGUAGE` fallbacks sat on a field
+     * the type required, and nothing said so: this lint was not type-aware. The
+     * rule needs the type checker, so it runs on the live sources only, and not
+     * on the frozen contract and sources packages, whose content this repository
+     * must not change.
+     */
+    files: ["apps/web/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}"],
+    ignores: ["packages/contracts/**", "packages/sources/**"],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: {
+      /* `warn`, not `error`: 27 older findings, none about the language, are listed for a decision (LANG1C). */
+      "@typescript-eslint/no-unnecessary-condition": "warn",
+    },
+  },
+  {
+    /*
      * Repository scripts run in Node, not in a browser or a bundler.
      *
      * `console` and `process` are the whole point of a command-line tool, and

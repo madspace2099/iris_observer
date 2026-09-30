@@ -188,6 +188,8 @@
      * the required `language`, an input no caller in the source can produce, and
      * only a run-time `TypeError` said so once a dead `??` was removed.
      */
-    "apps/web/test/surface-authorisation.test.ts"
+    "apps/web/test/surface-authorisation.test.ts",
+    /* Walks the tree for a default, a fallback or a cast on the language (LANG1C). */
+    "apps/web/test/language-required.test.ts"
   ]
 }
