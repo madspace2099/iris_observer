@@ -283,7 +283,7 @@ const SECTION_NAMES: Readonly<
 /** A showroom section by its name in `language`; English is the contract's own `sectionLabel`. */
 export function sectionWord(language: Language, id: SectionId): string {
   /* A caller without a language — a test's hand-built context, say — reads English, like every word helper. */
-  const lang = language ?? DEFAULT_LANGUAGE;
+  const lang = language;
   return lang === "en" ? sectionLabel(id) : SECTION_NAMES[lang][id];
 }
 

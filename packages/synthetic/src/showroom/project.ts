@@ -36,7 +36,6 @@ import type {
 } from "@observer/readmodels";
 import { catalogueFor, type RawUnit } from "../pulse";
 import {
-  DEFAULT_LANGUAGE,
   MEETINGS,
   OUTCOME_WORDS,
   TIMES,
@@ -994,7 +993,7 @@ export function buildShowroomOverview(
     outcomeContext: [...outcomeCounts.entries()]
       .map(([outcome, n2]) => ({
         outcome,
-        label: OUTCOME_WORDS[context.language ?? DEFAULT_LANGUAGE][outcome],
+        label: OUTCOME_WORDS[context.language][outcome],
         count: n2,
       }))
       .sort((a, b) => b.count - a.count),
@@ -1716,7 +1715,7 @@ const REPLAY_WORDS: Readonly<Record<Language, ReplayWords>> = {
 
 export function buildMeetingReplay(context: ViewContext, session: ShowroomSession): MeetingReplay {
   const locale = context.project.locale;
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
   const words = REPLAY_WORDS[language];
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
@@ -1951,11 +1950,11 @@ export function buildMeetingList(
     .map((s) => ({
       meetingId: s.meetingId,
       label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
-      agentName: presenterName(s.projectId, s.agentId, context.language ?? DEFAULT_LANGUAGE),
+      agentName: presenterName(s.projectId, s.agentId, context.language),
       startedDisplay: dayLabel(s.startedAt, locale, timeZone),
       durationDisplay: duration(s.durationSeconds, context.language),
       outcome: s.outcome,
-      outcomeLabel: OUTCOME_WORDS[context.language ?? DEFAULT_LANGUAGE][s.outcome],
+      outcomeLabel: OUTCOME_WORDS[context.language][s.outcome],
       sectionCount: new Set(orderOf(s)).size,
       unitCount: s.units.length,
       href: `${base}/meetings/${s.meetingId}`,

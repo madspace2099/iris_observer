@@ -2,7 +2,6 @@ import { outcomeIsUnknown, type InsightSource, type ShowroomSession } from "@obs
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import {
   AGENT_REGISTER_ROLES,
-  DEFAULT_LANGUAGE,
   MEETINGS,
   plural,
   pluralCategory,
@@ -420,7 +419,7 @@ export function buildReportScope(
 ): ReportScopeView {
   if (meeting !== null) return buildMeetingReportScope(context, meeting);
   const locale = context.project.locale;
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
   const words = SCOPE_WORDS[language];
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const crm = context.project.connectedSources.includes("crm");
@@ -610,7 +609,7 @@ export function buildReportScope(
  * so rather than drawing a timeline it does not have.
  */
 function buildMeetingReportScope(context: ViewContext, meeting: ShowroomSession): ReportScopeView {
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
   const words = SCOPE_WORDS[language];
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const summary = buildMeetingList(context, [meeting])[0];
@@ -912,7 +911,7 @@ export function buildAgentReportScope(
   if (view === null) return null;
   const root = `/${context.tenant.slug}/${context.project.slug}`;
   const n = view.sampleSize;
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
   const words = AGENT_SCOPE_WORDS[language];
   const scopeWords = SCOPE_WORDS[language];
   const evidence = (id: string, observations: number) =>

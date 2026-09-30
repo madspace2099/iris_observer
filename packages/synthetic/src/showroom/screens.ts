@@ -47,7 +47,6 @@ import type {
 } from "@observer/readmodels";
 import {
   AGENT_REGISTER_ROLES,
-  DEFAULT_LANGUAGE,
   MEETINGS,
   OUTCOME_WORDS,
   TIMES,
@@ -366,7 +365,7 @@ export function buildMeetingRows(
    * since withdrawn a flat, both leave codes with no page behind them.
    */
   const catalogueCodes = new Set(catalogueFor(context.project.id as string).map((u) => u.code));
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
 
   return buildMeetingList(context, sessions).flatMap<MeetingRow>((summary) => {
     const session = byId.get(summary.meetingId);
@@ -1445,7 +1444,7 @@ export function buildAgentDetail(
 ): AgentDetailView | null {
   const locale = context.project.locale;
   const root = base(context);
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
   const words = AGENT_DETAIL_WORDS[language];
 
   /* The roster, or whoever this project's meetings name: a delivered project's agents are on no roster. */
