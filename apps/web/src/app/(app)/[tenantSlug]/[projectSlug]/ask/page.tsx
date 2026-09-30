@@ -304,6 +304,7 @@ async function Answer({
       projectSlug={projectSlug}
       scope={scope}
       otherProjects={otherProjects}
+      modelConnected={connected.length > 0}
     />
   );
 }

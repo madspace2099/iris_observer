@@ -859,6 +859,7 @@ export function AskConversationPanel({
   projectSlug,
   scope,
   otherProjects,
+  modelConnected,
 }: {
   readonly question: string;
   readonly answer: AskAnswer | null;
@@ -872,6 +873,12 @@ export function AskConversationPanel({
   /** Defaults to `{ kind: "current" }` for call sites that predate scope. */
   readonly scope?: AskScope;
   readonly otherProjects?: readonly AskScopeProject[];
+  /**
+   * Whether this account has a model connected. The answers come from the read
+   * models either way, so the note always says no model wrote them; that none
+   * is connected is said only when it is true (NIGHT2, P2-01).
+   */
+  readonly modelConnected: boolean;
 }) {
   const effectiveScope = scope ?? { kind: "current" };
   const effectiveSlug = projectSlug ?? "";
@@ -896,8 +903,8 @@ export function AskConversationPanel({
         </span>
         <span>
           Composed by Observer&rsquo;s read models for {session.context.projectLabel},{" "}
-          {session.context.periodLabel.toLowerCase()}. No language model wrote any of this, and none
-          is connected to this account.
+          {session.context.periodLabel.toLowerCase()}. No language model wrote any of this
+          {modelConnected ? "." : ", and none is connected to this account."}
         </span>
       </p>
 
