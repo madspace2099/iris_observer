@@ -219,6 +219,7 @@ export default async function AskPage({
             periodParam={periodParam}
             scope={scope}
             otherProjects={otherProjects}
+            modelConnected={connected.length > 0}
           />
         </Suspense>
       )}
@@ -261,6 +262,7 @@ async function Answer({
   periodParam,
   scope,
   otherProjects,
+  modelConnected,
 }: Read & {
   readonly question: string;
   readonly viewerName: string;
@@ -268,6 +270,7 @@ async function Answer({
   readonly periodParam: string;
   readonly scope: AskScope;
   readonly otherProjects: readonly AskScopeProject[];
+  readonly modelConnected: boolean;
 }) {
   const session = await repository.getAskSession(
     { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
@@ -304,7 +307,7 @@ async function Answer({
       projectSlug={projectSlug}
       scope={scope}
       otherProjects={otherProjects}
-      modelConnected={connected.length > 0}
+      modelConnected={modelConnected}
     />
   );
 }
