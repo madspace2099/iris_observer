@@ -1,4 +1,4 @@
-import type { EvidenceRef, PeriodPreset, StatedDemand } from "@observer/readmodels";
+import type { Language, EvidenceRef, PeriodPreset, StatedDemand } from "@observer/readmodels";
 
 import { DataTable, Evidence } from "@/components/product";
 import { AVAILABILITY_WORDS } from "@/showroom/parts";
@@ -41,10 +41,12 @@ export function StatedDemandRegister({
   demand,
   evidence,
   period,
+  language,
 }: {
   readonly demand: readonly StatedDemand[];
   readonly evidence: EvidenceRef | null;
   readonly period: PeriodPreset;
+  readonly language: Language;
 }) {
   const unmatched = demand.filter((entry) => entry.matches === 0);
 
@@ -57,7 +59,7 @@ export function StatedDemandRegister({
           ? "Every filter applied inside the showroom, how often it was applied, and how many available units satisfied it."
           : `Every filter applied inside the showroom, how often it was applied, and how many available units satisfied it. ${unmatched.length} of these searches matched no available unit at all.`
       }
-      aside={<Evidence evidence={evidence} period={period} />}
+      aside={<Evidence language={language} evidence={evidence} period={period} />}
     >
       <DataTable
         caption="Filters buyers applied in the showroom, ordered by how often they were applied."

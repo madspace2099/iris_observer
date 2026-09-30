@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReportSection, ReportSectionAvailability } from "@observer/readmodels";
+import type { Language, ReportSection, ReportSectionAvailability } from "@observer/readmodels";
 
 /*
  * Reached by module rather than through the layer's barrel. This is a client
@@ -66,6 +66,7 @@ export function ReportSections({
   excluded,
   onToggle,
   idPrefix,
+  language,
 }: {
   readonly sections: readonly ReportSection[];
   /** Ids the reader has taken out. Everything writable starts included. */
@@ -73,6 +74,7 @@ export function ReportSections({
   readonly onToggle: (id: string) => void;
   /** Namespaces the checkbox ids, so two dialogs on one screen do not collide. */
   readonly idPrefix: string;
+  readonly language: Language;
 }) {
   return (
     <ul className="ox-scope">
@@ -111,7 +113,7 @@ export function ReportSections({
               )}
 
               <div className="ox-alert-foot">
-                <Sources sources={section.sources} />
+                <Sources language={language} sources={section.sources} />
                 {section.sampleSize === null ? null : (
                   <Sample n={section.sampleSize} noun={section.sampleNoun} />
                 )}

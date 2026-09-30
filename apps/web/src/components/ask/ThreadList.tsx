@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  DEFAULT_LANGUAGE,
   plural,
   type AskThreadSummary,
   type Language,
@@ -58,14 +57,14 @@ export function ThreadList({
   threads,
   period,
   label,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly threads: readonly AskThreadSummary[];
   readonly period: PeriodPreset;
   /** The accessible name of the register. */
   readonly label: string;
   /** The words' language; the page passes the reader's once there is a choice. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   if (threads.length === 0) return null;
 

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  DEFAULT_LANGUAGE,
   MEETINGS,
   plural,
   type Language,
@@ -84,7 +83,7 @@ export function FindingList({
   period,
   sampleNoun,
   emptyNote,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly findings: readonly ShowroomFinding[];
   readonly period: PeriodPreset;
@@ -97,7 +96,7 @@ export function FindingList({
   readonly sampleNoun?: string;
   readonly emptyNote?: string;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const words = FINDING_WORDS[language];
   /* English has always printed "meetings" whatever the count; the others agree with it. */

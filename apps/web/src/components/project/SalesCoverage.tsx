@@ -1,5 +1,6 @@
 import { NO_CRM } from "@observer/metrics";
 import type {
+  Language,
   PeriodPreset,
   ProjectCharts,
   ProjectSource,
@@ -53,12 +54,14 @@ export function SalesCoverage({
   project,
   periodLabel,
   period,
+  language,
 }: {
   readonly charts: ProjectCharts;
   /** The project, for its four feeds and the locale its dates are read in. */
   readonly project: ProjectSummary;
   readonly periodLabel: string;
   readonly period: PeriodPreset;
+  readonly language: Language;
 }) {
   const missing = project.sources.filter((source) => !source.connected);
   const seenAt = new Intl.DateTimeFormat(project.locale, {
@@ -71,7 +74,7 @@ export function SalesCoverage({
       id="project-coverage"
       title="Sales coverage"
       note="Where the project stands against its own plan, how far a presentation gets, and which of the four feeds behind this screen is reporting."
-      aside={<Evidence evidence={null} period={period} />}
+      aside={<Evidence language={language} evidence={null} period={period} />}
     >
       {/*
        * One band per silent feed, and the CRM's sentence is the policy's own.

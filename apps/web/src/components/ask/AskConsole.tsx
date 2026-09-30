@@ -1,5 +1,4 @@
 import {
-  DEFAULT_LANGUAGE,
   plural,
   type AskSession,
   type Language,
@@ -79,7 +78,7 @@ export async function AskConsole({
   question,
   demo,
   root,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly viewer: Viewer;
   readonly tenantSlug: string;
@@ -96,7 +95,7 @@ export async function AskConsole({
   /** The project root, `/{tenant}/{project}`. */
   readonly root: string;
   /** The words' language, asked of the repository and used here alike. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const askPath = `${root}/ask`;
 
@@ -220,6 +219,7 @@ export async function AskConsole({
         <div className="ox-plane">
           <div className="ox-thread">
             <AnswerSheet
+              language={language}
               answer={answer}
               period={period}
               periodLabel={session.context.periodLabel}

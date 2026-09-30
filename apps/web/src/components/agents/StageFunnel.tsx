@@ -1,5 +1,4 @@
 import {
-  DEFAULT_LANGUAGE,
   slovakZForm,
   type FunnelStep,
   type Language,
@@ -54,14 +53,14 @@ export function StageFunnel({
   steps,
   period,
   label,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly steps: readonly FunnelStep[];
   readonly period: PeriodPreset;
   /** The accessible name of the list of stages. */
   readonly label: string;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   if (steps.length === 0) return null;
 

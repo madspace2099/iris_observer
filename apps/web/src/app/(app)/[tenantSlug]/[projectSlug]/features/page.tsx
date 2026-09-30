@@ -276,6 +276,7 @@ export default async function FeaturesPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={view.context.language}
         kicker={`${view.context.project.name} · Project · ${view.context.period.label}`}
         title="Features"
         answer={answer}
@@ -287,7 +288,7 @@ export default async function FeaturesPage({
         aside={
           <>
             <Sample n={meetingsTotal} noun="presentations" />
-            <Evidence evidence={view.evidence} period={period} />
+            <Evidence language={view.context.language} evidence={view.evidence} period={period} />
           </>
         }
         period={period}
@@ -308,7 +309,13 @@ export default async function FeaturesPage({
             <TallyItem
               label="Presentations recorded"
               value={<KeyCount n={meetingsTotal} />}
-              evidence={<Evidence evidence={view.evidence} period={period} />}
+              evidence={
+                <Evidence
+                  language={view.context.language}
+                  evidence={view.evidence}
+                  period={period}
+                />
+              }
             />
             <TallyItem
               label="Features IRIS can present"
@@ -355,7 +362,10 @@ export default async function FeaturesPage({
             />
           )}
 
-          <Sources sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
+          <Sources
+            language={view.context.language}
+            sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]}
+          />
         </section>
 
         {/* --- what the read model concluded from it ------------------------ */}
@@ -365,6 +375,7 @@ export default async function FeaturesPage({
             <h2 className="ox-section-title">What stands out</h2>
           </div>
           <FindingList
+            language={view.context.language}
             findings={view.findings}
             period={period}
             sampleNoun="presentations"
@@ -426,8 +437,11 @@ export default async function FeaturesPage({
             </p>
 
             <div className="ox-finding-foot">
-              <Sources sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
-              <Evidence evidence={view.evidence} period={period} />
+              <Sources
+                language={view.context.language}
+                sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]}
+              />
+              <Evidence language={view.context.language} evidence={view.evidence} period={period} />
             </div>
           </section>
         </div>
@@ -442,6 +456,7 @@ export default async function FeaturesPage({
             </div>
 
             <Pairings
+              language={view.context.language}
               pairings={view.pairings}
               meetingsTotal={meetingsTotal}
               period={period}
@@ -460,6 +475,7 @@ export default async function FeaturesPage({
             </div>
 
             <Environment
+              language={view.context.language}
               environment={view.environment}
               period={period}
               periodLabel={view.context.period.label}

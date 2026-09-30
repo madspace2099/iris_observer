@@ -135,6 +135,7 @@ export default async function UnitsPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={view.context.language}
         kicker={`${view.context.project.name} · Units · ${view.context.period.label}`}
         title="Unit demand register"
         answer={
@@ -144,7 +145,7 @@ export default async function UnitsPage({
         }
         lede="Every flat in the catalogue, with what the showroom recorded against it. The order is yours and it is carried in the address, so the register you are reading is the register you can send. Open a unit code for what IRIS saw happen to that apartment."
         crumbs={[{ label: view.context.project.name, href: `${root}/project` }, { label: "Units" }]}
-        aside={<Synthetic />}
+        aside={<Synthetic language={view.context.language} />}
         period={period}
       />
 
@@ -194,6 +195,7 @@ export default async function UnitsPage({
             />
           ) : (
             <StackPlan
+              language={view.context.language}
               floors={pulse.floors}
               unitHrefs={unitHrefs}
               period={period}
@@ -204,6 +206,7 @@ export default async function UnitsPage({
         </section>
 
         <DemandAttention
+          language={view.context.language}
           states={attention.states}
           checks={attention.checks}
           period={period}
@@ -256,6 +259,7 @@ export default async function UnitsPage({
           </div>
 
           <FindingList
+            language={view.context.language}
             findings={view.findings}
             period={period}
             sampleNoun="meetings"

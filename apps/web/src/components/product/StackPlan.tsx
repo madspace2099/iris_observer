@@ -2,7 +2,6 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import type { PeriodPreset, PulseFloor, PulseUnit, UnitStatus } from "@observer/readmodels";
 import {
-  DEFAULT_LANGUAGE,
   areaWord,
   aspectWord,
   floorWord,
@@ -121,7 +120,7 @@ export function StackPlan({
   period,
   buildingLabel,
   peakViews = null,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   /** Top floor first, as `ProjectPulse.floors` already orders them. */
   readonly floors: readonly PulseFloor[];
@@ -144,7 +143,7 @@ export function StackPlan({
    */
   readonly peakViews?: number | null;
   /** The words' language; the page passes the reader's once there is a choice. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   return (
     <div>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  DEFAULT_LANGUAGE,
   sentence,
   type AttentionCheck,
   type AttentionKind,
@@ -88,7 +87,7 @@ export function DemandAttention({
   period,
   meetingCount,
   periodLabel,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   /** Every raised state from `getAttention`. Filtered here, never recomputed. */
   readonly states: readonly AttentionState[];
@@ -98,7 +97,7 @@ export function DemandAttention({
   readonly meetingCount: number;
   readonly periodLabel: string;
   /** The words' language; the page passes the reader's once there is a choice. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const mine = states.filter((state) => KINDS.includes(state.kind));
   const asked = checks.filter((check) => KINDS.includes(check.kind));
@@ -118,6 +117,7 @@ export function DemandAttention({
       </div>
 
       <AttentionList
+        language={language}
         alerts={mine.map((state) => state.alert)}
         period={period}
         label="High interest, low conversion"

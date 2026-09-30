@@ -110,6 +110,7 @@ export default async function AskHistoryPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={history.context.language}
         kicker={`${project.name} · Ask IRIS`}
         title="Earlier questions"
         crumbs={[{ label: "Ask IRIS", href: askPath }, { label: "Earlier questions" }]}
@@ -130,7 +131,7 @@ export default async function AskHistoryPage({
         lede={history.demonstrationNotice}
         aside={
           <>
-            <Synthetic />
+            <Synthetic language={history.context.language} />
             <Link
               className="ox-btn"
               data-weight="primary"
@@ -205,7 +206,12 @@ export default async function AskHistoryPage({
                  */}
                 <div className="ox-plate ox-paper">
                   <div className="ox-plate-inner">
-                    <ThreadList threads={pinned} period={period} label="Pinned conversations" />
+                    <ThreadList
+                      language={history.context.language}
+                      threads={pinned}
+                      period={period}
+                      label="Pinned conversations"
+                    />
                   </div>
                 </div>
               </div>
@@ -228,6 +234,7 @@ export default async function AskHistoryPage({
                 <div className="ox-plate ox-paper">
                   <div className="ox-plate-inner">
                     <ThreadList
+                      language={history.context.language}
                       threads={threads}
                       period={period}
                       label="Earlier questions on this project"

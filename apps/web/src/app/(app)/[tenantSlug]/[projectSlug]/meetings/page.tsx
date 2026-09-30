@@ -83,6 +83,7 @@ export default async function MeetingsPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={context.language}
         kicker="Project · Meetings"
         title="Meetings"
         /*
@@ -107,7 +108,7 @@ export default async function MeetingsPage({
         }
         lede="One row is one presentation. A visitor is named by their history with this project and never by a contact detail. The outcome column is what the agent selected in the room at the end of the meeting — it labels the presentation, and it is not a verified sale."
         crumbs={[{ label: "Project", href: `${base}/project` }, { label: "Meetings" }]}
-        aside={<Synthetic />}
+        aside={<Synthetic language={context.language} />}
         period={period}
       />
 
@@ -169,6 +170,7 @@ export default async function MeetingsPage({
           </div>
 
           <FindingList
+            language={context.language}
             findings={view.findings}
             period={period}
             sampleNoun="meetings"

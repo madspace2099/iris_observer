@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { DEFAULT_LANGUAGE, slovakZForm, type Language } from "@observer/readmodels";
+import { slovakZForm, type Language } from "@observer/readmodels";
 
 /*
  * The shortfall a share below the floor prints beside itself, in each language
@@ -68,7 +68,7 @@ export function ShareFigure({
   locale,
   qualifier = null,
   shortfallNoun = "meetings",
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   /** 0 to 1, as every share on the read models is. */
   readonly share: number;
@@ -79,7 +79,7 @@ export function ShareFigure({
   readonly qualifier?: ReactNode;
   readonly shortfallNoun?: string;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const display = new Intl.NumberFormat(locale, {
     style: "percent",

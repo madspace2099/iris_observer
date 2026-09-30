@@ -7,7 +7,6 @@ import {
   type ProducibleEvidenceTier,
 } from "@observer/contracts";
 import {
-  DEFAULT_LANGUAGE,
   plural,
   type EvidenceRef,
   type Language,
@@ -181,10 +180,10 @@ const SOURCE_TOKENS: Readonly<Record<InsightSource, string>> = {
  */
 export function Tier({
   tier,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly tier: EvidenceTier;
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   if (!isProducibleTier(tier)) return null;
   return (
@@ -204,10 +203,10 @@ export function Tier({
  */
 export function Sources({
   sources,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly sources: readonly InsightSource[];
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   if (sources.length === 0) return null;
   return (
@@ -250,12 +249,12 @@ export const PROVENANCE_RECORDS: PluralForms = {
 export function Evidence({
   evidence,
   period,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly evidence: EvidenceRef | null;
   readonly period: PeriodPreset;
   /** The words' language; the page passes the reader's once there is a choice. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   if (evidence === null) {
     return <span className="ox-n">{NO_EVIDENCE[language]}</span>;

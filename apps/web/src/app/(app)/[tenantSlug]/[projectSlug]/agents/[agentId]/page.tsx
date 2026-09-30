@@ -187,6 +187,7 @@ export default async function AgentPage({
       ),
       share: (
         <ShareFigure
+          language={view.context.language}
           share={unit.share}
           sampleSize={view.sampleSize}
           minimumSampleSize={view.minimumSampleSize}
@@ -208,6 +209,7 @@ export default async function AgentPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={view.context.language}
         kicker={`${view.context.project.name} · Sales Agents · ${periodLabel}`}
         title={view.name}
         answer={answer}
@@ -225,10 +227,11 @@ export default async function AgentPage({
         ]}
         aside={
           <>
-            <Synthetic />
+            <Synthetic language={view.context.language} />
             <Sample n={view.sampleSize} noun="meetings" />
-            <Evidence evidence={view.evidence} period={period} />
+            <Evidence language={view.context.language} evidence={view.evidence} period={period} />
             <ExportReport
+              language={view.context.language}
               report={report}
               pageHref={withPeriod(`${root}/report?agent=${view.agentId}`, period)}
             />
@@ -266,10 +269,14 @@ export default async function AgentPage({
                 <TallyItem
                   key={metric.metricId}
                   label={metric.label}
-                  value={<Figure value={metric} />}
+                  value={<Figure language={view.context.language} value={metric} />}
                   evidence={
                     metric.evidence === null ? null : (
-                      <Evidence evidence={metric.evidence} period={period} />
+                      <Evidence
+                        language={view.context.language}
+                        evidence={metric.evidence}
+                        period={period}
+                      />
                     )
                   }
                 />
@@ -291,16 +298,20 @@ export default async function AgentPage({
             <Tally>
               <TallyItem
                 label={view.followUp.recorded.label}
-                value={<Figure value={view.followUp.recorded} />}
+                value={<Figure language={view.context.language} value={view.followUp.recorded} />}
                 evidence={
                   view.followUp.recorded.evidence === null ? null : (
-                    <Evidence evidence={view.followUp.recorded.evidence} period={period} />
+                    <Evidence
+                      language={view.context.language}
+                      evidence={view.followUp.recorded.evidence}
+                      period={period}
+                    />
                   )
                 }
               />
               <TallyItem
                 label={view.followUp.completed.label}
-                value={<Figure value={view.followUp.completed} />}
+                value={<Figure language={view.context.language} value={view.followUp.completed} />}
               />
             </Tally>
 
@@ -349,13 +360,17 @@ export default async function AgentPage({
                 <TallyItem
                   key={outcome.outcome}
                   label={outcome.label}
-                  value={<Figure value={outcome.metric} />}
+                  value={<Figure language={view.context.language} value={outcome.metric} />}
                   evidence={
                     <>
-                      <Tier tier={outcome.tier} />
-                      <Sources sources={outcome.sources} />
+                      <Tier language={view.context.language} tier={outcome.tier} />
+                      <Sources language={view.context.language} sources={outcome.sources} />
                       {outcome.metric.evidence === null ? null : (
-                        <Evidence evidence={outcome.metric.evidence} period={period} />
+                        <Evidence
+                          language={view.context.language}
+                          evidence={outcome.metric.evidence}
+                          period={period}
+                        />
                       )}
                     </>
                   }
@@ -392,6 +407,7 @@ export default async function AgentPage({
             </div>
 
             <StageFunnel
+              language={view.context.language}
               steps={view.funnel}
               period={period}
               label={`Stages ${view.name}'s meetings reached`}
@@ -689,6 +705,7 @@ export default async function AgentPage({
                   meetings.
                 </p>
                 <MeetingRegister
+                  language={view.context.language}
                   rows={view.recentMeetings}
                   period={period}
                   canOpen
@@ -731,6 +748,7 @@ export default async function AgentPage({
             <h2 className="ox-section-title">What this period found</h2>
           </div>
           <FindingList
+            language={view.context.language}
             findings={view.findings}
             period={period}
             emptyNote={`No finding about ${view.name} was produced for this period. That is the read model's answer rather than a gap in it.`}
