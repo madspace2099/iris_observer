@@ -63,6 +63,7 @@ import {
   type Language,
   type PluralForms,
   type Sentence,
+  isUnnamedPresenter,
 } from "@observer/readmodels";
 import { visitorNameFor } from "../contacts";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
@@ -1806,7 +1807,10 @@ export function buildAgentDetail(
     belowMinimum,
     /* One builder for the floor's sentence, shared with the roster and the charts. */
     suppressionNote: belowMinimum
-      ? suppressionNoteFor(mine.length, locale, "sentence", language)
+      ? suppressionNoteFor(mine.length, locale, "sentence", language, {
+          unnamed: isUnnamedPresenter(agent.name, language),
+          where: "detail",
+        })
       : null,
     activity,
     profile,

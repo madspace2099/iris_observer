@@ -386,6 +386,18 @@ const PRESENTER_NOT_NAMED_WORDS: Readonly<Record<Language, string>> = {
   hu: "A név nem ismert",
 };
 
+/** Where a presenter's agency is not known, in each language a report can be printed in (P2-17). */
+export const NOT_IN_DIRECTORY: Readonly<Record<Language, string>> = {
+  en: "Not in the directory",
+  sk: "Nie je v adresári",
+  hu: "Nem szerepel a címtárban",
+};
+
+/** Whether `name` is the word `presenterWord` stands in a name's place, not a name. */
+export function isUnnamedPresenter(name: string, language: Language = DEFAULT_LANGUAGE): boolean {
+  return name.startsWith(`${PRESENTER_NOT_NAMED_WORDS[language]} · `);
+}
+
 export function presenterWord(
   name: string | null,
   agentId: string,

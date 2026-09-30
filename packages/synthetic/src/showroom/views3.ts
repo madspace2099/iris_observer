@@ -57,6 +57,7 @@ import {
   slovakZForm,
   type Language,
   type Sentence,
+  isUnnamedPresenter,
 } from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
@@ -134,13 +135,26 @@ export function suppressionNoteFor(
   locale: string,
   form: "sentence" | "short" = "sentence",
   language: Language = DEFAULT_LANGUAGE,
+  /**
+   * Who the note is about, where the approved Slovak says it differently for a
+   * presenter no directory names: in the roster and on the agent's own page
+   * (P2-17, #13 and #36). Named is the default and reads "mal/a".
+   */
+  presenter: { readonly unnamed: boolean; readonly where: "roster" | "detail" } = {
+    unnamed: false,
+    where: "roster",
+  },
 ): string {
   const minimum = String(AGENT_MIN_SAMPLE);
   const short = count(AGENT_MIN_SAMPLE - held, locale);
   if (language === "sk") {
     return form === "short"
       ? `${count(held, locale)} ${slovakZForm(AGENT_MIN_SAMPLE)} ${minimum} stretnutí`
-      : `V tomto období mal/a ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`;
+      : presenter.unnamed
+        ? presenter.where === "roster"
+          ? `V tomto období mal tento maklér ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`
+          : `V tomto období mal maklér ${meetings(held, locale, language)}, teda o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`
+        : `V tomto období mal/a ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`;
   }
   if (language === "hu") {
     return form === "short"
@@ -1721,7 +1735,10 @@ export function buildAgentsView(
       timedMeetings: timedMine.length,
       belowMinimum,
       suppressionNote: belowMinimum
-        ? suppressionNoteFor(mine.length, locale, "sentence", context.language)
+        ? suppressionNoteFor(mine.length, locale, "sentence", context.language, {
+            unnamed: isUnnamedPresenter(a.name, context.language),
+            where: "roster",
+          })
         : null,
       /*
        * The habit's own floor, on the set the habit stands on. Null above it;

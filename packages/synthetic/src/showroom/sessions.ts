@@ -17,7 +17,12 @@ import {
   type TimeOfDayPreset,
   type WeatherPreset,
 } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, presenterWord, type Language } from "@observer/readmodels";
+import {
+  DEFAULT_LANGUAGE,
+  NOT_IN_DIRECTORY,
+  presenterWord,
+  type Language,
+} from "@observer/readmodels";
 import { money } from "../format";
 import { syntheticCatalogueFor, type RawUnit } from "../pulse";
 import { zoneParts, zonedInstant } from "../time";
@@ -313,12 +318,6 @@ export function presenterName(
   return presenterWord(named, agentId, language);
 }
 
-/* Where a presenter's agency is not known, in each language a report can be printed in; drafts (P2-17). */
-const NOT_IN_DIRECTORY: Readonly<Record<Language, string>> = {
-  en: "Not in the directory",
-  sk: "Nie je v adresári",
-  hu: "Nem szerepel a címtárban",
-};
 const AGENCY_NOT_STATED: Readonly<Record<Language, string>> = {
   en: "Agency not stated",
   sk: "Agentúra neuvedená",
