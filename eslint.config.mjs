@@ -81,12 +81,16 @@ export default tseslint.config(
     },
     rules: {
       /*
-       * `warn`, not `error`, while 27 older findings (none about the language)
-       * wait. It becomes `error` once every one of the 27 has been reviewed on
-       * its own with one question: can the source produce the input the check
-       * guards against? Sometimes the type is what is wrong, not the check —
-       * `nothingReceivedYet`'s optional language was one — so they are not
-       * swept away together.
+       * `warn`, not `error`. All 27 older findings were reviewed one by one on
+       * 2026-10-01 with one question: can the source produce the input the
+       * check guards against? Ten were dead and went, five were casts that
+       * said too little and were corrected. Twelve remain: eight wait on a
+       * decision (a one-member provider union written for a second provider,
+       * and a verified-prices switch), and four guard what a DOM type or the
+       * control-flow analysis cannot see (a lost WebGL context, an insecure
+       * page without mediaDevices, a flag a listener clears). Those four stay
+       * whatever is decided, and silencing them is not allowed, so this rule
+       * stays a warning until they can be expressed without it.
        */
       "@typescript-eslint/no-unnecessary-condition": "warn",
     },
