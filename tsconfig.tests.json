@@ -2,23 +2,24 @@
   "$schema": "https://json.schemastore.org/tsconfig",
 
   /*
-   * A type-check target for the tests this milestone touched, and only those.
+   * The type-check target for the tests.
    *
-   * `apps/web/tsconfig.json` includes `src/**` and nothing else, so no test file
-   * has ever been type-checked. That is how `telemetrySubject(USER)` kept
+   * `apps/web/tsconfig.json` includes `src/**` and nothing else, so for a long
+   * time no web test was type-checked. That is how `telemetrySubject(USER)` kept
    * passing after the function grew a second parameter: JavaScript filled the
    * tenant with `undefined`, every assertion still held, and the suite happily
    * proved that a subject derived from nothing is stable.
    *
-   * Turning the whole test tree on surfaces 39 errors across four files, almost
-   * all of them pre-existing looseness — partial `ProcessEnv` literals, a
-   * `FakeModel` cast, a viewer role narrowed to one tenant. Repairing those is
-   * real work and none of it is this change, so this target is deliberately
-   * narrow: the files this milestone edited, checked under exactly the same
-   * strictness as the source they exercise.
+   * THE WHOLE `apps/web/test` TREE IS CHECKED NOW (NIGHT2, 2026-10-01). Turning
+   * it on measured 73 errors across eight files — partial `ProcessEnv`
+   * literals, a `FakeModel` cast, a viewer role narrowed to one tenant, turns
+   * missing fields every real caller sends, a thread origin the source cannot
+   * produce, and an `AbortSignal` handed to `ask()` in the grant's place. Each
+   * was repaired by making the fixture honest, never by loosening a type. A new
+   * test file is checked from the moment it exists.
    *
-   * **It is meant to grow.** Every file added here is one that can no longer
-   * drift from the code it tests. Adding the rest is a milestone of its own.
+   * The web entries listed one by one below predate the glob; they stay for the
+   * reasons written beside them. The other trees are still listed file by file.
    */
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
@@ -34,6 +35,10 @@
     "jsx": "preserve"
   },
   "include": [
+    /* Every web test, and every one added later. */
+    "apps/web/test/**/*.ts",
+    "apps/web/test/**/*.tsx",
+
     "apps/web/test/ai-audit.test.ts",
     "apps/web/test/ai-config.test.ts",
     "apps/web/test/session-secret.test.ts",
