@@ -170,7 +170,7 @@ export function ProjectSettingsForm(props: SettingsFormProps) {
 
       {attached ? (
         <>
-          <input type="hidden" name="tenant" value={saved.tenantId ?? ""} />
+          <input type="hidden" name="tenant" value={saved.tenantId} />
           <input type="hidden" name="slug" value={saved.slug ?? ""} />
           <div className="mad-field">
             <span className="mad-field-label">Address</span>

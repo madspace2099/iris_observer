@@ -653,7 +653,7 @@ function buildSteps(
   let clock = 0;
 
   order.forEach((sectionId, index) => {
-    const base = BASE_DWELL[sectionId] ?? 60;
+    const base = BASE_DWELL[sectionId];
     const bias = sectionId === "home" ? agent.homeDwell : 1;
 
     /*
