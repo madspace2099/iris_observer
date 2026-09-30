@@ -181,6 +181,13 @@
     /* A window the selected period does not hold is drawn as outside it (P2-21, R05). */
     "packages/synthetic/test/period-buckets.test.ts",
     "packages/synthetic/test/views3.test.ts",
-    "apps/web/test/period-steps.test.ts"
+    "apps/web/test/period-steps.test.ts",
+
+    /*
+     * THE SURFACE AUTHORISATION SUITE (LANG1C). It called `listMeetings` without
+     * the required `language`, an input no caller in the source can produce, and
+     * only a run-time `TypeError` said so once a dead `??` was removed.
+     */
+    "apps/web/test/surface-authorisation.test.ts"
   ]
 }

@@ -160,6 +160,7 @@ describe("the meeting replay answers to its own role list", () => {
     const register = await new SyntheticObserverRepository().listMeetings({
       viewer: agent,
       ...context,
+      language: "en",
     });
     const meetingId = register[0]?.meetingId;
     expect(meetingId).toBeDefined();
@@ -178,18 +179,20 @@ describe("the tenant and project in the URL are checked against the viewer's gra
   const repo = new SyntheticObserverRepository();
   const petra = VIEWERS.developer as Viewer; // alpha: northgate, riverside, ister-tower
   const tomas = VIEWERS.agencyManager as Viewer; // northgate, ister-tower, kingsford
+  /* What every real caller passes besides the address (`OverviewQuery`). */
+  const QUERY = { period: "quarter_to_date", language: "en" } as const;
 
   it("refuses a project the viewer does not hold, under a tenant they do", async () => {
     // Tomáš holds tenant `alpha` and several of its projects. Riverside is not
     // one of them, so holding the tenant must not carry the project with it.
     await expect(
-      repo.getHome({ viewer: tomas, tenantSlug: "alpha", projectSlug: "riverside" }),
+      repo.getHome({ viewer: tomas, tenantSlug: "alpha", projectSlug: "riverside", ...QUERY }),
     ).rejects.toBeInstanceOf(NotPermittedError);
   });
 
   it("refuses a tenant the viewer does not hold at all", async () => {
     await expect(
-      repo.getHome({ viewer: petra, tenantSlug: "beta", projectSlug: "kingsford" }),
+      repo.getHome({ viewer: petra, tenantSlug: "beta", projectSlug: "kingsford", ...QUERY }),
     ).rejects.toBeInstanceOf(NotPermittedError);
   });
 
@@ -197,7 +200,7 @@ describe("the tenant and project in the URL are checked against the viewer's gra
     // The slug pair is checked as a pair. Kingsford is real and Tomáš holds
     // it; `alpha/kingsford` is not the address it lives at.
     await expect(
-      repo.getHome({ viewer: tomas, tenantSlug: "alpha", projectSlug: "kingsford" }),
+      repo.getHome({ viewer: tomas, tenantSlug: "alpha", projectSlug: "kingsford", ...QUERY }),
     ).rejects.toThrow();
   });
 
@@ -208,6 +211,7 @@ describe("the tenant and project in the URL are checked against the viewer's gra
       viewer: petra,
       tenantSlug: "alpha",
       projectSlug: "northgate",
+      ...QUERY,
     });
     expect(home).toBeDefined();
   });
