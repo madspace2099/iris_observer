@@ -125,9 +125,9 @@ describe("the language reaches the words through the prop", () => {
     selectionLabel: null,
     pinned: false,
     turnCount: 3,
-    origin: "typed",
+    origin: "demonstration",
     href: "/alpha/northgate/ask/thr_1",
-  } as AskThreadSummary;
+  };
   const render = (language: "sk" | "en" | "hu") =>
     renderToStaticMarkup(
       createElement(ThreadList, {
