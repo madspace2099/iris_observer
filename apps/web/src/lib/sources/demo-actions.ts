@@ -325,7 +325,7 @@ async function postJson(
  * describe anything.
  */
 function isRefused<T>(value: T | Refused): value is Refused {
-  return typeof value === "object" && value !== null && (value as Refused).ok === false;
+  return typeof value === "object" && value !== null && (value as { ok?: unknown }).ok === false;
 }
 
 /**

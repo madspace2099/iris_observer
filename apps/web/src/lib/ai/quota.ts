@@ -490,7 +490,7 @@ function unavailable(): SharedVerdict {
  */
 async function describeNotFound(response: Response): Promise<string> {
   try {
-    const parsed = (await response.clone().json()) as { code?: unknown };
+    const parsed = (await response.clone().json()) as { code?: unknown } | null;
     if (parsed?.code === "PGRST202") {
       /*
        * PostgREST can assume exactly three roles — anon, authenticated and
@@ -561,7 +561,7 @@ async function callerRole(): Promise<string> {
 
 async function describeRejection(response: Response): Promise<string> {
   try {
-    const parsed = (await response.clone().json()) as { code?: unknown };
+    const parsed = (await response.clone().json()) as { code?: unknown } | null;
     if (parsed?.code === "42501") {
       return "the key is valid for this project but the function is not granted to its role — that is the publishable key, not the secret key";
     }
