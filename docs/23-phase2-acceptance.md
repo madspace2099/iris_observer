@@ -28,6 +28,35 @@ on `feature/observer-ux-overhaul-phase2` (its checklist lines cite `c9d89e5`; it
    "On course" chip; where the 1.51× was read (P1-04); and the measurement again — screenshots, the
    88 items and the four end-to-end projects — on today's code.
 
+## 2026-09-30 — the measurement again, on `feature/observer-night1`
+
+Measured at `6aeee43` (`main` at `8b88997` plus the night's commits), beside the measurement below,
+which is not changed. Screenshots were not taken again this time.
+
+- **`pnpm test`:** 230 files, 4,391 passed, 1 skipped, 0 failed.
+- **End to end, all four projects in one run** (`wide`, `desktop`, `mobile`, `lab`): 1,536 tests,
+  1,139 passed, 397 skipped, 0 failed, 31.0 minutes.
+  - **The first run of the night failed 25**, at `d906594`, on `main`'s code. Two causes, each from
+    a change made after the measurement below:
+    - Every Ask case in the suite was refused (429), because `66f9965` closed the unconfigured AI
+      ceiling on `NODE_ENV=production`, and the suite's local production build is that too.
+      Corrected in `49d4fc1`: the quota closes on a deployment (the session secret's rule), not on a
+      build.
+    - Two overview specs still expected the typed "7 units", "Attention needed" and the A-505 alert
+      that `acae174` removed. Corrected in `6aeee43`.
+  - 22 further tests did not run in that first run. The second run ran all of them.
+- **The 88 items: VERIFIED 38 · PARTIAL 30 · NOT_DONE 9 · BLOCKED 11, unchanged.**
+  - Every test file an item cites exists today, and every one ran green in the two runs above.
+  - No commit since the measurement changed an item's status. The two P2-17 items (R09, R13) stay
+    PARTIAL: of the 43 long report paragraphs, 62 of 86 Slovak and Hungarian texts are the approved
+    wording, and the 101 sentences and 257 short labels wait on review. R01's first item stays
+    PARTIAL: Northgate's Ask still answers "viewings held at 46" from the scenario
+    (`packages/synthetic/src/pulse.ts:796`), not from the computed Sales Flow.
+  - Two defects recorded below under "Recorded, not changed" are corrected — the overview's "half the
+    project average" (`acae174`) and the agent overview's typed 14 meetings (`37bd1b7`) — but neither
+    is one of the 88 items.
+  - No status is raised here: a raise is Máté's to make.
+
 **Measured 2026-09-27 on `feature/observer-ux-overhaul-phase2`. Phase 2 is not accepted.** Every one
 of the thirteen screens the plan was drawn from has a real route, a real after screenshot and
 end-to-end tests that ran green today. But one clause of the gate fails outright — the sales
