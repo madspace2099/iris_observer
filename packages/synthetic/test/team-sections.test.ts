@@ -1,6 +1,6 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildAgentsView } from "../src/showroom/views3";
 
 /**
@@ -17,7 +17,7 @@ import { buildAgentsView } from "../src/showroom/views3";
  * One measured assertion per test, so a mutation is read by which one fails.
  */
 
-const PROJECT_ID = "prj_test_team_sections"; // never a real project
+const PROJECT_ID = "prj_testteamsections"; // never a real project
 
 function step(ordinal: number, sectionId: ShowroomStep["sectionId"]): ShowroomStep {
   return {
@@ -60,7 +60,7 @@ function session(
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
     id: PROJECT_ID,
@@ -70,7 +70,7 @@ const CONTEXT = {
     connectedSources: [],
   },
   period: { to: "9999-01-01T00:00:00.000Z", label: "This quarter", baselineLabel: "last quarter" },
-} as unknown as ViewContext;
+});
 
 /* Monika is first on the roster and never opens Compare; Akhilesh does. */
 const view = buildAgentsView(

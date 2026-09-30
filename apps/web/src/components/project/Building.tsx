@@ -102,7 +102,9 @@ export function Building({
         id="project-building"
         title="The building, floor by floor"
         note="Every apartment in the catalogue, in the position it occupies, lit by the views each one had."
-        aside={<Evidence evidence={pulse.evidence} period={period} />}
+        aside={
+          <Evidence language={pulse.context.language} evidence={pulse.evidence} period={period} />
+        }
       >
         <Unavailable
           what="The building and its stock"
@@ -131,7 +133,9 @@ export function Building({
       id="project-building"
       title="The building, floor by floor"
       note={`Every apartment in the catalogue, in the position it occupies. A cell is one unit, its width is its floor area, and its fill is meaningful views in this period against ${pulse.peakViews} on the busiest unit. Sold units are hatched and carry no fill.`}
-      aside={<Evidence evidence={pulse.evidence} period={period} />}
+      aside={
+        <Evidence language={pulse.context.language} evidence={pulse.evidence} period={period} />
+      }
     >
       <Tally>
         <TallyItem
@@ -209,6 +213,7 @@ export function Building({
       </Tally>
 
       <StackPlan
+        language={pulse.context.language}
         floors={pulse.floors}
         unitHrefs={unitHrefs}
         period={period}

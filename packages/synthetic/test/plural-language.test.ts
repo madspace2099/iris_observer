@@ -286,16 +286,16 @@ describe("the sites print through their entries", () => {
     expect(roomsWord(5, "sk")).toBe("5 izieb");
     expect(roomsWord(5, "hu")).toBe("5 szoba");
     expect(roomsWord(null, "sk")).toBe("Rooms not stated");
-    expect(days(1)).toBe("1 day");
+    expect(days(1, "en")).toBe("1 day");
     expect(days(2, "sk")).toBe("2 dni");
-    expect(meetings(1, "en-GB")).toBe("1 meeting");
+    expect(meetings(1, "en-GB", "en")).toBe("1 meeting");
     expect(meetings(4, "en-GB", "sk")).toBe("4 stretnutia");
     expect(meetings(5, "en-GB", "hu")).toBe("5 találkozó");
   });
 
   it("the period's baseline counts its days in the language asked for", () => {
     const at = new Date("2026-07-03T10:00:00+02:00"); // two days into the quarter
-    expect(periodsAt(at, "Europe/Bratislava").quarter_to_date.baselineLabel).toBe(
+    expect(periodsAt(at, "Europe/Bratislava", "en").quarter_to_date.baselineLabel).toBe(
       "the same 2 days of the previous quarter",
     );
     expect(periodsAt(at, "Europe/Bratislava", "sk").quarter_to_date.baselineLabel).toBe(

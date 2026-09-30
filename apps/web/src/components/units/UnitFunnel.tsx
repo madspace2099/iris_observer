@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import type { FunnelVerification, UnitFunnelStage } from "@observer/readmodels";
+import type { Language, FunnelVerification, UnitFunnelStage } from "@observer/readmodels";
 
 import { Figure, Sources, Tier } from "@/components/product";
 
@@ -73,10 +73,12 @@ const VERIFICATION_WORDS: Readonly<Record<FunnelVerification, string>> = {
 export function UnitFunnel({
   stages,
   label = "From opened to sold",
+  language,
 }: {
   readonly stages: readonly UnitFunnelStage[];
   /** The accessible name of the funnel. */
   readonly label?: string;
+  readonly language: Language;
 }) {
   if (stages.length === 0) return null;
 
@@ -131,13 +133,13 @@ export function UnitFunnel({
                * instead, and the missing per-stage reference is reported.
                */}
               <div className="ox-time-foot">
-                <Tier tier={stage.tier} />
-                <Sources sources={stage.sources} />
+                <Tier language={language} tier={stage.tier} />
+                <Sources language={language} sources={stage.sources} />
               </div>
             </div>
 
             <div className="ox-stage-figures">
-              <Figure value={step.metric} />
+              <Figure language={language} value={step.metric} />
               <span className="ox-stage-drop">{VERIFICATION_WORDS[stage.verification]}</span>
             </div>
           </div>

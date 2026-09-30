@@ -50,6 +50,6 @@ describe("the report page's words", () => {
         total: "74",
         from: slovakZForm(74),
       }),
-    ).toContain("zmerať: 60 zo 74 stretnutí");
+    ).toContain("meranie zachytáva 60 zo 74 stretnutí");
   });
 });

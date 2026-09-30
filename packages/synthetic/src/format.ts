@@ -1,5 +1,4 @@
 import {
-  DEFAULT_LANGUAGE,
   plural,
   type EvidenceRef,
   type Language,
@@ -126,7 +125,7 @@ export const FORMAT_DAYS: PluralForms = {
   hu: { one: "nap", other: "nap" },
 };
 
-export function days(value: number, language: Language = DEFAULT_LANGUAGE): string {
+export function days(value: number, language: Language): string {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded} ${plural(language, rounded, FORMAT_DAYS)}`;
 }

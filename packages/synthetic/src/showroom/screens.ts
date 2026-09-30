@@ -47,7 +47,6 @@ import type {
 } from "@observer/readmodels";
 import {
   AGENT_REGISTER_ROLES,
-  DEFAULT_LANGUAGE,
   MEETINGS,
   OUTCOME_WORDS,
   TIMES,
@@ -63,6 +62,7 @@ import {
   type Language,
   type PluralForms,
   type Sentence,
+  isUnnamedPresenter,
 } from "@observer/readmodels";
 import { visitorNameFor } from "../contacts";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
@@ -365,7 +365,7 @@ export function buildMeetingRows(
    * since withdrawn a flat, both leave codes with no page behind them.
    */
   const catalogueCodes = new Set(catalogueFor(context.project.id as string).map((u) => u.code));
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
 
   return buildMeetingList(context, sessions).flatMap<MeetingRow>((summary) => {
     const session = byId.get(summary.meetingId);
@@ -525,7 +525,9 @@ export function buildMeetings(
   }
 
   const active = [
-    filters.agentId === null ? null : presenterName(context.project.id as string, filters.agentId),
+    filters.agentId === null
+      ? null
+      : presenterName(context.project.id as string, filters.agentId, context.language),
     filters.channel === null ? null : SESSION_CHANNEL_LABELS[filters.channel],
     filters.outcome === null ? null : OUTCOME_LABELS[filters.outcome],
   ].filter((x): x is string => x !== null);
@@ -546,8 +548,8 @@ export function buildMeetings(
     filters,
     options: {
       agents: optionsFrom(
-        (id) => presenterName(context.project.id as string, id),
-        presentersIn(sessions).map((a) => a.id),
+        (id) => presenterName(context.project.id as string, id, context.language),
+        presentersIn(sessions, context.language).map((a) => a.id),
         agentCounts,
       ),
       channels: optionsFrom(
@@ -741,7 +743,7 @@ export function buildUnitDetail(
   )) {
     const touch = session.units.find((u) => u.unitCode === unitCode);
     if (touch === undefined) continue;
-    const agentName = presenterName(session.projectId, session.agentId);
+    const agentName = presenterName(session.projectId, session.agentId, language);
     const meetingHref = `${root}/meetings/${session.meetingId}`;
     const channelLabel = SESSION_CHANNEL_LABELS[session.channel];
     const stamp = `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`;
@@ -990,7 +992,7 @@ export function buildUnitDetail(
 
   /* --- who showed it ------------------------------------------------------- */
 
-  const relatedAgents: readonly UnitAgentInterest[] = presentersIn(sessions)
+  const relatedAgents: readonly UnitAgentInterest[] = presentersIn(sessions, language)
     .flatMap<UnitAgentInterest>((agent) => {
       const theirs = touchedBy.filter((s) => s.agentId === agent.id);
       if (theirs.length === 0) return [];
@@ -1444,7 +1446,7 @@ export function buildAgentDetail(
 ): AgentDetailView | null {
   const locale = context.project.locale;
   const root = base(context);
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
   const words = AGENT_DETAIL_WORDS[language];
 
   /* The roster, or whoever this project's meetings name: a delivered project's agents are on no roster. */
@@ -1806,7 +1808,10 @@ export function buildAgentDetail(
     belowMinimum,
     /* One builder for the floor's sentence, shared with the roster and the charts. */
     suppressionNote: belowMinimum
-      ? suppressionNoteFor(mine.length, locale, "sentence", language)
+      ? suppressionNoteFor(mine.length, locale, "sentence", language, {
+          unnamed: isUnnamedPresenter(agent.name, language),
+          where: "detail",
+        })
       : null,
     activity,
     profile,

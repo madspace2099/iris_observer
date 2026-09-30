@@ -187,6 +187,7 @@ export default async function UnitPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={context.language}
         kicker={`${context.project.name} · Units · ${periodLabel}`}
         title={unit.unitCode}
         answer={detail.headline}
@@ -212,7 +213,7 @@ export default async function UnitPage({
         aside={
           <>
             <StatusChip status={unit.status} />
-            <Synthetic />
+            <Synthetic language={context.language} />
           </>
         }
         period={period}
@@ -297,31 +298,40 @@ export default async function UnitPage({
                * gap, and answered here with the view's own reference.
                */}
               <span className="ox-row-states">
-                <Sources sources={detail.attention.sources} />
-                <Evidence evidence={detail.evidence} period={period} />
+                <Sources language={context.language} sources={detail.attention.sources} />
+                <Evidence language={context.language} evidence={detail.evidence} period={period} />
               </span>
             </div>
 
             <Tally>
-              <TallyItem label={signals.views.label} value={<Figure value={signals.views} />} />
+              <TallyItem
+                label={signals.views.label}
+                value={<Figure language={context.language} value={signals.views} />}
+              />
               <TallyItem
                 label={signals.uniqueSessions.label}
-                value={<Figure value={signals.uniqueSessions} />}
+                value={<Figure language={context.language} value={signals.uniqueSessions} />}
               />
               <TallyItem
                 label={signals.favourites.label}
-                value={<Figure value={signals.favourites} />}
+                value={<Figure language={context.language} value={signals.favourites} />}
               />
               <TallyItem
                 label={signals.documentOpens.label}
-                value={<Figure value={signals.documentOpens} />}
+                value={<Figure language={context.language} value={signals.documentOpens} />}
               />
               <TallyItem
                 label={signals.comparisons.label}
-                value={<Figure value={signals.comparisons} />}
+                value={<Figure language={context.language} value={signals.comparisons} />}
               />
-              <TallyItem label={signals.shares.label} value={<Figure value={signals.shares} />} />
-              <TallyItem label={trend.verdict.label} value={<Figure value={trend.verdict} />} />
+              <TallyItem
+                label={signals.shares.label}
+                value={<Figure language={context.language} value={signals.shares} />}
+              />
+              <TallyItem
+                label={trend.verdict.label}
+                value={<Figure language={context.language} value={trend.verdict} />}
+              />
             </Tally>
 
             {trend.series.points.length < 2 ? (
@@ -373,7 +383,7 @@ export default async function UnitPage({
              * the readings all six rest on.
              */}
             <span className="ox-row-states">
-              <Evidence evidence={detail.evidence} period={period} />
+              <Evidence language={context.language} evidence={detail.evidence} period={period} />
             </span>
           </div>
 
@@ -387,7 +397,7 @@ export default async function UnitPage({
             />
           ))}
 
-          <UnitFunnel stages={detail.funnel} />
+          <UnitFunnel language={context.language} stages={detail.funnel} />
         </section>
 
         {/* --- what happened, in order -------------------------------------- */}
@@ -406,6 +416,7 @@ export default async function UnitPage({
               />
             ) : (
               <Timeline
+                language={context.language}
                 steps={timelineSteps}
                 period={period}
                 label={`What IRIS recorded against ${unit.unitCode}`}
@@ -584,6 +595,7 @@ export default async function UnitPage({
           </div>
 
           <FindingList
+            language={context.language}
             findings={detail.findings}
             period={period}
             sampleNoun="meetings"

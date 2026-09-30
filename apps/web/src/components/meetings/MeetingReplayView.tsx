@@ -96,6 +96,7 @@ export function MeetingReplayView({
   return (
     <div className="ox-page">
       <PageHead
+        language={replay.context.language}
         kicker="Meeting replay"
         title={replay.startedDisplay}
         /*
@@ -127,7 +128,7 @@ export function MeetingReplayView({
         ]}
         aside={
           <>
-            <Synthetic />
+            <Synthetic language={replay.context.language} />
             {/*
              * The label follows the destination (rule 21): a link back to
              * three filtered meetings does not say "every meeting".
@@ -136,6 +137,7 @@ export function MeetingReplayView({
               {narrowed ? "Back to the narrowed register" : "Every meeting in the period"}
             </Link>
             <ExportReport
+              language={replay.context.language}
               report={report}
               pageHref={withPeriod(`${base}/report?meeting=${replay.meetingId}`, period)}
             />
@@ -166,8 +168,12 @@ export function MeetingReplayView({
           <p className="ox-lede">{replay.unitsViewed.interest.sentence}</p>
 
           <div className="ox-finding-foot">
-            <Sources sources={["IRIS_SHOWROOM_DERIVED"]} />
-            <Evidence evidence={replay.evidence} period={period} />
+            <Sources language={replay.context.language} sources={["IRIS_SHOWROOM_DERIVED"]} />
+            <Evidence
+              language={replay.context.language}
+              evidence={replay.evidence}
+              period={period}
+            />
           </div>
         </section>
 

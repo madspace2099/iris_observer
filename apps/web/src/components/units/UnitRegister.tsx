@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
-import type { PeriodPreset, UnitAttentionRow } from "@observer/readmodels";
+import type { Language, PeriodPreset, UnitAttentionRow } from "@observer/readmodels";
 import { NOT_STATED, roomsWord } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
@@ -222,6 +222,7 @@ export function UnitRegister({
   period,
   caption,
   periodLabel,
+  language,
 }: {
   /** Every unit the projection returned, unfiltered and in its own order. */
   readonly rows: readonly UnitAttentionRow[];
@@ -232,6 +233,7 @@ export function UnitRegister({
   /** What this table lists, in a sentence. Required by `DataTable`. */
   readonly caption: string;
   readonly periodLabel: string;
+  readonly language: Language;
 }) {
   const matching = filterRows(rows, query);
   const ordered = sortRows(matching, query);
@@ -289,11 +291,11 @@ export function UnitRegister({
           .sort((a, b) => a - b)
           .map((rooms) => ({
             value: String(rooms),
-            label: roomsWord(rooms),
+            label: roomsWord(rooms, language),
           })),
         /* Units whose count is not stated are their own choice, never hidden in "Any". */
         ...(rows.some((row) => row.rooms === null)
-          ? [{ value: ROOMS_UNSTATED, label: roomsWord(null) }]
+          ? [{ value: ROOMS_UNSTATED, label: roomsWord(null, language) }]
           : []),
       ],
     },

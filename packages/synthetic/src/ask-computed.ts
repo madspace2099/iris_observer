@@ -542,7 +542,7 @@ export function buildDeliveredAskSession(
   });
 
   /* --- who presented ------------------------------------------------------------- */
-  const presenters = presentersIn(sessions)
+  const presenters = presentersIn(sessions, language)
     .map((p) => ({ name: p.name, meetings: sessions.filter((s) => s.agentId === p.id).length }))
     .filter((p) => p.meetings > 0)
     .sort((a, b) => b.meetings - a.meetings || a.name.localeCompare(b.name));

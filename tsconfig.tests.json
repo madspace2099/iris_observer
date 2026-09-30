@@ -181,6 +181,19 @@
     /* A window the selected period does not hold is drawn as outside it (P2-21, R05). */
     "packages/synthetic/test/period-buckets.test.ts",
     "packages/synthetic/test/views3.test.ts",
-    "apps/web/test/period-steps.test.ts"
+    "apps/web/test/period-steps.test.ts",
+
+    /*
+     * THE SURFACE AUTHORISATION SUITE (LANG1C). It called `listMeetings` without
+     * the required `language`, an input no caller in the source can produce, and
+     * only a run-time `TypeError` said so once a dead `??` was removed.
+     */
+    "apps/web/test/surface-authorisation.test.ts",
+    /* Walks the tree for a default, a fallback or a cast on the language (LANG1C). */
+    "apps/web/test/language-required.test.ts",
+    /* Feeds one value into the preflight step 1 table (CONF1). */
+    "supabase/test/preflight-step1.test.ts",
+    /* Holds docs/18-deployment.md's step 1 table to the preflight table (CONF2). */
+    "supabase/test/deployment-doc-mapping.test.ts"
   ]
 }

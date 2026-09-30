@@ -158,7 +158,7 @@ export function ExportReport({
   report,
   pageHref,
   weight = "quiet",
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly report: ExportReportView;
   /**
@@ -170,7 +170,7 @@ export function ExportReport({
   /** `quiet` beside other page controls; `primary` where export is the point. */
   readonly weight?: "primary" | "quiet";
   /** The words' language; the page passes the reader's once there is a choice. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const title = TITLES[report.scope.kind];
 
@@ -275,6 +275,7 @@ export function ExportReport({
           <div className="ox-field">
             <span className="ox-field-label">Sections</span>
             <ReportSections
+              language={language}
               sections={report.sections}
               excluded={excluded}
               onToggle={toggle}

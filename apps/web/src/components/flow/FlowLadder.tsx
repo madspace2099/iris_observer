@@ -120,7 +120,7 @@ export function FlowLadder({
   stages,
   noun,
   comparisonLabel = null,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly stages: readonly LadderStage[];
   /** What the counts count — "meetings", "units". Never guessed. */
@@ -134,7 +134,7 @@ export function FlowLadder({
    */
   readonly comparisonLabel?: string | null;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const top = stages[0];
   if (top === undefined) return null;

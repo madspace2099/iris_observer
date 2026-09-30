@@ -107,8 +107,8 @@ describe.each(EXPECTED)("$sites", ({ entry, en, sk, hu }) => {
 
 describe("Reading's count and noun", () => {
   it("prints the count raw and the noun in the language asked for", () => {
-    expect(counted(1, MEETINGS)).toBe("1 meeting");
-    expect(counted(12, DEMAND_MINUTES)).toBe("12 minutes");
+    expect(counted(1, MEETINGS, "en")).toBe("1 meeting");
+    expect(counted(12, DEMAND_MINUTES, "en")).toBe("12 minutes");
     expect(counted(3, MEETINGS, "sk")).toBe("3 stretnutia");
     expect(counted(7, DEMAND_MINUTES, "hu")).toBe("7 perc");
   });
@@ -128,18 +128,18 @@ describe("the language reaches the words through the prop", () => {
     origin: "typed",
     href: "/alpha/northgate/ask/thr_1",
   } as AskThreadSummary;
-  const render = (language?: "sk" | "en" | "hu") =>
+  const render = (language: "sk" | "en" | "hu") =>
     renderToStaticMarkup(
       createElement(ThreadList, {
         threads: [thread],
         period: "quarter_to_date",
         label: "Conversations",
-        ...(language === undefined ? {} : { language }),
+        language,
       }),
     );
 
-  it("a thread's length, English by default and Slovak when asked", () => {
-    expect(render()).toContain("3 turns");
+  it("a thread's length, in the language asked for", () => {
+    expect(render("en")).toContain("3 turns");
     expect(render("sk")).toContain("3 výmeny");
     expect(render("hu")).toContain("3 forduló");
   });
@@ -151,15 +151,15 @@ describe("the language reaches the words through the prop", () => {
       href: "",
       observationCount: 5,
     } as unknown as EvidenceRef;
-    const html = (language?: "sk" | "en" | "hu") =>
+    const html = (language: "sk" | "en" | "hu") =>
       renderToStaticMarkup(
         createElement(Evidence, {
           evidence,
           period: "quarter_to_date",
-          ...(language === undefined ? {} : { language }),
+          language,
         }),
       );
-    expect(html()).toContain("5 records");
+    expect(html("en")).toContain("5 records");
     expect(html("hu")).toContain("5 bejegyzés");
     expect(html("sk")).toContain("5 záznamov");
   });

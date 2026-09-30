@@ -497,7 +497,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
           facts: [
             {
               label: r.unitCode,
-              value: `${roomsWord(r.rooms)} · ${areaWord(r.areaSqm)} · ${r.priceDisplay}`,
+              value: `${roomsWord(r.rooms, view.context.language)} · ${areaWord(r.areaSqm)} · ${r.priceDisplay}`,
               note: r.status,
             },
             { label: "Meetings", value: String(r.meetings), note: `${r.views} views` },
@@ -542,7 +542,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
         facts: top.map((r) => ({
           label: r.unitCode,
           value: `${r.meetings} meetings`,
-          note: `${roomsWord(r.rooms)} · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
+          note: `${roomsWord(r.rooms, view.context.language)} · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
         })),
         sources: OBSERVED,
         evidence: view.evidence,

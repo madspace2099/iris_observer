@@ -41,7 +41,6 @@ import type {
 } from "@observer/readmodels";
 import {
   DAYS,
-  DEFAULT_LANGUAGE,
   MEETINGS,
   OUTCOME_WORDS,
   actionWorthTaking,
@@ -57,6 +56,7 @@ import {
   slovakZForm,
   type Language,
   type Sentence,
+  isUnnamedPresenter,
 } from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
@@ -100,7 +100,7 @@ const WITH_OUTCOME = [
  */
 
 /** "1 meetings" is the kind of small wrongness that makes a product feel unfinished. */
-export function meetings(n: number, locale: string, language: Language = DEFAULT_LANGUAGE): string {
+export function meetings(n: number, locale: string, language: Language): string {
   return `${count(n, locale)} ${plural(language, n, MEETINGS)}`;
 }
 
@@ -133,14 +133,27 @@ export function suppressionNoteFor(
   held: number,
   locale: string,
   form: "sentence" | "short" = "sentence",
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
+  /**
+   * Who the note is about, where the approved Slovak says it differently for a
+   * presenter no directory names: in the roster and on the agent's own page
+   * (P2-17, #13 and #36). Named is the default and reads "mal/a".
+   */
+  presenter: { readonly unnamed: boolean; readonly where: "roster" | "detail" } = {
+    unnamed: false,
+    where: "roster",
+  },
 ): string {
   const minimum = String(AGENT_MIN_SAMPLE);
   const short = count(AGENT_MIN_SAMPLE - held, locale);
   if (language === "sk") {
     return form === "short"
       ? `${count(held, locale)} ${slovakZForm(AGENT_MIN_SAMPLE)} ${minimum} stretnutí`
-      : `V tomto období mal/a ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`;
+      : presenter.unnamed
+        ? presenter.where === "roster"
+          ? `V tomto období mal tento maklér ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`
+          : `V tomto období mal maklér ${meetings(held, locale, language)}, teda o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`
+        : `V tomto období mal/a ${meetings(held, locale, language)}, o ${short} menej než ${minimum} potrebných na hodnotenie. Čísla sú uvedené, ale bez poradia či trendu.`;
   }
   if (language === "hu") {
     return form === "short"
@@ -165,7 +178,7 @@ export function timedSetNoteFor(
   timed: number,
   held: number,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): string {
   const minimum = String(AGENT_MIN_SAMPLE);
   const short = count(AGENT_MIN_SAMPLE - timed, locale);
@@ -350,7 +363,7 @@ const WINDOW_WORDS: Readonly<
   },
 };
 
-export function bucketBounds(today: Date, timeZone = "UTC", language: Language = DEFAULT_LANGUAGE) {
+export function bucketBounds(today: Date, timeZone = "UTC", language: Language) {
   const windows = WINDOW_WORDS[language];
   const day = 24 * 60 * 60 * 1000;
   const t0 = startOfDayIn(today, timeZone).getTime();
@@ -477,10 +490,7 @@ function buildPeriods(
 
 /* --- outcome rings ----------------------------------------------------------- */
 
-function outcomeSlices(
-  sessions: readonly ShowroomSession[],
-  language: Language = DEFAULT_LANGUAGE,
-): OutcomeSlice[] {
+function outcomeSlices(sessions: readonly ShowroomSession[], language: Language): OutcomeSlice[] {
   const counts = new Map<MeetingOutcome, number>();
   for (const s of sessions) counts.set(s.outcome, (counts.get(s.outcome) ?? 0) + 1);
   const order: MeetingOutcome[] = [
@@ -514,7 +524,7 @@ function outcomeFlag(
   sessions: readonly ShowroomSession[],
   teamProgressed: number,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): AgentOutcomeRing["flag"] {
   if (sessions.length < 8) return null;
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
@@ -573,7 +583,7 @@ function buildRing(
   base: string,
   teamProgressed: number,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): AgentOutcomeRing {
   const decided = session.filter((s) => !outcomeIsUnknown(s.outcome));
   return {
@@ -771,7 +781,7 @@ function verdictFrom(
   current: PeriodSummary,
   prior: PeriodSummary,
   locale: string,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): string {
   const outcomesRecorded = current.outcomeRecorded > 0;
   const hasBaseline = prior.meetings > 0;
@@ -880,7 +890,7 @@ export function buildSalesFlow(
     decided.length,
   );
 
-  const rings = presentersIn(sessions)
+  const rings = presentersIn(sessions, context.language)
     .map((a) =>
       buildRing(
         sessions.filter((s) => s.agentId === a.id),
@@ -897,7 +907,7 @@ export function buildSalesFlow(
   const unrecorded = sessions.length - decided.length;
   const findings: ShowroomFinding[] = [];
   /* A context built without a language — a test's, say — reads as English, like every word helper. */
-  const language = context.language ?? DEFAULT_LANGUAGE;
+  const language = context.language;
   const flowWords = FLOW_WORDS[language];
 
   const flagged = rings.filter((r) => r.flag !== null);
@@ -1139,7 +1149,7 @@ export function segmentName(rooms: number, language: Language): string {
 
 function roomSegments(
   catalogue: ReadonlyArray<{ readonly rooms: number | null }>,
-  language: Language = DEFAULT_LANGUAGE,
+  language: Language,
 ): RoomSegmentSpec[] {
   const stated = roomCounts(catalogue).map((rooms) => ({
     id: `rooms-${rooms}`,
@@ -1366,7 +1376,7 @@ export function buildProjectView(
   const locale = context.project.locale;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const catalogue = catalogueFor(context.project.id as string);
-  const segments = roomSegments(catalogue, context.language ?? DEFAULT_LANGUAGE).map((spec) =>
+  const segments = roomSegments(catalogue, context.language).map((spec) =>
     buildSegment(context, sessions, spec),
   );
   /*
@@ -1691,65 +1701,67 @@ export function buildAgentsView(
   }
   const teamTotal = [...teamSectionSecs.values()].reduce((a, b) => a + b, 0);
 
-  const agents: AgentProfile[] = presentersIn(
-    sessions,
-    context.language ?? DEFAULT_LANGUAGE,
-  ).flatMap<AgentProfile>((a) => {
-    const mine = sessions.filter((s) => s.agentId === a.id);
-    if (mine.length === 0) return [];
+  const agents: AgentProfile[] = presentersIn(sessions, context.language).flatMap<AgentProfile>(
+    (a) => {
+      const mine = sessions.filter((s) => s.agentId === a.id);
+      if (mine.length === 0) return [];
 
-    const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
+      const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
 
-    /* The same set, at the agent's scope. */
-    const timedMine = mine.filter(fullyTimed);
-    /* One row per section, carrying the whole answer: `sectionUses`, at the agent's scope. */
-    const sections = sectionUses(mine, sessions, teamSectionSecs, teamTotal, context.language);
+      /* The same set, at the agent's scope. */
+      const timedMine = mine.filter(fullyTimed);
+      /* One row per section, carrying the whole answer: `sectionUses`, at the agent's scope. */
+      const sections = sectionUses(mine, sessions, teamSectionSecs, teamTotal, context.language);
 
-    const over = [...sections]
-      .filter((s) => s.teamShare > 0.02)
-      .sort((x, y) => y.timeShare / y.teamShare - x.timeShare / x.teamShare)[0];
+      const over = [...sections]
+        .filter((s) => s.teamShare > 0.02)
+        .sort((x, y) => y.timeShare / y.teamShare - x.timeShare / x.teamShare)[0];
 
-    const rated = mine.filter((s) => s.irisRating !== null);
-    const timed = mine.filter((s) => !s.timingUnavailable).map((s) => s.durationSeconds);
+      const rated = mine.filter((s) => s.irisRating !== null);
+      const timed = mine.filter((s) => !s.timingUnavailable).map((s) => s.durationSeconds);
 
-    return {
-      agentId: a.id,
-      name: a.name,
-      organisationName: a.organisationName,
-      meetings: mine.length,
-      /* The meetings the section shares stand on: every step timed. Stated, so the share is of a known set. */
-      timedMeetings: timedMine.length,
-      belowMinimum,
-      suppressionNote: belowMinimum
-        ? suppressionNoteFor(mine.length, locale, "sentence", context.language)
-        : null,
-      /*
-       * The habit's own floor, on the set the habit stands on. Null above it;
-       * null too under `belowMinimum`, whose note already speaks for the card.
-       */
-      signatureNote:
-        !belowMinimum && timedMine.length < AGENT_MIN_SAMPLE
-          ? timedSetNoteFor(timedMine.length, mine.length, locale, context.language)
+      return {
+        agentId: a.id,
+        name: a.name,
+        organisationName: a.organisationName,
+        meetings: mine.length,
+        /* The meetings the section shares stand on: every step timed. Stated, so the share is of a known set. */
+        timedMeetings: timedMine.length,
+        belowMinimum,
+        suppressionNote: belowMinimum
+          ? suppressionNoteFor(mine.length, locale, "sentence", context.language, {
+              unnamed: isUnnamedPresenter(a.name, context.language),
+              where: "roster",
+            })
           : null,
-      medianDurationDisplay:
-        timed.length === 0 ? "—" : duration(Math.round(median(timed)), context.language),
-      ring: buildRing(mine, a.id, a.name, base, teamProgressed, locale, context.language),
-      repeats: repeatDistribution(mine),
-      sections,
-      signature:
-        over === undefined || over.teamShare === 0
-          ? null
-          : { label: over.label, overIndex: over.timeShare / over.teamShare },
-      irisRating:
-        showRatings && rated.length > 0
-          ? {
-              mean: rated.reduce((acc, s) => acc + (s.irisRating ?? 0), 0) / rated.length,
-              responses: rated.length,
-            }
-          : null,
-      href: `${base}/agents/${a.id}`,
-    } satisfies AgentProfile;
-  });
+        /*
+         * The habit's own floor, on the set the habit stands on. Null above it;
+         * null too under `belowMinimum`, whose note already speaks for the card.
+         */
+        signatureNote:
+          !belowMinimum && timedMine.length < AGENT_MIN_SAMPLE
+            ? timedSetNoteFor(timedMine.length, mine.length, locale, context.language)
+            : null,
+        medianDurationDisplay:
+          timed.length === 0 ? "—" : duration(Math.round(median(timed)), context.language),
+        ring: buildRing(mine, a.id, a.name, base, teamProgressed, locale, context.language),
+        repeats: repeatDistribution(mine),
+        sections,
+        signature:
+          over === undefined || over.teamShare === 0
+            ? null
+            : { label: over.label, overIndex: over.timeShare / over.teamShare },
+        irisRating:
+          showRatings && rated.length > 0
+            ? {
+                mean: rated.reduce((acc, s) => acc + (s.irisRating ?? 0), 0) / rated.length,
+                responses: rated.length,
+              }
+            : null,
+        href: `${base}/agents/${a.id}`,
+      } satisfies AgentProfile;
+    },
+  );
 
   const findings: ShowroomFinding[] = [];
 
@@ -1976,9 +1988,7 @@ export function buildAudience(
       return {
         meetingId: s.meetingId,
         startedDisplay: dayLabel(s.startedAt, locale, timeZone),
-        agentName:
-          agent?.name ??
-          presenterName(s.projectId, s.agentId, context.language ?? DEFAULT_LANGUAGE),
+        agentName: agent?.name ?? presenterName(s.projectId, s.agentId, context.language),
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
           places.length === 0

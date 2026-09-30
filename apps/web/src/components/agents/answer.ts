@@ -1,5 +1,4 @@
 import {
-  DEFAULT_LANGUAGE,
   hungarianArticle,
   slovakZForm,
   type AgentDetailView,
@@ -33,10 +32,7 @@ const HABIT: Readonly<
  * screen and their printed summary — and two copies of a sentence about a
  * named person is how the two come to say different things about them.
  */
-export function agentAnswer(
-  view: AgentDetailView,
-  language: Language = DEFAULT_LANGUAGE,
-): string | null {
+export function agentAnswer(view: AgentDetailView, language: Language): string | null {
   return (
     view.suppressionNote ??
     /* The habit's own floor, on the timed set: the read model's reason, not the habit. */

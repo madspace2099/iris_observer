@@ -1,6 +1,6 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildAgentsView } from "../src/showroom/views3";
 
 /**
@@ -37,7 +37,7 @@ import { buildAgentsView } from "../src/showroom/views3";
  * One measured assertion per test.
  */
 
-const PROJECT_ID = "prj_test_section_time"; // never a real project: isolation is provable, not coincidental
+const PROJECT_ID = "prj_testsectiontime"; // never a real project: isolation is provable, not coincidental
 
 function step(
   ordinal: number,
@@ -80,11 +80,11 @@ function session(meetingId: string, steps: readonly ShowroomStep[]): ShowroomSes
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: { id: PROJECT_ID, slug: "test-project", locale: "en-GB", timeZone: "Europe/Bratislava" },
   period: { to: "9999-01-01T00:00:00.000Z", label: "the period", baselineLabel: "before" },
-} as unknown as ViewContext;
+});
 
 /** Every step timed. */
 const TIMED = session("mtg_timed", [

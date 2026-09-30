@@ -88,13 +88,11 @@ export default async function AskThreadPage({
   const askPath = `${root}/ask`;
   const historyPath = `${root}/ask/history`;
 
+  const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
   let thread: AskThread | null = null;
   let unreadable = false;
   try {
-    thread = await repository.getAskThread(
-      { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
-      threadId,
-    );
+    thread = await repository.getAskThread(query, threadId);
   } catch (error) {
     if (error instanceof NotFoundError) thread = null;
     else unreadable = true;
@@ -104,6 +102,7 @@ export default async function AskThreadPage({
     return (
       <div className="ox-page">
         <PageHead
+          language={query.language}
           kicker={`${project.name} · Ask IRIS`}
           title="Answer"
           crumbs={[
@@ -135,6 +134,7 @@ export default async function AskThreadPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={query.language}
         kicker={`${project.name} · Ask IRIS`}
         title={summary.title}
         crumbs={[
@@ -153,7 +153,7 @@ export default async function AskThreadPage({
         lede={thread.demonstrationNotice}
         aside={
           <>
-            <Synthetic />
+            <Synthetic language={query.language} />
             <span className="ox-n">Asked {summary.askedAtDisplay}</span>
             <Link
               className="ox-btn"
@@ -179,6 +179,7 @@ export default async function AskThreadPage({
           <div className="ox-thread">
             {turns.map((turn, index) => (
               <AnswerSheet
+                language={query.language}
                 key={turn.id}
                 answer={turn.answer}
                 period={period}
@@ -205,7 +206,7 @@ export default async function AskThreadPage({
         <div className="ox-plane">
           <div className="ox-section-head">
             <h2 className="ox-section-title">What this conversation rests on</h2>
-            <Evidence evidence={thread.evidence} period={period} />
+            <Evidence language={query.language} evidence={thread.evidence} period={period} />
           </div>
           <p className="ox-section-note">
             The turns above were composed from {summary.projectLabel}&rsquo;s own records over{" "}

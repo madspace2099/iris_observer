@@ -1,4 +1,4 @@
-import type { EnvironmentUsage, PeriodPreset } from "@observer/readmodels";
+import type { Language, EnvironmentUsage, PeriodPreset } from "@observer/readmodels";
 
 import { ChartFrame, DataTable, Sources, type DataRow } from "@/components/product";
 import { RankedBars } from "@/showroom/charts2";
@@ -136,12 +136,14 @@ export function Environment({
   period,
   periodLabel,
   ranked,
+  language,
 }: {
   readonly environment: EnvironmentUsage;
   readonly period: PeriodPreset;
   readonly periodLabel: string;
   /** Whether the sample supports an ordered reading. Decided by the screen. */
   readonly ranked: boolean;
+  readonly language: Language;
 }) {
   const duringRows: readonly DataRow[] = environment.duringSections.map((during) => ({
     key: during.sectionId,
@@ -215,7 +217,7 @@ export function Environment({
       />
 
       <div className="ox-finding-foot">
-        <Sources sources={["IRIS_SHOWROOM_OBSERVED"]} />
+        <Sources language={language} sources={["IRIS_SHOWROOM_OBSERVED"]} />
       </div>
     </>
   );

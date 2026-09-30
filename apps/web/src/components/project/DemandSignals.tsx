@@ -1,6 +1,5 @@
 import { AGENT_MIN_SAMPLE, insufficient } from "@observer/metrics";
 import {
-  DEFAULT_LANGUAGE,
   MEETINGS,
   type Language,
   type PeriodPreset,
@@ -76,7 +75,7 @@ export function DemandSignals({
   meetingCount,
   evidence,
   period,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly segments: readonly PulseSegment[];
   readonly placeCategories: ProjectView["placeCategories"];
@@ -88,7 +87,7 @@ export function DemandSignals({
   readonly evidence: ProjectView["evidence"];
   readonly period: PeriodPreset;
   /** The words' language; the page passes the reader's once there is a choice. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const belowFloor = meetingCount < AGENT_MIN_SAMPLE;
   const topCategories = placeCategories.slice(0, 7);
@@ -99,7 +98,7 @@ export function DemandSignals({
       id="project-demand"
       title="Where the attention goes"
       note="Share of the meaningful views the Pulse recorded against a unit, divided by that part of the building's share of the stock. 1.00× is attention exactly matching supply; above it, more of the building's attention landed there than its size warrants. This counts openings of a unit, not time spent in a meeting — the segment below indexes the second, and the two figures are not interchangeable."
-      aside={<Evidence evidence={evidence} period={period} />}
+      aside={<Evidence language={language} evidence={evidence} period={period} />}
     >
       {belowFloor ? (
         <p className="ox-result">

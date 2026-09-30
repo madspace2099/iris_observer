@@ -239,6 +239,7 @@ export default async function FlowPage({
           {view.ladder.source === "crm" ? (
             <>
               <FlowLadder
+                language={view.context.language}
                 stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
                 noun="deals"
               />

@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createHmac } from "node:crypto";
+import { onDeploymentPlatform } from "@/lib/deployment-markers";
 import { resolveServerSupabase } from "@/lib/supabase-env";
 import type { FallbackReason } from "./agent";
 import { pseudonymKey, type CurrentPseudonymVersion } from "./identity";
@@ -299,17 +300,23 @@ export async function admitAiRequest(admission: Admission): Promise<SharedVerdic
   const config = configured();
   if (config === null) {
     /*
-     * NO CEILING CONFIGURED: open in development, closed in production.
+     * NO CEILING CONFIGURED: open in development, closed on a deployment.
      *
      * It was open everywhere, and a production deployment without
      * SUPABASE_SECRET_KEY had no AI quota at all (measured 2026-09-29) — safe
-     * only because nobody could sign in. The same test the local control plane
-     * uses decides it (`localControlPlaneEnabled`): the build, not a switch a
-     * deployment could turn off.
+     * only because nobody could sign in. What counts as a deployment is the
+     * rule the session secret and the device pepper already use: an
+     * OBSERVER_ENVIRONMENT other than development, or any deployment
+     * platform's marker (`session-secret.ts`, `device-pepper.ts`). It was
+     * NODE_ENV for one commit, and that took the end-to-end suite's local
+     * production build for a deployment: every Ask case refused (2026-09-30).
      */
-    if (process.env.NODE_ENV !== "production") return { allowed: true };
+    const environment = process.env["OBSERVER_ENVIRONMENT"] ?? "development";
+    if (environment === "development" && !onDeploymentPlatform(process.env)) {
+      return { allowed: true };
+    }
     console.error(
-      "[observer.quota] refusing every question — this production build has no shared ceiling configured (SUPABASE_URL and SUPABASE_SECRET_KEY), and a model call nothing counts is an unmetered one",
+      "[observer.quota] refusing every question — this deployment has no shared ceiling configured (SUPABASE_URL and SUPABASE_SECRET_KEY), and a model call nothing counts is an unmetered one",
     );
     return unavailable();
   }

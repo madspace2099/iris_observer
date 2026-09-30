@@ -791,7 +791,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async listAgents(query: OverviewQuery): Promise<readonly AgentSummary[]> {
     const { current } = await this.slices(query);
-    return presentersIn(current)
+    return presentersIn(current, query.language)
       .map((agent) => ({
         agentId: agent.id,
         name: agent.name,

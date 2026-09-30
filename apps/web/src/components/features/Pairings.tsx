@@ -1,5 +1,5 @@
 import { sectionLabel } from "@observer/contracts";
-import type { FeaturePairing, PeriodPreset } from "@observer/readmodels";
+import type { Language, FeaturePairing, PeriodPreset } from "@observer/readmodels";
 
 import { DataTable, Sources, Tier, type DataRow } from "@/components/product";
 import { Count } from "./Reading";
@@ -54,6 +54,7 @@ export function Pairings({
   periodLabel,
   ranked,
   minimumSample,
+  language,
 }: {
   readonly pairings: readonly FeaturePairing[];
   /** Presentations in the period. The denominator every pair is counted out of. */
@@ -63,6 +64,7 @@ export function Pairings({
   /** Whether the sample supports an association at all. Decided by the screen. */
   readonly ranked: boolean;
   readonly minimumSample: number;
+  readonly language: Language;
 }) {
   if (!ranked) {
     return (
@@ -116,8 +118,8 @@ export function Pairings({
       </p>
 
       <div className="ox-finding-foot">
-        <Tier tier="statistical_association" />
-        <Sources sources={["IRIS_SHOWROOM_DERIVED"]} />
+        <Tier language={language} tier="statistical_association" />
+        <Sources language={language} sources={["IRIS_SHOWROOM_DERIVED"]} />
       </div>
     </>
   );

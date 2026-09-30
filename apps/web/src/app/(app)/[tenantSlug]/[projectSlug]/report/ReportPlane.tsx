@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import {
-  DEFAULT_LANGUAGE,
   type Language,
   type PeriodPreset,
   type ReportSection,
@@ -37,13 +36,13 @@ export function ReportPlane({
   section,
   period,
   children,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly section: ReportSection;
   readonly period: PeriodPreset;
   readonly children: ReactNode;
   /** The report's language, as the export dialog chose it. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const headingId = `${section.id}-heading`;
   return (

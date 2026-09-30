@@ -1,10 +1,5 @@
 import Link from "next/link";
-import {
-  DEFAULT_LANGUAGE,
-  type Language,
-  type MeetingRow,
-  type PeriodPreset,
-} from "@observer/readmodels";
+import { type Language, type MeetingRow, type PeriodPreset } from "@observer/readmodels";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
@@ -133,7 +128,7 @@ export function MeetingRegister({
   caption,
   canOpen,
   emptyNote,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly rows: readonly MeetingRow[];
   readonly period: PeriodPreset;
@@ -142,7 +137,7 @@ export function MeetingRegister({
   readonly canOpen: boolean;
   readonly emptyNote: string;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const words = REGISTER_WORDS[language];
   const FOLLOW_UP_SHORT = words.followUp;

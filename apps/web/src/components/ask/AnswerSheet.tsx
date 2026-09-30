@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { AskAnswer, AskFigure, PeriodPreset } from "@observer/readmodels";
+import type { Language, AskAnswer, AskFigure, PeriodPreset } from "@observer/readmodels";
 import type { InsightSource } from "@observer/contracts";
 
 import { dynamicRoute } from "@/lib/href";
@@ -161,6 +161,7 @@ export function AnswerSheet({
   answerable,
   when = null,
   showFollowUps = true,
+  language,
 }: {
   readonly answer: AskAnswer;
   readonly period: PeriodPreset;
@@ -191,6 +192,7 @@ export function AnswerSheet({
    * thread in order to re-ask something they can read two inches further down.
    */
   readonly showFollowUps?: boolean;
+  readonly language: Language;
 }) {
   const offered = showFollowUps ? answer.followUps : [];
   const live =
@@ -220,9 +222,9 @@ export function AnswerSheet({
       {answer.caveat === null ? null : <p className="ox-finding-caveat">{answer.caveat}</p>}
 
       <div className="ox-finding-foot">
-        {answer.evidence === null ? null : <Tier tier={answer.evidence.tier} />}
-        <Sources sources={ANSWER_SOURCES} />
-        <Evidence evidence={answer.evidence} period={period} />
+        {answer.evidence === null ? null : <Tier language={language} tier={answer.evidence.tier} />}
+        <Sources language={language} sources={ANSWER_SOURCES} />
+        <Evidence language={language} evidence={answer.evidence} period={period} />
 
         {/*
          * A LABEL WITH NO ROUTE IS NOT A BUTTON. `actionLabel` and

@@ -530,25 +530,43 @@ describe("an unreachable shared ceiling", () => {
     expect(verdict.allowed).toBe(true);
   });
 
-  it("refuses in a production build with no ceiling configured", async () => {
-    /*
-     * The other branch of the same condition. A production build that cannot
-     * count a question does not answer it: it was allowed, and a deployment
-     * without SUPABASE_SECRET_KEY ran with no AI quota at all.
-     */
+  for (const [where, key, value] of [
+    ["a deployment platform (Vercel's marker)", "VERCEL", "1"],
+    ["an environment declared production", "OBSERVER_ENVIRONMENT", "production"],
+  ] as const) {
+    it(`refuses on ${where} with no ceiling configured`, async () => {
+      /*
+       * The other branch of the same condition. A deployment that cannot count
+       * a question does not answer it: it was allowed, and a deployment without
+       * SUPABASE_SECRET_KEY ran with no AI quota at all. A local production
+       * build (NODE_ENV alone) is not a deployment — the end-to-end suite is one.
+       */
+      globalThis.fetch = (() => Promise.reject(new Error("should not be called"))) as typeof fetch;
+      const saved = process.env[key];
+      process.env[key] = value;
+      const error = console.error;
+      const logged: string[] = [];
+      console.error = (...args: unknown[]) => void logged.push(args.join(" "));
+      try {
+        const verdict = await admitAiRequest(admission);
+        expect(verdict.allowed).toBe(false);
+        if (!verdict.allowed) expect(verdict.reason).toBe("ceiling_unavailable");
+        expect(logged.join("\n")).toMatch(/no shared ceiling configured/);
+      } finally {
+        console.error = error;
+        if (saved === undefined) delete process.env[key];
+        else process.env[key] = saved;
+      }
+    });
+  }
+
+  it("leaves a local production build alone, as the end-to-end suite runs one", async () => {
     globalThis.fetch = (() => Promise.reject(new Error("should not be called"))) as typeof fetch;
     const node = process.env["NODE_ENV"];
     process.env["NODE_ENV"] = "production";
-    const error = console.error;
-    const logged: string[] = [];
-    console.error = (...args: unknown[]) => void logged.push(args.join(" "));
     try {
-      const verdict = await admitAiRequest(admission);
-      expect(verdict.allowed).toBe(false);
-      if (!verdict.allowed) expect(verdict.reason).toBe("ceiling_unavailable");
-      expect(logged.join("\n")).toMatch(/no shared ceiling configured/);
+      expect((await admitAiRequest(admission)).allowed).toBe(true);
     } finally {
-      console.error = error;
       if (node === undefined) delete process.env["NODE_ENV"];
       else process.env["NODE_ENV"] = node;
     }

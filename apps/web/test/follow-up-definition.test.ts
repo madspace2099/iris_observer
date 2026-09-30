@@ -118,7 +118,7 @@ describe("states that must never collapse into one another", () => {
   });
 
   it("never renders an unidentified visitor as a missing integration", () => {
-    const unlinked = visitorLabel("unlinked", null).display;
+    const unlinked = visitorLabel("unlinked", null, "en").display;
 
     // A walk-in nobody linked to a contact is a fact about this meeting. A
     // disconnected CRM is a fact about the whole project, and the two share no

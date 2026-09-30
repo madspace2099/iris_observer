@@ -1,4 +1,4 @@
-import type { EvidenceRef, PeriodPreset, SourceKind } from "@observer/readmodels";
+import type { Language, EvidenceRef, PeriodPreset, SourceKind } from "@observer/readmodels";
 import type { InsightSource } from "@observer/contracts";
 
 import { Evidence, Sources } from "./Provenance";
@@ -62,11 +62,13 @@ export function Timeline({
   steps,
   period,
   label = "Sequence",
+  language,
 }: {
   readonly steps: readonly TimelineStep[];
   readonly period: PeriodPreset;
   /** The accessible name of the list. */
   readonly label?: string;
+  readonly language: Language;
 }) {
   if (steps.length === 0) return null;
 
@@ -95,8 +97,10 @@ export function Timeline({
               {detail === null ? null : <p className="ox-time-detail">{detail}</p>}
               {sources.length === 0 && evidence === null ? null : (
                 <div className="ox-time-foot">
-                  <Sources sources={sources} />
-                  {evidence === null ? null : <Evidence evidence={evidence} period={period} />}
+                  <Sources language={language} sources={sources} />
+                  {evidence === null ? null : (
+                    <Evidence language={language} evidence={evidence} period={period} />
+                  )}
                 </div>
               )}
             </div>

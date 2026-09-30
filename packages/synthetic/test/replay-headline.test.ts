@@ -1,6 +1,7 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { ShowroomSession, ShowroomUnitInteraction } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { buildMeetingReplay } from "../src/showroom/project";
 
 /**
@@ -36,7 +37,7 @@ function unit(unitCode: string): ShowroomUnitInteraction {
 const SESSION: ShowroomSession = {
   sessionId: "s-1",
   meetingId: "mtg_test",
-  projectId: "prj_test_replay_headline", // never a real project: isolation is provable, not coincidental
+  projectId: "prj_testreplayheadline", // never a real project: isolation is provable, not coincidental
   agentId: "agent_test",
   channel: "showroom",
   contactId: null,
@@ -55,16 +56,16 @@ const SESSION: ShowroomSession = {
   timingUnavailable: false,
 };
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
-    id: "prj_test_replay_headline",
+    id: "prj_testreplayheadline",
     slug: "test-project",
     locale: "en-GB",
     timeZone: "Europe/Bratislava",
   },
   language: DEFAULT_LANGUAGE,
-} as unknown as ViewContext;
+});
 
 describe("the replay's headline", () => {
   it("does not carry the unit count, which the sentence beneath it carries", () => {

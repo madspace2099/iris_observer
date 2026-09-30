@@ -117,7 +117,7 @@ export function MeetingOutcomes({
         </p>
 
         <div className="ox-finding-foot">
-          <Sources sources={["IRIS_SHOWROOM_OBSERVED"]} />
+          <Sources language={replay.context.language} sources={["IRIS_SHOWROOM_OBSERVED"]} />
         </div>
       </article>
 

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { AlertItem, AlertSeverity, PeriodPreset } from "@observer/readmodels";
+import type { Language, AlertItem, AlertSeverity, PeriodPreset } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -62,12 +62,14 @@ export function AttentionList({
   period,
   emptyNote = "Nothing needs attention in this period.",
   label = "Needs attention",
+  language,
 }: {
   readonly alerts: readonly AlertItem[];
   readonly period: PeriodPreset;
   readonly emptyNote?: string;
   /** The accessible name of the list. Screens usually head it visibly as well. */
   readonly label?: string;
+  readonly language: Language;
 }) {
   if (alerts.length === 0) {
     return (
@@ -99,7 +101,7 @@ export function AttentionList({
             </h3>
             <p className="ox-alert-detail">{alert.detail}</p>
             <div className="ox-alert-foot">
-              <Evidence evidence={alert.evidence} period={period} />
+              <Evidence language={language} evidence={alert.evidence} period={period} />
               {/*
                * A LABEL WITH NO ROUTE IS NOT A BUTTON.
                *

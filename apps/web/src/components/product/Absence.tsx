@@ -1,10 +1,5 @@
 import Link from "next/link";
-import {
-  DATA_SOURCE_MARKER_WORDS,
-  DEFAULT_LANGUAGE,
-  type Language,
-  type PeriodPreset,
-} from "@observer/readmodels";
+import { DATA_SOURCE_MARKER_WORDS, type Language, type PeriodPreset } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -154,7 +149,7 @@ export function Failure({
  * not wrap a header bar into three lines, which is what "Synthetic
  * demonstration data" did to the small-desktop layout the first time.
  */
-export function Synthetic({ language = DEFAULT_LANGUAGE }: { readonly language?: Language } = {}) {
+export function Synthetic({ language }: { readonly language: Language }) {
   const DATA_SOURCE_MARKERS = DATA_SOURCE_MARKER_WORDS[language];
   /*
    * Two markers; the project layout's `data-sessions` shows one. `SyntheticBadge`

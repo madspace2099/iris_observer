@@ -22,8 +22,13 @@ const ASK = (question: string) => `ask?q=${encodeURIComponent(question)}`;
 const PAGES: readonly { who: string; path: string; says?: string }[] = [
   {
     who: "Petra Novák",
+    /*
+     * It said "Open the buyer — no surface for this yet", the A-505 alert's
+     * action drawn as a sentence. acae174 removed that alert (its dates were
+     * typed), so this overview has no action without a page left to state; the
+     * check that no link guesses a person page still runs on it.
+     */
     path: "/alpha/northgate/overview",
-    says: "Open the buyer — no surface for this yet",
   },
   { who: "Petra Novák", path: "/alpha/riverside/overview" },
   { who: "Tomáš Varga", path: "/beta/kingsford/overview" },

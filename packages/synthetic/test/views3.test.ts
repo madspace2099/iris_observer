@@ -1,6 +1,6 @@
+import { viewContext } from "./view-context";
 import { afterEach, describe, expect, it } from "vitest";
 import type { CrmDeal, ShowroomSession } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildSalesFlow, bucketBounds, sliceSpan, trend, DEADBAND } from "../src/showroom/views3";
 import { provideCatalogue, type RawUnit } from "../src/pulse";
 
@@ -57,7 +57,7 @@ function session(startedAt: Date, outcome: ShowroomSession["outcome"]): Showroom
 // same reason, so the period holds every bucket those tests compare. The
 // closed-period path (`period.to` in the past) has its own describe block
 // further down, with its own context.
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   /* The dates below are UTC days, so the project keeps UTC days: today ends where it does. */
   project: { slug: "test-project", locale: "en-GB", timeZone: "UTC" },
@@ -67,7 +67,7 @@ const CONTEXT = {
     label: "the period",
     baselineLabel: "before",
   },
-} as unknown as ViewContext;
+});
 
 describe("trend — classification immediately below, at, and above every cutoff", () => {
   // Each floor has two boundaries: `floor - DEADBAND` (the down/flat line)
@@ -98,7 +98,7 @@ describe("trend — classification immediately below, at, and above every cutoff
 
 describe("bucketBounds — last month clipped like last week already is", () => {
   it("first day of a month: last month is clipped to a single day", () => {
-    const bounds = bucketBounds(utc(2027, 4, 1)); // 1 May 2027
+    const bounds = bucketBounds(utc(2027, 4, 1), "UTC", "en"); // 1 May 2027
     const lastMonth = bounds.find((b) => b.id === "last_month");
     expect(lastMonth?.label).toBe("Last month, first 1 day");
     expect(lastMonth?.from).toBe(Date.UTC(2027, 3, 1));
@@ -106,7 +106,7 @@ describe("bucketBounds — last month clipped like last week already is", () => 
   });
 
   it("last day of a month at least as long as the one before it: no clip needed", () => {
-    const bounds = bucketBounds(utc(2027, 6, 31)); // 31 July 2027 — June has 30 days
+    const bounds = bucketBounds(utc(2027, 6, 31), "UTC", "en"); // 31 July 2027 — June has 30 days
     const lastMonth = bounds.find((b) => b.id === "last_month");
     expect(lastMonth?.label).toBe("Last month");
     expect(lastMonth?.from).toBe(Date.UTC(2027, 5, 1));
@@ -117,7 +117,7 @@ describe("bucketBounds — last month clipped like last week already is", () => 
     // 29 March 2027 — 29 days into March, but February 2027 (non-leap) only
     // has 28. The guard must show all of February rather than ask it for a
     // 29th day it does not have, and label it as complete, not clipped.
-    const bounds = bucketBounds(utc(2027, 2, 29));
+    const bounds = bucketBounds(utc(2027, 2, 29), "UTC", "en");
     const lastMonth = bounds.find((b) => b.id === "last_month");
     expect(lastMonth?.label).toBe("Last month");
     expect(lastMonth?.from).toBe(Date.UTC(2027, 1, 1));
@@ -319,8 +319,10 @@ describe("buildSalesFlow verdict — every reachable state", () => {
  * month — were not held whole by the period and read "Not in this period".
  */
 describe("a running period's end of today", () => {
-  const westContext = (timeZone: string) =>
-    ({ ...CONTEXT, project: { ...CONTEXT.project, timeZone } }) as unknown as ViewContext;
+  const westContext = (timeZone: string) => ({
+    ...CONTEXT,
+    project: { ...CONTEXT.project, timeZone },
+  });
 
   it("is the project's own midnight, west and east of UTC", () => {
     const noonInNewYork = new Date("2026-08-24T16:00:00Z");
@@ -355,7 +357,7 @@ describe("buildSalesFlow verdict — a closed period, viewed after it ended", ()
   // `stillRunning` false and switches `buildSalesFlow` onto the whole-period
   // path instead of the recency buckets the block above tests.
   const TODAY = utc(2027, 7, 24); // 24 August 2027
-  const CLOSED_CONTEXT = {
+  const CLOSED_CONTEXT = viewContext({
     tenant: { slug: "test-tenant" },
     project: { slug: "test-project", locale: "en-GB" },
     period: {
@@ -363,7 +365,7 @@ describe("buildSalesFlow verdict — a closed period, viewed after it ended", ()
       label: "the selected quarter",
       baselineLabel: "the quarter before",
     },
-  } as unknown as ViewContext;
+  });
 
   it("regression: recorded outcomes in a closed period must not read as none, just because 'this week' (relative to today) contains none of them", () => {
     // 61 sessions in spring, nowhere near `today` in August — the exact
@@ -419,8 +421,8 @@ describe("buildSalesFlow verdict — a closed period, viewed after it ended", ()
  * ============================================================================
  */
 describe("the deal ladder's unit references follow the register's own contract", () => {
-  const DEAL_PROJECT_ID = "prj_test_deal_ladder_only"; // never a real project: isolation is provable, not coincidental
-  const DEAL_CONTEXT = {
+  const DEAL_PROJECT_ID = "prj_testdealladderonly"; // never a real project: isolation is provable, not coincidental
+  const DEAL_CONTEXT = viewContext({
     tenant: { slug: "test-tenant" },
     project: {
       id: DEAL_PROJECT_ID,
@@ -429,7 +431,7 @@ describe("the deal ladder's unit references follow the register's own contract",
       timeZone: "UTC",
     },
     period: { to: utc(9999, 0, 1).toISOString(), label: "the period", baselineLabel: "before" },
-  } as unknown as ViewContext;
+  });
 
   function deal(externalId: string, unitCode: string | null): CrmDeal {
     return {

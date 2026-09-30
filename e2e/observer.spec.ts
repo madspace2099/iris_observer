@@ -30,8 +30,14 @@ test.describe("executive overview", () => {
 
     const verdict = page.getByRole("heading", { level: 1 });
     await expect(verdict).toBeVisible();
-    await expect(verdict).toContainText("7 units");
-    await expect(page.getByText("Attention needed", { exact: true })).toBeVisible();
+    /*
+     * The headline is computed since acae174: a sale is a deal the CRM dated to
+     * purchase in the period, and the state follows the rules' outcomes. For
+     * Northgate this quarter that is a count against a baseline with no dated
+     * sale, so no verdict. It was a typed "7 units" and "Attention needed".
+     */
+    await expect(verdict).toContainText(/sold \d+ units? this quarter/);
+    await expect(page.getByText("Not enough data", { exact: true })).toBeVisible();
   });
 
   test("shows the four approved headline figures", async ({ page }) => {

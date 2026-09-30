@@ -1,6 +1,6 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import type { ShowroomSession } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildMeetingList } from "../src/showroom/project";
 
 /**
@@ -52,11 +52,11 @@ function session(meetingId: string, startedAt: string): ShowroomSession {
 
 /* `tenant.slug`, `project.slug`, `project.locale` and `project.timeZone` are what
  * `buildMeetingList` reads; the rest is a type-satisfying stand-in. */
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: { slug: "test-project", locale: "en-GB", timeZone: "Europe/Bratislava" },
   period: { to: "9999-01-01T00:00:00.000Z", label: "the period", baselineLabel: "before" },
-} as unknown as ViewContext;
+});
 
 /** One instant, four meetings. The identifiers are deliberately not in order. */
 const SAME = "2026-03-12T14:30:00.000Z";

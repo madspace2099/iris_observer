@@ -15,13 +15,7 @@ import {
   type MeetingOutcome,
   type SectionId,
 } from "@observer/contracts";
-import {
-  DEFAULT_LANGUAGE,
-  plural,
-  pluralCategory,
-  type Language,
-  type PluralForms,
-} from "./language";
+import { plural, pluralCategory, type Language, type PluralForms } from "./language";
 
 export const NOT_STATED = "Not stated";
 
@@ -62,7 +56,7 @@ export const TIMES: PluralForms = {
 };
 
 /** "2 rooms", "1 room", or the word for a count the catalogue did not state. */
-export function roomsWord(rooms: number | null, language: Language = DEFAULT_LANGUAGE): string {
+export function roomsWord(rooms: number | null, language: Language): string {
   if (rooms === null) return "Rooms not stated";
   return `${String(rooms)} ${plural(language, rooms, ROOMS_WORD)}`;
 }
@@ -213,10 +207,10 @@ const NOTHING_RECEIVED_YET_WORDS: Readonly<Record<Language, string>> = {
 export function nothingReceivedYet(context: {
   readonly ownDataOnly: boolean;
   readonly sessionsDelivered: boolean;
-  readonly language?: Language;
+  readonly language: Language;
 }): string | null {
   return context.ownDataOnly && !context.sessionsDelivered
-    ? NOTHING_RECEIVED_YET_WORDS[context.language ?? DEFAULT_LANGUAGE]
+    ? NOTHING_RECEIVED_YET_WORDS[context.language]
     : null;
 }
 
@@ -282,9 +276,8 @@ const SECTION_NAMES: Readonly<
 
 /** A showroom section by its name in `language`; English is the contract's own `sectionLabel`. */
 export function sectionWord(language: Language, id: SectionId): string {
-  /* A caller without a language — a test's hand-built context, say — reads English, like every word helper. */
-  const lang = language ?? DEFAULT_LANGUAGE;
-  return lang === "en" ? sectionLabel(id) : SECTION_NAMES[lang][id];
+  /* The language is required: the caller passes the one its request was made in. */
+  return language === "en" ? sectionLabel(id) : SECTION_NAMES[language][id];
 }
 
 /** "facing S", or the word for an aspect the catalogue did not state. */
@@ -386,11 +379,19 @@ const PRESENTER_NOT_NAMED_WORDS: Readonly<Record<Language, string>> = {
   hu: "A név nem ismert",
 };
 
-export function presenterWord(
-  name: string | null,
-  agentId: string,
-  language: Language = DEFAULT_LANGUAGE,
-): string {
+/** Where a presenter's agency is not known, in each language a report can be printed in (P2-17). */
+export const NOT_IN_DIRECTORY: Readonly<Record<Language, string>> = {
+  en: "Not in the directory",
+  sk: "Nie je v adresári",
+  hu: "Nem szerepel a címtárban",
+};
+
+/** Whether `name` is the word `presenterWord` stands in a name's place, not a name. */
+export function isUnnamedPresenter(name: string, language: Language): boolean {
+  return name.startsWith(`${PRESENTER_NOT_NAMED_WORDS[language]} · `);
+}
+
+export function presenterWord(name: string | null, agentId: string, language: Language): string {
   return name === null || name.trim().length === 0
     ? `${PRESENTER_NOT_NAMED_WORDS[language]} · ${agentId}`
     : name;

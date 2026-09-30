@@ -407,6 +407,8 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
   { route: "/lab/sign-in", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/lab/overview-a", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/lab/overview-b", audience: "internal", requiresRole: ["madspace_admin"] },
+  /* Every other address under /lab: the same gate, then not found. */
+  { route: "/lab/[...rest]", audience: "internal", requiresRole: ["madspace_admin"] },
 ];
 
 /**

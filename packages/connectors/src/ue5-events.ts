@@ -87,7 +87,12 @@ function numeric(props: Readonly<Record<string, unknown>>, key: string): number 
 }
 
 function unitOf(row: Ue5EventRow): string | null {
-  return text(row.properties, "unit_id") ?? (row.entity_type === "unit" ? row.entity_id : null);
+  return (
+    text(row.properties, "unit_id") ??
+    /* A capture or a walk names the unit in view as its context, not as its subject. */
+    text(row.properties, "context_unit_id") ??
+    (row.entity_type === "unit" ? row.entity_id : null)
+  );
 }
 
 /** `"Main|Residences|Floor 3"` → `["residences", "Floor 3"]`; the leading `Main` is the plugin's root. */
@@ -120,6 +125,7 @@ interface MutableUnit {
   pdfOpened: boolean;
   balconyViews: number;
   floorCutViews: number;
+  screenshots: number;
 }
 
 interface MutableStep {
@@ -169,6 +175,7 @@ function foldOne(
         pdfOpened: false,
         balconyViews: 0,
         floorCutViews: 0,
+        screenshots: 0,
       };
       units.set(code, u);
     }
@@ -222,6 +229,12 @@ function foldOne(
       else if (BALCONY.has(name)) unit(code).balconyViews += 1;
       else if (FLOOR_CUT.has(name)) unit(code).floorCutViews += 1;
     }
+    /*
+     * A capture taken with a unit in view counts against that unit too. Only a
+     * unit the session already opened: a capture alone does not make a unit
+     * "opened", and counting it as one would lift every opened-units figure.
+     */
+    if (code !== null && SCREENSHOT.has(name) && units.has(code)) unit(code).screenshots += 1;
 
     if (STEP_OPENED.has(name)) {
       const path = featurePath(row);
@@ -297,7 +310,7 @@ function foldOne(
     pdfOpened: u.pdfOpened,
     balconyViews: u.balconyViews,
     floorCutViews: u.floorCutViews,
-    screenshots: 0,
+    screenshots: u.screenshots,
     comparedWith: [],
     keptFromComparison: null,
     shared: false,
@@ -387,4 +400,78 @@ export function foldUe5Sessions(
     if (folded !== null) sessions.push(folded);
   }
   return sessions.sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+}
+
+/* --- walks ---------------------------------------------------------------- */
+
+/**
+ * A WALK THROUGH THE TWIN: `walk.entered` to `walk.exited`, or to whatever closed it.
+ *
+ * The showroom sends `walk.entered` (optionally with `context_unit_id`, the
+ * unit the walk started from) and `walk.exited` with `duration_ms`, measured
+ * on the device (`FPlatformTime::Seconds()`). This is the "Walking" axis of
+ * the D4 analysis, which no read model draws yet; this file only makes the
+ * events typed and folds them into scopes, so they can be stored and read.
+ *
+ * The scope rule is the showroom's own: a second `walk.entered` closes the
+ * one before it, and `session.ended` closes any walk still open. In this
+ * model that is `closedBy`, so a reader can tell a walk the device timed
+ * from one the next event cut short — and only the timed one carries a
+ * duration. A walk cut short has the duration that was reported, which is
+ * none; the gap to the next event is not a measurement of it.
+ */
+export interface Ue5WalkScope {
+  readonly sessionId: string;
+  readonly enteredAt: string;
+  /** The unit the walk started from, when the showroom named one. */
+  readonly contextUnitId: string | null;
+  /** How the scope ended. `unclosed`: the stream stops with the walk still open. */
+  readonly closedBy: "walk.exited" | "walk.entered" | "session.ended" | "unclosed";
+  readonly closedAt: string | null;
+  /** The device's own measure, from `walk.exited`; null for any other close. */
+  readonly durationMs: number | null;
+}
+
+export const WALK_ENTERED = "walk.entered";
+export const WALK_EXITED = "walk.exited";
+
+/** Every walk in `events`, per session in `sequence` order, oldest session first. */
+export function walkScopes(events: readonly Ue5EventRow[]): Ue5WalkScope[] {
+  const bySession = new Map<string, Ue5EventRow[]>();
+  for (const row of events) {
+    const rows = bySession.get(row.session_id);
+    if (rows === undefined) bySession.set(row.session_id, [row]);
+    else rows.push(row);
+  }
+  const out: Ue5WalkScope[] = [];
+  for (const [sessionId, rows] of bySession) {
+    rows.sort((a, b) => a.sequence - b.sequence);
+    let open: { enteredAt: string; contextUnitId: string | null } | null = null;
+    const close = (
+      closedBy: Ue5WalkScope["closedBy"],
+      closedAt: string | null,
+      durationMs: number | null,
+    ) => {
+      if (open === null) return;
+      out.push({ sessionId, ...open, closedBy, closedAt, durationMs });
+      open = null;
+    };
+    for (const row of rows) {
+      if (row.event_name === WALK_ENTERED) {
+        close("walk.entered", row.occurred_at, null);
+        open = {
+          enteredAt: row.occurred_at,
+          contextUnitId: text(row.properties, "context_unit_id"),
+        };
+      } else if (row.event_name === WALK_EXITED) {
+        /* An exit with no walk open is dropped, as a step's close with no open is. */
+        const ms = numeric(row.properties, "duration_ms");
+        close("walk.exited", row.occurred_at, ms !== null && ms >= 0 ? ms : null);
+      } else if (row.event_name === "session.ended") {
+        close("session.ended", row.occurred_at, null);
+      }
+    }
+    close("unclosed", null, null);
+  }
+  return out.sort((a, b) => a.enteredAt.localeCompare(b.enteredAt));
 }

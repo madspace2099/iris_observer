@@ -140,6 +140,7 @@ export default async function BriefingPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={home.context.language}
         period={period}
         crumbs={[{ label: "Ask IRIS", href: `${root}/ask` }, { label: "Briefing" }]}
         kicker={`${home.context.project.name} · ${home.context.period.label}`}
@@ -152,7 +153,7 @@ export default async function BriefingPage({
               <span className="ox-chip-mark" aria-hidden="true" />
               {SIGNAL_LABELS[home.signal]}
             </span>
-            <Synthetic />
+            <Synthetic language={home.context.language} />
           </>
         }
       />
@@ -281,8 +282,8 @@ export default async function BriefingPage({
             </Tally>
 
             <div className="ox-finding-foot">
-              <Sources sources={home.sources} />
-              <Evidence evidence={home.evidence} period={period} />
+              <Sources language={home.context.language} sources={home.sources} />
+              <Evidence language={home.context.language} evidence={home.evidence} period={period} />
               <Sample n={home.meetingCount} noun="presentations" />
             </div>
           </div>
@@ -298,6 +299,7 @@ export default async function BriefingPage({
             </div>
 
             <StackPlan
+              language={home.context.language}
               floors={pulse.floors}
               unitHrefs={unitHrefs}
               period={period}
@@ -315,7 +317,11 @@ export default async function BriefingPage({
             </p>
 
             <div className="ox-finding-foot">
-              <Evidence evidence={pulse.evidence} period={period} />
+              <Evidence
+                language={home.context.language}
+                evidence={pulse.evidence}
+                period={period}
+              />
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
+import { viewContext } from "./view-context";
 import { describe, expect, it } from "vitest";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import type { ShowroomSession, ShowroomStep } from "@observer/contracts";
-import type { ViewContext } from "@observer/readmodels";
 import { buildPresentationIntelligence } from "../src/showroom/project";
 
 /**
@@ -25,7 +25,7 @@ import { buildPresentationIntelligence } from "../src/showroom/project";
  * One measured assertion per test, so a mutation is read by which one fails.
  */
 
-const PROJECT_ID = "prj_test_dna_timing"; // never a real project: isolation is provable, not coincidental
+const PROJECT_ID = "prj_testdnatiming"; // never a real project: isolation is provable, not coincidental
 
 function step(
   ordinal: number,
@@ -72,7 +72,7 @@ function session(
   };
 }
 
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: {
     id: PROJECT_ID,
@@ -82,7 +82,7 @@ const CONTEXT = {
     connectedSources: [],
   },
   period: { to: "9999-01-01T00:00:00.000Z", label: "This quarter", baselineLabel: "last quarter" },
-} as unknown as ViewContext;
+});
 
 /** Home for `homeSeconds`, then Residences; the source timed every step. */
 const timed = (id: string, homeSeconds: number) =>

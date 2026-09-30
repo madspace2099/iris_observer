@@ -1,10 +1,4 @@
-import {
-  DEFAULT_LANGUAGE,
-  plural,
-  type DemandTrend,
-  type Language,
-  type PluralForms,
-} from "@observer/readmodels";
+import { plural, type DemandTrend, type Language, type PluralForms } from "@observer/readmodels";
 
 /**
  * READINGS THAT ARE NOT `MetricValue`, AND THE HONESTY THEY STILL OWE.
@@ -150,11 +144,7 @@ export function shareText(value: number, locale: string): string {
  * three languages' forms, written beside the sentence that uses it, and the
  * language's own rules choose among them.
  */
-export function counted(
-  n: number,
-  forms: PluralForms,
-  language: Language = DEFAULT_LANGUAGE,
-): string {
+export function counted(n: number, forms: PluralForms, language: Language): string {
   return `${n} ${plural(language, n, forms)}`;
 }
 

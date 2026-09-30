@@ -88,6 +88,7 @@ export default async function AttentionPage({
   return (
     <div className="ox-page">
       <PageHead
+        language={view.context.language}
         period={period}
         crumbs={[{ label: "Ask IRIS", href: `${root}/ask` }, { label: "What needs attention" }]}
         kicker={`${view.context.project.name} · ${view.context.period.label}`}
@@ -106,7 +107,7 @@ export default async function AttentionPage({
         lede="Each state names what it is about and where it can be dealt with. Red is kept for a record going missing right now; a number moving the wrong way is a reading, and it is drawn as one."
         aside={
           <>
-            <Synthetic />
+            <Synthetic language={view.context.language} />
             {/*
              * The way onward when nothing is raised. A screen whose only
              * controls belong to its rows is a dead end on the day it has no
@@ -144,13 +145,14 @@ export default async function AttentionPage({
              * which is a different statement and an alarming one.
              */
             <AttentionList
+              language={view.context.language}
               alerts={[]}
               period={period}
               emptyNote={view.emptyState}
               label="Raised in this period"
             />
           ) : (
-            <StateList states={view.states} period={period} />
+            <StateList language={view.context.language} states={view.states} period={period} />
           )}
         </section>
 
@@ -165,7 +167,7 @@ export default async function AttentionPage({
             <ChecksRegister checks={view.checks} period={period} />
 
             <div className="ox-finding-foot">
-              <Evidence evidence={view.evidence} period={period} />
+              <Evidence language={view.context.language} evidence={view.evidence} period={period} />
               <Sample n={view.meetingCount} noun="presentations" />
             </div>
           </div>

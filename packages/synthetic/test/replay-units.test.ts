@@ -1,6 +1,7 @@
+import { viewContext } from "./view-context";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ShowroomSession, ShowroomUnitInteraction } from "@observer/contracts";
-import { DEFAULT_LANGUAGE, type ViewContext } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { buildMeetingReplay } from "../src/showroom/project";
 import { provideCatalogue, type RawUnit } from "../src/pulse";
 
@@ -27,7 +28,7 @@ import { provideCatalogue, type RawUnit } from "../src/pulse";
  * data was missing when the answer was no.
  */
 
-const PROJECT_ID = "prj_test_replay_units"; // never a real project: isolation is provable, not coincidental
+const PROJECT_ID = "prj_testreplayunits"; // never a real project: isolation is provable, not coincidental
 
 function unit(
   unitCode: string,
@@ -89,11 +90,11 @@ function raw(code: string, rooms: number | null): RawUnit {
 }
 
 /* `project.id`, the slugs, `locale` and `timeZone` are what `buildMeetingReplay` reads. */
-const CONTEXT = {
+const CONTEXT = viewContext({
   tenant: { slug: "test-tenant" },
   project: { id: PROJECT_ID, slug: "test-project", locale: "en-GB", timeZone: "Europe/Bratislava" },
   language: DEFAULT_LANGUAGE,
-} as unknown as ViewContext;
+});
 
 /** A catalogue of four: three with a room count, one that states none. */
 const CATALOGUE: readonly RawUnit[] = [

@@ -162,7 +162,7 @@ export default async function ProjectPage({
           <Link className="iris-action" href={dynamicRoute(reportHref)}>
             Report →
           </Link>
-          <ExportReport report={report} pageHref={reportHref} />
+          <ExportReport language={view.context.language} report={report} pageHref={reportHref} />
         </p>
 
         {/* --- the plan, and where the project stands against it ---------- */}

@@ -175,7 +175,12 @@ export function MeetingJourney({
 
       <p className="ox-subhead">The journey, in the order it was recorded</p>
 
-      <Timeline steps={replay.steps.map(toTimelineStep)} period={period} label="Meeting journey" />
+      <Timeline
+        language={replay.context.language}
+        steps={replay.steps.map(toTimelineStep)}
+        period={period}
+        label="Meeting journey"
+      />
     </>
   );
 }

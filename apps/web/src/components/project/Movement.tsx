@@ -86,7 +86,7 @@ export function Movement({
       id="project-movement"
       title="What moved in this period"
       note="Every apartment the Pulse marked with a change inside this period. Most cells carry no change at all, which is what makes these worth reading. There is no engagement time series behind this screen; this register is the period's news, unit by unit."
-      aside={<Evidence evidence={evidence} period={period} />}
+      aside={<Evidence language={pulse.context.language} evidence={evidence} period={period} />}
     >
       <DataTable
         caption="Apartments the Pulse recorded a change against inside this period, in stacking-plan order."
@@ -123,7 +123,7 @@ export function Movement({
                 {unit.code}
               </Link>
             ),
-            apartment: `${floorWord(unit.floor)}, block ${unit.block} · ${roomsWord(unit.rooms)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)}`,
+            apartment: `${floorWord(unit.floor)}, block ${unit.block} · ${roomsWord(unit.rooms, pulse.context.language)} · ${areaWord(unit.areaSqm)} · ${aspectWord(unit.orientation)}`,
             price: <span className="ox-figure">{unit.priceDisplay}</span>,
             status: (
               <span className="ox-chip" data-tone={STATUS_TONES[unit.status]}>

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { DEFAULT_LANGUAGE, type Language, type PeriodPreset } from "@observer/readmodels";
+import { type Language, type PeriodPreset } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -77,7 +77,7 @@ export function PageHead({
   crumbs = [],
   aside = null,
   period,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly kicker: string;
   readonly title: ReactNode;
@@ -89,7 +89,7 @@ export function PageHead({
   readonly aside?: ReactNode;
   readonly period: PeriodPreset;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   return (
     <header className="ox-head">

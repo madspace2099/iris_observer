@@ -126,6 +126,7 @@ export default async function AgentsPage({
                     <Missing what="No outcome recorded" />
                   ) : (
                     <ShareFigure
+                      language={view.context.language}
                       share={a.ring.progressedShare}
                       sampleSize={a.meetings}
                       minimumSampleSize={AGENT_MIN_SAMPLE}

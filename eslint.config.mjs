@@ -23,6 +23,13 @@ export default tseslint.config(
       "**/_ask-reference/**",
       "artifacts/**",
       /*
+       * The same for a collaborator's delivered analytics panel, read as a
+       * specification of the live data and never changed: browser code this
+       * repository must not lint into a failing gate. Only that folder — the
+       * rest of `_review/` stays linted, so a script left there still fails.
+       */
+      "_review/ad-panel/**",
+      /*
        * Agent tooling beside the code, not the code: the Impeccable skill's
        * scripts ship minified browser bundles, and its live mode writes state
        * directories. Neither is this repository's to lint.
@@ -49,6 +56,33 @@ export default tseslint.config(
     rules: {
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_" }],
+    },
+  },
+  {
+    /*
+     * A CONDITION THE TYPES ALREADY DECIDED (LANG1, 2026-09-30).
+     *
+     * Fourteen `context.language ?? DEFAULT_LANGUAGE` fallbacks sat on a field
+     * the type required, and nothing said so: this lint was not type-aware. The
+     * rule needs the type checker, so it runs on the live sources only, and not
+     * on the frozen contract and sources packages, whose content this repository
+     * must not change.
+     */
+    files: ["apps/web/src/**/*.{ts,tsx}", "packages/*/src/**/*.{ts,tsx}"],
+    ignores: ["packages/contracts/**", "packages/sources/**"],
+    languageOptions: {
+      parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
+    },
+    rules: {
+      /*
+       * `warn`, not `error`, while 27 older findings (none about the language)
+       * wait. It becomes `error` once every one of the 27 has been reviewed on
+       * its own with one question: can the source produce the input the check
+       * guards against? Sometimes the type is what is wrong, not the check —
+       * `nothingReceivedYet`'s optional language was one — so they are not
+       * swept away together.
+       */
+      "@typescript-eslint/no-unnecessary-condition": "warn",
     },
   },
   {

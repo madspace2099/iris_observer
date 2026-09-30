@@ -1,6 +1,8 @@
 import {
   MEETINGS,
   hungarianArticle,
+  isUnnamedPresenter,
+  NOT_IN_DIRECTORY,
   plural,
   slovakZForm,
   type Language,
@@ -282,7 +284,7 @@ export const REPORT_COVERAGE_CAPTION: Sentence = {
     text: "Where the team's presentation time goes, section by section, with the team's median dwell. Shares are of the time the source could time: {timed} of {total} meetings, every step timed.",
   },
   sk: {
-    text: "Kam ide čas prezentácií tímu, sekcia po sekcii, s mediánom času tímu. Podiely sú z času, ktorý zdroj dokázal zmerať: {timed} {from} {total} stretnutí, každý krok zmeraný.",
+    text: "Prehľad ukazuje, ako sa čas tímových prezentácií rozdeľuje medzi jednotlivé sekcie, a medián času, ktorý v nich tím strávi. Podiely sa počítajú iba z merateľného času: meranie zachytáva {timed} {from} {total} stretnutí a každý krok.",
   },
   hu: {
     text: "Hová megy a csapat bemutatóideje, szakaszonként, a csapat medián idejével. Az arányok abból az időből számolódnak, amelyet a forrás mérni tudott: {total} találkozóból {timed}, minden lépés mérve.",
@@ -420,7 +422,9 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
   sk: {
     kicker: "Zhrnutie makléra",
     lede: (organisation) =>
-      `Prezentuje pre ${organisation}. Zhrnutie tohto makléra vychádza z rovnakého dátového modelu ako jeho vlastná obrazovka. Uvádza rovnaké čísla pri rovnakej vzorke a rovnakej hranici. Slúži na interné použitie: nič z toho nie je skóre. Dokument pre kupujúceho je predmetom samostatnej zmluvy a tu sa nezostavuje.`,
+      organisation === NOT_IN_DIRECTORY.sk
+        ? `Prezentuje pre subjekt s označením „${organisation}”. Zhrnutie tohto makléra vychádza z rovnakého dátového modelu ako jeho vlastná obrazovka. Uvádza rovnaké čísla pri rovnakej vzorke a rovnakej hranici. Slúži na interné použitie: nič z toho nie je skóre. Dokument pre kupujúceho je predmetom samostatnej zmluvy a tu sa nezostavuje.`
+        : `Prezentuje pre ${organisation}. Zhrnutie tohto makléra vychádza z rovnakého dátového modelu ako jeho vlastná obrazovka. Uvádza rovnaké čísla pri rovnakej vzorke a rovnakej hranici. Slúži na interné použitie: nič z toho nie je skóre. Dokument pre kupujúceho je predmetom samostatnej zmluvy a tu sa nezostavuje.`,
     crumbAgents: "Makléri",
     crumbSummary: "Zhrnutie",
     everyWritable: "Každú sekciu možno pripraviť z údajov na obrazovke tohto makléra.",
@@ -433,7 +437,9 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     noFollowUpSource: "Žiadny zdroj nezaznamenáva, či sa ďalší kontakt uskutočnil.",
     outcomesTheyRecorded: "Zaznamenané výsledky",
     recordedNote: (name) =>
-      `Ide o prípady, ktoré ${name} vo widgete výsledku stretnutia v showroome označil/a ako kúpu alebo rezerváciu. Je to len vlastný záznam makléra: sám osebe nie je rezerváciou ani predajom. Nepotvrdilo ho CRM ani iný evidenčný systém; Observer nespája žiadny obchod so stretnutím.`,
+      isUnnamedPresenter(name, "sk")
+        ? `${name}: vo widgete výsledku stretnutia v showroome tento maklér označil kúpu alebo rezerváciu. Je to len jeho vlastný záznam: sám osebe nie je rezerváciou ani predajom. Nepotvrdilo ho CRM ani iný evidenčný systém; Observer nespája žiadny obchod so stretnutím.`
+        : `Ide o prípady, ktoré ${name} vo widgete výsledku stretnutia v showroome označil/a ako kúpu alebo rezerváciu. Je to len vlastný záznam makléra: sám osebe nie je rezerváciou ani predajom. Nepotvrdilo ho CRM ani iný evidenčný systém; Observer nespája žiadny obchod so stretnutím.`,
     funnelLabel: (name) => `Fázy, ktoré dosiahli stretnutia – ${name}`,
     presentationCaption: (name, below, n, minimum) =>
       below
@@ -460,7 +466,9 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
       `Ako sa skončili stretnutia – ${name}: časti jedného celku, všetky stretnutia v období podľa výsledku zaznamenaného na ich konci. Menovateľ: ${meetingsIn("sk", n)}. Stretnutia bez zaznamenaného výsledku majú vlastný riadok, namiesto toho, aby sa zlúčili s riadkom, ktorý tvrdí, že sa niečo stalo.${below ? ` Vedľa počtov sa netlačí podiel: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, miera nad stretnutiami tohto človeka nie je číslo, podľa ktorého konať, a každý počet už nesie menovateľa, ktorého je podielom.` : ""}`,
     outcomeColumns: ["Výsledok", "Stretnutia", "Podiel"],
     unitsCaption: (name, period) =>
-      `Byty otvorené v najväčšom podiele stretnutí – ${name} (${period.toLowerCase()}), najviac 6. Súvislosť so zvykom tohto prezentujúceho a nič viac: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom siaha maklér.`,
+      isUnnamedPresenter(name, "sk")
+        ? `${name}: najviac 6 bytov, ktoré otvorili na najväčšom podiele stretnutí tohto makléra (${period.toLowerCase()}). Ide len o súvislosť s jeho zvykom pri prezentáciách: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom maklér zvyčajne siahne.`
+        : `Byty otvorené v najväčšom podiele stretnutí – ${name} (${period.toLowerCase()}), najviac 6. Súvislosť so zvykom tohto prezentujúceho a nič viac: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom siaha maklér.`,
     noOtherProject:
       "V tomto období nie je na žiadnom inom projekte tohto konta žiadna ďalšia prezentácia.",
     projectMeetings: (n, period) => `${meetingsIn("sk", n)} (${period.toLowerCase()})`,
@@ -479,7 +487,9 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
   hu: {
     kicker: "Értékesítői összefoglaló",
     lede: (organisation) =>
-      `${hungarianArticle(organisation, true)} ${organisation} nevében tart bemutatókat. Az értékesítő összefoglalója ugyanabból az adatmodellből készül, mint a saját képernyőjén látható nézet, ugyanazokkal a számokkal, ugyanakkora mintával és ugyanazzal a küszöbbel. Belső használatra szól: itt semmi sem pontszám. A vevőnek szóló dokumentum külön szerződés tárgya, és itt nem állítják össze.`,
+      organisation === NOT_IN_DIRECTORY.hu
+        ? `A „${organisation}” megjelölésű megbízó nevében tart bemutatókat. Az értékesítő összefoglalója ugyanabból az adatmodellből készül, mint a saját képernyőjén látható nézet, ugyanazokkal a számokkal, ugyanakkora mintával és ugyanazzal a küszöbbel. Belső használatra szól: itt semmi sem pontszám. A vevőnek szóló dokumentum külön szerződés tárgya, és itt nem állítják össze.`
+        : `${hungarianArticle(organisation, true)} ${organisation} nevében tart bemutatókat. Az értékesítő összefoglalója ugyanabból az adatmodellből készül, mint a saját képernyőjén látható nézet, ugyanazokkal a számokkal, ugyanakkora mintával és ugyanazzal a küszöbbel. Belső használatra szól: itt semmi sem pontszám. A vevőnek szóló dokumentum külön szerződés tárgya, és itt nem állítják össze.`,
     crumbAgents: "Értékesítők",
     crumbSummary: "Összefoglaló",
     everyWritable: "Minden szakasz elkészíthető az értékesítő képernyőjén látható adatokból.",
@@ -491,7 +501,9 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     noFollowUpSource: "Egyetlen forrás sem rögzíti, megtörtént-e az utánkövetés.",
     outcomesTheyRecorded: "Rögzített eredményei",
     recordedNote: (name) =>
-      `Azok az esetek, amelyeket ${name} a showroom találkozóeredmény-mezőjében vásárlásként vagy foglalásként jelölt meg. Ez csak az értékesítő saját bejegyzése: önmagában nem foglalás és nem eladás. Sem a CRM, sem más nyilvántartó rendszer nem erősítette meg; az Observer egyetlen ügyletet sem kapcsol össze találkozóval.`,
+      isUnnamedPresenter(name, "hu")
+        ? `${name}: ez az értékesítő a showroom találkozóeredmény-mezőjében vásárlást vagy foglalást jelölt meg. Ez csak a saját bejegyzése: önmagában nem foglalás és nem eladás. Sem a CRM, sem más nyilvántartó rendszer nem erősítette meg; az Observer egyetlen ügyletet sem kapcsol össze találkozóval.`
+        : `Azok az esetek, amelyeket ${name} a showroom találkozóeredmény-mezőjében vásárlásként vagy foglalásként jelölt meg. Ez csak az értékesítő saját bejegyzése: önmagában nem foglalás és nem eladás. Sem a CRM, sem más nyilvántartó rendszer nem erősítette meg; az Observer egyetlen ügyletet sem kapcsol össze találkozóval.`,
     funnelLabel: (name) => `${name} találkozóinak elért szakaszai`,
     presentationCaption: (name, below, n, minimum) =>
       below
@@ -524,7 +536,9 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
         : `Így zárultak ${name} találkozói az időszakban: mind ${hungarianArticle(String(n))} ${String(n)} találkozó a végén rögzített eredmény szerint szerepel, a teljes ${String(n)} találkozóhoz viszonyítva. Amelyiknél nem rögzítettek eredményt, külön sorba kerül; nem sorolják olyan sorba, amely azt sugallná, hogy történt valami.`,
     outcomeColumns: ["Eredmény", "Találkozók", "Arány"],
     unitsCaption: (name, period) =>
-      `Legfeljebb 6 lakás, amelyeket ${name} találkozóinak legnagyobb hányadában nyitottak meg (${period.toLowerCase()}). Ez csak a bemutatási szokásaival mutat összefüggést: ha egy lakás a legtöbb találkozón előkerül, lehet, hogy a vevők kérik, de az is lehet, hogy az értékesítő szokta elővenni.`,
+      isUnnamedPresenter(name, "hu")
+        ? `${name}: legfeljebb 6 lakás, amelyeket az értékesítő találkozóinak legnagyobb hányadában nyitottak meg (${period.toLowerCase()}). Ez csak a bemutatási szokásaival mutat összefüggést: ha egy lakás a legtöbb találkozón előkerül, lehet, hogy a vevők kérik, de az is lehet, hogy az értékesítő szokta elővenni.`
+        : `Legfeljebb 6 lakás, amelyeket ${name} találkozóinak legnagyobb hányadában nyitottak meg (${period.toLowerCase()}). Ez csak a bemutatási szokásaival mutat összefüggést: ha egy lakás a legtöbb találkozón előkerül, lehet, hogy a vevők kérik, de az is lehet, hogy az értékesítő szokta elővenni.`,
     noOtherProject: "Ebben az időszakban a fiók egyetlen másik projektjén sincs találkozója.",
     projectMeetings: (n, period) => `${meetingsIn("hu", n)} (${period.toLowerCase()})`,
     thisProject: "Ez a projekt",

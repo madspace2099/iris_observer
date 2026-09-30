@@ -3,6 +3,7 @@ import type {
   AlertSeverity,
   AttentionKind,
   AttentionState,
+  Language,
   PeriodPreset,
 } from "@observer/readmodels";
 
@@ -119,11 +120,13 @@ export function StateList({
   states,
   period,
   label = "States raised in this period",
+  language,
 }: {
   /** Already ranked by the read model: severity first, then size. */
   readonly states: readonly AttentionState[];
   readonly period: PeriodPreset;
   readonly label?: string;
+  readonly language: Language;
 }) {
   return (
     <ul className="ox-attention" aria-label={label}>
@@ -174,9 +177,9 @@ export function StateList({
             )}
 
             <div className="ox-alert-foot">
-              <Tier tier={state.tier} />
-              <Sources sources={state.sources} />
-              <Evidence evidence={state.alert.evidence} period={period} />
+              <Tier language={language} tier={state.tier} />
+              <Sources language={language} sources={state.sources} />
+              <Evidence language={language} evidence={state.alert.evidence} period={period} />
 
               {state.belowMinimum ? (
                 /*

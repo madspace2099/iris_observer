@@ -108,7 +108,7 @@ describe("the starts of a day, a week and a month", () => {
 
 describe("bucketBounds cut in the project's zone", () => {
   it("today, this week and this month all start at the project's midnight", () => {
-    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA);
+    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA, "en");
     const at = (id: string) => bounds.find((b) => b.id === id)?.from;
     expect(at("today")).toBe(Date.parse("2026-08-23T22:00:00.000Z"));
     expect(at("this_week")).toBe(Date.parse("2026-08-23T22:00:00.000Z")); // it is a Monday
@@ -117,14 +117,14 @@ describe("bucketBounds cut in the project's zone", () => {
   });
 
   it("a meeting at 00:30 local on the day counts as today, not yesterday", () => {
-    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA);
+    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA, "en");
     const today = bounds.find((b) => b.id === "today");
     const at = Date.parse("2026-08-23T22:30:00.000Z");
     expect(at >= (today?.from ?? Infinity) && at < (today?.to ?? -Infinity)).toBe(true);
   });
 
   it("keeps its UTC arithmetic when no zone is given", () => {
-    const bounds = bucketBounds(new Date(Date.UTC(2027, 4, 1)));
+    const bounds = bucketBounds(new Date(Date.UTC(2027, 4, 1)), "UTC", "en");
     expect(bounds.find((b) => b.id === "today")?.from).toBe(Date.UTC(2027, 4, 1));
   });
 });
@@ -190,7 +190,7 @@ describe("host independence — the SERVER's zone must never leak into a reading
         clock: clockLabel(at, "en-GB", BRATISLAVA),
         day: dayLabel(at, "en-GB", BRATISLAVA),
         instant: zonedInstant(2026, 8, 24, 9, 0, 0, BRATISLAVA).toISOString(),
-        bucket: bucketBounds(new Date(at), BRATISLAVA).find((b) => b.id === "today")?.from,
+        bucket: bucketBounds(new Date(at), BRATISLAVA, "en").find((b) => b.id === "today")?.from,
       };
     });
     // Every host produced the identical reading — the assertion is that the
@@ -227,7 +227,7 @@ describe("the instant handed in is read, never rewritten", () => {
 
 describe("a period is a half-open interval: [from, to) — a boundary instant is counted exactly once", () => {
   it("23:59:59.999 local belongs to today; 00:00:00.000 the next local day does not", () => {
-    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA); // Monday
+    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA, "en"); // Monday
     const today = bounds.find((b) => b.id === "today");
     if (today === undefined) throw new Error("no 'today' bucket");
     const lastMsOfToday = zonedInstant(2026, 8, 24, 23, 59, 59, BRATISLAVA).getTime() + 999;
@@ -243,7 +243,7 @@ describe("a period is a half-open interval: [from, to) — a boundary instant is
     // so the boundary that matters is the day/week seam a caller could double-count
     // across, not two of THIS function's own rows (which are deliberately
     // overlapping windows -- today/this_week/this_month all share their `to`).
-    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA);
+    const bounds = bucketBounds(new Date("2026-08-24T07:00:00.000Z"), BRATISLAVA, "en");
     const today = bounds.find((b) => b.id === "today");
     const yesterday = bounds.find((b) => b.id === "yesterday");
     if (today === undefined || yesterday === undefined) throw new Error("missing bucket");
@@ -304,7 +304,7 @@ describe("month-end, year-end and the leap day", () => {
     // clip past 28, a leap February's real 29-day length is the ceiling
     // that's used, not a hard-coded 28.
     const endOfMarch = zonedInstant(2028, 3, 31, 9, 0, 0, BRATISLAVA);
-    const bounds = bucketBounds(endOfMarch, BRATISLAVA);
+    const bounds = bucketBounds(endOfMarch, BRATISLAVA, "en");
     const lastMonth = bounds.find((b) => b.id === "last_month");
     if (lastMonth === undefined) throw new Error("no 'last_month' bucket");
     // 31 elapsed days in March is more than February 2028's own 29, so the
@@ -316,7 +316,9 @@ describe("month-end, year-end and the leap day", () => {
     // A few days earlier -- 9 elapsed days in March, less than February's 29
     // -- the clip DOES bite, to exactly the elapsed count, not to 28.
     const nineDaysIntoMarch = zonedInstant(2028, 3, 9, 9, 0, 0, BRATISLAVA);
-    const clipped = bucketBounds(nineDaysIntoMarch, BRATISLAVA).find((b) => b.id === "last_month");
+    const clipped = bucketBounds(nineDaysIntoMarch, BRATISLAVA, "en").find(
+      (b) => b.id === "last_month",
+    );
     if (clipped === undefined) throw new Error("no 'last_month' bucket");
     expect(clipped.label).toBe("Last month, first 9 days");
     expect((clipped.to - clipped.from) / (24 * 60 * 60 * 1000)).toBe(9);

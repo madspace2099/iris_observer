@@ -127,12 +127,12 @@ const SECOND = "3f5b1a2c-0000-4000-8000-000000000002";
 
 describe("the word that stands where a presenter's name would", () => {
   it("is the name itself when there is one", () => {
-    expect(presenterWord("Monika Kováčová", "AG-1")).toBe("Monika Kováčová");
+    expect(presenterWord("Monika Kováčová", "AG-1", "en")).toBe("Monika Kováčová");
   });
 
   it("states the absence and keeps the identifier when there is not", () => {
     for (const nothing of [null, "", "   "]) {
-      const word = presenterWord(nothing, "AG-9");
+      const word = presenterWord(nothing, "AG-9", "en");
       expect(word, JSON.stringify(nothing)).toContain(PRESENTER_NOT_NAMED);
       // The identifier survives. Dropping it would merge every unnamed
       // presenter on a project into one anonymous person.
@@ -144,7 +144,7 @@ describe("the word that stands where a presenter's name would", () => {
 
   it("never returns the bare identifier, which is what it replaced", () => {
     // The regression in one line: `?? agentId` at the end of the chain.
-    expect(presenterWord(null, "agent-guid")).not.toBe("agent-guid");
+    expect(presenterWord(null, "agent-guid", "en")).not.toBe("agent-guid");
   });
 });
 
@@ -232,9 +232,9 @@ describe("the presenter's name is not the buyer's, and cannot become it", () => 
     // Whatever the visitor label says, it is one of the three states the type
     // declares — never a person's name, and never the presenter's.
     const permitted = [
-      visitorLabel("unlinked", null).display,
-      visitorLabel("known_first_meeting", 0).display,
-      visitorLabel("known_returning", 2).display,
+      visitorLabel("unlinked", null, "en").display,
+      visitorLabel("known_first_meeting", 0, "en").display,
+      visitorLabel("known_returning", 2, "en").display,
     ];
     expect(permitted).toContain(row?.visitor.display);
     expect(row?.visitor.display).not.toContain("Monika");

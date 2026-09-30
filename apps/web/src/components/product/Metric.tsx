@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import {
-  DEFAULT_LANGUAGE,
   slovakZForm,
   type Language,
   type MetricComparison,
@@ -160,11 +159,11 @@ function Delta({
  */
 export function Figure({
   value,
-  language = DEFAULT_LANGUAGE,
+  language,
 }: {
   readonly value: MetricValue;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
-  readonly language?: Language;
+  readonly language: Language;
 }) {
   const words = FIGURE_WORDS[language];
   switch (value.state) {
