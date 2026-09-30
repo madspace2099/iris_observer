@@ -52,3 +52,65 @@ jobs:
       # Data tests run against PGlite, so no database service is needed. See ADR-0008.
       - name: Tests
         run: pnpm test
+
+  # THE BROWSER SUITE IS PART OF THE GATE (GATE1, 2026-09-30).
+  #
+  # `66f9965` passed `verify`, merged and deployed while failing 25 end-to-end
+  # tests: nothing here ran Playwright. It now runs on every pull request and
+  # every push to main, beside `verify` rather than after it.
+  #
+  # One job per project, because the projects are independent and one job would
+  # be their sum. Measured locally on 2026-09-30, one worker each: wide 464
+  # tests in 9.3 min, desktop 464 in 11.4 min, mobile 464 in 9.6 min, lab 144 in
+  # 4.7 min — 36.4 min in one job, about 12 as a matrix.
+  #
+  # Each job builds for itself. The Playwright server command builds before it
+  # starts, the build takes 30 s on this runner (measured from the `verify`
+  # job's own step), and handing over the ~68 MB production output as an
+  # artifact would save little of that while making this job wait for `verify`.
+  e2e:
+    name: e2e (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    # The slowest project took 11.4 min locally; this leaves room for the build,
+    # two server starts, the browser install and one retry of a failing test.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [wide, desktop, mobile, lab]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.23.0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Desktop Chrome and Pixel 7 are both Chromium.
+      - name: Browser
+        run: pnpm exec playwright install --with-deps chromium
+
+      # Since 49d4fc1 the Ask quota opens on a local build only while no
+      # deployment marker is present. A marker on the runner would turn every
+      # Ask case into a 429, so its absence is checked, not assumed.
+      - name: No deployment marker
+        run: pnpm exec tsx e2e/deployment-free.ts
+
+      - name: Playwright (${{ matrix.project }})
+        run: pnpm exec playwright test --project=${{ matrix.project }}
+
+      - name: Report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-${{ matrix.project }}
+          path: |
+            playwright-report/
+            test-results/${{ matrix.project }}/
+          retention-days: 7
