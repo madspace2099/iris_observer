@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { environment, resetEnvironmentCache } from "../src/lib/env";
 import { modelIsAllowed } from "../src/lib/ai/limits";
@@ -33,6 +33,17 @@ const admission = {
 } as const;
 import { SHARED_REFUSAL_TEXT } from "../src/lib/ai/gate";
 import { safetyIdentifier, telemetrySubject } from "../src/lib/ai/identity";
+
+/**
+ * A process environment as a Next.js server holds one: NODE_ENV is always set
+ * there. These suites used partial literals forced with `as NodeJS.ProcessEnv`;
+ * the functions they call do not read NODE_ENV, so "test" changes nothing but
+ * the honesty of the input (NIGHT2).
+ */
+const processEnv = (vars: Readonly<Record<string, string | undefined>>): NodeJS.ProcessEnv => ({
+  NODE_ENV: "test",
+  ...vars,
+});
 import { addUsage } from "../src/lib/ai/telemetry";
 
 /**
@@ -370,10 +381,12 @@ const FAKE_SECRET_KEY = "observer-test-server-key-0000000000";
 
 describe("the Supabase diagnosis", () => {
   it("accepts the public spelling of the URL, which is not a secret", () => {
-    const resolved = resolveServerSupabase({
-      NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
-      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
-    } as NodeJS.ProcessEnv);
+    const resolved = resolveServerSupabase(
+      processEnv({
+        NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+      }),
+    );
 
     expect(resolved?.url).toBe("https://example.supabase.co");
     expect(resolved?.from).toContain("NEXT_PUBLIC_SUPABASE_URL");
@@ -385,20 +398,20 @@ describe("the Supabase diagnosis", () => {
      * This project was set up on the modern secret keys, and quietly changing
      * which credential a deployment runs on is not a thing to do by fallback.
      */
-    const source = {
+    const source = processEnv({
       SUPABASE_URL: "https://example.supabase.co",
       SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiJ9.legacy.jwt",
-    } as NodeJS.ProcessEnv;
+    });
 
     expect(resolveServerSupabase(source)).toBeNull();
     expect(diagnoseServerSupabase(source).ignored).toContain("SUPABASE_SERVICE_ROLE_KEY");
   });
 
   it("names what is missing and what was skipped, and no values", () => {
-    const source = {
+    const source = processEnv({
       SUPABASE_SERVICE_ROLE_KEY: "eyJhbGciOiJIUzI1NiJ9.must.not.appear",
       POSTGRES_URL: "postgres://user:hunter2@db.example.com:5432/postgres",
-    } as NodeJS.ProcessEnv;
+    });
     const diagnosis = diagnoseServerSupabase(source);
 
     expect(diagnosis.configured).toBe(false);
@@ -411,7 +424,7 @@ describe("the Supabase diagnosis", () => {
   });
 
   it("treats a blank variable as unset rather than as configured", () => {
-    const source = { SUPABASE_URL: "  ", SUPABASE_SECRET_KEY: "" } as NodeJS.ProcessEnv;
+    const source = processEnv({ SUPABASE_URL: "  ", SUPABASE_SECRET_KEY: "" });
     expect(resolveServerSupabase(source)).toBeNull();
     expect(diagnoseServerSupabase(source).configured).toBe(false);
   });
@@ -428,10 +441,12 @@ describe("the Supabase diagnosis", () => {
 
 describe("a Supabase variable that is set but cannot work", () => {
   it("is called malformed, not present and not missing", () => {
-    const diagnosis = diagnoseServerSupabase({
-      SUPABASE_URL: "localhost:54321",
-      SUPABASE_SECRET_KEY: "sb_secret_long_enough_to_pass",
-    } as NodeJS.ProcessEnv);
+    const diagnosis = diagnoseServerSupabase(
+      processEnv({
+        SUPABASE_URL: "localhost:54321",
+        SUPABASE_SECRET_KEY: "sb_secret_long_enough_to_pass",
+      }),
+    );
 
     expect(diagnosis.configured).toBe(false);
     expect(diagnosis.malformed).toEqual(["SUPABASE_URL"]);
@@ -443,10 +458,12 @@ describe("a Supabase variable that is set but cannot work", () => {
      * Both are long opaque strings, and the wrong one fails much further
      * downstream with a permission error that names nothing.
      */
-    const diagnosis = diagnoseServerSupabase({
-      SUPABASE_URL: "https://example.supabase.co",
-      SUPABASE_SECRET_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.service.role",
-    } as NodeJS.ProcessEnv);
+    const diagnosis = diagnoseServerSupabase(
+      processEnv({
+        SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SECRET_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.service.role",
+      }),
+    );
 
     expect(diagnosis.configured).toBe(false);
     expect(diagnosis.malformed).toEqual(["SUPABASE_SECRET_KEY"]);
@@ -467,10 +484,10 @@ describe("a Supabase variable that is set but cannot work", () => {
 /* --- the ceiling fails closed, once there is a ceiling ------------------------ */
 
 describe("an unreachable shared ceiling", () => {
-  const CONFIGURED = {
+  const CONFIGURED = processEnv({
     SUPABASE_URL: "https://example.supabase.co",
     SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
-  } as NodeJS.ProcessEnv;
+  });
 
   const originalFetch = globalThis.fetch;
   afterEach(() => {
@@ -562,13 +579,12 @@ describe("an unreachable shared ceiling", () => {
 
   it("leaves a local production build alone, as the end-to-end suite runs one", async () => {
     globalThis.fetch = (() => Promise.reject(new Error("should not be called"))) as typeof fetch;
-    const node = process.env["NODE_ENV"];
-    process.env["NODE_ENV"] = "production";
+    /* stubEnv, not assignment: NODE_ENV is read-only in the application's types. */
+    vi.stubEnv("NODE_ENV", "production");
     try {
       expect((await admitAiRequest(admission)).allowed).toBe(true);
     } finally {
-      if (node === undefined) delete process.env["NODE_ENV"];
-      else process.env["NODE_ENV"] = node;
+      vi.unstubAllEnvs();
     }
   });
 
@@ -593,10 +609,12 @@ describe("a key that brought its punctuation along", () => {
     ["an inner space", "observer-test server-key-0000000000"],
   ] as const) {
     it(`is called malformed when it carries ${what}`, () => {
-      const diagnosis = diagnoseServerSupabase({
-        SUPABASE_URL: "https://example.supabase.co",
-        SUPABASE_SECRET_KEY: value,
-      } as NodeJS.ProcessEnv);
+      const diagnosis = diagnoseServerSupabase(
+        processEnv({
+          SUPABASE_URL: "https://example.supabase.co",
+          SUPABASE_SECRET_KEY: value,
+        }),
+      );
 
       expect(diagnosis.configured).toBe(false);
       expect(diagnosis.malformed).toEqual(["SUPABASE_SECRET_KEY"]);
@@ -604,10 +622,12 @@ describe("a key that brought its punctuation along", () => {
   }
 
   it("still accepts a clean key", () => {
-    const diagnosis = diagnoseServerSupabase({
-      SUPABASE_URL: "https://example.supabase.co",
-      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
-    } as NodeJS.ProcessEnv);
+    const diagnosis = diagnoseServerSupabase(
+      processEnv({
+        SUPABASE_URL: "https://example.supabase.co",
+        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+      }),
+    );
 
     expect(diagnosis.configured).toBe(true);
     expect(diagnosis.malformed).toEqual([]);
@@ -679,10 +699,12 @@ describe("a SUPABASE_URL that is not just an origin", () => {
     ["no scheme at all", "example.supabase.co"],
   ] as const) {
     it(`is called malformed when it carries ${what}`, () => {
-      const diagnosis = diagnoseServerSupabase({
-        SUPABASE_URL: value,
-        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
-      } as NodeJS.ProcessEnv);
+      const diagnosis = diagnoseServerSupabase(
+        processEnv({
+          SUPABASE_URL: value,
+          SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+        }),
+      );
 
       expect(diagnosis.configured).toBe(false);
       expect(diagnosis.malformed).toContain("SUPABASE_URL");
@@ -695,10 +717,12 @@ describe("a SUPABASE_URL that is not just an origin", () => {
     "https://example.supabase.co/",
   ]) {
     it(`accepts ${value}`, () => {
-      const diagnosis = diagnoseServerSupabase({
-        SUPABASE_URL: value,
-        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
-      } as NodeJS.ProcessEnv);
+      const diagnosis = diagnoseServerSupabase(
+        processEnv({
+          SUPABASE_URL: value,
+          SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+        }),
+      );
       expect(diagnosis.configured).toBe(true);
     });
   }
@@ -726,20 +750,24 @@ describe("the boot line names the host", () => {
   });
 
   it("carries the host and never the key beside it", () => {
-    const diagnosis = diagnoseServerSupabase({
-      SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
-      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
-    } as NodeJS.ProcessEnv);
+    const diagnosis = diagnoseServerSupabase(
+      processEnv({
+        SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
+        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+      }),
+    );
 
     expect(diagnosis.host).toBe("abcdefghijklmnop.supabase.co");
     expect(JSON.stringify(diagnosis)).not.toMatch(FAKE_SECRET_KEY);
   });
 
   it("has no host to report when the URL is unusable", () => {
-    const diagnosis = diagnoseServerSupabase({
-      SUPABASE_URL: "not-a-url",
-      SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
-    } as NodeJS.ProcessEnv);
+    const diagnosis = diagnoseServerSupabase(
+      processEnv({
+        SUPABASE_URL: "not-a-url",
+        SUPABASE_SECRET_KEY: FAKE_SECRET_KEY,
+      }),
+    );
     expect(diagnosis.host).toBeNull();
   });
 });
