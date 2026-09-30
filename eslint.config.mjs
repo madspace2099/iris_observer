@@ -74,7 +74,14 @@ export default tseslint.config(
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
     rules: {
-      /* `warn`, not `error`: 27 older findings, none about the language, are listed for a decision (LANG1C). */
+      /*
+       * `warn`, not `error`, while 27 older findings (none about the language)
+       * wait. It becomes `error` once every one of the 27 has been reviewed on
+       * its own with one question: can the source produce the input the check
+       * guards against? Sometimes the type is what is wrong, not the check —
+       * `nothingReceivedYet`'s optional language was one — so they are not
+       * swept away together.
+       */
       "@typescript-eslint/no-unnecessary-condition": "warn",
     },
   },
