@@ -48,6 +48,12 @@ export default tseslint.config(
        */
       "_planning/**",
       "Claude outputs/**",
+      /*
+       * Playwright's HTML report, written by a run with CI set (NIGHT2 Q2). It
+       * is gitignored, and its bundled viewer failed `pnpm lint` after a local
+       * CI=1 run on 2026-09-30: a run's by-product, not this repository's code.
+       */
+      "playwright-report/**",
     ],
   },
   js.configs.recommended,
