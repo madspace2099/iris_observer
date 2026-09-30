@@ -432,7 +432,7 @@ export function buildReportScope(
   const webiris = sessions.filter((s) => s.channel === "webiris").length;
   const catalogue = catalogueFor(context.project.id as string);
 
-  const presenting = presentersIn(sessions)
+  const presenting = presentersIn(sessions, language)
     .map((agent) => ({
       name: agent.name,
       meetings: sessions.filter((s) => s.agentId === agent.id).length,
