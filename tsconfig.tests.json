@@ -192,6 +192,8 @@
     /* Walks the tree for a default, a fallback or a cast on the language (LANG1C). */
     "apps/web/test/language-required.test.ts",
     /* Feeds one value into the preflight step 1 table (CONF1). */
-    "supabase/test/preflight-step1.test.ts"
+    "supabase/test/preflight-step1.test.ts",
+    /* Holds docs/18-deployment.md's step 1 table to the preflight table (CONF2). */
+    "supabase/test/deployment-doc-mapping.test.ts"
   ]
 }
