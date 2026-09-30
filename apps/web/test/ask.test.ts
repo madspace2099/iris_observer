@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { VIEWERS } from "@observer/synthetic";
-import { ask } from "../src/lib/ai/agent";
+import { ask, type AskContextInput } from "../src/lib/ai/agent";
+import type { ModelGrant } from "../src/lib/ai/provider";
 import { TOOL_NAMES } from "../src/lib/ai/tools";
 import { resetEnvironmentCache } from "../src/lib/env";
 
@@ -25,25 +26,31 @@ beforeAll(() => {
   resetEnvironmentCache();
 });
 
-const CONTEXT = {
+const CONTEXT: AskContextInput = {
   viewer: VIEWERS.developer,
   tenantSlug: "alpha",
   projectSlug: "northgate",
   projectLabel: "Northgate",
   periodLabel: "Quarter to date",
-  period: "quarter_to_date" as const,
+  period: "quarter_to_date",
   agentIds: ["agt_monika", "agt_akhilesh", "agt_jan", "agt_lucia"],
   unitCode: null,
   meetingId: null,
   safetyIdentifier: "obs_test",
-  depth: "standard" as const,
+  depth: "standard",
 };
+
+/**
+ * What a route hands `ask` for an account with no key: a named refusal, never
+ * nothing (`api/ask/route.ts`, `blockFor`). The suite runs with no model.
+ */
+const NO_KEY: ModelGrant = { blocked: "no_connection" };
 
 const CAUSAL =
   /\b(because|caused|causes|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves)\b/i;
 
 /** The ten questions from the brief, with the tool each must reach. */
-const QUESTIONS: readonly { question: string; tool: string; context?: Partial<typeof CONTEXT> }[] =
+const QUESTIONS: readonly { question: string; tool: string; context?: Partial<AskContextInput> }[] =
   [
     { question: "Compare Monika and Akhilesh's presentation flows.", tool: "compare_agent_flows" },
     /* The founder's question, 2026-09-17. Answered as an order of events, never as a cause (ADR-0039). */
@@ -100,7 +107,7 @@ const QUESTIONS: readonly { question: string; tool: string; context?: Partial<ty
 describe("the ten questions", () => {
   for (const { question, tool, context } of QUESTIONS) {
     it(`answers: ${question}`, async () => {
-      const outcome = await ask(question, { ...CONTEXT, ...context });
+      const outcome = await ask(question, { ...CONTEXT, ...context }, NO_KEY);
 
       expect(outcome.refusal, `refused: ${outcome.refusal}`).toBeNull();
       expect(outcome.answer).not.toBeNull();
@@ -128,16 +135,20 @@ describe("the ten questions", () => {
 
 describe("the boundary holds", () => {
   it("says a brief is forbidden rather than pretending it does not exist", async () => {
-    const outcome = await ask("Prepare me for the meeting with Viktória.", {
-      ...CONTEXT,
-      meetingId: "mtg_viktoria0827",
-    });
+    const outcome = await ask(
+      "Prepare me for the meeting with Viktória.",
+      {
+        ...CONTEXT,
+        meetingId: "mtg_viktoria0827",
+      },
+      NO_KEY,
+    );
     expect(outcome.answer).toBeNull();
     expect(outcome.refusal).toMatch(/not permitted/i);
   });
 
   it("refuses a question it has no registered analysis for", async () => {
-    const outcome = await ask("What is the weather in Bratislava tomorrow?", CONTEXT);
+    const outcome = await ask("What is the weather in Bratislava tomorrow?", CONTEXT, NO_KEY);
     // It routes to the period summary rather than inventing an answer; either a
     // refusal or a showroom-rooted answer is acceptable, an invented forecast is
     // not.
@@ -152,7 +163,7 @@ describe("the boundary holds", () => {
   });
 
   it("returns an empty question to the reader rather than guessing", async () => {
-    const outcome = await ask("   ", CONTEXT);
+    const outcome = await ask("   ", CONTEXT, NO_KEY);
     expect(outcome.answer).toBeNull();
     expect(outcome.refusal).not.toBeNull();
   });
@@ -161,6 +172,7 @@ describe("the boundary holds", () => {
     const outcome = await ask(
       "Summarize the most important showroom behavior changes this month.",
       CONTEXT,
+      NO_KEY,
     );
     const answer = outcome.answer;
     expect(answer).not.toBeNull();
@@ -189,7 +201,11 @@ describe("the boundary holds", () => {
   });
 
   it("reports that the tools wrote the prose when no model is configured", async () => {
-    const outcome = await ask("Which IRIS sections are being skipped most frequently?", CONTEXT);
+    const outcome = await ask(
+      "Which IRIS sections are being skipped most frequently?",
+      CONTEXT,
+      NO_KEY,
+    );
     expect(outcome.status.provider).toBe("evidence-only");
     expect(outcome.status.live).toBe(false);
     // Without a live model, no interpretation source is claimed — the prose is
@@ -198,7 +214,11 @@ describe("the boundary holds", () => {
   });
 
   it("states that this deployment runs on demonstration data", async () => {
-    const outcome = await ask("Which IRIS sections are being skipped most frequently?", CONTEXT);
+    const outcome = await ask(
+      "Which IRIS sections are being skipped most frequently?",
+      CONTEXT,
+      NO_KEY,
+    );
     expect(outcome.demoData).toBe(true);
   });
 
