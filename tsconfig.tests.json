@@ -199,6 +199,8 @@
     /* Feeds one value into the preflight step 1 table (CONF1). */
     "supabase/test/preflight-step1.test.ts",
     /* Holds docs/18-deployment.md's step 1 table to the preflight table (CONF2). */
-    "supabase/test/deployment-doc-mapping.test.ts"
+    "supabase/test/deployment-doc-mapping.test.ts",
+    /* The P2-17 comparison of approved text with the rendered report (MERES1). */
+    "supabase/test/p217-compare.test.ts"
   ]
 }
