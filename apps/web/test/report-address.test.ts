@@ -4,6 +4,7 @@ import { omittedFrom, printedSections, withOmitted } from "@/components/report/o
 import {
   LANGUAGE_NAMES,
   WRITTEN_IN,
+  frameLanguage,
   languageFrom,
   withLanguage,
   writtenLanguage,
@@ -55,6 +56,17 @@ describe("the language on a report's address", () => {
     expect(writtenLanguage("agent", "sk")).toBe("sk");
     /* A language the product does not write reaches the gate as the default, and stays it. */
     expect(writtenLanguage("agent", languageFrom("de"))).toBe("en");
+  });
+
+  it("gives the frame the report's language on a report page, and English everywhere else", () => {
+    const query = (search: string) => new URLSearchParams(search);
+    expect(frameLanguage("/alpha/northgate/report", query("lang=sk"))).toBe("sk");
+    expect(frameLanguage("/alpha/northgate/report", query("agent=agt_akhilesh&lang=hu"))).toBe(
+      "hu",
+    );
+    expect(frameLanguage("/alpha/northgate/report", query(""))).toBe("en");
+    /* `lang` means nothing off a report page: the screens are English. */
+    expect(frameLanguage("/alpha/northgate/flow", query("lang=sk"))).toBe("en");
   });
 });
 

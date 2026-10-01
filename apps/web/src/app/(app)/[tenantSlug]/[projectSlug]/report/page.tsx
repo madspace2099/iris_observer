@@ -14,7 +14,7 @@ import {
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
-import { languageFrom, writtenLanguage } from "@/lib/language";
+import { reportLanguage } from "@/lib/language";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
@@ -115,11 +115,8 @@ export default async function ReportPage({
   const meetingId =
     typeof search.meeting === "string" && search.meeting.length > 0 ? search.meeting : null;
   const agentId = typeof search.agent === "string" && search.agent.length > 0 ? search.agent : null;
-  /* Only a language the scope is written in whole; see `WRITTEN_IN`. */
-  const language = writtenLanguage(
-    meetingId !== null ? "meeting" : agentId !== null ? "agent" : "project",
-    languageFrom(search.lang),
-  );
+  /* Only a language the scope is written in whole; see `WRITTEN_IN`. The frame reads the same. */
+  const language = reportLanguage(search);
   const omitted = omittedFrom(search.omit);
   const query = { viewer, tenantSlug, projectSlug, period, language };
   /*
