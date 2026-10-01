@@ -41,6 +41,16 @@ import * as readmodelWords from "../packages/readmodels/src/words";
  * It runs on the desktop project: the frame's text is the same at every
  * width the product draws a header at, and 33 report renders per project is
  * the cost of the measurement, not of a page.
+ *
+ * THREE READINGS OF THE SAME PAGES, ONE RULE (NYOMTAT1). The screen's lines;
+ * the PRINTED lines, with the page in print media — the document P2-17 is
+ * about, where the print stylesheet hides the header but not the context band;
+ * and the SPOKEN attributes — `aria-label`, `placeholder`, `title`, `alt` —
+ * which a screen reader says and `innerText` never holds. One spec, extended
+ * rather than a second one beside it, because all three read the same eleven
+ * pages through the same classification and the same word tables, and a copy
+ * of that machinery is a second place for the rule to drift. Each reading
+ * keeps its own lists: what is on paper is not what is on screen.
  */
 
 type Rule = { readonly line: string | RegExp; readonly why: string };
@@ -85,6 +95,86 @@ const NOT_PROOF: readonly Rule[] = [
   {
     line: "Project",
     why: "The agent report's buyers-table column (`buyersColumns[3]`), not the navigation item.",
+  },
+];
+
+/*
+ * THE PRINTED REPORT (NYOMTAT1). The print stylesheet hides the header and the
+ * mobile bar, so most of the screen's frame is not on paper; the context band
+ * (developer, project, period) and the page itself are. These lists hold only
+ * what the printed render showed on 2026-10-01.
+ */
+
+/** (a) on the printed report. */
+const PRINT_ALLOWED: readonly Rule[] = [
+  {
+    line: "Skip to content",
+    why: "In `innerText`, never on paper: `.obs-skip` stands above the page edge until focused.",
+  },
+  { line: "Northgate Residences", why: "A synthetic project's proper name, in the context band." },
+  { line: "Riverside Walk", why: "A synthetic project's proper name, in the context band." },
+  { line: "ISTER TOWER", why: "A project's proper name, in the context band." },
+  { line: "Alpha Estates", why: "A synthetic developer's proper name, in the context band." },
+  { line: "Akhilesh Undev", why: "A synthetic agent's name, the subject of an agent report." },
+  { line: "Lucia Bartošová", why: "A synthetic agent's name, listed in a report." },
+];
+
+/** (c) on the printed report: `_review/nyomtat1/kerdesek-hozzaferes.md` names them with the screen's. */
+const PRINT_DECIDED_BY_MATE: readonly Rule[] = [
+  { line: "This isn’t here", why: "the not-found page's heading" },
+  {
+    line: /^The address may be mistyped, or point at a unit, an agent or a conversation that has since changed\./,
+    why: "the not-found page's explanation",
+  },
+];
+
+/*
+ * WHAT A SCREEN READER HEARS (NYOMTAT1). `aria-label`, `placeholder`, `title`
+ * and `alt` are not in `innerText`, so the two readings above cannot see them.
+ * Read off the rendered DOM, every element including the ones the desktop
+ * hides (the mobile menu's controls are in the DOM at every width).
+ */
+
+/** (a) among the spoken attributes. */
+const SPOKEN_ALLOWED: readonly Rule[] = [
+  { line: "alt: IRIS", why: "The wordmark's text alternative: the product's name." },
+  { line: "aria-label: by MADSPACE", why: "The company's mark under the wordmark, a brand name." },
+  {
+    line: /^title: (Petra Novák|Tomáš Varga)$/,
+    why: "A synthetic account's name, the full form of a truncated name.",
+  },
+  {
+    line: /^title: (Northgate Residences|Riverside Walk|ISTER TOWER|Alpha Estates)$/,
+    why: "A project's or developer's proper name, the full form of a truncated label.",
+  },
+];
+
+/** (c) among the spoken attributes: `_review/nyomtat1/kerdesek-hozzaferes.md`. */
+const SPOKEN_DECIDED_BY_MATE: readonly Rule[] = [
+  { line: "aria-label: Sections", why: "the navigation landmark" },
+  { line: "aria-label: Menu", why: "the mobile menu's button" },
+  { line: "aria-label: Close menu", why: "the mobile menu's close button" },
+  { line: "aria-label: Project", why: "the project switcher" },
+  { line: "aria-label: Period", why: "the period switcher" },
+  { line: "aria-label: Developer", why: "the developer switcher" },
+  { line: "aria-label: IRIS by MADSPACE — this project’s Ask IRIS", why: "the wordmark's link" },
+  { line: "aria-label: IRIS by MADSPACE — this project's Ask IRIS", why: "the wordmark's link" },
+  { line: /^aria-label: Ask IRIS about .+$/, why: "the prompt bar's field" },
+  { line: "placeholder: Ask IRIS…", why: "the prompt bar's resting placeholder" },
+  { line: "aria-label: Send", why: "the prompt bar's send button" },
+  { line: "title: Send", why: "the prompt bar's send button" },
+  {
+    line: "aria-label: Dictate a question. Not available: this build does not enable the microphone.",
+    why: "the prompt bar's dictation button",
+  },
+  { line: "title: Dictation is not enabled in this build", why: "the prompt bar's dictation button" },
+];
+
+/** The same homonym as on screen: the project switcher is not the buyers table's column. */
+const SPOKEN_NOT_PROOF: readonly Rule[] = [
+  {
+    line: "aria-label: Project",
+    why: "The agent report's buyers-table column (`buyersColumns[3]`), not the project switcher.",
   },
 ];
 
@@ -134,8 +224,6 @@ function wordTable(): Map<string, Map<string, Set<string>>> {
 }
 
 const lettersIn = (line: string) => (line.match(/\p{L}/gu) ?? []).length;
-const linesOf = async (page: Page) =>
-  (await page.locator("body").innerText()).split("\n").map((line) => line.trim());
 
 /** Where a line stands, as the render says: the landmark and the nearest shell class around it. */
 async function whereIs(page: Page, line: string): Promise<string> {
@@ -155,16 +243,70 @@ async function whereIs(page: Page, line: string): Promise<string> {
   }, line);
 }
 
-test("a Slovak or Hungarian report shows no English line the product could have localised", async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== "desktop", "the frame's text does not vary with width");
-  test.setTimeout(PAGES.length * LANGUAGES.length * 30_000);
+/** The attributes a screen reader or a pointer reads and `innerText` does not hold. */
+const SPOKEN = ["aria-label", "placeholder", "title", "alt"] as const;
 
+/** Every spoken attribute on the page, in document order, as `name: value`. */
+async function attributesOf(page: Page): Promise<string[]> {
+  return page.evaluate((names) => {
+    const out: string[] = [];
+    for (const el of document.body.querySelectorAll("*")) {
+      for (const name of names) {
+        const value = el.getAttribute(name)?.trim();
+        if (value) out.push(`${name}: ${value}`);
+      }
+    }
+    return out;
+  }, [...SPOKEN]);
+}
+
+/** Where an attribute stands: its element, the landmark, and the nearest shell class. */
+async function whereAttribute(page: Page, item: string): Promise<string> {
+  const at = item.indexOf(": ");
+  const [name, value] = [item.slice(0, at), item.slice(at + 2)];
+  return page.evaluate(
+    ([n, v]) => {
+      const el = [...document.body.querySelectorAll("*")].find(
+        (e) => e.getAttribute(n)?.trim() === v,
+      );
+      if (el === undefined) return "not located";
+      const landmark = el.closest("header") ? "header" : el.closest("main") ? "main" : "body";
+      let named: Element | null = el;
+      while (named !== null && ![...named.classList].some((c) => /^(irs|iris|ox|ask)-/.test(c))) {
+        named = named.parentElement;
+      }
+      const cls = named === null ? "" : [...named.classList].find((c) => /^(irs|iris|ox|ask)-/.test(c));
+      return `${landmark} <${el.tagName.toLowerCase()}>${cls ? ` .${cls}` : ""}`;
+    },
+    [name, value] as const,
+  );
+}
+
+/** One way of reading a page, and the lists a person keeps for what it reads. */
+interface Reading {
+  readonly name: string;
+  readonly media: "screen" | "print";
+  readonly read: (page: Page) => Promise<string[]>;
+  /** The words a word table would hold: the line itself, or an attribute's value. */
+  readonly words: (item: string) => string;
+  readonly locate: (page: Page, item: string) => Promise<string>;
+  readonly allowed: readonly Rule[];
+  readonly decided: readonly Rule[];
+  readonly notProof: readonly Rule[];
+}
+
+async function measureReports(page: Page, reading: Reading) {
   const table = wordTable();
+  /* The prompt bar types questions into its placeholder; reduced motion holds it at rest, so a read is repeatable. */
+  await page.emulateMedia({ reducedMotion: "reduce" });
   const defects: string[] = [];
   const unclassified: string[] = [];
   const decided = new Map<string, Set<string>>();
+  const load = async (url: string) => {
+    await page.goto(url, { waitUntil: "networkidle" });
+    await page.emulateMedia({ media: reading.media, reducedMotion: "reduce" });
+    return reading.read(page);
+  };
 
   let signedIn: keyof typeof VIEWER | null = null;
   for (const key of PAGES) {
@@ -174,44 +316,131 @@ test("a Slovak or Hungarian report shows no English line the product could have 
       await signInAs(page, VIEWER[who]);
       signedIn = who;
     }
-    await page.goto(withLanguage(path, "en"), { waitUntil: "networkidle" });
-    const english = await linesOf(page);
+    const english = await load(withLanguage(path, "en"));
     for (const language of LANGUAGES.filter((l) => l !== "en")) {
-      await page.goto(withLanguage(path, language), { waitUntil: "networkidle" });
-      const lines = await linesOf(page);
-      expect(lines.length, `${key} ${language}: the page's lines pair with English`).toBe(
+      const items = await load(withLanguage(path, language));
+      expect(items.length, `${key} ${language}: the page's ${reading.name} pair with English`).toBe(
         english.length,
       );
       const seen = new Set<string>();
-      for (const [i, line] of lines.entries()) {
-        if (line !== english[i] || lettersIn(line) < 3 || seen.has(line)) continue;
-        seen.add(line);
-        if (matches(ALLOWED, line) !== undefined) continue;
-        const onPage = english.some((en, j) => en === line && lines[j] !== line);
+      for (const [i, item] of items.entries()) {
+        const words = reading.words(item);
+        if (item !== english[i] || lettersIn(words) < 3 || seen.has(item)) continue;
+        seen.add(item);
+        if (matches(reading.allowed, item) !== undefined) continue;
+        const onPage = english.some((en, j) => en === item && items[j] !== item);
         const inTable =
-          matches(NOT_PROOF, line) === undefined &&
-          [...(table.get(line)?.get(language) ?? [])].some((form) => form !== line);
+          matches(reading.notProof, item) === undefined &&
+          [...(table.get(words)?.get(language) ?? [])].some((form) => form !== words);
         if (onPage || inTable) {
           const proof = [onPage && "localised elsewhere on this page", inTable && "a word table has it"]
             .filter(Boolean)
             .join(", ");
-          defects.push(`${key} ${language}: "${line}" (${proof}) at ${await whereIs(page, line)}`);
+          defects.push(`${key} ${language}: "${item}" (${proof}) at ${await reading.locate(page, item)}`);
           continue;
         }
-        if (matches(DECIDED_BY_MATE, line) !== undefined) {
-          const where = `${key} ${language} at ${await whereIs(page, line)}`;
-          decided.set(line, (decided.get(line) ?? new Set<string>()).add(where));
+        if (matches(reading.decided, item) !== undefined) {
+          const where = `${key} ${language} at ${await reading.locate(page, item)}`;
+          decided.set(item, (decided.get(item) ?? new Set<string>()).add(where));
           continue;
         }
-        unclassified.push(`${key} ${language}: "${line}" at ${await whereIs(page, line)}`);
+        unclassified.push(`${key} ${language}: "${item}" at ${await reading.locate(page, item)}`);
       }
     }
   }
 
-  for (const [line, where] of decided) {
-    console.log(`(c) ${JSON.stringify(line)} on ${String(where.size)} page renders`);
+  for (const [item, where] of decided) {
+    console.log(`(c) ${JSON.stringify(item)} on ${String(where.size)} page renders`);
     for (const at of where) console.log(`      ${at}`);
   }
+  console.log(
+    `${reading.name}: (b) ${String(defects.length)}, (c) ${String(decided.size)}, unclassified ${String(unclassified.length)}`,
+  );
   expect.soft(defects, "(b) English where the product has the localised form").toEqual([]);
-  expect.soft(unclassified, "English lines nobody has classified").toEqual([]);
+  expect.soft(unclassified, "English nobody has classified").toEqual([]);
+}
+
+const linesOf = async (page: Page) =>
+  (await page.locator("body").innerText()).split("\n").map((line) => line.trim());
+
+const READINGS: readonly Reading[] = [
+  {
+    name: "screen lines",
+    media: "screen",
+    read: linesOf,
+    words: (line) => line,
+    locate: whereIs,
+    allowed: ALLOWED,
+    decided: DECIDED_BY_MATE,
+    notProof: NOT_PROOF,
+  },
+  {
+    name: "printed lines",
+    media: "print",
+    read: linesOf,
+    words: (line) => line,
+    locate: whereIs,
+    allowed: PRINT_ALLOWED,
+    decided: PRINT_DECIDED_BY_MATE,
+    notProof: [],
+  },
+  {
+    name: "spoken attributes",
+    media: "screen",
+    read: attributesOf,
+    words: (item) => item.slice(item.indexOf(": ") + 2),
+    locate: whereAttribute,
+    allowed: SPOKEN_ALLOWED,
+    decided: SPOKEN_DECIDED_BY_MATE,
+    notProof: SPOKEN_NOT_PROOF,
+  },
+];
+
+for (const reading of READINGS) {
+  test(`a Slovak or Hungarian report: no ${reading.name} in English the product could have localised`, async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop", "the report's words do not vary with width");
+    test.setTimeout(PAGES.length * LANGUAGES.length * 30_000);
+    await measureReports(page, reading);
+  });
+}
+
+/*
+ * THE PERIOD ON PAPER (NYOMTAT1). The print stylesheet hides the header, not the
+ * context band, so the period switcher's value prints. Measured rather than
+ * inferred: on every report, in each language, the printed value is visible and
+ * is the word table's label for the period the address asks for.
+ */
+test("a printed report names its period in the report's language", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop", "the report's words do not vary with width");
+  test.setTimeout(PAGES.length * LANGUAGES.length * 30_000);
+  const period = (path: string) =>
+    (new URLSearchParams(path.split("?")[1] ?? "").get("period") ??
+      "quarter_to_date") as keyof (typeof readmodelWords.PERIOD_WORDS)["en"];
+  let signedIn: keyof typeof VIEWER | null = null;
+  for (const key of PAGES) {
+    const [who, path] = key.split(" ") as [keyof typeof VIEWER, string];
+    if (signedIn !== who) {
+      await page.context().clearCookies();
+      await signInAs(page, VIEWER[who]);
+      signedIn = who;
+    }
+    for (const language of LANGUAGES) {
+      await page.goto(withLanguage(path, language), { waitUntil: "networkidle" });
+      await page.emulateMedia({ media: "print" });
+      /* The mobile menu holds a second switcher; the one on paper is the visible one. */
+      const value = page.locator('summary[aria-label="Period"] .ox-menu-value').filter({ visible: true });
+      await expect(value, `${key} ${language}: the period prints`).toBeVisible();
+      await expect(value, `${key} ${language}`).toHaveText(
+        readmodelWords.PERIOD_WORDS[language][period(path)].label,
+      );
+      /* The table read above is the one under test: a localised label left in English would pass it. */
+      if (language !== "en") {
+        await expect(value, `${key} ${language}: not the English label`).not.toHaveText(
+          readmodelWords.PERIOD_WORDS.en[period(path)].label,
+        );
+      }
+    }
+  }
 });
