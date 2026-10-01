@@ -536,13 +536,13 @@ const CONNECTOR_PHRASES: Readonly<
   },
 };
 
-interface LadderNoteWords {
+export interface LadderNoteWords {
   readonly notConnected: string;
   readonly rung: string;
   readonly lost: (n: number) => string;
 }
 
-const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
+export const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
   en: {
     notConnected: NOT_CONNECTED_NOTE,
     rung: "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
@@ -555,9 +555,9 @@ const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
     lost: (n) => {
       const category = pluralCategory("sk", n);
       return category === "one"
-        ? `${String(n)} stratený obchod, počítaný mimo rebríka.`
+        ? `${String(n)} stratený obchod sa počíta osobitne vedľa rebríka.`
         : category === "few"
-          ? `${String(n)} stratené obchody, počítané mimo rebríka.`
+          ? `${String(n)} stratené obchody sa počítajú osobitne vedľa rebríka.`
           : `${String(n)} stratených obchodov sa počíta osobitne vedľa rebríka.`;
     },
   },
