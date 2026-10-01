@@ -476,11 +476,11 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     projectsNote:
       "Prehľad sa obmedzuje na projekty, ktoré patria tomuto účtu, nie na všetky projekty makléra. Je bežné, že agentúra predáva byty pre 2 developerov. Keby stránka zamestnanca ukázala aj ostatné projekty, odhalila by obchodné informácie o niekom inom.",
     registerCaption: (name, period) =>
-      `Posledné stretnutia – ${name} (${period.toLowerCase()}), od najnovšieho, najviac osem.`,
+      `Posledné stretnutia – ${name} (${period.toLowerCase()}), od najnovšieho, najviac 8.`,
     registerEmpty: (name, period) =>
       `V období (${period.toLowerCase()}) nie je žiadne stretnutie – ${name}.`,
     registerLink: "Všetky stretnutia v tomto období",
-    registerRest: " sú register, z ktorého je týchto osem vybraných.",
+    registerRest: " sú register, z ktorého je týchto 8 vybraných.",
     appendixCaption:
       "Každá sekcia tohto zhrnutia so stavom, vzorkou vo vlastnom podstatnom mene a odkazom na podklady, na ktorých stojí.",
   },
@@ -545,11 +545,11 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     projectsNote:
       "A nézet csak az ehhez a fiókhoz tartozó projektekre terjed ki, nem az értékesítő összes projektjére. Gyakori, hogy egy ügynökség 2 fejlesztőnek is értékesít. Ha a munkatárs oldalán a többi projekt is látszana, abból egy másik fél üzleti kapcsolataira lehetne következtetni.",
     registerCaption: (name, period) =>
-      `${name} legutóbbi találkozói (${period.toLowerCase()}), a legújabbal kezdve, legfeljebb nyolc.`,
+      `${name} legutóbbi találkozói (${period.toLowerCase()}), a legújabbal kezdve, legfeljebb 8.`,
     registerEmpty: (name, period) =>
       `${name} egyetlen találkozója sem esik az időszakba (${period.toLowerCase()}).`,
     registerLink: "Az időszak összes találkozója",
-    registerRest: " az a lista, amelyből ez a nyolc származik.",
+    registerRest: " az a lista, amelyből ez a 8 származik.",
     appendixCaption:
       "Az összefoglaló minden szakasza az állapotával, a mintájával a saját főnevében, és a bizonyíték hivatkozásával, amelyen áll.",
   },
