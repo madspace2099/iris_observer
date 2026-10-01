@@ -10,6 +10,7 @@ import { ClosableDetails } from "@/components/ask-iris/ClosableDetails";
 import { ContextSwitcher, type SwitchOption } from "@/components/ContextSwitcher";
 import { PeriodSwitcher } from "@/components/PeriodSwitcher";
 import { AGENT_REPORT_WORDS } from "@/components/report/words";
+import { SyntheticBadge } from "@/showroom/parts";
 import { dynamicRoute } from "@/lib/href";
 import { frameLanguage } from "@/lib/language";
 import { presetFrom, withPeriod } from "@/lib/period";
@@ -706,7 +707,14 @@ export function Shell({
             </div>
             <div className="irs-who-role">{viewer.roleLabel}</div>
           </div>
-          {variant === "ask" ? accountAsk : account}
+          {variant === "ask" ? (
+            accountAsk
+          ) : (
+            <>
+              <SyntheticBadge language={language} />
+              {account}
+            </>
+          )}
         </div>
       </header>
 
@@ -847,7 +855,10 @@ export function Shell({
                   </div>
                   <div className="irs-who-role">{viewer.roleLabel}</div>
                 </div>
-                <div className="irs-mobile-account">{account}</div>
+                <div className="irs-mobile-account">
+                  <SyntheticBadge language={language} />
+                  {account}
+                </div>
               </div>
             </div>
           </ClosableDetails>
