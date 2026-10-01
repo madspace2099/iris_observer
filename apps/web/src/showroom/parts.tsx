@@ -12,12 +12,7 @@ import {
   type InsightSource,
   type MeasurementAvailability,
 } from "@observer/contracts";
-import {
-  DATA_SOURCE_MARKER_WORDS,
-  DEFAULT_LANGUAGE,
-  defineMeasurement,
-  type Language,
-} from "@observer/readmodels";
+import { DATA_SOURCE_MARKER_WORDS, defineMeasurement, type Language } from "@observer/readmodels";
 import { Measure } from "./Measure";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -81,7 +76,7 @@ export const AVAILABILITY_WORDS: Readonly<Record<MeasurementAvailability, string
  * is generated, and a reader who mistakes them for their own project's numbers
  * would make decisions on them.
  */
-export function SyntheticBadge({ language = DEFAULT_LANGUAGE }: { readonly language?: Language }) {
+export function SyntheticBadge({ language }: { readonly language: Language }) {
   /*
    * TWO MARKERS, AND THE PROJECT LAYOUT CHOOSES (`data-sessions`).
    *
