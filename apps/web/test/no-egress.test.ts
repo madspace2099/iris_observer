@@ -104,6 +104,8 @@ describe("no AI path reaches a vendor under the harness", () => {
       tools: [],
       maxOutputTokens: 16,
       reasoningEffort: "low",
+      safetyIdentifier: "obs_test_subject",
+      responseSchema: null,
     });
 
     expect(result.model).toBe("gpt-5.6-terra");
@@ -152,6 +154,8 @@ describe("the synthetic key is never transmitted", () => {
       tools: [],
       maxOutputTokens: 16,
       reasoningEffort: "low",
+      safetyIdentifier: "obs_test_subject",
+      responseSchema: null,
     });
     await probeFor()(SYNTHETIC_KEY, "gpt-5.6-luna");
     await createVoiceSession(SYNTHETIC_KEY).catch(() => null);

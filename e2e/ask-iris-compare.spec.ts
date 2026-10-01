@@ -70,6 +70,22 @@ async function shoot(page: Page, file: string): Promise<void> {
  * A horizontal scrollbar is a defect, and it is the one thing a full-page
  * capture hides: the image comes out wider and looks correct.
  */
+/**
+ * WHETHER THE INBOUND DESIGN EXPORT IS SERVED (GATE2).
+ *
+ * `apps/web/public/_ask-reference` is gitignored: a delivered artefact, present
+ * on the desk that received it and absent on every fresh checkout, the CI
+ * runner included. The reference captures are skipped where it is absent, and
+ * that used to be read from `status() >= 400` — but this application answers a
+ * path it does not hold with 307 to /sign-in, which a followed request reports
+ * as 200. Measured on 2026-10-01: the export answers 200, a missing file 307.
+ * So the request is not followed, and only an exact 200 is the export.
+ */
+async function referenceServed(page: Page): Promise<boolean> {
+  const response = await page.request.get(REFERENCE, { maxRedirects: 0 });
+  return response.status() === 200;
+}
+
 async function assertNoOverflow(page: Page, where: string): Promise<void> {
   const overflow = await page.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -86,9 +102,8 @@ test.describe("Ask IRIS against the delivered design", () => {
     test(`reference at ${String(width)}`, async ({ page }) => {
       test.skip(test.info().project.name !== "desktop", "captured once");
 
-      const response = await page.request.get(REFERENCE);
       test.skip(
-        response.status() >= 400,
+        !(await referenceServed(page)),
         "the inbound design export is not present under apps/web/public/_ask-reference",
       );
 
@@ -102,8 +117,7 @@ test.describe("Ask IRIS against the delivered design", () => {
 
   test("reference with the history panel open", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "captured once");
-    const response = await page.request.get(REFERENCE);
-    test.skip(response.status() >= 400, "the inbound design export is not present");
+    test.skip(!(await referenceServed(page)), "the inbound design export is not present");
 
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(REFERENCE);
@@ -381,13 +395,26 @@ test.describe("Ask IRIS against the delivered design", () => {
     test.skip(test.info().project.name !== "desktop", "checked once");
     await signInAs(page, "Petra Novák");
     await page.setViewportSize({ width: 1440, height: 900 });
+    /*
+     * THE PAGE'S CLOCK, NOT THE WALL CLOCK (GATE2).
+     *
+     * The shader advances `uTime` by at most 50 ms a frame (`prompt-glow.ts`),
+     * so a tab back from the background does not teleport the head. On the
+     * GitHub runner, with no GPU, frames took longer than that, the animation
+     * fell behind the wall clock, and a lap measured with waitForTimeout came
+     * up short (run 36778769437: 0.068 against 0.06). Paused and stepped, the
+     * clock hands every frame 16 ms, and 3.225 s of animation is 3.225 s on any
+     * machine.
+     */
+    await page.clock.install();
     await page.goto(ASK);
     await expect(page.locator(".ask-page .ask-glow-canvas")).toBeAttached();
+    await page.clock.pauseAt(Date.now() + 1000);
 
     const start = await sampleGlow(page, ".ask-page");
-    await page.waitForTimeout(3225);
+    await page.clock.runFor(3225);
     const half = await sampleGlow(page, ".ask-page");
-    await page.waitForTimeout(3225);
+    await page.clock.runFor(3225);
     const full = await sampleGlow(page, ".ask-page");
     if (!start || !half || !full) throw new Error("no glow canvas — WebGL was refused");
 
@@ -395,10 +422,9 @@ test.describe("Ask IRIS against the delivered design", () => {
     const back = Math.hypot(full.x - start.x, full.y - start.y);
 
     /*
-     * The tolerances are loose on purpose. `waitForTimeout` is not a frame
-     * clock and the shader integrates real deltas, so a lap measured this way
-     * carries tens of milliseconds of slop — enough to move the head a few
-     * pixels, nowhere near enough to hide a period that is out by a factor.
+     * The tolerances are the ones this test had on the wall clock, unchanged.
+     * On the page's clock there is no slop left for them to absorb; they still
+     * allow a few pixels, nowhere near enough to hide a period out by a factor.
      */
     expect(away, "half a lap later the head has not moved away").toBeGreaterThan(0.15);
     expect(back, `a full lap later the head is at ${full.x.toFixed(2)}, not back at ${start.x.toFixed(2)}`).toBeLessThan(0.06);

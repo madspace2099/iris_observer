@@ -1516,6 +1516,16 @@ describe("the transport-safe note reports where the bytes actually are", () => {
         /* No line-ending rewriting, so the replayed tree is compared as written. */
         ["core.autocrlf", "false"],
         ["core.eol", "lf"],
+        /*
+         * NO BACKGROUND WORK IN A REPOSITORY THIS TEST DELETES (GATE2).
+         * `git am` ends by starting `git maintenance run --auto --detach`, which
+         * after a chain of hundreds of commits packs the loose objects while the
+         * `finally` below is already removing the directory. On the Linux runner
+         * that surfaced as `ENOTEMPTY … rmdir …/repo`. Off here, the replay is the
+         * only thing that writes.
+         */
+        ["maintenance.auto", "false"],
+        ["gc.auto", "0"],
       ] as const) {
         await gitAsync(repo, "config", k, v);
       }

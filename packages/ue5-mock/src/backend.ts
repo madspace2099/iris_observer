@@ -355,7 +355,7 @@ export class MockObserverBackend {
       code.state = "expired";
     }
 
-    if (!usable || code === undefined) {
+    if (!usable) {
       /* Unknown, expired and consumed are one answer. LOCKED §9.1. */
       return json(
         ACTIVATION_HTTP_STATUS.activation_failed,

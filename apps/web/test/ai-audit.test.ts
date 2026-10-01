@@ -600,18 +600,15 @@ describe("the pseudonym key is required, and nothing stands in for it", () => {
     const repeated = "a".repeat(64);
     expect(withPepper(repeated, () => describePepper()).ok).toBe(true);
 
-    const vitest = process.env["VITEST"];
-    const node = process.env["NODE_ENV"];
-    delete process.env["VITEST"];
-    process.env["NODE_ENV"] = "production";
+    /* stubEnv, not assignment: NODE_ENV is read-only in the application's types. */
+    vi.stubEnv("VITEST", undefined);
+    vi.stubEnv("NODE_ENV", "production");
     try {
       const verdict = withPepper(repeated, () => describePepper());
       expect(verdict.ok).toBe(false);
       if (!verdict.ok) expect(verdict.problem).toMatch(/too few distinct characters/);
     } finally {
-      if (vitest !== undefined) process.env["VITEST"] = vitest;
-      if (node === undefined) delete process.env["NODE_ENV"];
-      else process.env["NODE_ENV"] = node;
+      vi.unstubAllEnvs();
     }
   });
 

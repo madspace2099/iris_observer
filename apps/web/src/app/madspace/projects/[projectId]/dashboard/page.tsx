@@ -104,13 +104,12 @@ export default async function ProjectDashboardPage({
    * door and the same two sources its screens read, so this is exactly what those
    * screens could not place.
    */
-  const summary =
-    complete && row.tenant_slug !== null && row.slug !== null
-      ? await repository
-          .resolveProject(viewer, row.tenant_slug, row.slug)
-          .then((found) => found.project)
-          .catch(() => null)
-      : null;
+  const summary = complete
+    ? await repository
+        .resolveProject(viewer, row.tenant_slug, row.slug)
+        .then((found) => found.project)
+        .catch(() => null)
+    : null;
   const [delivered, listed] =
     summary === null
       ? [null, null]

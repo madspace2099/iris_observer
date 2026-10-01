@@ -86,7 +86,7 @@ export function StageFunnel({
     <div className="ox-funnel" role="list" aria-label={label}>
       {steps.map((step) => {
         const drawable = base !== null && base > 0 && step.toCount !== null;
-        const width = drawable ? Math.min(100, ((step.toCount ?? 0) / base) * 100) : 0;
+        const width = drawable ? Math.min(100, (step.toCount / base) * 100) : 0;
 
         return (
           <div className="ox-stage" role="listitem" key={step.metric.metricId}>

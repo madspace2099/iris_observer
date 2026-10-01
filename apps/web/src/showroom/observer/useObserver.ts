@@ -239,7 +239,7 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
                 setOutcome(
                   failure(
                     question,
-                    (payload as { error: string }).error ??
+                    (payload as { error?: string }).error ??
                       "Observer could not complete this answer.",
                   ),
                 );

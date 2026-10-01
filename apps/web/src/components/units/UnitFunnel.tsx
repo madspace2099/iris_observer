@@ -96,7 +96,7 @@ export function UnitFunnel({
       {stages.map((stage) => {
         const { step } = stage;
         const drawable = first !== null && first > 0 && step.toCount !== null;
-        const width = drawable ? `${Math.min(100, ((step.toCount ?? 0) / first) * 100)}%` : null;
+        const width = drawable ? `${Math.min(100, (step.toCount / first) * 100)}%` : null;
 
         return (
           <div

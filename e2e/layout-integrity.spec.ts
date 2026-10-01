@@ -112,13 +112,23 @@ async function clippedText(page: Page): Promise<string[]> {
   });
 }
 
+/*
+ * ONE TEST PER VIEWPORT AND SURFACE (GATE2).
+ *
+ * This was one test per viewport walking all twelve surfaces inside one
+ * 30-second budget. On the GitHub runner the 1920 walk ran out of it at
+ * `/report` (run 36778769437), and with the CPU throttled 4x locally it ran
+ * out at 31.6 s and squeezed through its retry at 29.7 s: a check sized to
+ * one machine's speed. Each surface now has its own test and its own budget,
+ * and a failure names the surface. What is waited for and what is asserted
+ * are unchanged.
+ */
 test.describe("no surface clips its own text or widens the page", () => {
   for (const vp of VIEWPORTS) {
-    test(`${vp.name}`, async ({ page }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await signInAs(page, "Petra Novák");
-
-      for (const surface of SURFACES) {
+    for (const surface of SURFACES) {
+      test(`${surface} at ${vp.name}`, async ({ page }) => {
+        await page.setViewportSize({ width: vp.width, height: vp.height });
+        await signInAs(page, "Petra Novák");
         await page.goto(`/alpha/northgate/${surface}`, { waitUntil: "networkidle" });
         await page.waitForTimeout(200);
 
@@ -129,8 +139,8 @@ test.describe("no surface clips its own text or widens the page", () => {
 
         const clipped = await clippedText(page);
         expect(clipped, `${surface} at ${vp.name} clips: ${clipped.join(" | ")}`).toEqual([]);
-      }
-    });
+      });
+    }
   }
 });
 

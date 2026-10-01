@@ -144,7 +144,7 @@ export function OutcomeRing({
             key={s.outcome}
             d={arc(c, c, r, from, Math.max(from + 0.004, to - 0.004))}
             fill="none"
-            stroke={OUTCOME_TONE[s.outcome] ?? "var(--ink-3)"}
+            stroke={OUTCOME_TONE[s.outcome]}
             strokeWidth={stroke}
             strokeLinecap="butt"
           >
@@ -173,7 +173,7 @@ export function OutcomeKey({ slices }: { slices: readonly OutcomeSlice[] }) {
     <ul className="iris-ring-key">
       {slices.map((s) => (
         <li key={s.outcome}>
-          <i style={{ background: OUTCOME_TONE[s.outcome] ?? "var(--ink-3)" }} />
+          <i style={{ background: OUTCOME_TONE[s.outcome] }} />
           {s.label}
           <b>{s.count}</b>
         </li>

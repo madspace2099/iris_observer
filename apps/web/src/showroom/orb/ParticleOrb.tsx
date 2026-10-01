@@ -341,7 +341,7 @@ export function ParticleOrb({
       running = false;
       cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onMove);
-      field?.dispose();
+      field.dispose();
     };
   }, [reduced, size]);
 

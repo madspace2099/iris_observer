@@ -29,14 +29,18 @@ const value = (qualifier: string | null): MetricValue => ({
 
 describe("a figure below its minimum sample", () => {
   it("prints its denominator beside the shortfall", () => {
-    const html = renderToStaticMarkup(createElement(Figure, { value: value("19 timed meetings") }));
+    const html = renderToStaticMarkup(
+      createElement(Figure, { value: value("19 timed meetings"), language: "en" }),
+    );
     expect(html).toContain('<span class="ox-of">19 timed meetings</span>');
     expect(html).toContain('<span class="ox-shortfall">Fewer than 20 meetings for this agent');
     expect(html.indexOf("ox-of")).toBeLessThan(html.indexOf("ox-shortfall"));
   });
 
   it("prints the shortfall alone where the figure never had a denominator", () => {
-    const html = renderToStaticMarkup(createElement(Figure, { value: value(null) }));
+    const html = renderToStaticMarkup(
+      createElement(Figure, { value: value(null), language: "en" }),
+    );
     expect(html).not.toContain("ox-of");
     expect(html).toContain("ox-shortfall");
   });

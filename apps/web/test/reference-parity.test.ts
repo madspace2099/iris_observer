@@ -274,7 +274,7 @@ describe("the generic three-page demo is not part of the application", () => {
      * The demo's information architecture, named exactly. A navigation with
      * these three as its primary rows is the generic dashboard, not Observer.
      */
-    const keys = PRIMARY_NAV.map((n) => n.key);
+    const keys: readonly string[] = PRIMARY_NAV.map((n) => n.key);
     const generic = ["overview", "units", "insights"];
     expect(generic.every((g) => keys.includes(g))).toBe(false);
     expect(keys).not.toContain("insights");
@@ -412,7 +412,10 @@ describe("the navigation matches the reference", () => {
 });
 
 describe("hidden and lab routes keep the visibility the reference gave them", () => {
-  const navKeys = new Set([...PRIMARY_NAV.map((n) => n.key), ...SECONDARY_NAV.map((n) => n.key)]);
+  const navKeys = new Set<string>([
+    ...PRIMARY_NAV.map((n) => n.key),
+    ...SECONDARY_NAV.map((n) => n.key),
+  ]);
 
   it.each(["/lab", "/lab/sign-in", "/lab/overview-a", "/lab/overview-b"])(
     "leaves %s out of the navigation",
