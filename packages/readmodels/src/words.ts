@@ -15,6 +15,7 @@ import {
   type MeetingOutcome,
   type SectionId,
 } from "@observer/contracts";
+import type { PeriodPreset } from "./context";
 import { plural, pluralCategory, type Language, type PluralForms } from "./language";
 
 export const NOT_STATED = "Not stated";
@@ -396,3 +397,42 @@ export function presenterWord(name: string | null, agentId: string, language: La
     ? `${PRESENTER_NOT_NAMED_WORDS[language]} · ${agentId}`
     : name;
 }
+
+/**
+ * THE PRESETS BY NAME, AND WHAT EACH IS COMPARED WITH, IN EACH LANGUAGE.
+ *
+ * One table for the real clock and the synthetic world, so a period cannot be
+ * called one thing on a delivered project and another on a demonstration one.
+ * The part-quarter's baseline is not here: it counts its days, and is
+ * `TIME_BASELINE_SENTENCE` in the synthetic package's `time.ts`. English is what these labels always said;
+ * Slovak and Hungarian are drafts for review (P2-17).
+ *
+ * Here rather than in the synthetic package since SHELL1: a report page's
+ * period switcher names the period in the report's language, and a client
+ * component reaches this package and not that one.
+ */
+export const PERIOD_WORDS: Readonly<
+  Record<
+    Language,
+    Readonly<Record<PeriodPreset, { readonly label: string; readonly baseline: string }>>
+  >
+> = {
+  en: {
+    last_28_days: { label: "Last 28 days", baseline: "the previous 28 days" },
+    quarter_to_date: { label: "Quarter to date", baseline: "" },
+    last_quarter: { label: "Last completed quarter", baseline: "the quarter before it" },
+    year_to_date: { label: "Year to date", baseline: "the same period last year" },
+  },
+  sk: {
+    last_28_days: { label: "Posledných 28 dní", baseline: "predchádzajúcich 28 dní" },
+    quarter_to_date: { label: "Od začiatku štvrťroka", baseline: "" },
+    last_quarter: { label: "Posledný ukončený štvrťrok", baseline: "štvrťrok pred ním" },
+    year_to_date: { label: "Od začiatku roka", baseline: "rovnaké obdobie minulého roka" },
+  },
+  hu: {
+    last_28_days: { label: "Az elmúlt 28 nap", baseline: "az azt megelőző 28 nap" },
+    quarter_to_date: { label: "A negyedév eleje óta", baseline: "" },
+    last_quarter: { label: "Az utolsó lezárt negyedév", baseline: "az azt megelőző negyedév" },
+    year_to_date: { label: "Az év eleje óta", baseline: "az előző év azonos időszaka" },
+  },
+};

@@ -2,6 +2,8 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { ContextSwitcher } from "@/components/ContextSwitcher";
+import { PERIOD_WORDS } from "@observer/readmodels";
+import { frameLanguage } from "@/lib/language";
 import { PERIOD_LABELS, presetFrom } from "@/lib/period";
 /**
  * The period, controlled by the URL rather than by a constant.
@@ -36,10 +38,12 @@ export function PeriodSwitcher() {
    * a period can be opened in a second tab and set beside the first, which is
    * the comparison a reader was making by hand anyway.
    */
-  const options = PERIOD_LABELS.map(([value, label]) => {
+  /* On a report page, the report's language (SHELL1). */
+  const words = PERIOD_WORDS[frameLanguage(pathname, params)];
+  const options = PERIOD_LABELS.map(([value]) => {
     const next = new URLSearchParams(params.toString());
     next.set("period", value);
-    return { value, label, href: `${pathname}?${next.toString()}` };
+    return { value, label: words[value].label, href: `${pathname}?${next.toString()}` };
   });
 
   return (
