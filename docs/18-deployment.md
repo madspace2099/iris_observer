@@ -294,9 +294,9 @@ pnpm verify        # format:check, lint, typecheck, unit tests, production build
 pnpm exec playwright test
 ```
 
-Expected: 455 unit tests, 495 Playwright tests across three viewports (77 skipped — the
-desktop-only concepts, the wide-only review sets, and the opt-in live-model file), zero axe
-violations, clean build.
+Expected: every step green, zero axe violations, a clean build. How many tests run, pass and are
+skipped is what the run reports, not what this page says: the counts change with almost every
+commit, and a number written here is wrong by the next one.
 
 Against a deployment rather than a local server, point the suite at it and switch the
 live-model file on:
