@@ -2,6 +2,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test } from "@playwright/test";
 import { signInAs } from "../../e2e/sign-in";
+import { LANGUAGES, PAGES, VIEWER, withLanguage } from "./pages";
 
 /**
  * P2-17: THE REPORT PAGES AS THEY RENDER, IN EACH LANGUAGE (MERES1, 2026-10-01).
@@ -20,30 +21,9 @@ import { signInAs } from "../../e2e/sign-in";
  * Written to `P217_DUMP_DIR`, or `_review/meres1/dump` (gitignored).
  */
 
-/** The eleven pages of the 09-27 dump, by the key the approval sheets use. */
-export const PAGES = [
-  "petra /alpha/northgate/report",
-  "petra /alpha/northgate/report?period=year_to_date",
-  "petra /alpha/northgate/report?period=last_28_days",
-  "petra /alpha/riverside/report",
-  "petra /alpha/ister-tower/report",
-  "tomas /alpha/northgate/report",
-  "tomas /alpha/northgate/report?agent=agt_akhilesh",
-  "tomas /alpha/northgate/report?meeting=mtg_ng0132",
-  "tomas /alpha/ister-tower/report",
-  "tomas /alpha/ister-tower/report?agent=observer-review-harness",
-  "tomas /alpha/ister-tower/report?meeting=d4c6a9e1-228c-460c-ab3e-2c235ff2de79",
-] as const;
-
-const VIEWER = { petra: "Petra Novák", tomas: "Tomáš Varga" } as const;
-const LANGUAGES = ["en", "sk", "hu"] as const;
 const OUT = resolve(
   process.env["P217_DUMP_DIR"] ?? join(import.meta.dirname, "../../_review/meres1/dump"),
 );
-
-/** English is the page as addressed; the others carry `lang`, as the export dialog writes it. */
-const withLanguage = (path: string, language: string): string =>
-  language === "en" ? path : `${path}${path.includes("?") ? "&" : "?"}lang=${language}`;
 
 test("dumps the eleven report pages in three languages", async ({ page }) => {
   test.setTimeout(PAGES.length * LANGUAGES.length * 30_000);
