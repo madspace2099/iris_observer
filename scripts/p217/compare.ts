@@ -8,13 +8,19 @@
  *
  * It decides nothing. The approval sheet is the truth; this reads a dump of the
  * rendered report pages (`dump.p217.ts`, one file per language, the 09-27
- * shape) and says, for each item and each language, one of three things:
+ * shape) and says, for each item and each language, one of four things:
  *
  *   IDENTICAL         the approved text is the rendered line, byte for byte;
  *   DIFFERS           it is not, and both are printed;
  *   NOT MEASURABLE    the item's English is not on the rendered English page,
  *                     so this world cannot render the instance it was written
- *                     from — not a defect, and never counted as a difference.
+ *                     from — not a defect, and never counted as a difference;
+ *   PENDING DECISION  the sheet offers two forms in this language, labelled
+ *                     (`**SK, <label>:** text`), and nobody has chosen yet:
+ *                     there is nothing to measure against, and it is not a
+ *                     difference (NYOMTAT1). The rest of the sheet is measured
+ *                     as before — one undecided item no longer takes the
+ *                     decided ones out with it.
  *
  * How an item is found: the three languages of a page render the same lines in
  * the same order (measured on the 09-27 dump: equal line counts on all eleven
@@ -34,6 +40,8 @@ export interface SheetItem {
   readonly en: string;
   readonly sk: string;
   readonly hu: string;
+  /** The forms a language offers when the sheet has not chosen between them. */
+  readonly pending?: Readonly<Partial<Record<Language, readonly string[]>>>;
 }
 
 export interface RenderedPage {
@@ -48,12 +56,15 @@ export type Dump = Readonly<Record<string, RenderedPage>>;
 export type Verdict =
   | { readonly state: "identical"; readonly rendered: string }
   | { readonly state: "differs"; readonly rendered: string; readonly nbspOnly: boolean }
-  | { readonly state: "not_measurable"; readonly why: string };
+  | { readonly state: "not_measurable"; readonly why: string }
+  | { readonly state: "pending_decision"; readonly why: string };
 
 const PAGE = /^## ((?:petra|tomas) \/\S+)$/;
 const ITEM = /^### (\d+)\\\.$/;
 /* `**EN** text` (sheets 3 and 4) and `**SK text**` (sheet 1, where the whole line is bold). */
 const LINE = /^\*\*(EN|SK|HU)(?:\*\* (.*)| (.*)\*\*)$/;
+/* `**SK, 09-27-i tervezet:** text`: one of several forms offered for a choice. */
+const CANDIDATE = /^\*\*(SK|HU), [^*]+:\*\* (.*)$/;
 
 /** A sheet is markdown, so a literal `.` after a number or a `_` in a URL is written escaped. */
 const unescape = (text: string): string => text.replace(/\\([\\`*_{}[\]()#+\-.!|<>~])/g, "$1");
@@ -63,14 +74,47 @@ export function parseSheet(markdown: string): readonly SheetItem[] {
   const lines = markdown.split(/\r?\n/);
   const items: SheetItem[] = [];
   let page: string | null = null;
-  let current: { n: number; page: string; en?: string; sk?: string; hu?: string } | null = null;
+  let current: {
+    n: number;
+    page: string;
+    en?: string;
+    sk?: string;
+    hu?: string;
+    offered: Record<Language, string[]>;
+  } | null = null;
   const flush = () => {
     if (current === null) return;
-    const { n, page: p, en, sk, hu } = current;
+    const { n, page: p, en, offered } = current;
+    const pending: Partial<Record<Language, readonly string[]>> = {};
+    const form = (language: Language): string | undefined => {
+      const plain = current?.[language];
+      const forms = offered[language];
+      if (plain !== undefined && forms.length > 0) {
+        throw new Error(
+          `item ${String(n)} on ${p} gives ${language} both a form and forms to choose from`,
+        );
+      }
+      if (forms.length === 1) {
+        throw new Error(
+          `item ${String(n)} on ${p} offers one labelled ${language} form: nothing to choose`,
+        );
+      }
+      if (forms.length > 1) {
+        pending[language] = forms;
+        return forms.join(" | ");
+      }
+      return plain;
+    };
+    const sk = form("sk");
+    const hu = form("hu");
     if (en === undefined || sk === undefined || hu === undefined) {
       throw new Error(`item ${String(n)} on ${p} lacks a language`);
     }
-    items.push({ n, page: p, en, sk, hu });
+    items.push(
+      Object.keys(pending).length > 0
+        ? { n, page: p, en, sk, hu, pending }
+        : { n, page: p, en, sk, hu },
+    );
     current = null;
   };
   lines.forEach((raw, i) => {
@@ -90,10 +134,15 @@ export function parseSheet(markdown: string): readonly SheetItem[] {
     if (itemHead) {
       flush();
       if (page === null) throw new Error(`item on line ${String(i + 1)} stands under no page`);
-      current = { n: Number(itemHead[1]), page };
+      current = { n: Number(itemHead[1]), page, offered: { sk: [], hu: [] } };
       return;
     }
     if (current === null) return;
+    const offer = CANDIDATE.exec(line);
+    if (offer) {
+      current.offered[(offer[1] ?? "").toLowerCase() as Language].push(unescape(offer[2] ?? ""));
+      return;
+    }
     const text = LINE.exec(line);
     if (text) {
       const key = (text[1] ?? "").toLowerCase() as "en" | "sk" | "hu";
@@ -121,6 +170,13 @@ export function measure(
   english: Dump,
   rendered: Dump,
 ): Verdict {
+  const offered = item.pending?.[language];
+  if (offered !== undefined) {
+    return {
+      state: "pending_decision",
+      why: `${String(offered.length)} forms await a choice, so there is no approved text to measure`,
+    };
+  }
   const enPage = english[item.page];
   const page = rendered[item.page];
   if (enPage === undefined || page === undefined) {
@@ -184,6 +240,7 @@ export function report(
     identical: [],
     differs: [],
     not_measurable: [],
+    pending_decision: [],
   };
   const out: string[] = [];
   for (const item of items) {
@@ -196,6 +253,10 @@ export function report(
       out.push(`${L} Máté     ${item[language]}`);
       if (verdict.state === "not_measurable") {
         out.push(`${L} NOT MEASURABLE — ${verdict.why}`);
+        continue;
+      }
+      if (verdict.state === "pending_decision") {
+        out.push(`${L} PENDING DECISION — ${verdict.why}`);
         continue;
       }
       out.push(`${L} rendered ${verdict.rendered}`);
@@ -216,6 +277,7 @@ export function report(
     `identical:      ${String(summary.identical.length)} of ${String(total)} (${summary.identical.join(" ")})`,
     `differs:        ${String(summary.differs.length)} (${summary.differs.join(" ")})`,
     `not measurable: ${String(summary.not_measurable.length)} (${summary.not_measurable.join(" ")})`,
+    `pending decision: ${String(summary.pending_decision.length)} (${summary.pending_decision.join(" ")})`,
     "",
   ];
   return {
@@ -225,6 +287,7 @@ export function report(
       identical: summary.identical.length,
       differs: summary.differs.length,
       not_measurable: summary.not_measurable.length,
+      pending_decision: summary.pending_decision.length,
     },
   };
 }

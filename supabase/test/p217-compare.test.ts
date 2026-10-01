@@ -135,4 +135,75 @@ describe("the approval sheets", () => {
     ].join("\n");
     expect(() => parseSheet(sheet)).toThrow(/carries a correction/);
   });
+
+  /* Two neighbours: item 1 offers two Slovak forms to choose from, item 2 is decided (NYOMTAT1). */
+  const halfDecided = [
+    "## petra /alpha/northgate/report",
+    "### 1\\.",
+    "**EN** Sales agents\tPartial",
+    "**SK, 09-27-i tervezet:** Makléri\tČiastočné",
+    "**SK, mai render:** Makléri\tČiastočne",
+    "**HU** Értékesítők\tRészleges",
+    "**Javítás:**",
+    "",
+    "### 2\\.",
+    "**EN** Heading",
+    "**SK** Hlavička",
+    "**HU** Fejléc",
+    "**Javítás:**",
+  ].join("\n");
+
+  it("reads an item with two forms to choose from as pending, and its decided neighbour as before", () => {
+    const [pending, decided] = parseSheet(halfDecided);
+    expect(pending?.pending).toEqual({ sk: ["Makléri\tČiastočné", "Makléri\tČiastočne"] });
+    expect(pending?.hu).toBe("Értékesítők\tRészleges");
+    expect(decided).toEqual({
+      n: 2,
+      page: "petra /alpha/northgate/report",
+      en: "Heading",
+      sk: "Hlavička",
+      hu: "Fejléc",
+    });
+  });
+
+  it("still refuses a correction written in, beside a pending item", () => {
+    const corrected = halfDecided.replace(/\*\*Javítás:\*\*$/, "**Javítás:** SK: d");
+    expect(() => parseSheet(corrected)).toThrow(/carries a correction/);
+  });
+});
+
+describe("an item awaiting a choice between two forms (NYOMTAT1)", () => {
+  const sheet = [
+    "## petra /alpha/northgate/report",
+    "### 1\\.",
+    "**EN** Sales agents\tPartial",
+    "**SK, 09-27-i tervezet:** Makléri\tČiastočné",
+    "**SK, mai render:** Makléri\tČiastočne",
+    "**HU** Értékesítők\tRészleges",
+    "### 2\\.",
+    "**EN** Heading",
+    "**SK** Hlavička",
+    "**HU** Fejléc",
+  ].join("\n");
+  const en = page("Heading\nSales agents\tPartial", "en");
+  const sk = page("Hlavička\nMakléri\tČiastočné", "sk");
+
+  it("is pending in the language that offers two forms, never a difference", () => {
+    const [item] = parseSheet(sheet);
+    if (item === undefined) throw new Error("no item");
+    expect(measure(item, "sk", en, sk)).toMatchObject({ state: "pending_decision" });
+    expect(measure(item, "hu", en, page("Fejléc\nÉrtékesítők\tRészleges", "hu"))).toEqual({
+      state: "identical",
+      rendered: "Értékesítők\tRészleges",
+    });
+  });
+
+  it("measures the decided neighbour as before: identical, or a difference", () => {
+    const [, item] = parseSheet(sheet);
+    if (item === undefined) throw new Error("no item");
+    expect(measure(item, "sk", en, sk)).toEqual({ state: "identical", rendered: "Hlavička" });
+    expect(measure(item, "sk", en, page("Hlavicka\nMakléri\tČiastočné", "sk"))).toMatchObject({
+      state: "differs",
+    });
+  });
 });
