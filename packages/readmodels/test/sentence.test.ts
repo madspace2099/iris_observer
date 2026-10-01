@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { LANGUAGES, type Language } from "../src/language";
-import { hungarianNumberSuffix, sentence, type Sentence } from "../src/sentence";
+import {
+  hungarianAccusative,
+  hungarianInstrumental,
+  hungarianNumberSuffix,
+  sentence,
+  type Sentence,
+} from "../src/sentence";
 
 /**
  * THE NUMERAL PLACEHOLDER, `{#name|count}`.
@@ -216,5 +222,107 @@ describe("hungarianNumberSuffix, and {az:name-s}", () => {
 
   it("refuses a value that does not end in a number", () => {
     expect(() => hungarianNumberSuffix("Penthouse")).toThrow(/does not end in a number/);
+  });
+});
+
+/*
+ * The Hungarian "-val/-vel" and accusative suffixes (BEKOTES1), as Máté
+ * approved them on the P2-17 question sheet, 2026-10-01, questions 1 and 2.
+ * Every expected form is written out here from the sheet, never computed.
+ */
+describe("hungarianInstrumental and hungarianAccusative, and {name-val} {name-t}", () => {
+  const DIGITS = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+  const TENS = ["10", "20", "30", "40", "50", "60", "70", "80", "90", "100"];
+
+  it("takes the approved -val/-vel of every digit", () => {
+    expect(DIGITS.map(hungarianInstrumental)).toEqual([
+      "0-val",
+      "1-gyel",
+      "2-vel",
+      "3-mal",
+      "4-gyel",
+      "5-tel",
+      "6-tal",
+      "7-tel",
+      "8-cal",
+      "9-cel",
+    ]);
+  });
+
+  it("takes the approved -val/-vel of every ten, to a hundred", () => {
+    expect(TENS.map(hungarianInstrumental)).toEqual([
+      "10-zel",
+      "20-szal",
+      "30-cal",
+      "40-nel",
+      "50-nel",
+      "60-nal",
+      "70-nel",
+      "80-nal",
+      "90-nel",
+      "100-zal",
+    ]);
+  });
+
+  it("takes the approved accusative of every digit", () => {
+    expect(DIGITS.map(hungarianAccusative)).toEqual([
+      "0-t",
+      "1-et",
+      "2-t",
+      "3-at",
+      "4-et",
+      "5-öt",
+      "6-ot",
+      "7-et",
+      "8-at",
+      "9-et",
+    ]);
+  });
+
+  it("takes the approved accusative of every ten, to a hundred", () => {
+    expect(TENS.map(hungarianAccusative)).toEqual([
+      "10-et",
+      "20-at",
+      "30-at",
+      "40-et",
+      "50-et",
+      "60-at",
+      "70-et",
+      "80-at",
+      "90-et",
+      "100-at",
+    ]);
+  });
+
+  it("reads a longer number by its last non-nought place, as the sheet's own examples", () => {
+    /* "16-tal kevesebb" and "74-et" stand on the sheet word for word. */
+    expect(hungarianInstrumental("16")).toBe("16-tal");
+    expect(hungarianAccusative("74")).toBe("74-et");
+    expect(hungarianAccusative("39")).toBe("39-et");
+    expect(hungarianInstrumental("12")).toBe("12-vel");
+    expect(hungarianInstrumental("19")).toBe("19-cel");
+  });
+
+  it("steps back a place where the number ends in a nought, and two places on a round hundred", () => {
+    expect(hungarianInstrumental("230")).toBe("230-cal");
+    expect(hungarianAccusative("160")).toBe("160-at");
+    expect(hungarianInstrumental("300")).toBe("300-zal");
+    expect(hungarianAccusative("200")).toBe("200-at");
+  });
+
+  it("writes both through a sentence", () => {
+    const shortfall: Sentence = {
+      en: { text: "" },
+      sk: { text: "" },
+      hu: { text: "{short-val} kevesebb; {total} találkozóból {timed-t}" },
+    };
+    expect(sentence("hu", shortfall, { short: "16", total: "74", timed: "74" })).toBe(
+      "16-tal kevesebb; 74 találkozóból 74-et",
+    );
+  });
+
+  it("refuses a value that does not end in a number", () => {
+    expect(() => hungarianInstrumental("Penthouse")).toThrow(/does not end in a number/);
+    expect(() => hungarianAccusative("Penthouse")).toThrow(/does not end in a number/);
   });
 });

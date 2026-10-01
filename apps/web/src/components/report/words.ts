@@ -287,7 +287,7 @@ export const REPORT_COVERAGE_CAPTION: Sentence = {
     text: "Prehľad ukazuje, ako sa čas tímových prezentácií rozdeľuje medzi jednotlivé sekcie, a medián času, ktorý v nich tím strávi. Podiely sa počítajú iba z merateľného času: meranie zachytáva {timed} {from} {total} stretnutí a každý krok.",
   },
   hu: {
-    text: "Hová megy a csapat bemutatóideje, szakaszonként, a csapat medián idejével. Az arányok abból az időből számolódnak, amelyet a forrás mérni tudott: {total} találkozóból {timed}, minden lépés mérve.",
+    text: "Szakaszonként látszik, mire fordítja a csapat a bemutatók idejét, és mennyi az egyes szakaszokban töltött idő mediánja. Az arányokat a mérhető időből számolják: {total} találkozóból {timed-t} rögzítettek időadatokkal, minden lépésnél.",
   },
 };
 
