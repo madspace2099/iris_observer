@@ -532,7 +532,17 @@ function outcomeFlag(
   locale: string,
   language: Language,
 ): AgentOutcomeRing["flag"] {
-  if (sessions.length < 8) return null;
+  /*
+   * NOT BELOW THE FLOOR, ON ANY SURFACE (EJJEL1, 2026-10-02).
+   *
+   * A flag compares one presenter with the team, and below the minimum sample
+   * that is a verdict the doctrine withholds. Sales Agents hid it under 20 at
+   * the page; Sales Flow and its finding read this same flag with no gate, so
+   * an agent with 10 meetings was told "11% progressed against 31% for the
+   * team". The floor is here, once, for every reader. It was 8 since the first
+   * chart pass (`f338ee3`), before the per-agent floor existed.
+   */
+  if (sessions.length < AGENT_MIN_SAMPLE) return null;
   const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
   /* Slovak agrees the verb with the count before "z": 1 and 5 "skončilo", 2 to 4 "skončili". */
   const ended = (n: number) => (pluralCategory("sk", n) === "few" ? "skončili" : "skončilo");
