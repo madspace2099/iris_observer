@@ -157,7 +157,6 @@ const SPOKEN_DECIDED_BY_MATE: readonly Rule[] = [
   { line: "aria-label: Project", why: "the project switcher" },
   { line: "aria-label: Period", why: "the period switcher" },
   { line: "aria-label: Developer", why: "the developer switcher" },
-  { line: "aria-label: IRIS by MADSPACE — this project’s Ask IRIS", why: "the wordmark's link" },
   { line: "aria-label: IRIS by MADSPACE — this project's Ask IRIS", why: "the wordmark's link" },
   { line: /^aria-label: Ask IRIS about .+$/, why: "the prompt bar's field" },
   { line: "placeholder: Ask IRIS…", why: "the prompt bar's resting placeholder" },
