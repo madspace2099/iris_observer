@@ -61,6 +61,33 @@ describe("the comparison of approved text with the rendered page", () => {
     expect(verdict.state).toBe("not_measurable");
   });
 
+  /* The same English line in two places: the frame's crumb and the body's heading (SHELL1). */
+  const twice = page("Sales agents\tPartial\nBody\nSales agents\tPartial", "en");
+
+  it("is identical for a line in two places only when both carry the approved text", () => {
+    const verdict = measure(
+      ITEM,
+      "sk",
+      twice,
+      page("Makléri\tČiastočné\nTelo\nMakléri\tČiastočné", "sk"),
+    );
+    expect(verdict).toEqual({ state: "identical", rendered: "Makléri\tČiastočné" });
+  });
+
+  it("differs when one of two places keeps the English, and names both candidates", () => {
+    const verdict = measure(
+      ITEM,
+      "sk",
+      twice,
+      page("Sales agents\tPartial\nTelo\nMakléri\tČiastočné", "sk"),
+    );
+    expect(verdict).toEqual({
+      state: "differs",
+      rendered: "Sales agents\tPartial  [1 of 2 places] | Makléri\tČiastočné  [1 of 2 places]",
+      nbspOnly: false,
+    });
+  });
+
   it("does not pair lines across pages of different lengths", () => {
     const verdict = measure(ITEM, "sk", english, page("Hlavička\nMakléri\tČiastočné", "sk"));
     expect(verdict.state).toBe("not_measurable");

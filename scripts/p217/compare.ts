@@ -144,10 +144,29 @@ export function measure(
     };
   }
   const approved = item[language];
-  const candidates = [...new Set(at.map((i) => lines[i] ?? ""))];
-  if (candidates.includes(approved)) return { state: "identical", rendered: approved };
-  const shown = candidates.join(" | ");
-  const nbspOnly = candidates.some((c) => c.replace(/\u00a0/g, " ") === approved);
+  /*
+   * EVERY PLACE THE LINE STANDS IS JUDGED (SHELL1).
+   *
+   * A line the page shows more than once is identical only when every one of
+   * its places carries the approved text. This read `includes` before, so one
+   * localised place passed an item while another place kept the English.
+   */
+  const found = at.map((i) => lines[i] ?? "");
+  if (found.every((line) => line === approved)) {
+    return { state: "identical", rendered: approved };
+  }
+  const counts = new Map<string, number>();
+  for (const line of found) counts.set(line, (counts.get(line) ?? 0) + 1);
+  const shown =
+    found.length === 1
+      ? (found[0] ?? "")
+      : [...counts]
+          .map(([line, n]) => `${line}  [${String(n)} of ${String(found.length)} places]`)
+          .join(" | ");
+  /* Only when every place that is not the approved text differs from it in no-break spaces alone. */
+  const nbspOnly = found
+    .filter((line) => line !== approved)
+    .every((line) => line.replace(/\u00a0/g, " ") === approved);
   return { state: "differs", rendered: shown, nbspOnly };
 }
 
