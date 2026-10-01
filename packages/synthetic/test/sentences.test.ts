@@ -111,6 +111,7 @@ const CASES: readonly Case[] = [
       count: n,
       connector: "the demonstration CRM",
       Connector: "The demonstration CRM",
+      source: "demonštračného CRM",
     }),
     en: [
       "Stated by the demonstration CRM: 1 deal as it stands now.",
@@ -118,9 +119,9 @@ const CASES: readonly Case[] = [
       "Stated by the demonstration CRM: 5 deals as they stand now.",
     ],
     sk: [
-      "Aktuálne je evidovaný 1 obchod. Zdroj: the demonstration CRM.",
-      "Aktuálne sú evidované 3 obchody. Zdroj: the demonstration CRM.",
-      "Aktuálne je evidovaných 5 obchodov. Zdroj: the demonstration CRM.",
+      "Podľa demonštračného CRM je aktuálne evidovaný 1 obchod.",
+      "Podľa demonštračného CRM sú aktuálne evidované 3 obchody.",
+      "Podľa demonštračného CRM je aktuálne evidovaných 5 obchodov.",
     ],
     hu: [
       "The demonstration CRM szerint jelenleg 1 ügylet van nyilvántartva.",
