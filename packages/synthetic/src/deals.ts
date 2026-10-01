@@ -198,9 +198,9 @@ export const DEAL_STATED_SENTENCE: Sentence = {
     text: "{stated|count}",
     words: {
       stated: {
-        one: "Aktuálne je evidovaný {count} obchod. Zdroj: {connector}.",
-        few: "Aktuálne sú evidované {count} obchody. Zdroj: {connector}.",
-        other: "Aktuálne je evidovaných {count} obchodov. Zdroj: {connector}.",
+        one: "Podľa {source} je aktuálne evidovaný {count} obchod.",
+        few: "Podľa {source} sú aktuálne evidované {count} obchody.",
+        other: "Podľa {source} je aktuálne evidovaných {count} obchodov.",
       },
     },
   },
@@ -500,6 +500,19 @@ const STAGE_WORDS: Readonly<Record<Language, Readonly<Record<DealStage, string>>
   },
 };
 
+/**
+ * Each connector after Slovak "Podľa", as Máté gave them (question sheet,
+ * 2026-10-01, question 5). A brand is never declined: "systému" carries the
+ * case. Only the Slovak sentence reads this.
+ */
+export const SLOVAK_SOURCE_AFTER_PODLA: Readonly<Record<DeliveredDeals["connector"], string>> = {
+  synthetic: "demonštračného CRM",
+  csv: "tabuľky obchodov",
+  realpad: "systému REALPAD",
+  monday: "systému Monday",
+  lomnio: "systému Lomnio",
+};
+
 /** A phrase that opens a sentence: "a bemutató CRM" → "A bemutató CRM". */
 const capitalised = (phrase: string) => `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)}`;
 
@@ -523,13 +536,13 @@ const CONNECTOR_PHRASES: Readonly<
   },
 };
 
-interface LadderNoteWords {
+export interface LadderNoteWords {
   readonly notConnected: string;
   readonly rung: string;
   readonly lost: (n: number) => string;
 }
 
-const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
+export const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
   en: {
     notConnected: NOT_CONNECTED_NOTE,
     rung: "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
@@ -542,9 +555,9 @@ const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
     lost: (n) => {
       const category = pluralCategory("sk", n);
       return category === "one"
-        ? `${String(n)} stratený obchod, počítaný mimo rebríka.`
+        ? `${String(n)} stratený obchod sa počíta osobitne vedľa rebríka.`
         : category === "few"
-          ? `${String(n)} stratené obchody, počítané mimo rebríka.`
+          ? `${String(n)} stratené obchody sa počítajú osobitne vedľa rebríka.`
           : `${String(n)} stratených obchodov sa počíta osobitne vedľa rebríka.`;
     },
   },
@@ -654,6 +667,7 @@ export function buildDealLadder(
       connector: CONNECTOR_PHRASES[language][deals.connector],
       /* The same phrase opening a sentence: "A bemutató CRM szerint…". */
       Connector: capitalised(CONNECTOR_PHRASES[language][deals.connector]),
+      source: SLOVAK_SOURCE_AFTER_PODLA[deals.connector],
       count: deals.deals.length,
     }),
     noteWords.rung,

@@ -8,7 +8,6 @@ import { SettingsLink } from "@/components/iris/SettingsLink";
 import { Shell } from "@/components/iris/Shell";
 import type { SwitchOption } from "@/components/ContextSwitcher";
 import { AskDock } from "@/components/ask-iris/AskDock";
-import { SyntheticBadge } from "@/showroom/parts";
 import { HOME_SEGMENT } from "@/lib/routes";
 import { repository } from "@/lib/repository";
 import { liveSessionSource } from "@/lib/connectors/session-source";
@@ -196,13 +195,14 @@ export default async function ProjectLayout({
    * can cross as rendered output, which is what this is: the form is built on
    * the server and handed to the shell already formed.
    *
+   * The data marker is not here: the shell draws it, in the page's language.
+   *
    * Administration appears for `madspace_admin` and for nobody else. It is not
    * a navigation section (doctrine §7) and never becomes one; the surface
    * itself refuses every other role a second time.
    */
   const accountControls = (
     <>
-      <SyntheticBadge />
       <Link className="ox-btn" data-weight="quiet" href="/projects">
         Projects
       </Link>

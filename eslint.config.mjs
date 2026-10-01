@@ -84,13 +84,27 @@ export default tseslint.config(
        * `warn`, not `error`. All 27 older findings were reviewed one by one on
        * 2026-10-01 with one question: can the source produce the input the
        * check guards against? Ten were dead and went, five were casts that
-       * said too little and were corrected. Twelve remain: eight wait on a
-       * decision (a one-member provider union written for a second provider,
-       * and a verified-prices switch), and four guard what a DOM type or the
-       * control-flow analysis cannot see (a lost WebGL context, an insecure
-       * page without mediaDevices, a flag a listener clears). Those four stay
-       * whatever is decided, and silencing them is not allowed, so this rule
-       * stays a warning until they can be expressed without it.
+       * said too little and were corrected. Twelve remain, and they stay, by
+       * decision (2026-10-01, MERES1):
+       *
+       * - Eight are foresight, not dead code. Six compare a `ProviderId` that
+       *   today has one member, written for the second provider P2-01 plans
+       *   (Claude): `settings/ai/actions.ts:86` (two), `settings/ai/page.tsx:635`,
+       *   `lib/ai/admission.ts:312`, `lib/models/catalogue.ts:279`,
+       *   `lib/providers/transport.ts:251`. One is the last member of the CRM
+       *   connector list (`api/observer/connectors/sync/route.ts:59`), and one
+       *   the verified-prices switch (`lib/models/catalogue.ts:61`). Removing
+       *   them means putting them back when the second provider arrives:
+       *   movement, risk, and nothing gained.
+       * - Four guard what a DOM type or the control-flow analysis cannot see,
+       *   and stay whatever else is decided: a lost WebGL context
+       *   (`ask-iris/prompt-glow.ts:225`, `:274`), an insecure page without
+       *   mediaDevices (`showroom/observer/useObserverVoice.ts:123`), and a
+       *   flag a context-loss listener clears (`showroom/orb/particleField.ts:344`).
+       *
+       * Silencing a finding is not allowed, and these four cannot be expressed
+       * without one, so this rule stays a warning. Do not re-open the question
+       * unless one of the twelve changes.
        */
       "@typescript-eslint/no-unnecessary-condition": "warn",
     },

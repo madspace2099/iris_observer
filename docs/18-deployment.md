@@ -294,9 +294,9 @@ pnpm verify        # format:check, lint, typecheck, unit tests, production build
 pnpm exec playwright test
 ```
 
-Expected: 455 unit tests, 495 Playwright tests across three viewports (77 skipped — the
-desktop-only concepts, the wide-only review sets, and the opt-in live-model file), zero axe
-violations, clean build.
+Expected: every step green, zero axe violations, a clean build. How many tests run, pass and are
+skipped is what the run reports, not what this page says: the counts change with almost every
+commit, and a number written here is wrong by the next one.
 
 Against a deployment rather than a local server, point the suite at it and switch the
 live-model file on:
@@ -1122,7 +1122,8 @@ unmeasured was rewritten or removed.
   buckets.
 - §2 GitHub, "pushed — 15 commits": `origin/main` has 393 commits.
 - §7, "Expected: 455 unit tests, 495 Playwright tests": `playwright test --list` counts 1,552 tests
-  in 50 files. The unit count was not recorded here.
+  in 50 files. The unit count was not recorded here. Settled 2026-10-01: `41a65c3` removed the
+  sentence, and §7 now names the commands and lets the run state the counts.
 - §10 lists pushing, the Vercel project and its first deployment as blocked. Pushing works, and the
   project exists with 111 deployments on GitHub's record.
 - §11, "Enabling it is rollout step 1": the sequence table puts it at step 6.

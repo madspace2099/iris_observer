@@ -4,6 +4,7 @@ import {
   isUnnamedPresenter,
   NOT_IN_DIRECTORY,
   plural,
+  pluralCategory,
   slovakZForm,
   type Language,
   type ReportSectionAvailability,
@@ -287,7 +288,7 @@ export const REPORT_COVERAGE_CAPTION: Sentence = {
     text: "Prehľad ukazuje, ako sa čas tímových prezentácií rozdeľuje medzi jednotlivé sekcie, a medián času, ktorý v nich tím strávi. Podiely sa počítajú iba z merateľného času: meranie zachytáva {timed} {from} {total} stretnutí a každý krok.",
   },
   hu: {
-    text: "Hová megy a csapat bemutatóideje, szakaszonként, a csapat medián idejével. Az arányok abból az időből számolódnak, amelyet a forrás mérni tudott: {total} találkozóból {timed}, minden lépés mérve.",
+    text: "Szakaszonként látszik, mire fordítja a csapat a bemutatók idejét, és mennyi az egyes szakaszokban töltött idő mediánja. Az arányokat a mérhető időből számolják: {total} találkozóból {timed-t} rögzítettek időadatokkal, minden lépésnél.",
   },
 };
 
@@ -359,6 +360,24 @@ export interface AgentReportWords {
 /* "8 stretnutí", "8 találkozó": a count of meetings in the language's own form. */
 const meetingsIn = (language: Language, n: number) =>
   `${String(n)} ${plural(language, n, MEETINGS)}`;
+
+/**
+ * "Pri 1 stretnutí" / "Pri 3 stretnutiach" / "Pri 5 stretnutiach": the
+ * meetings below the floor, in the forms Máté gave on the question sheet
+ * (2026-10-01, question 4). `capital` where the phrase opens a sentence.
+ */
+const slovakAtMeetings = (n: number, capital: boolean) =>
+  `${capital ? "Pri" : "pri"} ${String(n)} ${pluralCategory("sk", n) === "one" ? "stretnutí" : "stretnutiach"}`;
+
+/** "Menovateľom je 1 stretnutie." / "Menovateľom sú 3 stretnutia." / "Menovateľom je 5 stretnutí." */
+const slovakDenominator = (n: number) => {
+  const category = pluralCategory("sk", n);
+  return category === "one"
+    ? `Menovateľom je ${String(n)} stretnutie.`
+    : category === "few"
+      ? `Menovateľom sú ${String(n)} stretnutia.`
+      : `Menovateľom je ${String(n)} stretnutí.`;
+};
 
 export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = {
   en: {
@@ -443,8 +462,8 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     funnelLabel: (name) => `Fázy, ktoré dosiahli stretnutia – ${name}`,
     presentationCaption: (name, below, n, minimum) =>
       below
-        ? `Poradie sekcií – ${name}: kde každá sekcia v priemere padne naprieč stretnutiami, nie cesta jedného stretnutia, s mediánom času v nej. Podiel na meranom čase ani medián tímu sa vedľa zastávok netlačí: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by podiel bol mierou čítanou ako hodnotenie a porovnanie úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky na oboje.`
-        : `Poradie sekcií – ${name}: kde každá sekcia v priemere padne naprieč stretnutiami, nie cesta jedného stretnutia, s mediánom času v nej, podielom na meranom čase prezentácie a vedľa neho mediánom tímu, pretože čas sekcie sám osebe nemá mierku.`,
+        ? `${name}: pri každej sekcii je uvedené, na ktorom mieste býva v priemere naprieč stretnutiami a aký je medián času stráveného v nej. Nejde o priebeh konkrétneho stretnutia. Podiel na meranom čase makléra ani medián tímu sa vedľa jednotlivých sekcií neuvádzajú. ${slovakAtMeetings(n, true)} chýba do hranice ${String(minimum)} ešte ${String(minimum - n)}; podiel by sa dal čítať ako hodnotenie a porovnanie s tímom ako úsudok o práci makléra, hoci vzorka je na oboje príliš malá.`
+        : `${name}: Poradie sekcií ukazuje, na ktorom mieste sa každá z nich v priemere objavuje počas stretnutí. Nejde o priebeh konkrétneho stretnutia. Pri každej sekcii je medián času stráveného v nej, jej podiel na meranom čase prezentácií a medián tímu na porovnanie; samotný čas sekcie by nemal mierku.`,
     presentationColumns: [
       "Poradie",
       "Sekcia",
@@ -457,13 +476,27 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
       `${slovakZForm(n)} ${String(n)} ${n === 1 ? "stretnutia s meraným časom" : "stretnutí s meraným časom"}`,
     buyersCaption: (name, below, n, minimum) =>
       below
-        ? `Stretnutia – ${name}, na ktorých sa otvoril aspoň 1 byt danej veľkosti. Stretnutie, ktoré ukázalo 1-izbový byt aj 4-izbový penthouse, sa počíta v oboch, takže súčet nedáva počet stretnutí. Miera celého projektu sa vedľa neuvádza: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by také porovnanie bolo úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky.`
-        : `Každý riadok je 1 veľkosť bytu: podiel stretnutí – ${name}, na ktorých sa otvoril aspoň 1 byt tej veľkosti, a rovnaká miera za všetky stretnutia na projekte v období. Riadky nedávajú súčet 1 a nejde o skladbu — stretnutie, ktoré ukázalo 1-izbový byt aj 4-izbový penthouse, sa počíta v oboch.`,
+        ? `${name}: tie stretnutia tohto makléra, na ktorých otvorili aspoň 1 byt danej veľkosti. Ak na tom istom stretnutí ukázali 1-izbový byt aj 4-izbový penthouse, započíta sa do oboch skupín. Súčet týchto počtov preto nie je počtom stretnutí. Vedľa počtov nie je podiel za celý projekt: ${
+            pluralCategory("sk", n) === "few"
+              ? `${slovakAtMeetings(n, false)}, teda ${String(minimum - n)} pod hranicou ${String(minimum)}`
+              : `${slovakAtMeetings(n, false)}, keď do hranice ${String(minimum)} chýba ${String(minimum - n)}`
+          }, by porovnanie naznačovalo hodnotenie práce makléra na základe príliš malej vzorky.`
+        : `${name}: Každý riadok predstavuje konkrétnu veľkosť bytu: podiel stretnutí, na ktorých otvorili aspoň 1 byt tejto veľkosti, a rovnaký podiel zo všetkých stretnutí na projekte v danom období. Podiely v riadkoch sa nesčítajú na 100 % a nejde o skladbu bytov: stretnutie, na ktorom ukázali 1-izbový byt aj 4-izbový penthouse, sa započíta do oboch riadkov.`,
     buyersColumns: ["Byty", "Stretnutia, ktoré nejaký otvorili", "Podiel stretnutí", "Projekt"],
     noneOpened: "Žiadny otvorený",
     ofEveryMeeting: "zo všetkých stretnutí na projekte",
-    outcomeCaption: (name, below, n, minimum) =>
-      `Ako sa skončili stretnutia – ${name}: časti jedného celku, všetky stretnutia v období podľa výsledku zaznamenaného na ich konci. Menovateľ: ${meetingsIn("sk", n)}. Stretnutia bez zaznamenaného výsledku majú vlastný riadok, namiesto toho, aby sa zlúčili s riadkom, ktorý tvrdí, že sa niečo stalo.${below ? ` Vedľa počtov sa netlačí podiel: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, miera nad stretnutiami tohto človeka nie je číslo, podľa ktorého konať, a každý počet už nesie menovateľa, ktorého je podielom.` : ""}`,
+    outcomeCaption: (name, below, n, minimum) => {
+      if (below) {
+        return `${name}: všetky stretnutia tohto makléra v danom období sú rozdelené podľa výsledku zaznamenaného na ich konci. ${slovakDenominator(n)} Tie bez zaznamenaného výsledku majú vlastný riadok; nezaraďujú sa do riadka, ktorý naznačuje, že sa niečo stalo. Vedľa počtov nie sú podiely: ${slovakAtMeetings(n, false)} chýba do hranice ${String(minimum)} ešte ${String(minimum - n)}, takže z takto vypočítanej miery nemožno vychádzať pri rozhodovaní. Pri každom počte už je uvedený menovateľ, z ktorého sa podiel počíta.`;
+      }
+      /* Item 25 in the count's three forms (sheet 2, question 3). Above the floor n is at least 20, so one and few are reached only by a direct call; they are tested there. */
+      const category = pluralCategory("sk", n);
+      return category === "one"
+        ? `${name}: Takto sa skončilo ${String(n)} stretnutie v danom období: je zaradené podľa výsledku zaznamenaného na jeho konci. Menovateľom je ${String(n)} stretnutie. Ak výsledok nezaznamenali, stretnutie má vlastný riadok; nezaraďuje sa do riadka, ktorý naznačuje, že sa niečo stalo.`
+        : category === "few"
+          ? `${name}: Takto sa skončili stretnutia v danom období: všetky ${String(n)} stretnutia sú rozdelené podľa výsledku zaznamenaného na ich konci. Menovateľom sú ${String(n)} stretnutia. Tie, pri ktorých výsledok nezaznamenali, majú vlastný riadok; nezaraďujú sa do riadka, ktorý naznačuje, že sa niečo stalo.`
+          : `${name}: Takto sa skončili stretnutia v danom období: všetkých ${String(n)} stretnutí je rozdelených podľa výsledku zaznamenaného na ich konci. Menovateľom je ${String(n)} stretnutí. Tie, pri ktorých výsledok nezaznamenali, majú vlastný riadok; nezaraďujú sa do riadka, ktorý naznačuje, že sa niečo stalo.`;
+    },
     outcomeColumns: ["Výsledok", "Stretnutia", "Podiel"],
     unitsCaption: (name, period) =>
       isUnnamedPresenter(name, "sk")
@@ -476,11 +509,11 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     projectsNote:
       "Prehľad sa obmedzuje na projekty, ktoré patria tomuto účtu, nie na všetky projekty makléra. Je bežné, že agentúra predáva byty pre 2 developerov. Keby stránka zamestnanca ukázala aj ostatné projekty, odhalila by obchodné informácie o niekom inom.",
     registerCaption: (name, period) =>
-      `Posledné stretnutia – ${name} (${period.toLowerCase()}), od najnovšieho, najviac osem.`,
+      `Posledné stretnutia – ${name} (${period.toLowerCase()}), od najnovšieho, najviac 8.`,
     registerEmpty: (name, period) =>
       `V období (${period.toLowerCase()}) nie je žiadne stretnutie – ${name}.`,
     registerLink: "Všetky stretnutia v tomto období",
-    registerRest: " sú register, z ktorého je týchto osem vybraných.",
+    registerRest: " sú register, z ktorého je týchto 8 vybraných.",
     appendixCaption:
       "Každá sekcia tohto zhrnutia so stavom, vzorkou vo vlastnom podstatnom mene a odkazom na podklady, na ktorých stojí.",
   },
@@ -545,11 +578,11 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     projectsNote:
       "A nézet csak az ehhez a fiókhoz tartozó projektekre terjed ki, nem az értékesítő összes projektjére. Gyakori, hogy egy ügynökség 2 fejlesztőnek is értékesít. Ha a munkatárs oldalán a többi projekt is látszana, abból egy másik fél üzleti kapcsolataira lehetne következtetni.",
     registerCaption: (name, period) =>
-      `${name} legutóbbi találkozói (${period.toLowerCase()}), a legújabbal kezdve, legfeljebb nyolc.`,
+      `${name} legutóbbi találkozói (${period.toLowerCase()}), a legújabbal kezdve, legfeljebb 8.`,
     registerEmpty: (name, period) =>
       `${name} egyetlen találkozója sem esik az időszakba (${period.toLowerCase()}).`,
     registerLink: "Az időszak összes találkozója",
-    registerRest: " az a lista, amelyből ez a nyolc származik.",
+    registerRest: " az a lista, amelyből ez a 8 származik.",
     appendixCaption:
       "Az összefoglaló minden szakasza az állapotával, a mintájával a saját főnevében, és a bizonyíték hivatkozásával, amelyen áll.",
   },

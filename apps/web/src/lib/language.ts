@@ -56,6 +56,41 @@ export function writtenLanguage(kind: ReportScope["kind"], language: Language): 
   return WRITTEN_IN[kind].includes(language) ? language : DEFAULT_LANGUAGE;
 }
 
+type Param = string | readonly string[] | null | undefined;
+const given = (value: Param): boolean => typeof value === "string" && value.length > 0;
+
+/** The language a report page is written in, from its address: the scope's kind, then `lang`. */
+export function reportLanguage(query: {
+  readonly meeting?: Param;
+  readonly agent?: Param;
+  readonly lang?: Param;
+}): Language {
+  const kind = given(query.meeting) ? "meeting" : given(query.agent) ? "agent" : "project";
+  return writtenLanguage(kind, languageFrom(query.lang ?? undefined));
+}
+
+/**
+ * THE FRAME'S LANGUAGE (SHELL1).
+ *
+ * The screens are English. A report page is the one surface written in the
+ * language its address asks for, and the frame around it — navigation, period,
+ * data marker — follows the page wherever the product already holds the word,
+ * so a Slovak report no longer sits under "Demo data" a few lines above
+ * "Demo údaje". Off a report page, the default.
+ */
+export function frameLanguage(
+  pathname: string,
+  query: { get(name: string): string | null },
+): Language {
+  return pathname.endsWith("/report")
+    ? reportLanguage({
+        meeting: query.get("meeting"),
+        agent: query.get("agent"),
+        lang: query.get("lang"),
+      })
+    : DEFAULT_LANGUAGE;
+}
+
 /** Each language by its own name, as a reader looks for it in a list: never translated. */
 export const LANGUAGE_NAMES: Readonly<Record<Language, string>> = {
   en: "English",

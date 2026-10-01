@@ -332,7 +332,7 @@ export const REPORT_BELOW_MINIMUM: Sentence = {
     text: "{frame|n}",
     words: {
       frame: {
-        one: "{names} nedosahuje minimum {minimum} stretnutí, preto by sa čísla zobrazili iba ako počty, bez hodnotenia, poradia a trendu.",
+        one: "{names}: počet stretnutí zatiaľ nedosiahol minimum {minimum}. Údaje sa preto zobrazia len ako počty, bez hodnotenia, poradia alebo trendu.",
         few: "{names} zatiaľ nedosiahli minimum {minimum} stretnutí. Ich údaje sa preto zobrazia len ako počty, bez hodnotenia, poradia alebo trendu.",
         other:
           "{names} zatiaľ nedosiahli minimum {minimum} stretnutí. Ich údaje sa preto zobrazia len ako počty, bez hodnotenia, poradia alebo trendu.",
@@ -343,7 +343,7 @@ export const REPORT_BELOW_MINIMUM: Sentence = {
     text: "{frame|n}",
     words: {
       frame: {
-        one: "{names} nem éri el {az:minimum} találkozós minimumot, ezért az adatai csak nyers számként jelennének meg, értékelés, rangsor és trend nélkül.",
+        one: "{names}: még nincs meg {az:minimum} találkozós minimum. Az adatok ezért csak darabszámként jelennek meg, értékelés, rangsor és trend nélkül.",
         other:
           "{names} még nem érték el a legalább {minimum} találkozót. Az adataik ezért csak darabszámként jelennek meg, értékelés, rangsor és trend nélkül.",
       },
@@ -373,7 +373,7 @@ export const REPORT_LEGACY_SUMMARY: Sentence = {
     text: "{frame|n}",
     words: {
       frame: {
-        one: "Zhrnutie možno napísať pre ktorékoľvek stretnutie v tomto období, ale {count} z nich nemá časovanie a zobrazilo by sa ako postupnosť, nie ako časová os.",
+        one: "V tomto období možno pripraviť zhrnutie ku každému stretnutiu. Pri {count} stretnutí však chýbajú časové údaje. Také zhrnutie by sa preto zobrazilo ako sled krokov, nie na časovej osi.",
         few: "V tomto období možno pripraviť zhrnutie ku každému stretnutiu, no pri {count} z nich chýbajú časové údaje. Preto by sa zobrazili ako sled krokov, nie na časovej osi.",
         other:
           "V tomto období možno pripraviť zhrnutie ku každému stretnutiu, no pri {count} z nich chýbajú časové údaje. Preto by sa zobrazili ako sled krokov, nie na časovej osi.",
@@ -384,7 +384,7 @@ export const REPORT_LEGACY_SUMMARY: Sentence = {
     text: "{frame|n}",
     words: {
       frame: {
-        one: "Az időszak bármely találkozójáról írható összefoglaló, de közülük {count} nem hordoz időzítést, ezért lépéssorként jelenne meg, nem idővonalként.",
+        one: "Az időszak bármely találkozójáról készülhet összefoglaló, de {count} találkozóhoz nincsenek időadatok. Ezt ezért a lépések sorrendjében lehetne bemutatni, idővonal nélkül.",
         other:
           "Az időszak bármely találkozójáról készülhet összefoglaló, de {count} találkozóhoz nincsenek időadatok. Ezeket ezért a lépések sorrendjében lehetne bemutatni, idővonal nélkül.",
       },

@@ -45,7 +45,9 @@ import {
   OUTCOME_WORDS,
   actionWorthTaking,
   duration,
+  hungarianAdessive,
   hungarianArticle,
+  hungarianInstrumental,
   hungarianRoomAdjective,
   nothingReceivedYet,
   plural,
@@ -158,7 +160,11 @@ export function suppressionNoteFor(
   if (language === "hu") {
     return form === "short"
       ? `${minimum} találkozóból ${count(held, locale)}`
-      : `Ebben az időszakban ${meetings(held, locale, language)}; az értékeléshez ${minimum} kell, ${short} hiányzik. Az adatok láthatók, rangsor és trend nem készül.`;
+      : presenter.unnamed
+        ? presenter.where === "roster"
+          ? `Ebben az időszakban ennek az értékesítőnek ${count(held, locale)} találkozója volt, ${hungarianInstrumental(short)} kevesebb az értékeléshez szükséges ${hungarianAdessive(minimum)}. A számok láthatók, de rangsort és trendet nem állapítanak meg.`
+          : `Ebben az időszakban ${count(held, locale)} találkozója volt az értékesítőnek, ${hungarianInstrumental(short)} kevesebb az értékeléshez szükséges ${hungarianAdessive(minimum)}. A számok láthatók, de rangsort és trendet nem állapítanak meg.`
+        : `Ebben az időszakban ${count(held, locale)} találkozója volt, ${hungarianInstrumental(short)} kevesebb az értékeléshez szükséges ${hungarianAdessive(minimum)}. A számok láthatók, de rangsort és trendet nem állapítanak meg.`;
   }
   if (form === "short") return `${count(held, locale)} of ${minimum} meetings`;
   return `${meetings(held, locale, language)} in this period, ${short} short of the ${minimum} needed for a verdict. Figures are shown; no rank or trend is drawn.`;

@@ -50,7 +50,7 @@
  * matters to any actual Observer date: every generated meeting sits inside
  * ordinary working hours, nowhere near a transition.
  */
-import { DAYS, sentence, type Language, type Sentence } from "@observer/readmodels";
+import { DAYS, PERIOD_WORDS, sentence, type Language, type Sentence } from "@observer/readmodels";
 
 export interface ZoneParts {
   readonly year: number;
@@ -223,41 +223,6 @@ export const TIME_BASELINE_SENTENCE: Sentence = {
 };
 
 type PresetKey = "last_28_days" | "quarter_to_date" | "last_quarter" | "year_to_date";
-
-/**
- * THE PRESETS BY NAME, AND WHAT EACH IS COMPARED WITH, IN EACH LANGUAGE.
- *
- * One table for the real clock and the synthetic world, so a period cannot be
- * called one thing on a delivered project and another on a demonstration one.
- * The part-quarter's baseline is not here: it counts its days, and is
- * `TIME_BASELINE_SENTENCE` above. English is what these labels always said;
- * Slovak and Hungarian are drafts for review (P2-17).
- */
-const PERIOD_WORDS: Readonly<
-  Record<
-    Language,
-    Readonly<Record<PresetKey, { readonly label: string; readonly baseline: string }>>
-  >
-> = {
-  en: {
-    last_28_days: { label: "Last 28 days", baseline: "the previous 28 days" },
-    quarter_to_date: { label: "Quarter to date", baseline: "" },
-    last_quarter: { label: "Last completed quarter", baseline: "the quarter before it" },
-    year_to_date: { label: "Year to date", baseline: "the same period last year" },
-  },
-  sk: {
-    last_28_days: { label: "Posledných 28 dní", baseline: "predchádzajúcich 28 dní" },
-    quarter_to_date: { label: "Od začiatku štvrťroka", baseline: "" },
-    last_quarter: { label: "Posledný ukončený štvrťrok", baseline: "štvrťrok pred ním" },
-    year_to_date: { label: "Od začiatku roka", baseline: "rovnaké obdobie minulého roka" },
-  },
-  hu: {
-    last_28_days: { label: "Az elmúlt 28 nap", baseline: "az azt megelőző 28 nap" },
-    quarter_to_date: { label: "A negyedév eleje óta", baseline: "" },
-    last_quarter: { label: "Az utolsó lezárt negyedév", baseline: "az azt megelőző negyedév" },
-    year_to_date: { label: "Az év eleje óta", baseline: "az előző év azonos időszaka" },
-  },
-};
 
 /** A preset's label and its baseline's, in `language`; the part-quarter's counts `elapsedDays`. */
 export function periodWords(

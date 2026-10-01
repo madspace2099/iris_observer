@@ -12,7 +12,7 @@ import {
   type InsightSource,
   type MeasurementAvailability,
 } from "@observer/contracts";
-import { DATA_SOURCE_MARKERS, defineMeasurement } from "@observer/readmodels";
+import { DATA_SOURCE_MARKER_WORDS, defineMeasurement, type Language } from "@observer/readmodels";
 import { Measure } from "./Measure";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -76,7 +76,7 @@ export const AVAILABILITY_WORDS: Readonly<Record<MeasurementAvailability, string
  * is generated, and a reader who mistakes them for their own project's numbers
  * would make decisions on them.
  */
-export function SyntheticBadge() {
+export function SyntheticBadge({ language }: { readonly language: Language }) {
   /*
    * TWO MARKERS, AND THE PROJECT LAYOUT CHOOSES (`data-sessions`).
    *
@@ -86,7 +86,7 @@ export function SyntheticBadge() {
    * and the stylesheet shows one, so the dozen places that mount this marker
    * cannot disagree with each other about which project they are on.
    *
-   * THE WORDS COME FROM `DATA_SOURCE_MARKERS` and not from here. This marker
+   * THE WORDS COME FROM `DATA_SOURCE_MARKER_WORDS` and not from here. This marker
    * and `Synthetic` in `components/product/Absence.tsx` are two treatments of
    * one statement — a loud amber pill in the shell, a quiet chip on a page —
    * and each used to carry its own copy of the sentences. Two copies of a claim
@@ -95,7 +95,11 @@ export function SyntheticBadge() {
    * phrase wrapped this pill into three lines on a small-desktop header and
    * dragged the whole bar down with it, so the short form is on screen and the
    * whole sentence is the title and the screen-reader text.
+   *
+   * In the language of the page it sits on: a report's, on a report page
+   * (SHELL1), which is why the shell draws it rather than the project layout.
    */
+  const DATA_SOURCE_MARKERS = DATA_SOURCE_MARKER_WORDS[language];
   return (
     <>
       <span

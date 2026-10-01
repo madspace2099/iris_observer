@@ -9,7 +9,10 @@ import type { PeriodPreset } from "@observer/readmodels";
 import { ClosableDetails } from "@/components/ask-iris/ClosableDetails";
 import { ContextSwitcher, type SwitchOption } from "@/components/ContextSwitcher";
 import { PeriodSwitcher } from "@/components/PeriodSwitcher";
+import { AGENT_REPORT_WORDS } from "@/components/report/words";
+import { SyntheticBadge } from "@/showroom/parts";
 import { dynamicRoute } from "@/lib/href";
+import { frameLanguage } from "@/lib/language";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { HOME_SEGMENT, PROJECT_NAV } from "@/lib/routes";
 
@@ -567,6 +570,15 @@ export function Shell({
   const tabsLabel = givenTabsLabel ?? derived.label;
   const currentTab = givenCurrentTab ?? derived.current;
 
+  /*
+   * A report page's frame speaks the report's language where the product holds
+   * the word (SHELL1): the agents' section is the agent report's own crumb.
+   */
+  const language = frameLanguage(pathname, params);
+  const nav = NAV.map((item) =>
+    item.key === "agents" ? { ...item, label: AGENT_REPORT_WORDS[language].crumbAgents } : item,
+  );
+
   /**
    * ASK IRIS WEARS THE HEADER ITS OWN DESIGN SPECIFIES; NOTHING ELSE MOVES.
    *
@@ -643,7 +655,7 @@ export function Shell({
          * cannot be told from its neighbour.
          */}
         <nav className="irs-nav irs-nav--wide" aria-label="Sections">
-          {NAV.map((item) => {
+          {nav.map((item) => {
             const active = item.key === current;
             return (
               <Link
@@ -695,7 +707,14 @@ export function Shell({
             </div>
             <div className="irs-who-role">{viewer.roleLabel}</div>
           </div>
-          {variant === "ask" ? accountAsk : account}
+          {variant === "ask" ? (
+            accountAsk
+          ) : (
+            <>
+              <SyntheticBadge language={language} />
+              {account}
+            </>
+          )}
         </div>
       </header>
 
@@ -766,7 +785,7 @@ export function Shell({
 
               <div className="irs-mobile-menu-scroll">
                 <nav className="irs-mobile-nav" aria-label="Sections">
-                  {NAV.map((item) => {
+                  {nav.map((item) => {
                     const active = item.key === current;
                     return (
                       <Link
@@ -836,7 +855,10 @@ export function Shell({
                   </div>
                   <div className="irs-who-role">{viewer.roleLabel}</div>
                 </div>
-                <div className="irs-mobile-account">{account}</div>
+                <div className="irs-mobile-account">
+                  <SyntheticBadge language={language} />
+                  {account}
+                </div>
               </div>
             </div>
           </ClosableDetails>

@@ -34,6 +34,11 @@ import { pluralCategory, type Language, type PluralForms } from "./language";
  *                   the number at the value's end (`hungarianNumberSuffix`).
  *                   {Az:name-s} at a sentence's start; {name-s} without the
  *                   article.
+ *   {name-val}      Hungarian: the value with the "-val/-vel" suffix its
+ *                   number is said with — "1-gyel", "16-tal"
+ *                   (`hungarianInstrumental`).
+ *   {name-t}        Hungarian: the value with the accusative suffix — "74-et",
+ *                   "39-et" (`hungarianAccusative`).
  *
  * A counted word may carry `{name}`, `{#name|count}` and `{word|count}`
  * placeholders of its own — "one meeting" beside "{count} meetings" — and they
@@ -109,14 +114,21 @@ export function sentence(language: Language, entry: Sentence, values: SentenceVa
     },
   );
   return numbered.replace(
-    /\{(?:(az|Az):)?(\w+)(-s)?\}/g,
+    /\{(?:(az|Az):)?(\w+)(-s|-val|-t)?\}/g,
     (_match, article: string | undefined, name: string, suffix: string | undefined) => {
       const value = values[name];
       if (value === undefined) {
         throw new Error(`The ${language} sentence has no value for {${name}}.`);
       }
       const text = String(value);
-      const written = suffix === undefined ? text : `${text}${hungarianNumberSuffix(text)}`;
+      const written =
+        suffix === "-s"
+          ? `${text}${hungarianNumberSuffix(text)}`
+          : suffix === "-val"
+            ? hungarianInstrumental(text)
+            : suffix === "-t"
+              ? hungarianAccusative(text)
+              : text;
       return article === undefined
         ? written
         : `${hungarianArticle(text, article === "Az")} ${written}`;
@@ -254,17 +266,93 @@ export function hungarianAdessive(value: string): string {
   return `${value}${/[aáo]/.test(hungarianNumberSuffix(value)) ? "-nál" : "-nél"}`;
 }
 
-/** "-as" for "A-103": the suffix the number at the end of `value` takes. */
-export function hungarianNumberSuffix(value: string): string {
+/**
+ * The row of a number-suffix table the number at the end of `value` is read
+ * by: its last digit; where that is a nought, the digit before it as a ten; a
+ * second nought, a hundred; a nought alone, nought. One reading for every
+ * table below, so a number is said the same way whichever suffix it takes.
+ */
+function hungarianNumberKey(value: string, table: Readonly<Record<string, string>>): string {
   const digits = /\d+$/.exec(value)?.[0] ?? "";
   const last = digits.at(-1);
   const tens = digits.at(-2);
   const key = last !== "0" ? last : tens === undefined ? "0" : tens !== "0" ? `${tens}0` : "100";
-  const suffix = key === undefined ? undefined : HUNGARIAN_NUMBER_SUFFIX[key];
+  const suffix = key === undefined ? undefined : table[key];
   if (suffix === undefined) {
     throw new Error(
       `"${value}" does not end in a number, so no Hungarian suffix can be read from it.`,
     );
   }
   return suffix;
+}
+
+/** "-as" for "A-103": the suffix the number at the end of `value` takes. */
+export function hungarianNumberSuffix(value: string): string {
+  return hungarianNumberKey(value, HUNGARIAN_NUMBER_SUFFIX);
+}
+
+/**
+ * THE HUNGARIAN "-VAL/-VEL" AND ACCUSATIVE SUFFIXES AFTER A NUMBER (BEKOTES1).
+ *
+ * As Máté approved them on the P2-17 question sheet, 2026-10-01 (questions 1
+ * and 2): the suffix the number is said with, written after a hyphen, read by
+ * the same row as the "-s" suffix above. Like that table, a number ending in
+ * "…000" is read as a hundred ("ezer" would take "-rel", "-et"): the counts
+ * these follow are meetings and their shortfall, which do not reach a thousand
+ * on any page today. Correct a row here and nowhere else.
+ */
+const HUNGARIAN_INSTRUMENTAL: Readonly<Record<string, string>> = {
+  "0": "-val",
+  "1": "-gyel",
+  "2": "-vel",
+  "3": "-mal",
+  "4": "-gyel",
+  "5": "-tel",
+  "6": "-tal",
+  "7": "-tel",
+  "8": "-cal",
+  "9": "-cel",
+  "10": "-zel",
+  "20": "-szal",
+  "30": "-cal",
+  "40": "-nel",
+  "50": "-nel",
+  "60": "-nal",
+  "70": "-nel",
+  "80": "-nal",
+  "90": "-nel",
+  "100": "-zal",
+};
+
+const HUNGARIAN_ACCUSATIVE: Readonly<Record<string, string>> = {
+  "0": "-t",
+  "1": "-et",
+  "2": "-t",
+  "3": "-at",
+  "4": "-et",
+  "5": "-öt",
+  "6": "-ot",
+  "7": "-et",
+  "8": "-at",
+  "9": "-et",
+  "10": "-et",
+  "20": "-at",
+  "30": "-at",
+  "40": "-et",
+  "50": "-et",
+  "60": "-at",
+  "70": "-et",
+  "80": "-at",
+  "90": "-et",
+  "100": "-at",
+};
+
+/** "1-gyel", "16-tal": a number with the Hungarian "-val/-vel" after it. */
+export function hungarianInstrumental(value: string): string {
+  return `${value}${hungarianNumberKey(value, HUNGARIAN_INSTRUMENTAL)}`;
+}
+
+/** "74-et", "39-et": a number with the Hungarian accusative after it. */
+export function hungarianAccusative(value: string): string {
+  return `${value}${hungarianNumberKey(value, HUNGARIAN_ACCUSATIVE)}`;
 }
