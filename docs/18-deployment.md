@@ -1122,7 +1122,8 @@ unmeasured was rewritten or removed.
   buckets.
 - §2 GitHub, "pushed — 15 commits": `origin/main` has 393 commits.
 - §7, "Expected: 455 unit tests, 495 Playwright tests": `playwright test --list` counts 1,552 tests
-  in 50 files. The unit count was not recorded here.
+  in 50 files. The unit count was not recorded here. Settled 2026-10-01: `41a65c3` removed the
+  sentence, and §7 now names the commands and lets the run state the counts.
 - §10 lists pushing, the Vercel project and its first deployment as blocked. Pushing works, and the
   project exists with 111 deployments on GitHub's record.
 - §11, "Enabling it is rollout step 1": the sequence table puts it at step 6.
