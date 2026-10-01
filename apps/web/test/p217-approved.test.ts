@@ -66,3 +66,56 @@ describe("an agent's report captions in Slovak, above the floor (sheet 2, questi
     );
   });
 });
+
+/*
+ * Sheet 1, items 37 to 39, below the floor: at 4 meetings word for word as
+ * approved; at 1 and from 5 with the phrases Máté gave for those counts
+ * (sheet 2, question 4) set into the same sentence.
+ */
+describe("an agent's report captions in Slovak, below the floor (sheet 2, question 4)", () => {
+  const sk = AGENT_REPORT_WORDS.sk;
+  const name = "Meno nie je k dispozícii · observer-review-harness";
+
+  it("writes item 37 at 4 meetings, as approved", () => {
+    expect(sk.presentationCaption(name, true, 4, 20)).toBe(
+      "Meno nie je k dispozícii · observer-review-harness: pri každej sekcii je uvedené, na ktorom mieste býva v priemere naprieč stretnutiami a aký je medián času stráveného v nej. Nejde o priebeh konkrétneho stretnutia. Podiel na meranom čase makléra ani medián tímu sa vedľa jednotlivých sekcií neuvádzajú. Pri 4 stretnutiach chýba do hranice 20 ešte 16; podiel by sa dal čítať ako hodnotenie a porovnanie s tímom ako úsudok o práci makléra, hoci vzorka je na oboje príliš malá.",
+    );
+  });
+
+  it("writes item 37's count at 1, 3 and 5 meetings in the forms given", () => {
+    const at = (n: number) => sk.presentationCaption(name, true, n, 20);
+    expect(at(1)).toContain(" Pri 1 stretnutí chýba do hranice 20 ešte 19; ");
+    expect(at(3)).toContain(" Pri 3 stretnutiach chýba do hranice 20 ešte 17; ");
+    expect(at(5)).toContain(" Pri 5 stretnutiach chýba do hranice 20 ešte 15; ");
+  });
+
+  it("writes item 38 at 4 meetings, as approved", () => {
+    expect(sk.buyersCaption(name, true, 4, 20)).toBe(
+      "Meno nie je k dispozícii · observer-review-harness: tie stretnutia tohto makléra, na ktorých otvorili aspoň 1 byt danej veľkosti. Ak na tom istom stretnutí ukázali 1-izbový byt aj 4-izbový penthouse, započíta sa do oboch skupín. Súčet týchto počtov preto nie je počtom stretnutí. Vedľa počtov nie je podiel za celý projekt: pri 4 stretnutiach, teda 16 pod hranicou 20, by porovnanie naznačovalo hodnotenie práce makléra na základe príliš malej vzorky.",
+    );
+  });
+
+  it("writes item 38's parenthesis at 1 and at 5 meetings in the forms given", () => {
+    expect(sk.buyersCaption(name, true, 1, 20)).toContain(
+      ": pri 1 stretnutí, keď do hranice 20 chýba 19, by porovnanie",
+    );
+    expect(sk.buyersCaption(name, true, 5, 20)).toContain(
+      ": pri 5 stretnutiach, keď do hranice 20 chýba 15, by porovnanie",
+    );
+  });
+
+  it("writes item 39 at 4 meetings, as approved", () => {
+    expect(sk.outcomeCaption(name, true, 4, 20)).toBe(
+      "Meno nie je k dispozícii · observer-review-harness: všetky stretnutia tohto makléra v danom období sú rozdelené podľa výsledku zaznamenaného na ich konci. Menovateľom sú 4 stretnutia. Tie bez zaznamenaného výsledku majú vlastný riadok; nezaraďujú sa do riadka, ktorý naznačuje, že sa niečo stalo. Vedľa počtov nie sú podiely: pri 4 stretnutiach chýba do hranice 20 ešte 16, takže z takto vypočítanej miery nemožno vychádzať pri rozhodovaní. Pri každom počte už je uvedený menovateľ, z ktorého sa podiel počíta.",
+    );
+  });
+
+  it("writes item 39's denominator and count at 1, 3 and 5 meetings in the forms given", () => {
+    const at = (n: number) => sk.outcomeCaption(name, true, n, 20);
+    expect(at(1)).toContain(" Menovateľom je 1 stretnutie. ");
+    expect(at(1)).toContain(": pri 1 stretnutí chýba do hranice 20 ešte 19, ");
+    expect(at(3)).toContain(" Menovateľom sú 3 stretnutia. ");
+    expect(at(5)).toContain(" Menovateľom je 5 stretnutí. ");
+    expect(at(5)).toContain(": pri 5 stretnutiach chýba do hranice 20 ešte 15, ");
+  });
+});

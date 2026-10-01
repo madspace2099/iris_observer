@@ -361,6 +361,24 @@ export interface AgentReportWords {
 const meetingsIn = (language: Language, n: number) =>
   `${String(n)} ${plural(language, n, MEETINGS)}`;
 
+/**
+ * "Pri 1 stretnutí" / "Pri 3 stretnutiach" / "Pri 5 stretnutiach": the
+ * meetings below the floor, in the forms Máté gave on the question sheet
+ * (2026-10-01, question 4). `capital` where the phrase opens a sentence.
+ */
+const slovakAtMeetings = (n: number, capital: boolean) =>
+  `${capital ? "Pri" : "pri"} ${String(n)} ${pluralCategory("sk", n) === "one" ? "stretnutí" : "stretnutiach"}`;
+
+/** "Menovateľom je 1 stretnutie." / "Menovateľom sú 3 stretnutia." / "Menovateľom je 5 stretnutí." */
+const slovakDenominator = (n: number) => {
+  const category = pluralCategory("sk", n);
+  return category === "one"
+    ? `Menovateľom je ${String(n)} stretnutie.`
+    : category === "few"
+      ? `Menovateľom sú ${String(n)} stretnutia.`
+      : `Menovateľom je ${String(n)} stretnutí.`;
+};
+
 export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = {
   en: {
     kicker: "Agent summary",
@@ -444,7 +462,7 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     funnelLabel: (name) => `Fázy, ktoré dosiahli stretnutia – ${name}`,
     presentationCaption: (name, below, n, minimum) =>
       below
-        ? `Poradie sekcií – ${name}: kde každá sekcia v priemere padne naprieč stretnutiami, nie cesta jedného stretnutia, s mediánom času v nej. Podiel na meranom čase ani medián tímu sa vedľa zastávok netlačí: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by podiel bol mierou čítanou ako hodnotenie a porovnanie úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky na oboje.`
+        ? `${name}: pri každej sekcii je uvedené, na ktorom mieste býva v priemere naprieč stretnutiami a aký je medián času stráveného v nej. Nejde o priebeh konkrétneho stretnutia. Podiel na meranom čase makléra ani medián tímu sa vedľa jednotlivých sekcií neuvádzajú. ${slovakAtMeetings(n, true)} chýba do hranice ${String(minimum)} ešte ${String(minimum - n)}; podiel by sa dal čítať ako hodnotenie a porovnanie s tímom ako úsudok o práci makléra, hoci vzorka je na oboje príliš malá.`
         : `${name}: Poradie sekcií ukazuje, na ktorom mieste sa každá z nich v priemere objavuje počas stretnutí. Nejde o priebeh konkrétneho stretnutia. Pri každej sekcii je medián času stráveného v nej, jej podiel na meranom čase prezentácií a medián tímu na porovnanie; samotný čas sekcie by nemal mierku.`,
     presentationColumns: [
       "Poradie",
@@ -458,14 +476,18 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
       `${slovakZForm(n)} ${String(n)} ${n === 1 ? "stretnutia s meraným časom" : "stretnutí s meraným časom"}`,
     buyersCaption: (name, below, n, minimum) =>
       below
-        ? `Stretnutia – ${name}, na ktorých sa otvoril aspoň 1 byt danej veľkosti. Stretnutie, ktoré ukázalo 1-izbový byt aj 4-izbový penthouse, sa počíta v oboch, takže súčet nedáva počet stretnutí. Miera celého projektu sa vedľa neuvádza: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, by také porovnanie bolo úsudkom o tom, ako niekto pracuje, z príliš tenkej vzorky.`
+        ? `${name}: tie stretnutia tohto makléra, na ktorých otvorili aspoň 1 byt danej veľkosti. Ak na tom istom stretnutí ukázali 1-izbový byt aj 4-izbový penthouse, započíta sa do oboch skupín. Súčet týchto počtov preto nie je počtom stretnutí. Vedľa počtov nie je podiel za celý projekt: ${
+            pluralCategory("sk", n) === "few"
+              ? `${slovakAtMeetings(n, false)}, teda ${String(minimum - n)} pod hranicou ${String(minimum)}`
+              : `${slovakAtMeetings(n, false)}, keď do hranice ${String(minimum)} chýba ${String(minimum - n)}`
+          }, by porovnanie naznačovalo hodnotenie práce makléra na základe príliš malej vzorky.`
         : `${name}: Každý riadok predstavuje konkrétnu veľkosť bytu: podiel stretnutí, na ktorých otvorili aspoň 1 byt tejto veľkosti, a rovnaký podiel zo všetkých stretnutí na projekte v danom období. Podiely v riadkoch sa nesčítajú na 100 % a nejde o skladbu bytov: stretnutie, na ktorom ukázali 1-izbový byt aj 4-izbový penthouse, sa započíta do oboch riadkov.`,
     buyersColumns: ["Byty", "Stretnutia, ktoré nejaký otvorili", "Podiel stretnutí", "Projekt"],
     noneOpened: "Žiadny otvorený",
     ofEveryMeeting: "zo všetkých stretnutí na projekte",
     outcomeCaption: (name, below, n, minimum) => {
       if (below) {
-        return `Ako sa skončili stretnutia – ${name}: časti jedného celku, všetky stretnutia v období podľa výsledku zaznamenaného na ich konci. Menovateľ: ${meetingsIn("sk", n)}. Stretnutia bez zaznamenaného výsledku majú vlastný riadok, namiesto toho, aby sa zlúčili s riadkom, ktorý tvrdí, že sa niečo stalo.${` Vedľa počtov sa netlačí podiel: pri vzorke ${meetingsIn("sk", n)}, keď chýba ${String(minimum - n)} do ${String(minimum)}, miera nad stretnutiami tohto človeka nie je číslo, podľa ktorého konať, a každý počet už nesie menovateľa, ktorého je podielom.`}`;
+        return `${name}: všetky stretnutia tohto makléra v danom období sú rozdelené podľa výsledku zaznamenaného na ich konci. ${slovakDenominator(n)} Tie bez zaznamenaného výsledku majú vlastný riadok; nezaraďujú sa do riadka, ktorý naznačuje, že sa niečo stalo. Vedľa počtov nie sú podiely: ${slovakAtMeetings(n, false)} chýba do hranice ${String(minimum)} ešte ${String(minimum - n)}, takže z takto vypočítanej miery nemožno vychádzať pri rozhodovaní. Pri každom počte už je uvedený menovateľ, z ktorého sa podiel počíta.`;
       }
       /* Item 25 in the count's three forms (sheet 2, question 3). Above the floor n is at least 20, so one and few are reached only by a direct call; they are tested there. */
       const category = pluralCategory("sk", n);
