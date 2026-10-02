@@ -17,6 +17,7 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import {
+  addressOf,
   DEFAULT_LANGUAGE,
   formattingLocale,
   NotFoundError,
@@ -600,8 +601,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     // `current`, matching getAgentsView — the rings and the radars are read as
     // one page, so they must count the same meetings.
     const { context, current } = await this.slices(query);
-    const base = `/${context.tenant.slug}/${context.project.slug}`;
-    return buildAgentCharts(current, base, context.project.locale, context.language);
+    return buildAgentCharts(current, addressOf(context), context.project.locale, context.language);
   }
 
   async getProjectView(query: OverviewQuery, segmentId: string | null): Promise<ProjectView> {

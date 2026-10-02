@@ -11,6 +11,7 @@ import {
   slovakZForm,
   type OverviewQuery,
   type ReportSection,
+  replayHref,
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
@@ -522,7 +523,7 @@ async function MeetingReport({
         crumbs={[
           { label: report.context.project.name, href: `${root}/project` },
           { label: words.meetings, href: `${root}/meetings` },
-          { label: replay.startedDisplay, href: `${root}/meetings/${meetingId}` },
+          { label: replay.startedDisplay, href: replayHref(query, meetingId) },
           { label: words.summary },
         ]}
         aside={

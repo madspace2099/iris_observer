@@ -210,13 +210,23 @@ describe("buildFeatureUsage: the three axes the current build cannot answer", ()
 describe("the feature-usage model rides on the agent charts, under the same floor", () => {
   it("is carried by buildAgentCharts, and an agent under the floor is flagged with the floor's sentence", () => {
     const few = Array.from({ length: AGENT_MIN_SAMPLE - 1 }, (_, i) => meeting(String(i)));
-    const [profile] = buildAgentCharts(few, "/alpha/prj", LOCALE, "en").featureUsage.profiles;
+    const [profile] = buildAgentCharts(
+      few,
+      { tenantSlug: "alpha", projectSlug: "prj" },
+      LOCALE,
+      "en",
+    ).featureUsage.profiles;
     expect(profile?.meetings).toBe(AGENT_MIN_SAMPLE - 1);
     expect(profile?.belowMinimum).toBe(true);
     expect(profile?.note).toContain(`short of the ${String(AGENT_MIN_SAMPLE)}`);
 
     const enough = Array.from({ length: AGENT_MIN_SAMPLE }, (_, i) => meeting(String(i)));
-    const [cleared] = buildAgentCharts(enough, "/alpha/prj", LOCALE, "en").featureUsage.profiles;
+    const [cleared] = buildAgentCharts(
+      enough,
+      { tenantSlug: "alpha", projectSlug: "prj" },
+      LOCALE,
+      "en",
+    ).featureUsage.profiles;
     expect(cleared?.belowMinimum).toBe(false);
     expect(cleared?.note).toBeNull();
   });

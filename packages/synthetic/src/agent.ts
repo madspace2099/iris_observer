@@ -16,6 +16,8 @@ import {
   type UnitLabel,
   type UpcomingMeeting,
   type ViewContext,
+  addressOf,
+  replayHref,
 } from "@observer/readmodels";
 import { hasProgressed, outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
 import { daysBetween } from "./deals";
@@ -391,7 +393,7 @@ export function buildPreMeetingBrief(
     participantNames: ["Viktória Halász"],
     units,
     evidence,
-    meetingHref: `${root}/meetings/${meetingId}`,
+    meetingHref: replayHref(addressOf(context), meetingId),
     /* No contact page exists, so there is no timeline to open (P2-16). */
     contactHref: null,
   };
@@ -436,7 +438,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
           isReturningBuyer: false,
           headline:
             "Two-room, south-facing. Shortlisted A-505, which has since sold — have the answer ready.",
-          briefHref: `${root}/meetings/${VIKTORIA_MEETING_ID}`,
+          briefHref: replayHref(addressOf(context), VIKTORIA_MEETING_ID),
           briefReady: true,
           briefCaveat: null,
         },
@@ -447,7 +449,7 @@ export function buildAgentOverview(context: ViewContext): AgentOverview {
           participantNames: ["Daniel Bartoš", "Eva Bartošová"],
           isReturningBuyer: true,
           headline: "Third visit as a couple. Two offers discussed, none made.",
-          briefHref: `${root}/meetings/${COUPLE_MEETING_ID}`,
+          briefHref: replayHref(addressOf(context), COUPLE_MEETING_ID),
           briefReady: false,
           briefCaveat:
             "No online history is linked for either of them, so this brief covers showroom visits only.",

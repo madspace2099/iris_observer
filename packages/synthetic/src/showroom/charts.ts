@@ -29,7 +29,15 @@ import type {
   TrendSeries,
   ViewContext,
 } from "@observer/readmodels";
-import { KPI_WINDOWS, duration, type Language } from "@observer/readmodels";
+import {
+  KPI_WINDOWS,
+  duration,
+  type Language,
+  addressOf,
+  type ProjectAddress,
+  replayHref,
+  agentDetailHref,
+} from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
   count,
@@ -518,7 +526,7 @@ const RADAR_TONES = [
 
 export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
-  base: string,
+  at: ProjectAddress,
   locale: string,
   language: Language,
 ): AgentCharts {
@@ -612,7 +620,7 @@ export function buildAgentCharts(
             : `median ${duration(median(timed), language)}`,
         value: mine.length,
         display: count(mine.length, locale),
-        href: `${base}/agents/${r.id}`,
+        href: agentDetailHref(at, r.id),
       };
     })
     .sort((a, b) => b.value - a.value);
@@ -746,7 +754,7 @@ export function buildFeatureUsage(
 
 export function buildLongestMeetings(
   sessions: readonly ShowroomSession[],
-  base: string,
+  at: ProjectAddress,
   locale: string,
   timeZone: string,
   language: Language,
@@ -761,7 +769,7 @@ export function buildLongestMeetings(
       sub: `${presenterName(s.projectId, s.agentId, language)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
       display: duration(s.durationSeconds, language),
-      href: `${base}/meetings/${s.meetingId}`,
+      href: replayHref(at, s.meetingId),
     }));
 }
 
@@ -1037,7 +1045,7 @@ export function buildFlowCharts(
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const charts = buildAgentCharts(sessions, base, locale, context.language);
+  const charts = buildAgentCharts(sessions, addressOf(context), locale, context.language);
   const span = sliceSpan(context, today);
   /*
    * A running slice ends at the end of today in UTC, which in Bratislava is
@@ -1057,7 +1065,13 @@ export function buildFlowCharts(
     trend: buildTrend(sessions, locale, timeZone, span),
     funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,
-    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone, context.language),
+    longestMeetings: buildLongestMeetings(
+      sessions,
+      addressOf(context),
+      locale,
+      timeZone,
+      context.language,
+    ),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }

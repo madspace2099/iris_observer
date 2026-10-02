@@ -22,6 +22,8 @@ import {
   slovakZForm,
   type PluralForms,
   type Sentence,
+  addressOf,
+  replayHref,
 } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import { count, dayLabel, evidenceRef, percent } from "../format";
@@ -502,7 +504,7 @@ export function buildAttention(
         .map((s) => ({
           id: s.meetingId,
           label: s.meetingId,
-          href: `${root}/meetings/${s.meetingId}`,
+          href: replayHref(addressOf(context), s.meetingId),
         })),
       sampleSize: sessions.length,
       minimumSampleSize: UNIT_MIN_SAMPLE,

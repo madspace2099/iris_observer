@@ -11,6 +11,7 @@ import {
   sentence,
   slovakZForm,
   type OverviewQuery,
+  agentDetailHref,
 } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -448,7 +449,7 @@ export async function AgentReport({
         crumbs={[
           { label: report.context.project.name, href: `${root}/project` },
           { label: words.crumbAgents, href: `${root}/agents` },
-          { label: view.name, href: `${root}/agents/${view.agentId}` },
+          { label: view.name, href: agentDetailHref({ tenantSlug, projectSlug }, view.agentId) },
           { label: words.crumbSummary },
         ]}
         aside={

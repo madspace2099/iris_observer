@@ -55,6 +55,9 @@ import {
   type PluralForms,
   type Sentence,
   type SentenceValues,
+  addressOf,
+  replayHref,
+  agentDetailHref,
 } from "@observer/readmodels";
 import type { OrientationInterest, UnitsViewedSummary } from "@observer/readmodels";
 import type { ShowroomUnitInteraction } from "@observer/contracts";
@@ -1744,7 +1747,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
       evidence: evidenceRef(
         `${session.meetingId}-${step.ordinal}`,
         "observed_sequence",
-        `${base}/meetings/${session.meetingId}`,
+        replayHref(addressOf(context), session.meetingId),
         1,
       ),
     });
@@ -1896,7 +1899,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     unitsViewed: unitsViewedOf(session.units, catalogue, language, locale),
     agentName: agent?.name ?? presenterName(session.projectId, session.agentId, language),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
-    agentHref: `${base}/agents/${encodeURIComponent(session.agentId)}`,
+    agentHref: agentDetailHref(addressOf(context), session.agentId),
     startedDisplay: `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`,
     durationDisplay: duration(session.durationSeconds, language),
     outcome: session.outcome,
@@ -1908,7 +1911,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
     evidence: evidenceRef(
       session.meetingId,
       "observed_sequence",
-      `${base}/meetings/${session.meetingId}`,
+      replayHref(addressOf(context), session.meetingId),
       steps.length,
     ),
   };
@@ -1920,7 +1923,6 @@ export function buildMeetingList(
 ): readonly MeetingSummary[] {
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
-  const base = `/${context.tenant.slug}/${context.project.slug}`;
   /*
    * NEWEST FIRST, AND THEN BY IDENTIFIER.
    *
@@ -1957,7 +1959,7 @@ export function buildMeetingList(
       outcomeLabel: OUTCOME_WORDS[context.language][s.outcome],
       sectionCount: new Set(orderOf(s)).size,
       unitCount: s.units.length,
-      href: `${base}/meetings/${s.meetingId}`,
+      href: replayHref(addressOf(context), s.meetingId),
     }));
 }
 

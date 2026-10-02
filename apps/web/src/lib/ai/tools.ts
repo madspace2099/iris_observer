@@ -9,7 +9,13 @@ import {
   type SectionId,
 } from "@observer/contracts";
 import type { EvidenceRef, Viewer } from "@observer/readmodels";
-import { NotPermittedError, areaWord, roomsWord, DEFAULT_LANGUAGE } from "@observer/readmodels";
+import {
+  NotPermittedError,
+  areaWord,
+  roomsWord,
+  DEFAULT_LANGUAGE,
+  replayHref,
+} from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { maySeeSurface } from "@/lib/routes";
 
@@ -423,7 +429,7 @@ const explainMeetingJourney: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString
       evidence: replay.evidence,
       sampleSize: 1,
       caveats: replay.gaps,
-      action: { label: "Open the replay", href: `${root(context)}/meetings/${replay.meetingId}` },
+      action: { label: "Open the replay", href: replayHref(context, replay.meetingId) },
       draft: `${replay.agentName} presented in this order: ${sections.map((s) => s.label).join(" → ")}. ${replay.headline} The outcome was recorded as ${replay.outcomeLabel.toLowerCase()}.`,
     };
   },
@@ -692,7 +698,7 @@ const prepareMeeting: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString }>> = 
       sampleSize: b.observed.unitInterest.length,
       // What is missing, said out loud rather than rendered as an absence.
       caveats: b.dataHealth.missing.map((m) => `${m.what} — ${m.consequence}`),
-      action: { label: "Open the brief", href: `${root(context)}/meetings/${args.meetingId}` },
+      action: { label: "Open the brief", href: replayHref(context, args.meetingId) },
       draft: `${brief.participantNames.join(" and ") || "This visitor"} viewed ${b.observed.unitInterest.length} units across ${b.observed.onlineActivity.sessionCount} online sessions before this meeting. Data completeness is ${Math.round(b.dataHealth.completeness * 100)}%.`,
     };
   },

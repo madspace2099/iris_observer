@@ -12,7 +12,7 @@ import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { Radar, RankedBars } from "@/showroom/charts2";
 
-import { DEFAULT_LANGUAGE } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, agentDetailHref } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Sales Agents" };
 
 /**
@@ -94,7 +94,7 @@ export default async function AgentsPage({
     );
 
   const detailHref = (agentId: string) =>
-    `/${tenantSlug}/${projectSlug}/agents/${agentId}?${new URLSearchParams({ period }).toString()}`;
+    `${agentDetailHref({ tenantSlug, projectSlug }, agentId)}?${new URLSearchParams({ period }).toString()}`;
   const agentHref = (page: "meetings" | "report", agentId: string) =>
     withPeriod(
       `/${tenantSlug}/${projectSlug}/${page}?${new URLSearchParams({ agent: agentId }).toString()}`,
