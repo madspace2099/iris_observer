@@ -11,6 +11,7 @@ import {
 } from "@observer/contracts";
 import type {
   ActivityMatrix,
+  DeliveredDeals,
   AgentCharts,
   AgentRadar,
   BehaviourFunnel,
@@ -37,6 +38,7 @@ import {
   type ProjectAddress,
   replayHref,
   agentDetailHref,
+  summariseSaleCycles,
 } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
@@ -50,7 +52,8 @@ import {
 } from "../format";
 import { endOfDayIn, monthKeyIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { presenterName, presentersIn } from "./sessions";
-import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { AGENT_MIN_SAMPLE, getMetric } from "@observer/metrics";
+import { showroomSaleCycleInputs } from "./sale-cycles";
 import { meetings, sliceSpan, suppressionNoteFor } from "./views3";
 
 /**
@@ -146,6 +149,8 @@ export function buildKpis(
   locale: string,
   timeZone: string,
   language: Language,
+  /** The CRM's deals, for the cycle; null where no CRM is connected. */
+  deals: DeliveredDeals | null = null,
 ): KpiPanel {
   const spec = KPI_WINDOWS.find((w) => w.id === windowId) ?? KPI_WINDOWS[2];
   const day = 24 * 60 * 60 * 1000;
@@ -314,6 +319,9 @@ export function buildKpis(
     },
   ];
 
+  const cycle = saleCycleFigure(deals, all, from, to, windowWords, locale);
+  if (cycle !== null) figures.push(cycle);
+
   return {
     window: spec.id,
     windowLabel: spec.label,
@@ -324,8 +332,69 @@ export function buildKpis(
         : now.length < 5
           ? `${meetings(now.length, locale, language)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
           : null,
-    groups: KPI_GROUPS,
+    groups: KPI_GROUPS.map((group) =>
+      group.id === "cycle_time" ? cycleTimeGroup(deals !== null) : group,
+    ),
     ungrouped: ["duration"],
+  };
+}
+
+/*
+ * CYCLE TIME, FROM THE SHOWROOM (R05-4, Máté 2026-10-02).
+ *
+ * The definition is Máté's sentence. Without a CRM no sale has a Sold date, so
+ * the group is printed empty and says why rather than drawn at zero.
+ */
+const CYCLE_DEFINITION =
+  "Measured from the first recorded showroom opening to the date the deal entered the Sold stage.";
+
+function cycleTimeGroup(crm: boolean): KpiGroup {
+  return {
+    id: "cycle_time",
+    label: "Cycle time",
+    definition: CYCLE_DEFINITION,
+    figureIds: crm ? ["sale_cycle"] : [],
+    missing: crm ? null : "No CRM is connected, so no sale has a Sold date to measure to.",
+  };
+}
+
+/** The cycle over the window's sales, by the shared calculator; null without a CRM. */
+function saleCycleFigure(
+  deals: DeliveredDeals | null,
+  history: readonly ShowroomSession[],
+  from: number,
+  to: number,
+  windowWords: string,
+  locale: string,
+): KpiFigure | null {
+  if (deals === null) return null;
+  const minimum = getMetric("flow.showroom_sale_cycle")?.minimumSampleSize ?? 10;
+  const summary = summariseSaleCycles(
+    showroomSaleCycleInputs(deals, history, { from, to }),
+    minimum,
+  );
+  const days = (n: number) =>
+    `${count(Math.round(n), locale)} ${Math.round(n) === 1 ? "day" : "days"}`;
+  const measured = `${count(summary.measured, locale)} of ${count(summary.examined, locale)} sales measured`;
+  return {
+    id: "sale_cycle",
+    label: "Sales cycle",
+    measurementId: "flow.showroom_sale_cycle",
+    value:
+      summary.examined === 0
+        ? "No sale"
+        : summary.state === "ok" && summary.medianDays !== null
+          ? days(summary.medianDays)
+          : measured,
+    qualifier:
+      summary.examined === 0
+        ? windowWords
+        : summary.state === "ok" && summary.p80Days !== null
+          ? `median · 80% within ${days(summary.p80Days)} · ${measured}`
+          : `${count(minimum, locale)} measured sales needed for a median · ${windowWords}`,
+    delta: null,
+    tone: "flat",
+    points: [],
   };
 }
 
@@ -1041,6 +1110,7 @@ export function buildFlowCharts(
   all: readonly ShowroomSession[],
   today: Date,
   windowId: KpiWindowId,
+  deals: DeliveredDeals | null = null,
 ): FlowCharts {
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
@@ -1059,7 +1129,7 @@ export function buildFlowCharts(
 
   return {
     context,
-    kpis: buildKpis(all, today, windowId, locale, timeZone, context.language),
+    kpis: buildKpis(all, today, windowId, locale, timeZone, context.language, deals),
     activity: buildActivity(sessions, timeZone),
     composition: buildComposition(sessions, locale, timeZone, monthSpan),
     trend: buildTrend(sessions, locale, timeZone, span),

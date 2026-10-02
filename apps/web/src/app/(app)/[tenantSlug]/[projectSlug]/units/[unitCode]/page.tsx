@@ -9,7 +9,7 @@ import {
   floorWord,
   DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
-import type { UnitAttentionDetail, UnitDetailView } from "@observer/readmodels";
+import type { CycleExclusion, UnitAttentionDetail, UnitDetailView } from "@observer/readmodels";
 
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
@@ -45,6 +45,15 @@ import {
 } from "@/components/units";
 
 export const metadata: Metadata = { title: "Unit" };
+
+/* Why one sale has no cycle, said as the reason rather than as a missing number (R07-4). */
+const CYCLE_EXCLUDED: Readonly<Record<CycleExclusion, string>> = {
+  no_sale_date: "none, because the CRM states no Sold date for this sale",
+  no_opening_recorded: "none, because no showroom opening of this unit is recorded",
+  opening_after_sale: "none, because its first recorded opening comes after the sale",
+  opening_at_data_edge:
+    "none counted, because its first recorded opening is the first moment the data covers and an earlier one may exist",
+};
 
 /**
  * ONE APARTMENT.
@@ -398,6 +407,28 @@ export default async function UnitPage({
           ))}
 
           <UnitFunnel language={context.language} stages={detail.funnel} />
+
+          {/*
+           * R07-4 (Máté, 2026-10-02): the sale's cycle from the shared
+           * calculator, with Máté's definition beside it, or why it has none.
+           */}
+          {detail.saleCycle === null ? null : (
+            <div className="ox-result">
+              <span>
+                Sales cycle:{" "}
+                {detail.saleCycle.kind === "measured" ? (
+                  <strong>
+                    {Math.round(detail.saleCycle.days)}{" "}
+                    {Math.round(detail.saleCycle.days) === 1 ? "day" : "days"}
+                  </strong>
+                ) : (
+                  CYCLE_EXCLUDED[detail.saleCycle.why]
+                )}
+                . Measured from the first recorded showroom opening to the date the deal entered the
+                Sold stage.
+              </span>
+            </div>
+          )}
         </section>
 
         {/* --- what happened, in order -------------------------------------- */}

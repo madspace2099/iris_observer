@@ -581,6 +581,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       sessionsForProject(context.project.id as string),
       today,
       window,
+      dealsFor(context.project.id as string),
     );
   }
 
@@ -688,7 +689,14 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getUnitDetail(query: OverviewQuery, unitCode: string): Promise<UnitDetailView> {
     const { context, current, previous } = await this.slices(query);
-    const view = buildUnitDetail(context, current, previous, unitCode);
+    const view = buildUnitDetail(
+      context,
+      current,
+      previous,
+      unitCode,
+      dealsFor(context.project.id as string),
+      sessionsForProject(context.project.id as string),
+    );
     /*
      * Not found, rather than an empty page.
      *

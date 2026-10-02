@@ -80,3 +80,25 @@ test("R01-2 · Northgate's Ask opens on computed questions, with no scripted sce
   expect(ask).not.toMatch(/Viktória|viewings held at 46|A-505/);
 });
 
+test("R05-4 · Sales Flow's Cycle time names where the cycle starts", async ({ page }) => {
+  await signInAs(page, "Tomáš Varga");
+  await page.goto(`${ROOT}/flow`, { waitUntil: "networkidle" });
+  const group = page.getByRole("group", { name: "Cycle time" });
+  await expect(group).toContainText(
+    "Measured from the first recorded showroom opening to the date the deal entered the Sold stage.",
+  );
+  await expect(group).toContainText(/Sales cycle|No sale/);
+});
+
+test("R07-4 · a sold unit's page states its cycle, or why it has none", async ({ page }) => {
+  await signInAs(page, "Tomáš Varga");
+  await page.goto(`${ROOT}/units/A-802`, { waitUntil: "networkidle" });
+  await expect(page.locator("main")).toContainText(
+    "Sales cycle: 105 days. Measured from the first recorded showroom opening to the date the deal entered the Sold stage.",
+  );
+  await page.goto(`${ROOT}/units/B-502`, { waitUntil: "networkidle" });
+  await expect(page.locator("main")).toContainText(
+    "Sales cycle: none counted, because its first recorded opening is the first moment the data covers",
+  );
+});
+

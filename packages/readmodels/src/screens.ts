@@ -17,6 +17,7 @@ import type {
 import type { MeetingSummary, ShowroomFinding, UnitAttentionRow } from "./showroom";
 import type { AgentProfile, OutcomeSlice } from "./views3";
 import type { Language } from "./language";
+import type { SaleCycleVerdict } from "./sale-cycle";
 
 /**
  * The drill-down surfaces, as read models.
@@ -517,6 +518,13 @@ export interface UnitDetailView {
   readonly relatedAgents: readonly UnitAgentInterest[];
   readonly trend: UnitInterestTrend;
   readonly findings: readonly ShowroomFinding[];
+  /**
+   * This unit's sale, through the shared calculator (R07-4, Máté 2026-10-02):
+   * from its first recorded showroom opening to the CRM's Sold stage, or the
+   * reason it has no duration. Null when no CRM is connected or the unit is
+   * not sold.
+   */
+  readonly saleCycle: SaleCycleVerdict | null;
   /** Present when nothing in the period touched this unit. Never a row of zeros. */
   readonly emptyState: string | null;
   readonly evidence: EvidenceRef;

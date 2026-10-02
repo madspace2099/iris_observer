@@ -12,7 +12,9 @@ import { SyntheticObserverRepository, VIEWERS } from "../src/index";
  * - the deal ladder is stock, not path;
  * - `flow.stage_conversion` is computed nowhere;
  * - Progressing is a meeting ratio, which the plan excludes as conversion;
- * - the sale cycle is blocked (P2-06).
+ * - the sale cycle was blocked (P2-06). Since Máté's decision of 2026-10-02 it
+ *   is measured from the unit's first showroom opening wherever a CRM states
+ *   Sold dates, and printed empty with the reason where none is connected.
  * So those two are printed empty with what is missing, never dropped.
  * "Typical length" stays outside the groups: it measures workload, and filed
  * under Volume the group's name would say something untrue about it.
@@ -77,7 +79,7 @@ describe("the summary row in four groups", () => {
         volume: ["presentations", "units"],
         progress: ["progressed"],
         conversion: [],
-        cycle_time: [],
+        cycle_time: at.startsWith("northgate/") ? ["sale_cycle"] : [],
       });
       expect(kpis.ungrouped, at).toEqual(["duration"]);
     }
@@ -91,8 +93,8 @@ describe("the summary row in four groups", () => {
       const missing = Object.fromEntries(kpis.groups.map((g) => [g.id, g.missing ?? ""]));
       expect(missing.conversion, at).toMatch(/not the path it took/);
       expect(missing.conversion, at).toMatch(/not computed/);
-      expect(missing.cycle_time, at).toMatch(/first opening across its whole history/);
-      expect(missing.cycle_time, at).toMatch(/where the cycle starts|whether the cycle starts/);
+      if (at.startsWith("northgate/")) expect(missing.cycle_time, at).toBe("");
+      else expect(missing.cycle_time, at).toMatch(/No CRM is connected/);
       for (const text of Object.values(missing)) expect(text, at).not.toMatch(/no data/i);
     }
   });

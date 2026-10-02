@@ -220,10 +220,11 @@ test.describe("the chart vocabulary", () => {
 
     // A control that does not move the number it labels is decoration.
     expect(year).not.toBe(today);
-    // Four figures. Since the approved regrouping (12a586f) the two groups
-    // nothing measures stand in `.iris-kpi` boxes too, saying what is missing.
-    await expect(page.locator(".iris-kpi-value")).toHaveCount(4);
-    await expect(page.locator(".iris-kpi-missing")).toHaveCount(2);
+    // Five figures on Northgate, whose CRM states Sold dates: the sales cycle
+    // stands in Cycle time since Máté's decision of 2026-10-02 (R05-4). The one
+    // group nothing measures, Conversion, still says what is missing.
+    await expect(page.locator(".iris-kpi-value")).toHaveCount(5);
+    await expect(page.locator(".iris-kpi-missing")).toHaveCount(1);
   });
 
   test("a window too small to read says so instead of asserting a trend", async ({ page }) => {
