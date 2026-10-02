@@ -27,6 +27,16 @@
  * pages), so the line where the item's English stands is the line where its
  * Slovak and Hungarian stand.
  *
+ * WITHHELD ON PURPOSE (ZARAS2, 2026-10-02). An item whose sheet carries
+ * `**Szándékosan nem mérhető:** <reason>` names why the product no longer draws
+ * it, and a NOT MEASURABLE verdict on it gives that reason. The approved text
+ * stays on the sheet and is still measured: if the decision is reversed and
+ * the line renders again, it is judged like any other.
+ *
+ * The share is of what was measurable (identical plus differs), never of every
+ * text on the sheet, and the head always prints its denominator: a bare count
+ * falls when a line rightly stops rendering, and reads as a loss when it is not.
+ *
  *   pnpm exec tsx scripts/p217/compare.ts <dump-dir> <sheet.md> [out.txt]
  */
 import { readFileSync, writeFileSync } from "node:fs";
@@ -42,6 +52,8 @@ export interface SheetItem {
   readonly hu: string;
   /** The forms a language offers when the sheet has not chosen between them. */
   readonly pending?: Readonly<Partial<Record<Language, readonly string[]>>>;
+  /** Why the product deliberately no longer draws this item, when the sheet says so. */
+  readonly withheld?: string;
 }
 
 export interface RenderedPage {
@@ -65,6 +77,7 @@ const ITEM = /^### (\d+)\\\.$/;
 const LINE = /^\*\*(EN|SK|HU)(?:\*\* (.*)| (.*)\*\*)$/;
 /* `**SK, 09-27-i tervezet:** text`: one of several forms offered for a choice. */
 const CANDIDATE = /^\*\*(SK|HU), [^*]+:\*\* (.*)$/;
+const WITHHELD = /^\*\*Szándékosan nem mérhető:\*\* (.+)$/;
 
 /** A sheet is markdown, so a literal `.` after a number or a `_` in a URL is written escaped. */
 const unescape = (text: string): string => text.replace(/\\([\\`*_{}[\]()#+\-.!|<>~])/g, "$1");
@@ -80,11 +93,12 @@ export function parseSheet(markdown: string): readonly SheetItem[] {
     en?: string;
     sk?: string;
     hu?: string;
+    withheld?: string;
     offered: Record<Language, string[]>;
   } | null = null;
   const flush = () => {
     if (current === null) return;
-    const { n, page: p, en, offered } = current;
+    const { n, page: p, en, offered, withheld } = current;
     const pending: Partial<Record<Language, readonly string[]>> = {};
     const form = (language: Language): string | undefined => {
       const plain = current?.[language];
@@ -110,11 +124,15 @@ export function parseSheet(markdown: string): readonly SheetItem[] {
     if (en === undefined || sk === undefined || hu === undefined) {
       throw new Error(`item ${String(n)} on ${p} lacks a language`);
     }
-    items.push(
-      Object.keys(pending).length > 0
-        ? { n, page: p, en, sk, hu, pending }
-        : { n, page: p, en, sk, hu },
-    );
+    items.push({
+      n,
+      page: p,
+      en,
+      sk,
+      hu,
+      ...(Object.keys(pending).length > 0 ? { pending } : {}),
+      ...(withheld !== undefined ? { withheld } : {}),
+    });
     current = null;
   };
   lines.forEach((raw, i) => {
@@ -138,6 +156,11 @@ export function parseSheet(markdown: string): readonly SheetItem[] {
       return;
     }
     if (current === null) return;
+    const kept = WITHHELD.exec(line);
+    if (kept) {
+      current.withheld = unescape(kept[1] ?? "");
+      return;
+    }
     const offer = CANDIDATE.exec(line);
     if (offer) {
       current.offered[(offer[1] ?? "").toLowerCase() as Language].push(unescape(offer[2] ?? ""));
@@ -196,7 +219,10 @@ export function measure(
   if (at.length === 0) {
     return {
       state: "not_measurable",
-      why: "the item's English is not on the rendered English page: this world does not render the instance it was written from",
+      why:
+        item.withheld !== undefined
+          ? `withheld on purpose: ${item.withheld}`
+          : "the item's English is not on the rendered English page: this world does not render the instance it was written from",
     };
   }
   const approved = item[language];
@@ -242,13 +268,18 @@ export function report(
     not_measurable: [],
     pending_decision: [],
   };
+  const nbspKeys = new Set<string>();
+  const withheldKeys = new Set<string>();
   const out: string[] = [];
   for (const item of items) {
     out.push(`### ${String(item.n)}  (${item.page})`);
     out.push(`EN     ${item.en}`);
     for (const language of ["sk", "hu"] as const) {
       const verdict = measure(item, language, english, dumps[language]);
-      summary[verdict.state].push(`${String(item.n)}${language}`);
+      const key = `${String(item.n)}${language}`;
+      summary[verdict.state].push(key);
+      if (verdict.state === "differs" && verdict.nbspOnly) nbspKeys.add(key);
+      if (verdict.state === "not_measurable" && item.withheld !== undefined) withheldKeys.add(key);
       const L = language.toUpperCase();
       out.push(`${L} Máté     ${item[language]}`);
       if (verdict.state === "not_measurable") {
@@ -273,10 +304,16 @@ export function report(
     out.push("");
   }
   const total = items.length * 2;
+  const measurable = summary.identical.length + summary.differs.length;
+  const nbsp = summary.differs.filter((key) => nbspKeys.has(key)).length;
+  const approved = summary.identical.length + nbsp;
+  const share = measurable === 0 ? "—" : `${((100 * approved) / measurable).toFixed(2)}%`;
+  const withheld = summary.not_measurable.filter((key) => withheldKeys.has(key));
   const head = [
+    `approved:       ${String(approved)} / ${String(measurable)} measurable (${share}): identical ${String(summary.identical.length)} + U+00A0 only ${String(nbsp)}`,
     `identical:      ${String(summary.identical.length)} of ${String(total)} (${summary.identical.join(" ")})`,
     `differs:        ${String(summary.differs.length)} (${summary.differs.join(" ")})`,
-    `not measurable: ${String(summary.not_measurable.length)} (${summary.not_measurable.join(" ")})`,
+    `not measurable: ${String(summary.not_measurable.length)} (${summary.not_measurable.join(" ")}); of these withheld on purpose: ${String(withheld.length)} (${withheld.join(" ")})`,
     `pending decision: ${String(summary.pending_decision.length)} (${summary.pending_decision.join(" ")})`,
     "",
   ];
@@ -287,7 +324,10 @@ export function report(
       identical: summary.identical.length,
       differs: summary.differs.length,
       not_measurable: summary.not_measurable.length,
+      withheld: withheld.length,
       pending_decision: summary.pending_decision.length,
+      measurable,
+      approved,
     },
   };
 }
