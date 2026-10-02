@@ -63,8 +63,8 @@ import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
-import { buildAskSession, buildProjectPulse, provideCatalogue } from "./pulse";
-import { assistedSalesAnswer, buildDeliveredAskSession } from "./ask-computed";
+import { buildProjectPulse, provideCatalogue } from "./pulse";
+import { buildDeliveredAskSession } from "./ask-computed";
 import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
   presentersIn,
@@ -459,40 +459,17 @@ export class SyntheticObserverRepository implements ObserverRepository {
   }
 
   async getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession> {
-    const { context, current, previous } = await this.slices(query);
+    const { context, current } = await this.slices(query);
     /*
-     * The prepared answers are the synthetic scenario's own prose. Printed over a
-     * project whose meetings are its own showroom's they are a fabrication, so a
-     * delivered project gets only what can be worked out from what was delivered.
+     * EVERY PROJECT'S OPENINGS ARE COMPUTED (R01-2, Máté 2026-10-02).
      *
-     * And the scenario is NORTHGATE's — its figures, its unit A-505, its buyer,
-     * its "south-facing, floors 4 to 6" — gated like `buildPreMeetingBrief` and
-     * `buildAgentOverview`. Every other synthetic project was served it until
-     * P2-17's first item: a crawl found 31 surface pairs on Riverside, Kingsford
-     * and ISTER TOWER. They get the answers their own meetings support.
+     * Northgate alone was served the synthetic scenario's prepared answers —
+     * its fixed figures, its unit A-505, its buyer — while every other project
+     * got what its own meetings support. The scenario's script is retired:
+     * Northgate gets the same computed openings as the rest, and a sales
+     * opening only where a CRM is connected.
      */
-    if (
-      context.sessionsDelivered ||
-      context.ownDataOnly ||
-      context.project.id !== "prj_northgate01"
-    )
-      return buildDeliveredAskSession(context, current, selectionLabel);
-
-    /* The period's meetings go to the pulse: the index an answer states is computed from them. */
-    const scripted = buildAskSession(
-      context,
-      buildProjectPulse(context, { current, previous }),
-      selectionLabel,
-    );
-    /* Never scripted, so offered here too: the fifth opening, where a CRM is connected. */
-    const assisted = assistedSalesAnswer(context);
-    return assisted === null
-      ? scripted
-      : {
-          ...scripted,
-          suggestions: [...scripted.suggestions, assisted.question],
-          answers: [...scripted.answers, assisted],
-        };
+    return buildDeliveredAskSession(context, current, selectionLabel);
   }
 
   /* --- Showroom Intelligence ---------------------------------------------- */

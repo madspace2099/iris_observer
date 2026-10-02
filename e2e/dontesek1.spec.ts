@@ -70,3 +70,13 @@ test("R04-1 · R07-3 · the shortlist follow-up check is retired on attention an
   expect(units).toContain("A unit opened repeatedly and never kept is a question the register cannot show in a column.");
 });
 
+test("R01-2 · Northgate's Ask opens on computed questions, with no scripted scenario", async ({
+  page,
+}) => {
+  await signInAs(page, "Tomáš Varga");
+  await page.goto(`${ROOT}/ask`, { waitUntil: "networkidle" });
+  const ask = await page.locator("main").innerText();
+  expect(ask).toContain("How many presentations were recorded, and how did they end?");
+  expect(ask).not.toMatch(/Viktória|viewings held at 46|A-505/);
+});
+

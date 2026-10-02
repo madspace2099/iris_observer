@@ -258,7 +258,7 @@ describe("tenant and project scoping", () => {
    * source. Every account and every project it holds are asked here, not the
    * two that were known.
    */
-  it("never serves Northgate's scripted Ask session under another project", async () => {
+  it("never serves the scripted Ask scenario on any project, Northgate included", async () => {
     const NORTHGATE_WORDS = [
       "Viktória",
       "Halász",
@@ -271,18 +271,16 @@ describe("tenant and project scoping", () => {
       "three stalled offers",
       "Intent signals expire after 21 days",
     ];
-    // Northgate keeps its scenario: the computed session everywhere would also pass below.
-    const own = await repo.getAskSession(
-      { viewer: VIEWERS.salesAgent, ...NORTHGATE, period: "quarter_to_date" },
-      null,
-    );
-    expect(own.suggestions).toContain("Prepare me for Viktória's meeting.");
-
+    /*
+     * Northgate's own scenario is retired too (R01-2, Máté 2026-10-02): its
+     * openings are computed like every other project's, so it is asked here
+     * with the rest.
+     */
     const leaked = new Set<string>();
     let asked = 0;
     for (const viewer of Object.values(VIEWERS)) {
       for (const project of PROJECTS) {
-        if (project.slug === "northgate" || !viewer.projectIds.includes(project.id)) continue;
+        if (!viewer.projectIds.includes(project.id)) continue;
         const tenant = TENANTS.find((t) => t.id === project.tenantId);
         if (tenant === undefined) throw new Error(`${project.slug} has no tenant`);
         const session = await repo.getAskSession(
@@ -302,7 +300,7 @@ describe("tenant and project scoping", () => {
         }
       }
     }
-    expect(asked, "no account holds a project besides Northgate").toBeGreaterThan(0);
+    expect(asked, "no account holds a project").toBeGreaterThan(0);
     expect([...leaked], [...leaked].join("\n")).toEqual([]);
   });
 
