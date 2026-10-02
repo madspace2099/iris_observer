@@ -88,8 +88,10 @@ function Presets({
         .map((entry) => `${entry.label} ${entry.count}`)
         .join(", ")}.`}
     >
+      {/* Five rows, the rest behind Show all (the R05 pattern): these rows carry no denominator of their own. */}
       <RankedBars
         period={period}
+        collapseAfter={5}
         rows={ordered.map((entry) => ({
           id: entry.label,
           label: entry.label,

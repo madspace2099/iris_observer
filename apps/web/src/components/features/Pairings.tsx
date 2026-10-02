@@ -55,6 +55,7 @@ export function Pairings({
   ranked,
   minimumSample,
   language,
+  narrowedTo = null,
 }: {
   readonly pairings: readonly FeaturePairing[];
   /** Presentations in the period. The denominator every pair is counted out of. */
@@ -65,6 +66,8 @@ export function Pairings({
   readonly ranked: boolean;
   readonly minimumSample: number;
   readonly language: Language;
+  /** The register's view, when it keeps only the pairs that include one of its features. */
+  readonly narrowedTo?: string | null;
 }) {
   if (!ranked) {
     return (
@@ -95,7 +98,7 @@ export function Pairings({
   return (
     <>
       <DataTable
-        caption={`Features reached in the same presentation, ${periodLabel}. A pair appears here once it has been seen together in at least five presentations; the strongest eight are listed.`}
+        caption={`Features reached in the same presentation, ${periodLabel}. A pair appears here once it has been seen together in at least five presentations; the strongest eight are listed.${narrowedTo === null ? "" : ` This view keeps those that include a ${narrowedTo} feature.`}`}
         columns={[
           { key: "pair", label: "Pair" },
           { key: "together", label: "Presentations with both", numeric: true },

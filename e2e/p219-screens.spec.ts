@@ -81,3 +81,61 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
   await page.waitForURL((url) => url.searchParams.get("view") === null);
   expect(new URL(page.url()).searchParams.get("period")).toBe("last_quarter");
 });
+
+/* K6: a four-way view over the Features register and the pairings, All being today's screen. */
+const GROUPS: Readonly<Record<string, readonly string[]>> = {
+  core: ["Home", "Residences", "Amenities", "Surroundings"],
+  environment: ["Time & weather"],
+  comparison: ["Compare"],
+};
+
+async function readFeatures(page: Page) {
+  const main = page.locator("main");
+  const register = main.getByRole("table", { name: /features? of the IRIS presentation/ });
+  const pairs = main.getByRole("table", { name: /Features reached in the same presentation/ });
+  const names = await register
+    .locator("tbody tr")
+    .evaluateAll((rows) => rows.map((r) => (r.querySelector("th, td")?.textContent ?? "").trim()));
+  const pairings = (await pairs.count()) === 0
+    ? []
+    : await pairs
+        .locator("tbody tr")
+        .evaluateAll((rows) => rows.map((r) => (r.querySelector("th, td")?.textContent ?? "").trim()));
+  const weather = await main.getByRole("heading", { name: "Time and weather" }).count();
+  return { names, pairings, weather };
+}
+
+test("K6 · Features narrows the register and the pairings by view, and All is today's screen", async ({
+  page,
+}) => {
+  await open(page, `${ROOT}/features`);
+  const today = await readFeatures(page);
+  expect(today.names.length).toBeGreaterThan(5);
+  expect(today.weather).toBe(1);
+
+  const views = page.getByRole("navigation", { name: "Features", exact: true });
+  await expect(views.getByRole("link", { name: "All", exact: true })).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await page.goto(`${ROOT}/features?view=all`, { waitUntil: "networkidle" });
+  expect(await readFeatures(page), "All draws exactly what the screen drew before").toEqual(today);
+
+  for (const [view, labels] of Object.entries(GROUPS)) {
+    await page.goto(`${ROOT}/features`, { waitUntil: "networkidle" });
+    const name = view === "core" ? "Core" : view === "environment" ? "Environment" : "Comparison";
+    await views.getByRole("link", { name, exact: true }).click();
+    await page.waitForURL(new RegExp(`view=${view}`));
+    const seen = await readFeatures(page);
+    expect(seen.names.length, `${name}: the register is not empty`).toBeGreaterThan(0);
+    for (const feature of seen.names) expect(labels, `${name} holds ${feature}`).toContain(feature);
+    expect(seen.names.length, `${name} is narrower than All`).toBeLessThan(today.names.length);
+    for (const pair of seen.pairings) {
+      expect(
+        labels.some((label) => pair.includes(label)),
+        `${name}: the pair "${pair}" includes one of its features`,
+      ).toBe(true);
+    }
+    expect(seen.weather, `${name}: Time and weather`).toBe(view === "environment" ? 1 : 0);
+  }
+});

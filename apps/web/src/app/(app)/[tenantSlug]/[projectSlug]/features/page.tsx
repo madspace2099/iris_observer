@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CORE_SECTION_IDS, SHOWROOM_SECTIONS } from "@observer/contracts";
+import { CORE_SECTION_IDS, SHOWROOM_SECTIONS, type SectionId } from "@observer/contracts";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { nothingReceivedYet, DEFAULT_LANGUAGE } from "@observer/readmodels";
 
@@ -100,6 +100,37 @@ export const metadata: Metadata = { title: "Features" };
  * browser storage anywhere in this application, so state that is not in the
  * query string does not survive being shared or refreshed.
  */
+/**
+ * FOUR VIEWS OF THE REGISTER (P2-19 K6, ZARAS1, 2026-10-02).
+ *
+ * All is today's screen. Core is the sections the contract already calls core
+ * (`CORE_SECTION_IDS`, read and never redefined here: a second list would be
+ * a second truth); Environment is time and weather, the one feature that
+ * changes the building; Comparison is the compare mode. A view narrows the
+ * register and the pairings — a pair stays when either feature is in the
+ * group — and the Time and weather block belongs to All and Environment. The
+ * view is on the address, so it survives a reload and can be linked. The
+ * labels are the screen's, English by the scope decision of 2026-10-02.
+ */
+type FeatureView = "all" | "core" | "environment" | "comparison";
+
+const FEATURE_VIEWS: readonly { readonly key: FeatureView; readonly label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "core", label: "Core" },
+  { key: "environment", label: "Environment" },
+  { key: "comparison", label: "Comparison" },
+];
+
+const VIEW_SECTIONS: Readonly<Record<Exclude<FeatureView, "all">, readonly SectionId[]>> = {
+  core: CORE_SECTION_IDS,
+  environment: ["environment"],
+  comparison: ["compare"],
+};
+
+function viewFrom(value: string | undefined): FeatureView {
+  return FEATURE_VIEWS.some((item) => item.key === value) ? (value as FeatureView) : "all";
+}
+
 export default async function FeaturesPage({
   params,
   searchParams,
@@ -110,6 +141,7 @@ export default async function FeaturesPage({
     cut?: string;
     sort?: string;
     dir?: string;
+    view?: string;
   }>;
 }) {
   const viewer = await requireViewer();
@@ -123,6 +155,7 @@ export default async function FeaturesPage({
   const cut: FeatureCut = cutFrom(query.cut);
   const chosenOrder: RegisterOrder | null = orderFrom(query.sort);
   const direction: OrderDirection = directionFrom(query.dir);
+  const featureView: FeatureView = viewFrom(query.view);
 
   const view = await repository.getStorytelling({
     viewer,
@@ -180,9 +213,13 @@ export default async function FeaturesPage({
     readonly cut?: FeatureCut;
     readonly order?: RegisterOrder | null;
     readonly direction?: OrderDirection;
+    readonly view?: FeatureView;
   }): string => {
     const params = new URLSearchParams();
-    const nextCut = next.cut ?? cut;
+    const nextView = next.view ?? featureView;
+    if (nextView !== "all") params.set("view", nextView);
+    /* A group view is itself the register's cut, so the cut is the whole register's only. */
+    const nextCut = nextView === "all" ? (next.cut ?? cut) : "all";
     if (nextCut !== "all") params.set("cut", nextCut);
     const nextOrder = next.order === undefined ? chosenOrder : next.order;
     if (nextOrder !== null) {
@@ -193,6 +230,21 @@ export default async function FeaturesPage({
     const search = params.toString();
     return search === "" ? base : `${base}?${search}`;
   };
+
+  const viewTabs: readonly TabItem[] = FEATURE_VIEWS.map((item) => ({
+    key: item.key,
+    label: item.label,
+    href: link({ view: item.key }),
+    current: item.key === featureView,
+  }));
+  /* What the register and the pairings hold in this view, said in their captions. */
+  const viewLabel = FEATURE_VIEWS.find((item) => item.key === featureView)?.label ?? "All";
+  const registerScope =
+    featureView === "all"
+      ? "Every feature of the IRIS presentation"
+      : `The ${viewLabel} features of the IRIS presentation`;
+  const inView = (id: SectionId): boolean =>
+    featureView === "all" || VIEW_SECTIONS[featureView].includes(id);
 
   const tabs: readonly TabItem[] = FEATURE_CUTS.map((item) => ({
     key: item.key,
@@ -222,7 +274,14 @@ export default async function FeaturesPage({
     }
   }
 
-  const rows = orderSections(applyCut(view.sections, cut), ranked ? chosenOrder : null, direction);
+  const rows = orderSections(
+    applyCut(
+      view.sections.filter((section) => inView(section.sectionId)),
+      featureView === "all" ? cut : "all",
+    ),
+    ranked ? chosenOrder : null,
+    direction,
+  );
 
   /*
    * What an empty cut means, per cut.
@@ -415,7 +474,11 @@ export default async function FeaturesPage({
               />
             ) : null}
 
-            <Tabs label="Cut of the register" tabs={tabs} period={period} />
+            <Tabs label="Features" tabs={viewTabs} period={period} />
+
+            {featureView === "all" ? (
+              <Tabs label="Cut of the register" tabs={tabs} period={period} />
+            ) : null}
 
             <FeatureRegister
               sections={rows}
@@ -423,8 +486,8 @@ export default async function FeaturesPage({
               period={period}
               caption={
                 ranked
-                  ? `Every feature of the IRIS presentation, ${view.context.period.label}. Ordered by the presentations that reached it unless a column heading says otherwise.`
-                  : `Every feature of the IRIS presentation, ${view.context.period.label}. The register offers no ordering of its own at this sample: below ${AGENT_MIN_SAMPLE} presentations there is no rank, so the rows stand in the order the read model returned them.`
+                  ? `${registerScope}, ${view.context.period.label}. Ordered by the presentations that reached it unless a column heading says otherwise.`
+                  : `${registerScope}, ${view.context.period.label}. The register offers no ordering of its own at this sample: below ${AGENT_MIN_SAMPLE} presentations there is no rank, so the rows stand in the order the read model returned them.`
               }
               sort={ranked ? { order: chosenOrder, direction, hrefs: sortHrefs } : null}
               empty={CUT_EMPTY[cut]}
@@ -457,7 +520,8 @@ export default async function FeaturesPage({
 
             <Pairings
               language={view.context.language}
-              pairings={view.pairings}
+              pairings={view.pairings.filter((pair) => inView(pair.a) || inView(pair.b))}
+              narrowedTo={featureView === "all" ? null : viewLabel}
               meetingsTotal={meetingsTotal}
               period={period}
               periodLabel={view.context.period.label}
@@ -465,22 +529,26 @@ export default async function FeaturesPage({
               minimumSample={AGENT_MIN_SAMPLE}
             />
 
-            <hr className="ox-rule" />
+            {featureView === "all" || featureView === "environment" ? (
+              <>
+                <hr className="ox-rule" />
 
-            <div className="ox-section-head">
-              <h2 className="ox-section-title">Time and weather</h2>
-              <p className="ox-section-note">
-                The one feature that changes the building rather than the screen.
-              </p>
-            </div>
+                <div className="ox-section-head">
+                  <h2 className="ox-section-title">Time and weather</h2>
+                  <p className="ox-section-note">
+                    The one feature that changes the building rather than the screen.
+                  </p>
+                </div>
 
-            <Environment
-              language={view.context.language}
-              environment={view.environment}
-              period={period}
-              periodLabel={view.context.period.label}
-              ranked={ranked}
-            />
+                <Environment
+                  language={view.context.language}
+                  environment={view.environment}
+                  period={period}
+                  periodLabel={view.context.period.label}
+                  ranked={ranked}
+                />
+              </>
+            ) : null}
           </section>
         </div>
 
