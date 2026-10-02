@@ -664,16 +664,40 @@ describe("the source cannot grow a client-side secret path", () => {
   const read = (f: string): string => readFileSync(f, "utf8");
   const rel = (f: string): string => f.slice(src.length).split("\\").join("/");
 
-  it("has no browser storage anywhere in the application", () => {
+  /*
+   * THE ONE FILE THAT MAY, AND WHY (ZARAS1, 2026-10-02).
+   *
+   * Máté decided on 2026-10-01 that a register's column and density settings
+   * (P2-20) are kept in the browser and nowhere else. That is one file, named
+   * here, and it is held to what it may do in the test after this one. Every
+   * other file in the application is still held to none.
+   */
+  const STORAGE_EXCEPTION = "/lib/table-preferences.ts";
+
+  it("has no browser storage anywhere in the application but the one named file", () => {
     /*
-     * Not "no browser storage of secrets" — no browser storage at all. A rule
-     * with an exception is a rule somebody argues with; this one has none, so
-     * a future contributor cannot reach for it and explain why theirs is fine.
+     * Not "no browser storage of secrets" — no browser storage at all, apart
+     * from the single file above, which exists by a recorded decision. A rule
+     * with an exception somebody argues for in code review is a rule that
+     * erodes; this one names its only exception and tests what it may hold.
      */
     const offenders = files
       .filter((f) => /localStorage|sessionStorage|indexedDB/.test(executable(read(f))))
-      .map(rel);
+      .map(rel)
+      .filter((f) => f !== STORAGE_EXCEPTION);
     expect(offenders).toEqual([]);
+  });
+
+  it("lets the one storage file keep a register's settings and nothing else", () => {
+    const source = executable(read(join(src, "lib", "table-preferences.ts")));
+    /* Local storage only, under the product's own prefix, and no credential, session or account code. */
+    expect(source).not.toMatch(/sessionStorage|indexedDB/);
+    expect(source).toMatch(/TABLE_PREFERENCES_PREFIX = "iris-observer\.table\.v1\."/);
+    expect(source).not.toMatch(/credentials|session|cookie|account/i);
+    /* What it writes is a column list and a density word. */
+    expect(source).toMatch(
+      /JSON\.stringify\(\{ hidden: preferences\.hidden, density: preferences\.density \}\)/,
+    );
   });
 
   it("keeps every credential module server-only", () => {
