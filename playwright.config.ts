@@ -1,3 +1,5 @@
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
 import {
   ASK_PER_INSTANCE_PER_DAY,
@@ -127,6 +129,24 @@ const HARNESS_ENV = {
   OBSERVER_ASK_PER_VIEWER_PER_DAY: String(ASK_PER_VIEWER_PER_DAY),
   OBSERVER_ASK_PER_INSTANCE_PER_DAY: String(ASK_PER_INSTANCE_PER_DAY),
   OBSERVER_BREAKER_THRESHOLD: String(BREAKER_THRESHOLD),
+
+  /*
+   * THE SERVERS LOG THEIR SLOW REQUESTS (EJJEL1, 2026-10-02).
+   *
+   * A random test now and then waits 10 to 30 seconds on one request a living
+   * server does not answer, and a trace shows only the browser's side of it.
+   * `scripts/e2e/slow-requests.mjs` is loaded into the harness's servers and
+   * appends one timestamped line per request open longer than five seconds to
+   * `test-results/slow-requests.jsonl`. The product is untouched: the hook
+   * reaches it only through this environment, which no deployment has.
+   */
+  NODE_OPTIONS: [
+    process.env["NODE_OPTIONS"],
+    `--import ${pathToFileURL(resolve("scripts/e2e/slow-requests.mjs")).href}`,
+  ]
+    .filter((part) => part !== undefined && part.length > 0)
+    .join(" "),
+  HARNESS_SLOW_REQUESTS: resolve("test-results/slow-requests.jsonl"),
 
   /*
    * NO PROVIDER CREDENTIAL REACHES THE SERVER THIS SUITE STARTS.
