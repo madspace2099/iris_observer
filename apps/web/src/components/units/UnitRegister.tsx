@@ -396,6 +396,7 @@ export function UnitRegister({
       <DataTable
         caption={caption}
         columns={columns}
+        preferences={{ id: "units" }}
         rows={tableRows}
         codeColumn="code"
         period={period}

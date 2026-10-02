@@ -14,7 +14,8 @@ import { RankedBars } from "@/showroom/charts2";
  *   a smaller maximum.
  * And the default is untouched: a list that does not opt in renders exactly
  * one `<ol>`, as it did, which is what keeps Sales Agents' list and the
- * Features lists as they were.
+ * Features running order as they were. Features' time-and-weather counts opt in
+ * since P2-19 K6 (ZARAS1): their rows carry no denominator of their own.
  */
 
 const ROWS = [100, 90, 80, 70, 60, 50, 40, 30].map((value, i) => ({

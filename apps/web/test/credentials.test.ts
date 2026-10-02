@@ -17,6 +17,11 @@ import {
 } from "../src/lib/credentials/failure";
 import { credentialStore } from "../src/lib/credentials/store";
 import {
+  preferencesOrDefault,
+  readPreferences,
+  writePreferences,
+} from "../src/lib/table-preferences";
+import {
   isSyntheticCredential,
   resetTestStore,
   testAuditTrail,
@@ -664,16 +669,109 @@ describe("the source cannot grow a client-side secret path", () => {
   const read = (f: string): string => readFileSync(f, "utf8");
   const rel = (f: string): string => f.slice(src.length).split("\\").join("/");
 
-  it("has no browser storage anywhere in the application", () => {
+  /*
+   * THE ONE FILE THAT MAY, AND WHY (ZARAS1, 2026-10-02).
+   *
+   * Máté decided on 2026-10-01 that a register's column and density settings
+   * (P2-20) are kept in the browser and nowhere else. That is one file, named
+   * here, and it is held to what it may do in the test after this one. Every
+   * other file in the application is still held to none.
+   */
+  const STORAGE_EXCEPTION = "/lib/table-preferences.ts";
+
+  it("has no browser storage anywhere in the application but the one named file", () => {
     /*
-     * Not "no browser storage of secrets" — no browser storage at all. A rule
-     * with an exception is a rule somebody argues with; this one has none, so
-     * a future contributor cannot reach for it and explain why theirs is fine.
+     * Not "no browser storage of secrets" — no browser storage at all, apart
+     * from the single file above, which exists by a recorded decision. A rule
+     * with an exception somebody argues for in code review is a rule that
+     * erodes; this one names its only exception and tests what it may hold.
      */
     const offenders = files
       .filter((f) => /localStorage|sessionStorage|indexedDB/.test(executable(read(f))))
-      .map(rel);
+      .map(rel)
+      .filter((f) => f !== STORAGE_EXCEPTION);
     expect(offenders).toEqual([]);
+  });
+
+  it("lets the one storage file keep a register's settings and nothing else", () => {
+    const source = executable(read(join(src, "lib", "table-preferences.ts")));
+    /* Local storage only, under the product's own prefix, and no credential, session or account code. */
+    expect(source).not.toMatch(/sessionStorage|indexedDB/);
+    expect(source).toMatch(/TABLE_PREFERENCES_PREFIX = "iris-observer\.table\.v1\."/);
+    expect(source).not.toMatch(/credentials|session|cookie|account/i);
+  });
+
+  /*
+   * WHAT IT WRITES, READ FROM THE WRITES (ZARAS2, 2026-10-02).
+   *
+   * The shape of what is stored was held by a pattern over the source, which
+   * a harmless refactor breaks and a second, different write slips past. A
+   * recording store sees every write instead, whichever store the module
+   * reaches: the one it is handed and the browser's own, stubbed here.
+   */
+  function recordingStore(fail = false) {
+    const writes: [string, string][] = [];
+    const store = {
+      getItem: (): string | null => {
+        if (fail) throw new Error("storage refused");
+        return null;
+      },
+      setItem: (key: string, value: string): void => {
+        if (fail) throw new Error("storage refused");
+        writes.push([key, value]);
+      },
+      removeItem: (): void => {
+        if (fail) throw new Error("storage refused");
+      },
+    };
+    return { store, writes };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("writes a register's settings under its own key, carrying a column list and a density and nothing more", () => {
+    const { store, writes } = recordingStore();
+    vi.stubGlobal("window", { localStorage: store });
+    const cases = [
+      { id: "units", preferences: { hidden: ["status", "price", "floor"], density: "compact" } },
+      { id: "units", preferences: { hidden: [], density: "comfortable" } },
+      { id: "meetings", preferences: { hidden: ["outcome"], density: "comfortable" } },
+      { id: "meetings", preferences: { hidden: [], density: "compact" } },
+    ] as const;
+    for (const { id, preferences } of cases) {
+      expect(writePreferences(id, preferences, store)).toBe(true);
+      expect(writePreferences(id, preferences)).toBe(true);
+    }
+    expect(new Set(writes.map(([key]) => key))).toEqual(
+      new Set(["iris-observer.table.v1.units", "iris-observer.table.v1.meetings"]),
+    );
+    expect(writes).toHaveLength(cases.length * 2);
+    for (const [, value] of writes) {
+      expect(Object.keys(JSON.parse(value) as object).sort()).toEqual(["density", "hidden"]);
+    }
+    expect(writes.map(([, value]) => value)).toEqual(
+      [
+        '{"hidden":["status","price","floor"],"density":"compact"}',
+        '{"hidden":[],"density":"comfortable"}',
+        '{"hidden":["outcome"],"density":"comfortable"}',
+        '{"hidden":[],"density":"compact"}',
+      ].flatMap((v) => [v, v]),
+    );
+  });
+
+  it("never lets a refusing store throw through, and falls back to the register as it renders", () => {
+    const { store } = recordingStore(true);
+    vi.stubGlobal("window", { localStorage: store });
+    expect(writePreferences("units", { hidden: ["status"], density: "compact" }, store)).toBe(
+      false,
+    );
+    expect(readPreferences("units", ["status"], store)).toBeNull();
+    expect(preferencesOrDefault(readPreferences("units", ["status"]))).toEqual({
+      hidden: [],
+      density: "comfortable",
+    });
   });
 
   it("keeps every credential module server-only", () => {

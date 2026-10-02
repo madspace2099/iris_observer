@@ -267,7 +267,7 @@ test.describe("the chart vocabulary", () => {
     }
   });
 
-  test("one agent has one meeting count on one page", async ({ page }) => {
+  test("one agent has one meeting count on Sales Agents and its Coaching tab", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/agents");
 
@@ -277,6 +277,12 @@ test.describe("the chart vocabulary", () => {
     const ring = await card.locator(".iris-ring-figure").textContent();
     const fromRing = Number((ring ?? "").replace(/\D/g, ""));
     expect(fromRing).toBeGreaterThan(0);
+
+    /*
+     * The radars moved to the page's Coaching tab (P2-19 K5, ZARAS1); the two
+     * must still agree, so the radar is read there.
+     */
+    await page.goto("/alpha/northgate/agents?view=coaching");
 
     /*
      * The same agent's radar card, by name. The radar's label used to be a

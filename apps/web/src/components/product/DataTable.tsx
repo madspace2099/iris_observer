@@ -5,6 +5,7 @@ import type { PeriodPreset } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { Empty } from "./Absence";
+import { TablePreferences } from "./TablePreferences";
 
 /**
  * How a column is currently sorted, and where to go to change it.
@@ -88,6 +89,7 @@ export function DataTable({
   codeColumn = null,
   period,
   empty = null,
+  preferences = null,
 }: {
   /**
    * What this table lists, in a sentence. Required: a register with no caption
@@ -109,13 +111,29 @@ export function DataTable({
    * reads as a broken screen, so an empty register states itself in words.
    */
   readonly empty?: { readonly title: string; readonly note: string } | null;
+  /**
+   * Opt-in: the reader may hide columns and choose the density, kept in this
+   * browser under this id (P2-20). Absent, the table renders exactly as before
+   * — the printed report never passes it.
+   */
+  readonly preferences?: { readonly id: string } | null;
 }) {
   if (rows.length === 0 && empty !== null) {
     return <Empty title={empty.title} note={empty.note} />;
   }
 
   return (
-    <div className="ox-table-wrap">
+    <div
+      className="ox-table-wrap"
+      {...(preferences === null ? {} : { "data-prefs-scope": preferences.id })}
+    >
+      {preferences === null ? null : (
+        <TablePreferences
+          id={preferences.id}
+          columns={columns.map((column) => ({ key: column.key, label: column.label }))}
+          locked={codeColumn}
+        />
+      )}
       <div className="ox-table-scroll">
         <table className="ox-table">
           <caption>{caption}</caption>
@@ -128,6 +146,7 @@ export function DataTable({
                   <th
                     key={column.key}
                     scope="col"
+                    {...(preferences === null ? {} : { "data-col": column.key })}
                     {...(column.numeric === true ? { "data-numeric": "true" } : {})}
                     {...(sort === null ? {} : { "aria-sort": sort.direction })}
                     {...(column.className === undefined ? {} : { className: column.className })}
@@ -157,6 +176,7 @@ export function DataTable({
                   <td
                     key={column.key}
                     data-label={column.label}
+                    {...(preferences === null ? {} : { "data-col": column.key })}
                     {...(column.numeric === true ? { "data-numeric": "true" } : {})}
                     {...(column.key === codeColumn
                       ? { className: "ox-table-code" }

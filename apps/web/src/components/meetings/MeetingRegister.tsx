@@ -249,6 +249,7 @@ export function MeetingRegister({
       <DataTable
         caption={canOpen ? caption : `${caption} ${MEETINGS_NOT_OPENABLE}`}
         columns={COLUMNS}
+        preferences={{ id: "meetings" }}
         rows={data}
         codeColumn="when"
         period={period}
