@@ -17,6 +17,11 @@ import {
 } from "../src/lib/credentials/failure";
 import { credentialStore } from "../src/lib/credentials/store";
 import {
+  preferencesOrDefault,
+  readPreferences,
+  writePreferences,
+} from "../src/lib/table-preferences";
+import {
   isSyntheticCredential,
   resetTestStore,
   testAuditTrail,
@@ -694,10 +699,79 @@ describe("the source cannot grow a client-side secret path", () => {
     expect(source).not.toMatch(/sessionStorage|indexedDB/);
     expect(source).toMatch(/TABLE_PREFERENCES_PREFIX = "iris-observer\.table\.v1\."/);
     expect(source).not.toMatch(/credentials|session|cookie|account/i);
-    /* What it writes is a column list and a density word. */
-    expect(source).toMatch(
-      /JSON\.stringify\(\{ hidden: preferences\.hidden, density: preferences\.density \}\)/,
+  });
+
+  /*
+   * WHAT IT WRITES, READ FROM THE WRITES (ZARAS2, 2026-10-02).
+   *
+   * The shape of what is stored was held by a pattern over the source, which
+   * a harmless refactor breaks and a second, different write slips past. A
+   * recording store sees every write instead, whichever store the module
+   * reaches: the one it is handed and the browser's own, stubbed here.
+   */
+  function recordingStore(fail = false) {
+    const writes: [string, string][] = [];
+    const store = {
+      getItem: (): string | null => {
+        if (fail) throw new Error("storage refused");
+        return null;
+      },
+      setItem: (key: string, value: string): void => {
+        if (fail) throw new Error("storage refused");
+        writes.push([key, value]);
+      },
+      removeItem: (): void => {
+        if (fail) throw new Error("storage refused");
+      },
+    };
+    return { store, writes };
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("writes a register's settings under its own key, carrying a column list and a density and nothing more", () => {
+    const { store, writes } = recordingStore();
+    vi.stubGlobal("window", { localStorage: store });
+    const cases = [
+      { id: "units", preferences: { hidden: ["status", "price", "floor"], density: "compact" } },
+      { id: "units", preferences: { hidden: [], density: "comfortable" } },
+      { id: "meetings", preferences: { hidden: ["outcome"], density: "comfortable" } },
+      { id: "meetings", preferences: { hidden: [], density: "compact" } },
+    ] as const;
+    for (const { id, preferences } of cases) {
+      expect(writePreferences(id, preferences, store)).toBe(true);
+      expect(writePreferences(id, preferences)).toBe(true);
+    }
+    expect(new Set(writes.map(([key]) => key))).toEqual(
+      new Set(["iris-observer.table.v1.units", "iris-observer.table.v1.meetings"]),
     );
+    expect(writes).toHaveLength(cases.length * 2);
+    for (const [, value] of writes) {
+      expect(Object.keys(JSON.parse(value) as object).sort()).toEqual(["density", "hidden"]);
+    }
+    expect(writes.map(([, value]) => value)).toEqual(
+      [
+        '{"hidden":["status","price","floor"],"density":"compact"}',
+        '{"hidden":[],"density":"comfortable"}',
+        '{"hidden":["outcome"],"density":"comfortable"}',
+        '{"hidden":[],"density":"compact"}',
+      ].flatMap((v) => [v, v]),
+    );
+  });
+
+  it("never lets a refusing store throw through, and falls back to the register as it renders", () => {
+    const { store } = recordingStore(true);
+    vi.stubGlobal("window", { localStorage: store });
+    expect(writePreferences("units", { hidden: ["status"], density: "compact" }, store)).toBe(
+      false,
+    );
+    expect(readPreferences("units", ["status"], store)).toBeNull();
+    expect(preferencesOrDefault(readPreferences("units", ["status"]))).toEqual({
+      hidden: [],
+      density: "comfortable",
+    });
   });
 
   it("keeps every credential module server-only", () => {
