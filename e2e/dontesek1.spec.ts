@@ -102,3 +102,13 @@ test("R07-4 · a sold unit's page states its cycle, or why it has none", async (
   );
 });
 
+test("R03-5 · a reopened answer says it is recalculated", async ({ page }) => {
+  await signInAs(page, "Tomáš Varga");
+  await page.goto(`${ROOT}/ask/history`, { waitUntil: "networkidle" });
+  const href = await page.locator('main a[href*="/ask/"]').filter({ hasNotText: /Ask a new question|Earlier questions/ }).first().getAttribute("href");
+  expect(href).toMatch(/\/ask\/(?!history)[^/?]+/);
+  await page.goto(href ?? "", { waitUntil: "networkidle" });
+  await expect(page.locator("main")).toContainText(
+    "This answer is recalculated from the latest data when you reopen it.",
+  );
+});

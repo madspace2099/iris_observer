@@ -147,7 +147,12 @@ export default async function AskThreadPage({
             Answered against {summary.projectLabel} over {summary.periodLabel.toLowerCase()}
             {summary.selectionLabel === null ? null : <>, narrowed to {summary.selectionLabel}</>},
             in {turns.length} {turns.length === 1 ? "turn" : "turns"}. Every figure below is a
-            reading from that period.
+            reading from that period.{" "}
+            {/*
+             * R03-5 (Máté, 2026-10-02): no store keeps an answer as it was
+             * given, so a reopened answer is computed again and says so.
+             */}
+            This answer is recalculated from the latest data when you reopen it.
           </>
         }
         lede={thread.demonstrationNotice}
