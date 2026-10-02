@@ -91,13 +91,16 @@ describe("an agent's report captions in Slovak, below the floor (sheet 2, questi
 
   it("writes item 38 at 4 meetings, as approved", () => {
     expect(sk.buyersCaption(name, true, 4, 20)).toBe(
-      "Meno nie je k dispozícii · observer-review-harness: tie stretnutia tohto makléra, na ktorých otvorili aspoň 1 byt danej veľkosti. Ak na tom istom stretnutí ukázali 1-izbový byt aj 4-izbový penthouse, započíta sa do oboch skupín. Súčet týchto počtov preto nie je počtom stretnutí. Vedľa počtov nie je podiel za celý projekt: pri 4 stretnutiach, teda 16 pod hranicou 20, by porovnanie naznačovalo hodnotenie práce makléra na základe príliš malej vzorky.",
+      "Meno nie je k dispozícii · observer-review-harness: tie stretnutia tohto makléra, na ktorých otvorili aspoň 1 byt danej veľkosti. Ak na tom istom stretnutí ukázali 1-izbový byt aj 4-izbový penthouse, započíta sa do oboch skupín. Súčet týchto počtov preto nie je počtom stretnutí. Vedľa počtov nie je podiel za celý projekt: pri 4 stretnutiach, keď do hranice 20 chýba 16, by porovnanie naznačovalo hodnotenie práce makléra na základe príliš malej vzorky.",
     );
   });
 
-  it("writes item 38's parenthesis at 1 and at 5 meetings in the forms given", () => {
+  it("writes item 38's parenthesis at 1, 3 and 5 meetings in Máté's one structure (DONTESEK1)", () => {
     expect(sk.buyersCaption(name, true, 1, 20)).toContain(
       ": pri 1 stretnutí, keď do hranice 20 chýba 19, by porovnanie",
+    );
+    expect(sk.buyersCaption(name, true, 3, 20)).toContain(
+      ": pri 3 stretnutiach, keď do hranice 20 chýba 17, by porovnanie",
     );
     expect(sk.buyersCaption(name, true, 5, 20)).toContain(
       ": pri 5 stretnutiach, keď do hranice 20 chýba 15, by porovnanie",

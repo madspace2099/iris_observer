@@ -477,9 +477,8 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     buyersCaption: (name, below, n, minimum) =>
       below
         ? `${name}: tie stretnutia tohto makléra, na ktorých otvorili aspoň 1 byt danej veľkosti. Ak na tom istom stretnutí ukázali 1-izbový byt aj 4-izbový penthouse, započíta sa do oboch skupín. Súčet týchto počtov preto nie je počtom stretnutí. Vedľa počtov nie je podiel za celý projekt: ${
-            pluralCategory("sk", n) === "few"
-              ? `${slovakAtMeetings(n, false)}, teda ${String(minimum - n)} pod hranicou ${String(minimum)}`
-              : `${slovakAtMeetings(n, false)}, keď do hranice ${String(minimum)} chýba ${String(minimum - n)}`
+            /* Item 38: one structure for every count (Máté, DONTESEK1, 2026-10-02). */
+            `${slovakAtMeetings(n, false)}, keď do hranice ${String(minimum)} chýba ${String(minimum - n)}`
           }, by porovnanie naznačovalo hodnotenie práce makléra na základe príliš malej vzorky.`
         : `${name}: Každý riadok predstavuje konkrétnu veľkosť bytu: podiel stretnutí, na ktorých otvorili aspoň 1 byt tejto veľkosti, a rovnaký podiel zo všetkých stretnutí na projekte v danom období. Podiely v riadkoch sa nesčítajú na 100 % a nejde o skladbu bytov: stretnutie, na ktorom ukázali 1-izbový byt aj 4-izbový penthouse, sa započíta do oboch riadkov.`,
     buyersColumns: ["Byty", "Stretnutia, ktoré nejaký otvorili", "Podiel stretnutí", "Projekt"],
