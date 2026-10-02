@@ -14,7 +14,7 @@ produced for it to exist, and no further hand-maintained list stands between the
 The bold segment is generated today. Screen and Component are filled as screens are built; the
 fact-to-event expansion arrives with the event catalogue (ADR-0013).
 
-- Metrics declared: **83**
+- Metrics declared: **84**
 - Facts depended upon: **24**
 - Facts declared but not yet used by any metric: **0**
 
@@ -46,6 +46,7 @@ fact-to-event expansion arrives with the event catalogue (ADR-0013).
 | `unit.raw_views` | Raw views | count | observed sequence | `unit.viewed` | — | — | 1 | previous period | units | developer, agency_manager, sales_agent |
 | `unit.meaningful_views` | Meaningful views | count | observed sequence | `unit.viewed` | — | — | 1 | previous period | units | developer, agency_manager, sales_agent |
 | `unit.active_dwell` | Active dwell time | duration | observed sequence | `unit.viewed` | — | — | 3 | previous period | units | developer, agency_manager, sales_agent |
+| `unit.demand_signal` | Demand signal · derived | ratio | observed sequence | `unit.viewed` | — | — | 3 | none | units | developer, agency_manager, sales_agent |
 | `unit.favourites` | Favourites | count | observed sequence | `unit.favourited` | — | — | 1 | previous period | units | developer, agency_manager, sales_agent |
 | `unit.shares` | Shares | count | observed sequence | `unit.shared` | — | — | 1 | previous period | units | developer, agency_manager, sales_agent |
 | `unit.pdf_opens` | Material opens | count | observed sequence | `unit.material.opened` | — | — | 1 | previous period | units | developer, agency_manager, sales_agent |
@@ -138,7 +139,7 @@ that cannot work, visible here before anybody builds it.
 | `unit.interior.opened` | showroom | showroom | `unit_ref`, `occurred_at`, `mode` | 1 | `unit.deep_dive_rate` |
 | `unit.material.opened` | observer | webiris, showroom | `unit_ref`, `material_kind`, `occurred_at`, `channel` | 2 | `unit.pdf_opens`, `unit.deep_dive_rate` |
 | `unit.shared` | observer | webiris, showroom | `unit_refs`, `occurred_at`, `channel` | 5 | `unit.shares`, `people.follow_up_delay`, `people.share_to_offer`, `people.team_comparison`, `render.engagement` |
-| `unit.viewed` | observer | webiris, showroom | `unit_ref`, `occurred_at`, `duration_ms`, `channel` | 27 | `exec.unrealised_potential`, `exec.notable_changes`, `flow.iris_assisted_sales`, `unit.unique_interested_contacts`, `unit.raw_views`, `unit.meaningful_views`, `unit.active_dwell`, `unit.recent_interest`, `unit.demand_trend`, `unit.sharp_demand_decline`, `unit.available_demand`, `project.segment_interest`, `project.attention_index`, `project.environment_interest`, `unit.deep_dive_rate`, `people.coaching_signals`, `journey.conversion_by_online_segment`, `journey.preference_agreement`, `intent.distribution`, `intent.signal_freshness`, `demand.filter_value_reach`, `demand.by_rooms`, `demand.by_orientation`, `demand.by_floor_band`, `demand.by_price_band`, `demand.by_area_band`, `product.unit_selection_method` |
+| `unit.viewed` | observer | webiris, showroom | `unit_ref`, `occurred_at`, `duration_ms`, `channel` | 28 | `exec.unrealised_potential`, `exec.notable_changes`, `flow.iris_assisted_sales`, `unit.unique_interested_contacts`, `unit.raw_views`, `unit.meaningful_views`, `unit.active_dwell`, `unit.demand_signal`, `unit.recent_interest`, `unit.demand_trend`, `unit.sharp_demand_decline`, `unit.available_demand`, `project.segment_interest`, `project.attention_index`, `project.environment_interest`, `unit.deep_dive_rate`, `people.coaching_signals`, `journey.conversion_by_online_segment`, `journey.preference_agreement`, `intent.distribution`, `intent.signal_freshness`, `demand.filter_value_reach`, `demand.by_rooms`, `demand.by_orientation`, `demand.by_floor_band`, `demand.by_price_band`, `demand.by_area_band`, `product.unit_selection_method` |
 | `visual.captured` | showroom | showroom | `capture_ref`, `occurred_at` | 2 | `project.environment_interest`, `render.engagement` |
 | `visual.enhanced` | showroom | showroom | `capture_ref`, `occurred_at`, `succeeded` | 3 | `render.engagement`, `render.operational_cost`, `render.failure_rate` |
 

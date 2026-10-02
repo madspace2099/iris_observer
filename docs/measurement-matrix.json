@@ -470,6 +470,25 @@
       ]
     },
     {
+      "id": "unit.demand_signal",
+      "displayName": "Demand signal · derived",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 3,
+      "comparison": "none",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
       "id": "unit.favourites",
       "displayName": "Favourites",
       "kind": "count",
@@ -2256,6 +2275,7 @@
         "unit.raw_views",
         "unit.meaningful_views",
         "unit.active_dwell",
+        "unit.demand_signal",
         "unit.recent_interest",
         "unit.demand_trend",
         "unit.sharp_demand_decline",

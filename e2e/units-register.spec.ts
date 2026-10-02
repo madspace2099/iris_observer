@@ -20,7 +20,7 @@ import { signInAs } from "./sign-in";
  * reported as a gap in the shared layer rather than worked around by
  * hand-rolling a second table." The current register has twelve real
  * columns (Unit, Status, Rooms, Floor, Area m², Price, Meetings, Views,
- * Shortlisted, Plans opened, Comparisons, Demand · derived) and a static
+ * Shortlisted, Plans opened, Comparisons, Demand signal · derived) and a static
  * "How to read this register" list beneath the table
  * that defines every measured one — always present, so a reader (and a
  * screen reader) never has to find and activate a control to read it, which
@@ -43,7 +43,7 @@ const DEFINED_COLUMNS = [
   "Shortlisted",
   "Plans opened",
   "Comparisons",
-  "Demand · derived",
+  "Demand signal · derived",
 ] as const;
 
 /** The full set of column headers the table itself renders. */
@@ -59,7 +59,7 @@ const HEADERS = [
   "Shortlisted",
   "Plans opened",
   "Comparisons",
-  "Demand · derived",
+  "Demand signal · derived",
 ] as const;
 
 test("every measured column on the unit register states what it measures", async ({ page }) => {
@@ -103,7 +103,7 @@ test("every measured column on the unit register states what it measures", async
   // The one column whose definition names what it is not: an ordering aid,
   // never a verdict, and explicit about the minimum-sample floor beneath it.
   await expect(
-    items.filter({ has: page.locator("span", { hasText: "Demand · derived" }) }),
+    items.filter({ has: page.locator("span", { hasText: "Demand signal · derived" }) }),
   ).toContainText(/ordering aid and not a verdict/);
 
   // Reachable with no interaction at all: no button, no expanded/collapsed
