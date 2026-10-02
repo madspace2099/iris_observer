@@ -54,3 +54,30 @@ test("K4 · Project folds its method behind How to read this, closed, and keeps 
   const opened = await page.locator("main").innerText();
   for (const text of METHOD) expect(opened, `"${text}" is there once opened`).toContain(text);
 });
+
+/* K5: the radars and their scale live on the Coaching tab, and the period goes with the reader. */
+test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, and the period travels", async ({
+  page,
+}) => {
+  const main = await open(page, `${ROOT}/agents?period=last_quarter`);
+  await expect(page.locator("main .iris-radars")).toHaveCount(0);
+  expect(main).not.toContain("Each spoke is scaled against the strongest agent");
+  expect(main).toMatch(/presentations given/i);
+
+  const tabs = page.getByRole("tablist", { name: "Sales Agents" });
+  await expect(tabs.getByRole("tab", { name: "Sales Agents" })).toHaveAttribute("aria-selected", "true");
+  await tabs.getByRole("tab", { name: "Coaching" }).click();
+  await page.waitForURL(/view=coaching/);
+  expect(new URL(page.url()).searchParams.get("period"), "the period survives the switch").toBe(
+    "last_quarter",
+  );
+
+  await expect(page.locator("main .iris-radar-card").first()).toBeVisible();
+  const coaching = await page.locator("main").innerText();
+  expect(coaching).toContain("Each spoke is scaled against the strongest agent");
+  expect(coaching, "nothing else moved to the tab").not.toMatch(/presentations given/i);
+
+  await page.getByRole("tab", { name: "Sales Agents" }).click();
+  await page.waitForURL((url) => url.searchParams.get("view") === null);
+  expect(new URL(page.url()).searchParams.get("period")).toBe("last_quarter");
+});

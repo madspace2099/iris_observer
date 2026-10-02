@@ -4,7 +4,7 @@ import type { PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
-import { presetFrom } from "@/lib/period";
+import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { Missing, ShareFigure } from "@/components/agents";
@@ -41,7 +41,7 @@ export default async function AgentsPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string }>;
+  searchParams: Promise<{ period?: string; view?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
@@ -75,6 +75,24 @@ export default async function AgentsPage({
    * which already carries everything the inline expansion showed (including
    * the same `SectionSequence` component for presentation timing) and more.
    */
+  /*
+   * COACHING, A TAB ON THIS PAGE (P2-19 K5, ZARAS1, 2026-10-02).
+   *
+   * The radars and their scale moved to their own view: a shape per person is
+   * coaching material, and beside the rings it read as a second scorecard. A
+   * tab rather than a route, so nothing new enters the navigation; the view is
+   * on the address with the period, so switching keeps the reader's span and
+   * a view can be linked. Nothing new stands where the radars were. "Coaching"
+   * is the screen's label, English by the scope decision of 2026-10-02; the
+   * first tab is the page's own name.
+   */
+  const coaching = search.view === "coaching";
+  const viewHref = (to: "roster" | "coaching") =>
+    withPeriod(
+      `/${tenantSlug}/${projectSlug}/agents${to === "coaching" ? "?view=coaching" : ""}`,
+      period,
+    );
+
   const detailHref = (agentId: string) =>
     `/${tenantSlug}/${projectSlug}/agents/${agentId}?${new URLSearchParams({ period }).toString()}`;
 
@@ -84,213 +102,229 @@ export default async function AgentsPage({
         <p className="iris-kicker">Sales agents · {view.context.period.label}</p>
         <h1 className="iris-section">{view.verdict}</h1>
 
-        <div className="iris-rings">
-          {view.agents.map((a) => (
-            <article className="iris-ring-card" key={a.agentId}>
-              <h3>{a.name}</h3>
-              <p className="iris-meta" style={{ margin: "0 0 .5rem" }}>
-                {a.organisationName}
-              </p>
-              <OutcomeRing
-                slices={a.ring.slices}
-                total={a.meetings}
-                size={126}
-                label={`${a.name}: ${a.meetings} meetings`}
-              />
-              {a.belowMinimum ? (
-                /*
-                 * BELOW AGENT_MIN_SAMPLE: no rank, no trend, no team
-                 * comparison — the same floor `AgentDetailView` already
-                 * states, applied here where a percentage and a flag would
-                 * otherwise draw a verdict from a handful of meetings. The
-                 * ring above still shows the raw outcome counts; this is the
-                 * sentence that says why nothing here is compared.
-                 */
-                <p className="iris-meta" style={{ margin: 0 }}>
-                  {a.suppressionNote}
-                </p>
-              ) : (
-                /*
-                 * THE RATE THROUGH `ShareFigure`, NOT ROUNDED HERE.
-                 *
-                 * This line rounded `progressedShare` and appended a percent
-                 * sign — the component computing a figure that ADR-0012
-                 * forbids, and the exact thing the Flow page's docblock named
-                 * when it removed the same line. Worse, the only count on the
-                 * card was the ring's centre, every meeting, while the rate
-                 * stands on the decided ones. The denominator is the read
-                 * model's, in words; the locale is the project's.
-                 */
-                <p className="iris-code" style={{ margin: 0 }}>
-                  {a.ring.decidedMeetings === 0 ? (
-                    <Missing what="No outcome recorded" />
-                  ) : (
-                    <ShareFigure
-                      language={view.context.language}
-                      share={a.ring.progressedShare}
-                      sampleSize={a.meetings}
-                      minimumSampleSize={AGENT_MIN_SAMPLE}
-                      locale={view.context.project.locale}
-                      qualifier={`progressed, of ${a.ring.decidedMeetings} meetings with an outcome`}
-                    />
-                  )}{" "}
-                  · median {a.medianDurationDisplay}
-                </p>
-              )}
-              <OutcomeKey slices={a.ring.slices} />
-              {/*
-               * The habit's own gate, on the set the habit stands on. The
-               * card's `belowMinimum` counts the meetings held; "leans on"
-               * stands on the timed ones, and a card that named a set of
-               * fifteen under a gate that counted twenty-five would contradict
-               * itself in one breath. Under the timed floor the read model's
-               * own reason stands where the habit would.
-               */}
-              {a.belowMinimum ? null : a.signatureNote !== null ? (
-                <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
-                  {a.signatureNote}
-                </p>
-              ) : a.signature === null ? null : (
-                /* The set the two shares stand on, in the Features page's own form. */
-                <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
-                  Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the
-                  team&rsquo;s share of presentation time, across the {a.timedMeetings} of{" "}
-                  {a.meetings} meetings the source could time end to end.
-                </p>
-              )}
-              {a.irisRating === null ? null : (
-                <p className="iris-rating">
-                  Rates IRIS {a.irisRating.mean.toFixed(1)}/5
-                  <span className="iris-code">
-                    {" "}
-                    · {a.irisRating.responses} responses · MADSPACE only
-                  </span>
-                </p>
-              )}
-              {a.belowMinimum || a.ring.flag === null ? null : (
-                <p className="iris-ring-flag" data-severity={a.ring.flag.severity}>
-                  {a.ring.flag.text}
-                </p>
-              )}
-              <Link className="iris-action" href={dynamicRoute(detailHref(a.agentId))}>
-                Agent detail →
-              </Link>
-            </article>
-          ))}
+        <div className="iris-segmented" role="tablist" aria-label="Sales Agents">
+          <Link role="tab" aria-selected={!coaching} href={dynamicRoute(viewHref("roster"))}>
+            Sales Agents
+          </Link>
+          <Link role="tab" aria-selected={coaching} href={dynamicRoute(viewHref("coaching"))}>
+            Coaching
+          </Link>
         </div>
 
-        <hr className="iris-rule" />
-
-        {/* --- the same six dimensions, one shape per agent --------------- */}
-
-        <div>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-            How each agent uses the showroom
-          </p>
-          <div className="iris-radars">
-            {charts.radar.profiles.map((profile) => (
-              <figure className="iris-radar-card" key={profile.id}>
-                {/*
-                 * Below the floor the card stays and the shape does not: a
-                 * shape scaled against the strongest colleague on every axis
-                 * is a ranking without numbers, drawn from four meetings. The
-                 * note is the read model's, the same sentence the ring card
-                 * above prints.
-                 */}
-                {profile.belowMinimum ? (
-                  /* The note stands in the box the shape would fill (`.iris-radar-note`), so the row keeps four equal cells. */
-                  <p className="iris-meta iris-radar-note">
-                    <b>{profile.label}</b> — {profile.note}
+        {coaching ? null : (
+          <>
+            <div className="iris-rings">
+              {view.agents.map((a) => (
+                <article className="iris-ring-card" key={a.agentId}>
+                  <h3>{a.name}</h3>
+                  <p className="iris-meta" style={{ margin: "0 0 .5rem" }}>
+                    {a.organisationName}
                   </p>
-                ) : (
-                  /* The label is the card's caption, under the shape — not a key inside the component for one shape. */
-                  <>
-                    <Radar axes={charts.radar.axes} series={[profile]} size={190} />
-                    <figcaption>{profile.label}</figcaption>
-                  </>
-                )}
-              </figure>
-            ))}
-          </div>
-          <dl className="iris-axis-key">
-            {charts.radar.axes.map((axis, i) => (
-              <div key={axis}>
-                <dt>{axis}</dt>
-                <dd>{charts.radar.axisNotes[i]}</dd>
-              </div>
-            ))}
-          </dl>
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-            Each spoke is scaled against the strongest agent on that spoke, so the shapes are
-            comparable to each other and not to an absolute. A wider shape is a different way of
-            presenting, not a better one.
-          </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
-        </div>
-
-        <hr className="iris-rule" />
-
-        <div className="iris-band">
-          <div>
-            <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
-              Presentations given
-            </p>
-            <RankedBars rows={charts.ranked} period={period} />
-            <p className="iris-meta" style={{ marginTop: ".5rem" }}>
-              How many, and how long they typically ran. This list is ordered by workload. It is not
-              ordered by outcome, and there is no list here that is.
-            </p>
-          </div>
-
-          <div className="iris-band-side">
-            <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
-              Across every agent
-            </p>
-            <div className="iris-bars">
-              {view.repeats.map((r) => (
-                <div className="iris-bar" key={r.visits ?? "unlinked"}>
-                  <span className="iris-bar-label" title={r.label}>
-                    {r.label}
-                  </span>
-                  <span
-                    className="iris-bar-track"
-                    style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
-                  >
-                    <i />
-                  </span>
-                  <span className="iris-bar-value">
-                    {r.meetings} · {Math.round(r.share * 100)}%
-                  </span>
-                </div>
+                  <OutcomeRing
+                    slices={a.ring.slices}
+                    total={a.meetings}
+                    size={126}
+                    label={`${a.name}: ${a.meetings} meetings`}
+                  />
+                  {a.belowMinimum ? (
+                    /*
+                     * BELOW AGENT_MIN_SAMPLE: no rank, no trend, no team
+                     * comparison — the same floor `AgentDetailView` already
+                     * states, applied here where a percentage and a flag would
+                     * otherwise draw a verdict from a handful of meetings. The
+                     * ring above still shows the raw outcome counts; this is the
+                     * sentence that says why nothing here is compared.
+                     */
+                    <p className="iris-meta" style={{ margin: 0 }}>
+                      {a.suppressionNote}
+                    </p>
+                  ) : (
+                    /*
+                     * THE RATE THROUGH `ShareFigure`, NOT ROUNDED HERE.
+                     *
+                     * This line rounded `progressedShare` and appended a percent
+                     * sign — the component computing a figure that ADR-0012
+                     * forbids, and the exact thing the Flow page's docblock named
+                     * when it removed the same line. Worse, the only count on the
+                     * card was the ring's centre, every meeting, while the rate
+                     * stands on the decided ones. The denominator is the read
+                     * model's, in words; the locale is the project's.
+                     */
+                    <p className="iris-code" style={{ margin: 0 }}>
+                      {a.ring.decidedMeetings === 0 ? (
+                        <Missing what="No outcome recorded" />
+                      ) : (
+                        <ShareFigure
+                          language={view.context.language}
+                          share={a.ring.progressedShare}
+                          sampleSize={a.meetings}
+                          minimumSampleSize={AGENT_MIN_SAMPLE}
+                          locale={view.context.project.locale}
+                          qualifier={`progressed, of ${a.ring.decidedMeetings} meetings with an outcome`}
+                        />
+                      )}{" "}
+                      · median {a.medianDurationDisplay}
+                    </p>
+                  )}
+                  <OutcomeKey slices={a.ring.slices} />
+                  {/*
+                   * The habit's own gate, on the set the habit stands on. The
+                   * card's `belowMinimum` counts the meetings held; "leans on"
+                   * stands on the timed ones, and a card that named a set of
+                   * fifteen under a gate that counted twenty-five would contradict
+                   * itself in one breath. Under the timed floor the read model's
+                   * own reason stands where the habit would.
+                   */}
+                  {a.belowMinimum ? null : a.signatureNote !== null ? (
+                    <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
+                      {a.signatureNote}
+                    </p>
+                  ) : a.signature === null ? null : (
+                    /* The set the two shares stand on, in the Features page's own form. */
+                    <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
+                      Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the
+                      team&rsquo;s share of presentation time, across the {a.timedMeetings} of{" "}
+                      {a.meetings} meetings the source could time end to end.
+                    </p>
+                  )}
+                  {a.irisRating === null ? null : (
+                    <p className="iris-rating">
+                      Rates IRIS {a.irisRating.mean.toFixed(1)}/5
+                      <span className="iris-code">
+                        {" "}
+                        · {a.irisRating.responses} responses · MADSPACE only
+                      </span>
+                    </p>
+                  )}
+                  {a.belowMinimum || a.ring.flag === null ? null : (
+                    <p className="iris-ring-flag" data-severity={a.ring.flag.severity}>
+                      {a.ring.flag.text}
+                    </p>
+                  )}
+                  <Link className="iris-action" href={dynamicRoute(detailHref(a.agentId))}>
+                    Agent detail →
+                  </Link>
+                </article>
               ))}
             </div>
-          </div>
-        </div>
+          </>
+        )}
 
-        {/*
+        {/* --- the same six dimensions, one shape per agent: the Coaching tab --- */}
+        {coaching ? (
+          <div>
+            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
+              How each agent uses the showroom
+            </p>
+            <div className="iris-radars">
+              {charts.radar.profiles.map((profile) => (
+                <figure className="iris-radar-card" key={profile.id}>
+                  {/*
+                   * Below the floor the card stays and the shape does not: a
+                   * shape scaled against the strongest colleague on every axis
+                   * is a ranking without numbers, drawn from four meetings. The
+                   * note is the read model's, the same sentence the ring card
+                   * above prints.
+                   */}
+                  {profile.belowMinimum ? (
+                    /* The note stands in the box the shape would fill (`.iris-radar-note`), so the row keeps four equal cells. */
+                    <p className="iris-meta iris-radar-note">
+                      <b>{profile.label}</b> — {profile.note}
+                    </p>
+                  ) : (
+                    /* The label is the card's caption, under the shape — not a key inside the component for one shape. */
+                    <>
+                      <Radar axes={charts.radar.axes} series={[profile]} size={190} />
+                      <figcaption>{profile.label}</figcaption>
+                    </>
+                  )}
+                </figure>
+              ))}
+            </div>
+            <dl className="iris-axis-key">
+              {charts.radar.axes.map((axis, i) => (
+                <div key={axis}>
+                  <dt>{axis}</dt>
+                  <dd>{charts.radar.axisNotes[i]}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+              Each spoke is scaled against the strongest agent on that spoke, so the shapes are
+              comparable to each other and not to an absolute. A wider shape is a different way of
+              presenting, not a better one.
+            </p>
+            <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
+          </div>
+        ) : null}
+
+        {coaching ? null : (
+          <>
+            <hr className="iris-rule" />
+
+            <div className="iris-band">
+              <div>
+                <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
+                  Presentations given
+                </p>
+                <RankedBars rows={charts.ranked} period={period} />
+                <p className="iris-meta" style={{ marginTop: ".5rem" }}>
+                  How many, and how long they typically ran. This list is ordered by workload. It is
+                  not ordered by outcome, and there is no list here that is.
+                </p>
+              </div>
+
+              <div className="iris-band-side">
+                <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
+                  Across every agent
+                </p>
+                <div className="iris-bars">
+                  {view.repeats.map((r) => (
+                    <div className="iris-bar" key={r.visits ?? "unlinked"}>
+                      <span className="iris-bar-label" title={r.label}>
+                        {r.label}
+                      </span>
+                      <span
+                        className="iris-bar-track"
+                        style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
+                      >
+                        <i />
+                      </span>
+                      <span className="iris-bar-value">
+                        {r.meetings} · {Math.round(r.share * 100)}%
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/*
             Named where it contributed, and the CRM contributes nothing here. The
             rings, the flags and the findings are the outcomes agents recorded in
             the room, the showroom's own record (docs/06; the sweep that took the
             same chip off the agent's page, 83d3e72). A CRM chip on a connected
             project credited it with figures it never touched.
           */}
-        <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
+            <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
 
-        {view.findings.map((finding, index) => (
-          <Finding key={finding.id} finding={finding} period={period} lead={index === 0} />
-        ))}
+            {view.findings.map((finding, index) => (
+              <Finding key={finding.id} finding={finding} period={period} lead={index === 0} />
+            ))}
 
-        <Gaps
-          gaps={[
-            "These are differences in how people present, at the stated sample sizes. They are not a ranking.",
-            ...(view.showRatings
-              ? [
-                  "The IRIS rating is the agent's own score for the software at the end of a session. It is visible to MADSPACE only.",
-                ]
-              : []),
-          ]}
-          title="How to read this"
-        />
+            <Gaps
+              gaps={[
+                "These are differences in how people present, at the stated sample sizes. They are not a ranking.",
+                ...(view.showRatings
+                  ? [
+                      "The IRIS rating is the agent's own score for the software at the end of a session. It is visible to MADSPACE only.",
+                    ]
+                  : []),
+              ]}
+              title="How to read this"
+            />
+          </>
+        )}
       </section>
     </div>
   );
