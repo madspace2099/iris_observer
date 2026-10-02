@@ -273,9 +273,7 @@ export default async function ProjectPage({
                   href: qs(s.id),
                 }))}
               />
-              <p className="iris-meta" style={{ marginTop: ".75rem", maxWidth: "70ch" }}>
-                {view.matrixNote}
-              </p>
+              <Method style={{ marginTop: ".75rem", maxWidth: "70ch" }}>{view.matrixNote}</Method>
               <SourceChips
                 sources={
                   view.context.project.connectedSources.includes("crm")
@@ -330,12 +328,12 @@ export default async function ProjectPage({
                   of={`Each rate is of the unit openings in these meetings: ${segment.unitsOpened} openings of ${segment.label.toLowerCase()} units on the left, ${segment.otherUnitsOpened} of other units on the right.`}
                 />
               </div>
-              <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+              <Method style={{ marginTop: ".75rem" }}>
                 The filled dot is {segment.label.toLowerCase()} units, the hollow one is every other
                 unit, and the line between them is the difference. Four different acts, kept apart:
                 the balcony is the view, the floor cut is the layout, the plan is what a buyer takes
                 away, the screenshot is what they show someone else.
-              </p>
+              </Method>
             </div>
 
             <div className="iris-band-side">
@@ -370,9 +368,9 @@ export default async function ProjectPage({
                   </div>
                 ))}
               </div>
-              <p className="iris-meta" style={{ marginTop: ".625rem" }}>
+              <Method style={{ marginTop: ".625rem" }}>
                 Share of the time these meetings spent on any named place.
-              </p>
+              </Method>
               <Link
                 className="iris-action"
                 data-emphasis="primary"
@@ -463,9 +461,9 @@ export default async function ProjectPage({
                 </div>
               ))}
             </div>
-            <p className="iris-meta" style={{ marginTop: ".625rem" }}>
+            <Method style={{ marginTop: ".625rem" }}>
               Share of all time spent on named places, by what kind of place it is.
-            </p>
+            </Method>
           </div>
         </div>
 
@@ -493,10 +491,10 @@ export default async function ProjectPage({
               </span>
             ))}
           </div>
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+          <Method style={{ marginTop: ".75rem" }}>
             Ordered by total time. Amenities inside the building are recorded today; points of
             interest in the neighbourhood need a UE5 v2 event and are shown here as a demonstration.
-          </p>
+          </Method>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>
 
@@ -511,9 +509,7 @@ export default async function ProjectPage({
           <FlowScroller label="How far a presentation gets">
             <JourneyFlow stages={charts.journey.stages} links={charts.journey.links} />
           </FlowScroller>
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-            {charts.journey.note}
-          </p>
+          <Method style={{ marginTop: ".75rem" }}>{charts.journey.note}</Method>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>
 
@@ -537,5 +533,32 @@ export default async function ProjectPage({
         />
       </section>
     </div>
+  );
+}
+
+/**
+ * A METHOD NOTE, FOLDED (P2-19 K4, ZARAS1, 2026-10-02).
+ *
+ * A paragraph is method when it explains a denominator, a sample, a window or
+ * a calculation rule; one that states a figure or a judgement is the finding
+ * itself and stays in view. Method is for the second reading, so it starts
+ * closed — a disclosure that opens by default is not one. The label is Sales
+ * Flow's own, "How to read this"; the screens are English by scope decision
+ * (2026-10-02), and the printed report draws none of this.
+ */
+function Method({
+  style,
+  children,
+}: {
+  readonly style?: React.CSSProperties;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <details className="iris-method" style={style}>
+      <summary className="iris-meta">How to read this</summary>
+      <p className="iris-meta" style={{ marginTop: ".375rem" }}>
+        {children}
+      </p>
+    </details>
   );
 }
