@@ -1,5 +1,39 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-02 — the open decisions, decided
+
+Máté answered every open decision of the acceptance on 2026-10-02 (`_review/dontesek-2026-10-02.md`).
+Lines 167 and 217 of the measurement below are R02-1 and R06-3, so the seventeen open items were
+fifteen decisions. The measurement below is not changed; this is what was decided on it.
+
+**Recorded, nothing to build:**
+
+- **R12-2.** The agent flag stays at twenty meetings or more (the decision of 2026-09-27, 6); under
+  twenty only counts are shown, as `788cd3f` already draws them.
+- **R01-3.** The OpenAI connection may serve as an interim assistant but is not the Claude
+  integration asked for by name. The Claude half stays BLOCKED until the provider, its key and the
+  cost of calls are settled; the banner half is closed.
+- **R06-3 (P1-04).** The 1.51× is closed as not reproducible on the evidence available. Nothing in
+  the repository yields it; the figures it can be traced to are 1.41×, 1.39× and 1.30×, from the
+  three calculations that were removed (`_review/blokk-0927b/report.md:53`). It reopens on new
+  evidence.
+- **R05-7, R07-7, R08-6.** The durable tier store stays BLOCKED until Phase 3: no Supabase table and
+  no RLS for it in this phase. R08-6's route-map links are machine work and go ahead without it.
+- **P2-17, item 76.** The approved Hungarian date is `aug. 24.`. The report's kicker shows it in
+  capitals through CSS; the source, the copied text and the spoken text keep the approved form.
+- **P2-17, item 27.** "At most 6" stays an upper bound, not a count of the units listed.
+
+**Decided, built in the round that follows:** R12-6 (the card's two links), P2-17 items 27 and 38
+(Slovak text supplied by Máté), R02-1 (the Briefing chip names its comparison), R07-2 (`Demand
+signal · derived`), R04-1 and R07-3 (one follow-up definition), R01-2 (Northgate's scripted Ask
+retired), R05-4, R07-4 and R02-4 (the cycle from the first recorded showroom opening, said so on the
+page) and R03-5 (a reopened answer says it is recalculated).
+
+**Decided, sketched first:** R06-1, the building, floor and price filters.
+
+No decision of Máté's is open after this. R06-6, R11-5 and R13-4 wait on CRM or UE5 links; the rule
+Máté is to set for each falls due when that input exists.
+
 ## 2026-09-30 — accepted with known gaps
 
 This section is added beside the measurement below, which is not changed: it was made on 2026-09-27
