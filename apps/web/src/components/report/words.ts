@@ -501,7 +501,7 @@ export const AGENT_REPORT_WORDS: Readonly<Record<Language, AgentReportWords>> = 
     unitsCaption: (name, period) =>
       isUnnamedPresenter(name, "sk")
         ? `${name}: najviac 6 bytov, ktoré otvorili na najväčšom podiele stretnutí tohto makléra (${period.toLowerCase()}). Ide len o súvislosť s jeho zvykom pri prezentáciách: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom maklér zvyčajne siahne.`
-        : `Byty otvorené v najväčšom podiele stretnutí – ${name} (${period.toLowerCase()}), najviac 6. Súvislosť so zvykom tohto prezentujúceho a nič viac: byt otvorený na väčšine stretnutí môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom siaha maklér.`,
+        : `${name}: Najviac 6 bytov, ktoré otvorili na najväčšom podiele stretnutí (${period.toLowerCase()}). Ide len o súvislosť so zvykom pri prezentáciách tejto osoby: byt, ktorý otvárajú na väčšine stretnutí, môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom maklér zvyčajne siahne.`,
     noOtherProject:
       "V tomto období nie je na žiadnom inom projekte tohto konta žiadna ďalšia prezentácia.",
     projectMeetings: (n, period) => `${meetingsIn("sk", n)} (${period.toLowerCase()})`,
