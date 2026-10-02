@@ -197,7 +197,7 @@ test("R07-6 · the register prints no verified-outcome row beside the sold statu
 
 test("R08-4 · the outcome filter is named as recorded", async ({ page }) => {
   await mainText(page, "Tomáš Varga", `${ROOT}/meetings`);
-  await expect(page.getByLabel("Recorded outcome")).toHaveCount(1);
+  await expect(page.getByLabel("Recorded outcome", { exact: true })).toHaveCount(1);
 });
 
 test("R08-5 · nothing on the meetings register is called overdue", async ({ page }) => {

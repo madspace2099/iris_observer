@@ -76,7 +76,9 @@ export function TablePreferences({
           <legend className="ox-sr">Columns shown</legend>
           {columns.map((column) => (
             <label key={column.key}>
+              {/* Its own name, never the column's alone: a filter on the same page is called "Status" too. */}
               <input
+                aria-label={`Show column ${column.label}`}
                 type="checkbox"
                 checked={!preferences.hidden.includes(column.key)}
                 disabled={column.key === locked}
