@@ -67,7 +67,13 @@ export type Dump = Readonly<Record<string, RenderedPage>>;
 
 export type Verdict =
   | { readonly state: "identical"; readonly rendered: string }
-  | { readonly state: "differs"; readonly rendered: string; readonly nbspOnly: boolean }
+  | {
+      readonly state: "differs";
+      readonly rendered: string;
+      readonly nbspOnly: boolean;
+      /** Every place that differs is the approved text in capitals: the page's CSS, not another text. */
+      readonly uppercaseOnly: boolean;
+    }
   | { readonly state: "not_measurable"; readonly why: string }
   | { readonly state: "pending_decision"; readonly why: string };
 
@@ -249,7 +255,19 @@ export function measure(
   const nbspOnly = found
     .filter((line) => line !== approved)
     .every((line) => line.replace(/\u00a0/g, " ") === approved);
-  return { state: "differs", rendered: shown, nbspOnly };
+  /*
+   * SHOWN IN CAPITALS BY THE PAGE, APPROVED IN LOWER CASE (DONTESEK1, 2026-10-02).
+   *
+   * The report's kicker sets `text-transform: uppercase`, so the rendered
+   * innerText is the approved text in capitals. Máté approved the source form
+   * (`aug. 24.`); the capitals are the stylesheet's, so the line is approved
+   * and printed as such, not as a difference.
+   */
+  const capitals = approved.toLocaleUpperCase(language);
+  const uppercaseOnly =
+    capitals !== approved &&
+    found.filter((line) => line !== approved).every((line) => line === capitals);
+  return { state: "differs", rendered: shown, nbspOnly, uppercaseOnly };
 }
 
 const readDump = (dir: string, language: string): Dump =>
@@ -269,6 +287,7 @@ export function report(
     pending_decision: [],
   };
   const nbspKeys = new Set<string>();
+  const upperKeys = new Set<string>();
   const withheldKeys = new Set<string>();
   const out: string[] = [];
   for (const item of items) {
@@ -279,6 +298,7 @@ export function report(
       const key = `${String(item.n)}${language}`;
       summary[verdict.state].push(key);
       if (verdict.state === "differs" && verdict.nbspOnly) nbspKeys.add(key);
+      if (verdict.state === "differs" && verdict.uppercaseOnly) upperKeys.add(key);
       if (verdict.state === "not_measurable" && item.withheld !== undefined) withheldKeys.add(key);
       const L = language.toUpperCase();
       out.push(`${L} Máté     ${item[language]}`);
@@ -295,9 +315,11 @@ export function report(
         `${L} ${
           verdict.state === "identical"
             ? "IDENTICAL (byte for byte)"
-            : verdict.nbspOnly
-              ? "DIFFERS — IDENTICAL EXCEPT U+00A0 where Máté has U+0020"
-              : "DIFFERS"
+            : verdict.uppercaseOnly
+              ? "IDENTICAL-UPPERCASED (the page shows the approved text in capitals)"
+              : verdict.nbspOnly
+                ? "DIFFERS — IDENTICAL EXCEPT U+00A0 where Máté has U+0020"
+                : "DIFFERS"
         }`,
       );
     }
@@ -306,11 +328,12 @@ export function report(
   const total = items.length * 2;
   const measurable = summary.identical.length + summary.differs.length;
   const nbsp = summary.differs.filter((key) => nbspKeys.has(key)).length;
-  const approved = summary.identical.length + nbsp;
+  const uppercased = summary.differs.filter((key) => upperKeys.has(key)).length;
+  const approved = summary.identical.length + nbsp + uppercased;
   const share = measurable === 0 ? "—" : `${((100 * approved) / measurable).toFixed(2)}%`;
   const withheld = summary.not_measurable.filter((key) => withheldKeys.has(key));
   const head = [
-    `approved:       ${String(approved)} / ${String(measurable)} measurable (${share}): identical ${String(summary.identical.length)} + U+00A0 only ${String(nbsp)}`,
+    `approved:       ${String(approved)} / ${String(measurable)} measurable (${share}): identical ${String(summary.identical.length)} + U+00A0 only ${String(nbsp)} + uppercased ${String(uppercased)}`,
     `identical:      ${String(summary.identical.length)} of ${String(total)} (${summary.identical.join(" ")})`,
     `differs:        ${String(summary.differs.length)} (${summary.differs.join(" ")})`,
     `not measurable: ${String(summary.not_measurable.length)} (${summary.not_measurable.join(" ")}); of these withheld on purpose: ${String(withheld.length)} (${withheld.join(" ")})`,
@@ -326,6 +349,7 @@ export function report(
       not_measurable: summary.not_measurable.length,
       withheld: withheld.length,
       pending_decision: summary.pending_decision.length,
+      uppercased,
       measurable,
       approved,
     },
