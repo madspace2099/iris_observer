@@ -1,5 +1,4 @@
 import {
-  OUTCOME_LABELS,
   outcomeIsUnknown,
   type EvidenceTier,
   type InsightSource,
@@ -322,52 +321,12 @@ export function buildAttention(
     });
   };
 
-  /* --- 1. shortlisted, and nothing recorded after it ----------------------- */
-
-  if (!crm) {
-    cannotAsk(
-      "high_interest_no_follow_up",
-      "No CRM is connected to this project, so no meeting carries an outcome to check a shortlist against.",
-    );
-  } else {
-    const shortlisted = sessions.filter((s) => s.units.some((u) => u.favourited));
-    const stranded = shortlisted.filter(
-      (s) => s.outcome !== "follow_up_needed" && s.outcome !== "interested" && !hasCommercial(s),
-    );
-    if (stranded.length === 0) {
-      clear(
-        "high_interest_no_follow_up",
-        `Every one of the ${count(shortlisted.length, locale)} meetings that shortlisted a unit recorded an outcome that accounts for it.`,
-      );
-    } else {
-      raise({
-        kind: "high_interest_no_follow_up",
-        severity:
-          share(stranded.length, Math.max(1, shortlisted.length)) > 0.15 ? "warning" : "info",
-        title: "Units shortlisted with no follow-up recorded",
-        detail: `${count(stranded.length, locale)} of ${count(shortlisted.length, locale)} meetings that shortlisted a unit ended without an outcome that asks for a follow-up.`,
-        subjects: stranded.slice(0, 5).map((s) => ({
-          id: s.meetingId,
-          label: `${s.meetingId} · ${OUTCOME_LABELS[s.outcome]}`,
-          href: `${root}/meetings/${s.meetingId}`,
-        })),
-        sampleSize: shortlisted.length,
-        minimumSampleSize: UNIT_MIN_SAMPLE,
-        belowMinimum: shortlisted.length < UNIT_MIN_SAMPLE,
-        tier: "observed_sequence",
-        sources: WITH_OUTCOME,
-        /*
-         * What the link opens, said plainly. It read "Open those meetings" and
-         * opened the whole register: the register has no filter for "shortlisted,
-         * and no outcome that asks for a follow-up", so the five named above are
-         * the ones a reader can reach from here.
-         */
-        actionLabel: "Open the meeting register",
-        actionHref: `${root}/meetings`,
-        observationCount: stranded.length,
-      });
-    }
-  }
+  /* --- 1. shortlisted, and nothing recorded after it: retired (R04-1, R07-3, Máté 2026-10-02) ---
+   *
+   * A shortlist that ended "Presentation only" or "Not interested" is
+   * accounted for, and one with no recorded outcome is `outcome_not_recorded`'s.
+   * Measured on every project and period before it went: nothing was left.
+   */
 
   /* --- 1b. lateness -------------------------------------------------------- */
 
@@ -753,9 +712,4 @@ function touches(sessions: readonly ShowroomSession[], code: string): number {
   return sessions
     .flatMap((s) => s.units.filter((u) => u.unitCode === code))
     .reduce((acc, u) => acc + u.views, 0);
-}
-
-/** Whether the meeting ended in something a CRM would call a result. */
-function hasCommercial(session: ShowroomSession): boolean {
-  return session.outcome === "reservation" || session.outcome === "purchase";
 }

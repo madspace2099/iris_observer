@@ -675,8 +675,14 @@ export interface AgentDetailView {
  * with two branches could only ever report one of them. Lateness is declared
  * so that it is asked — and answered Not evaluated — rather than left out.
  */
+/*
+ * "High interest, no follow-up recorded" is retired (R04-1, R07-3, Máté
+ * 2026-10-02). A shortlist ending in "Presentation only" or "Not interested"
+ * is accounted for, and one with no recorded outcome belongs to
+ * `outcome_not_recorded`. With all three set aside, no meeting is left for the
+ * check to raise on any project or period, so it is not asked at all.
+ */
 export const ATTENTION_KINDS = [
-  "high_interest_no_follow_up",
   "follow_up_lateness",
   "demand_dropping",
   "outcome_not_recorded",
@@ -712,12 +718,6 @@ export interface AttentionKindDefinition {
 }
 
 export const ATTENTION_KIND_DEFINITIONS: readonly AttentionKindDefinition[] = [
-  {
-    kind: "high_interest_no_follow_up",
-    label: "High interest, no follow-up recorded",
-    question: "Did a meeting that shortlisted a unit end without a follow-up being recorded?",
-    maxSeverity: "warning",
-  },
   {
     kind: "follow_up_lateness",
     label: "Lateness",

@@ -342,9 +342,6 @@ describe("getAttention", () => {
     expect(verification?.alert.severity).toBe("warning");
     const recorded = view.states.find((s) => s.kind === "outcome_not_recorded");
     expect(recorded?.alert.severity).toBe("warning");
-    expect(view.checks.find((c) => c.kind === "high_interest_no_follow_up")?.state).toBe(
-      "unavailable",
-    );
   });
 
   /*

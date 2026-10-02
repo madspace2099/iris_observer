@@ -55,3 +55,18 @@ test("R02-1 · the Briefing chip names what it compares against, and never a bar
     expect(chip, path).toMatch(/^(?:(?:Above|In line with|Below|Mixed against) \S.*|No verdict)$/);
   }
 });
+
+test("R04-1 · R07-3 · the shortlist follow-up check is retired on attention and on units", async ({
+  page,
+}) => {
+  await signInAs(page, "Tomáš Varga");
+  await page.goto(`${ROOT}/attention`, { waitUntil: "networkidle" });
+  const attention = await page.locator("main").innerText();
+  expect(attention).not.toContain("High interest, no follow-up recorded");
+  expect(attention).not.toContain("Units shortlisted with no follow-up recorded");
+  await page.goto(`${ROOT}/units`, { waitUntil: "networkidle" });
+  const units = await page.locator("main").innerText();
+  expect(units).not.toContain("meetings that shortlisted a unit");
+  expect(units).toContain("A unit opened repeatedly and never kept is a question the register cannot show in a column.");
+});
+
