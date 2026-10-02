@@ -2215,6 +2215,16 @@ export function buildHome(
       : volumeTrend === "down" && progressTrend === "down"
         ? "poor"
         : "attention";
+  const comparedWith = readable ? volume.beforeWords.replace(/^in /, "") : null;
+  const movement: ShowroomHome["movement"] = !readable
+    ? null
+    : volumeTrend === progressTrend
+      ? volumeTrend === "up"
+        ? "above"
+        : volumeTrend === "down"
+          ? "below"
+          : "in_line"
+      : "mixed";
 
   const outcomes = (n: number) =>
     `${count(n, locale)} recorded ${n === 1 ? "outcome" : "outcomes"}`;
@@ -2394,6 +2404,8 @@ export function buildHome(
   return {
     context,
     signal,
+    comparedWith,
+    movement,
     verdict,
     because,
     figures,

@@ -95,6 +95,32 @@ const SIGNAL_LABELS: Readonly<Record<ShowroomSignal, string>> = {
   no_verdict: "No verdict",
 };
 
+/*
+ * A VERDICT NAMES WHAT IT IS MEASURED AGAINST (R02-1, Máté 2026-10-02).
+ *
+ * Every verdict here is a comparison with an earlier window, so the chip says
+ * which and which way: "Above last month", "In line with last week". "On
+ * course" stays only for a named plan and threshold, and none exists yet. When
+ * meetings and their progression moved apart, the chip says so rather than
+ * calling it in line.
+ */
+const MOVEMENT_WORDS = {
+  above: "Above",
+  in_line: "In line with",
+  below: "Below",
+  mixed: "Mixed against",
+} as const;
+
+function signalLabel(home: {
+  readonly signal: ShowroomSignal;
+  readonly comparedWith: string | null;
+  readonly movement: keyof typeof MOVEMENT_WORDS | null;
+}): string {
+  return home.movement === null || home.comparedWith === null
+    ? SIGNAL_LABELS[home.signal]
+    : `${MOVEMENT_WORDS[home.movement]} ${home.comparedWith}`;
+}
+
 const SIGNAL_TONES: Readonly<Record<ShowroomSignal, string>> = {
   good: "good",
   attention: "watch",
@@ -151,7 +177,7 @@ export default async function BriefingPage({
           <>
             <span className="ox-chip" data-tone={SIGNAL_TONES[home.signal]}>
               <span className="ox-chip-mark" aria-hidden="true" />
-              {SIGNAL_LABELS[home.signal]}
+              {signalLabel(home)}
             </span>
             <Synthetic language={home.context.language} />
           </>

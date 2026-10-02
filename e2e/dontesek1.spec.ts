@@ -43,3 +43,15 @@ test("R12-6 · an agent card leads with Agent detail, then its meetings and its 
   /* The report page, not the export panel. */
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
+
+test("R02-1 · the Briefing chip names what it compares against, and never a bare On course", async ({
+  page,
+}) => {
+  await signInAs(page, "Tomáš Varga");
+  for (const path of [`${ROOT}/showroom`, `${ROOT}/showroom?period=last_28_days`, "/alpha/ister-tower/showroom"]) {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const chip = (await page.locator(".ox-head-aside .ox-chip").first().innerText()).trim();
+    expect(chip, path).not.toBe("On course");
+    expect(chip, path).toMatch(/^(?:(?:Above|In line with|Below|Mixed against) \S.*|No verdict)$/);
+  }
+});
