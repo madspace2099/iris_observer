@@ -309,6 +309,52 @@ test.describe("a meeting row is a link only for a reader who may open one", () =
     await link.click();
     await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
   });
+
+  /*
+   * The same rule on Sales Flow (R08-6, EJJEL2): its longest presentations and
+   * its IRIS-assisted sales were fourteen replay links for a developer on
+   * Northgate. There is no caption to carry the register's sentence, so the
+   * rows are listed as text, and an assisted sale opens its unit instead.
+   */
+  const block = (page: Page, name: RegExp) =>
+    page
+      .locator("main div")
+      .filter({ has: page.getByRole("heading", { name }) })
+      .last();
+
+  test("on Sales Flow, a developer is offered no replay: presentations are listed, a sale opens its unit", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/flow`);
+    await expect(
+      block(page, /^Longest presentations this period$/i).locator("li").first(),
+      "no presentation listed on Sales Flow",
+    ).toBeVisible();
+    await expect(
+      block(page, /^IRIS-assisted sales$/i).locator('a[href*="/units/"]').first(),
+      "an assisted sale no longer opens its unit",
+    ).toBeAttached();
+    await expect(
+      page.locator('main a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
+  });
+
+  test("on Sales Flow, a manager's presentations and assisted sales open the replay", async ({ page }) => {
+    await signInAs(page, "Tomáš Varga");
+    await page.goto(`${NORTHGATE}/flow`);
+    await expect(
+      block(page, /^IRIS-assisted sales$/i).locator('a[href*="/meetings/"]').first(),
+      "an assisted sale no longer opens its meeting for a manager",
+    ).toBeAttached();
+    const link = block(page, /^Longest presentations this period$/i)
+      .locator('a[href*="/meetings/"]')
+      .first();
+    await expect(link, "no presentation on Sales Flow to open").toBeVisible();
+    await link.click();
+    await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
+  });
 });
 
 test.describe("Administration is reachable without opening a project first", () => {
