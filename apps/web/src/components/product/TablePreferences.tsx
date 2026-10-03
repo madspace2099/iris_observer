@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ClosableDetails } from "@/components/ask-iris/ClosableDetails";
 import {
   DEFAULT_PREFERENCES,
   preferencesOrDefault,
@@ -71,8 +70,7 @@ export function TablePreferences({
 
   return (
     <div className="ox-table-prefs">
-      {/* Escape, a press outside and Tab out close it, as on every other panel drawn over the page (P2-ZARAS). */}
-      <ClosableDetails className="ox-table-prefs-columns" closeOnFocusOut>
+      <details className="ox-table-prefs-columns">
         <summary className="ox-toggle">Columns</summary>
         <fieldset>
           <legend className="ox-sr">Columns shown</legend>
@@ -90,7 +88,7 @@ export function TablePreferences({
             </label>
           ))}
         </fieldset>
-      </ClosableDetails>
+      </details>
       <div role="group" aria-label="Density" className="ox-chipset">
         {(["comfortable", "compact"] as const).map((value) => (
           <button
