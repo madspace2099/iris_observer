@@ -1,5 +1,42 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-03 — the gate's machine side, and where P2-21 stands
+
+This section is added beside the ones below, which are not changed. **P2-21 is not checked off
+here, and nothing in this section says Phase 2 is done.**
+
+**The three gate items that are not among the 88:**
+
+1. **The mobile (ii) class: closed** (`77b1be8`).
+2. **The guard that nothing fixed covers a reachable or readable element: closed** (`050f677`,
+   `9f43b9d`, `e2e/fixed-covers-nothing.spec.ts`). The guard holds the general claim, not the dock by
+   name.
+3. **The accessibility contract on the main screens: built in this round**
+   (`e2e/a11y-contract.spec.ts`). The five clauses held on the design lab are held on Briefing, Sales
+   Flow, Project, Units, Meetings, Features, Sales Agents, Ask and the report. The report keeps four;
+   an announcement there needs product words nobody has written.
+   - The first measurement found every screen green on keyboard reach, focus and reading order.
+   - It found 21 defects:
+     - a pop-up drawn over the page let Tab land beneath it (the shared project and period menu on
+       every screen, a figure's explanation, the register column chooser and the Ask pickers), and
+       three of those ignored Escape;
+     - no change of state was announced on any of the eight screens.
+   - All 21 are fixed (`4b88dd5`, `16e666e`, `6598a12`, `d7d74fa`, `0a5f5be`).
+   - Each clause and each fix has a mutation that turns its test red.
+
+**The 88 items.** The last measurement of them is the one below: 38 verified, 30 partial, 9 not done,
+11 blocked. They have not been measured again since. The decisions of 2026-10-02 built several of
+them (above), so the four numbers wait for a new measurement rather than standing as today's.
+
+**How P2-21 could be checked off — PROPOSAL, NOT APPLIED.** P2-21 is checked off when:
+
+- every item that can be verified with the inputs that exist today is verified;
+- every BLOCKED item stands by name with the input it is missing;
+- no gate item on the machine side is open.
+
+This is offered for Máté's decision. The status is not raised, and nothing below is re-read
+under it.
+
 ## 2026-10-02 — the open decisions, decided
 
 Máté answered every open decision of the acceptance on 2026-10-02 (`_review/dontesek-2026-10-02.md`).
