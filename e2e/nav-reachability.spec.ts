@@ -392,6 +392,36 @@ test.describe("a meeting row is a link only for a reader who may open one", () =
     await links.first().click();
     await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
   });
+
+  /*
+   * And in the audience builder (R08-6, EJJEL2): every matching meeting was a
+   * replay link, 67 of them for a developer on Northgate. The matrix has no
+   * caption; a developer gets the matrix's plain row, as /project's demand
+   * rows are drawn.
+   */
+  test("in the audience builder, a developer gets the matching meetings as rows, not replay links", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/audience`);
+    const rows = page.locator('.iris-matrix[data-columns="audience"] .iris-matrix-row');
+    await expect(rows.first(), "no meeting matched on Northgate in the period").toBeVisible();
+    await expect(
+      page.locator('main a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
+  });
+
+  test("in the audience builder, a manager's rows open the replay", async ({ page }) => {
+    await signInAs(page, "Tomáš Varga");
+    await page.goto(`${NORTHGATE}/audience`);
+    const link = page
+      .locator('.iris-matrix[data-columns="audience"] a.iris-matrix-row[href*="/meetings/"]')
+      .first();
+    await expect(link, "no audience row on Northgate to open").toBeAttached();
+    await link.click();
+    await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
+  });
 });
 
 test.describe("Administration is reachable without opening a project first", () => {
