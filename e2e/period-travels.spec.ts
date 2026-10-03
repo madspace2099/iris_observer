@@ -41,8 +41,13 @@ const PAGES: readonly { who: string; path: string }[] = [
     "/alpha/northgate/meetings/mtg_ng0132",
     "/alpha/northgate/overview",
     "/alpha/northgate/meetings/mtg_viktoria0827",
-    `/alpha/northgate/${ASK("Which available two-bedroom apartments have the strongest verified interest?")}`,
-    `/alpha/northgate/${ASK("Why did demand fall this quarter?")}`,
+    /*
+     * Two answered questions, each with an action link. They were the
+     * scripted scenario's until it was retired (R01-2, Máté 2026-10-02); a
+     * refused question would leave no answer link to check.
+     */
+    `/alpha/northgate/${ASK("Which apartments were opened most?")}`,
+    `/alpha/northgate/${ASK("How many presentations were recorded, and how did they end?")}`,
     "/beta/kingsford/flow",
   ].map((path) => ({ who: "Tomáš Varga", path })),
   /* The agent's own overview is a different read model from the executive one. */

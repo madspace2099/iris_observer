@@ -40,8 +40,14 @@ const PAGES: readonly { who: string; path: string; says?: string }[] = [
   },
   {
     who: "Monika Kováčová",
+    /*
+     * It said "Open the follow-up list — no surface for this yet", the
+     * scripted answer's action drawn as a sentence. Northgate's script was
+     * retired (R01-2, Máté 2026-10-02), so the question is refused like on
+     * every other project; the check that no link guesses a person page
+     * still runs on the page.
+     */
     path: `/alpha/northgate/${ASK("Which prospects should the sales team contact this week?")}`,
-    says: "Open the follow-up list — no surface for this yet",
   },
   {
     who: "Monika Kováčová",
