@@ -90,6 +90,17 @@ export function Measure({
         aria-expanded={open}
         aria-label={`What ${definition.label} measures`}
         onClick={() => setOpen(!open)}
+        /*
+         * The panel is drawn over the figures beside it (P2-ZARAS, 2026-10-03):
+         * Escape closes it with focus still here, and Tab on to another
+         * control closes it rather than leaving it open over that control.
+         */
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && open) setOpen(false);
+        }}
+        onBlur={(event) => {
+          if (event.relatedTarget !== null) setOpen(false);
+        }}
       >
         {/*
          * The visible dot is a child, so the button itself can carry the
