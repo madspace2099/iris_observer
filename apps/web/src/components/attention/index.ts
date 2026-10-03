@@ -21,5 +21,5 @@
  * drawn identically wherever it appears.
  */
 
-export { StateList } from "./StateList";
+export { StateList, SUBJECTS_SHOWN } from "./StateList";
 export { ChecksRegister } from "./ChecksRegister";

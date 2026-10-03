@@ -31,6 +31,7 @@ export {
   REGISTER_SCOPES,
   SCOPE_OPTIONS,
   STATUS_OPTIONS,
+  UNIT_CHECKS,
   UNIT_SORT_KEYS,
   filterRows,
   readRegisterQuery,

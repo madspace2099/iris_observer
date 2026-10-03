@@ -51,6 +51,7 @@ const FILLED: RegisterSearch = {
   dir: "asc",
   more: "1",
   unit: "IT-A-12-07",
+  check: "viewed_never_shortlisted",
 };
 
 /** Parse a href built by `registerHref` back into the shape a page receives. */
@@ -66,7 +67,7 @@ describe("the register survives the round trip through a unit's page", () => {
 
     /*
      * Field by field rather than one `toEqual`, so a failure names the axis
-     * that was dropped. Two of the eight do not travel under their own name —
+     * that was dropped. Two of the nine do not travel under their own name —
      * `scope` is the `shown` parameter and `dir` is `asc`/`desc` — which is
      * exactly the kind of mapping a round trip loses quietly.
      */
@@ -78,6 +79,7 @@ describe("the register survives the round trip through a unit's page", () => {
     expect(back.dir, "the sort direction").toBe(query.dir);
     expect(back.more, "whether a second page was asked for").toBe(query.more);
     expect(back.unit, "the marked row").toBe(query.unit);
+    expect(back.check, "the attention check it is narrowed to").toBe(query.check);
 
     expect(back).toEqual(query);
   });

@@ -98,3 +98,69 @@ describe("an action that promises the counted meetings", () => {
     void checked;
   });
 });
+
+/*
+ * EVERY RAISED CARD OPENS A LIST OF EXACTLY WHAT IT COUNTS (R04-4, FEJEZET1).
+ *
+ * The read model holds every subject, and the screen names the first five and
+ * counts the rest, so the subjects a state carries are the whole of what its
+ * detail counts. A unit check opens the register narrowed to those units, and
+ * the no-CRM state opens the meeting register for the period, which is every
+ * presentation it is about. A silent source is technical diagnostics, kept to
+ * an administrator's area by the plan, and has no reader list here.
+ *
+ * Each project is read by a viewer who holds it: the agency manager does not
+ * hold Riverside, the developer holds no Beta project.
+ */
+const HOLDERS: ReadonlyArray<readonly [string, string, (typeof VIEWERS)[keyof typeof VIEWERS]]> = [
+  ["alpha", "northgate", VIEWERS.developer],
+  ["alpha", "riverside", VIEWERS.developer],
+  ["alpha", "ister-tower", VIEWERS.developer],
+  ["beta", "kingsford", VIEWERS.agencyManager],
+];
+const UNIT_KINDS: readonly string[] = ["demand_dropping", "viewed_never_shortlisted"];
+
+describe("every raised state's list", () => {
+  it("holds as many rows as the card counts, and the card opens it", async () => {
+    const units: string[] = [];
+    let noCrm = 0;
+    for (const [tenantSlug, projectSlug, viewer] of HOLDERS) {
+      for (const period of PERIODS) {
+        const query = {
+          viewer,
+          tenantSlug,
+          projectSlug,
+          period,
+          language: DEFAULT_LANGUAGE,
+        } as const;
+        const root = `/${tenantSlug}/${projectSlug}`;
+        for (const state of (await repo.getAttention(query)).states) {
+          const where = `${projectSlug} ${period} ${state.kind}`;
+          if (state.kind === "source_offline") continue;
+          if (state.kind === "crm_verification_missing") {
+            noCrm += 1;
+            expect(state.alert.actionHref, where).toBe(`${root}/meetings`);
+            const register = await repo.getMeetings(query, {
+              agentId: null,
+              channel: null,
+              outcome: null,
+            });
+            expect(register.rows.length, where).toBe(state.alert.evidence?.observationCount);
+            continue;
+          }
+          expect(state.subjects.length, where).toBe(state.alert.evidence?.observationCount);
+          if (!UNIT_KINDS.includes(state.kind)) continue;
+          units.push(`${where} ${state.subjects.length}`);
+          expect(state.alert.actionHref, where).toBe(`${root}/units?check=${state.kind}&shown=all`);
+          const codes = (await repo.getUnitAttention(query, null)).rows.map((row) => row.unitCode);
+          for (const subject of state.subjects) expect(codes, where).toContain(subject.id);
+        }
+      }
+    }
+    expect(
+      units.length,
+      "no unit check was raised anywhere, so nothing was measured",
+    ).toBeGreaterThan(0);
+    expect(noCrm, "the no-CRM state was never raised").toBeGreaterThan(0);
+  });
+});

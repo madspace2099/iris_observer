@@ -12,6 +12,7 @@ import {
   type DataColumn,
   type DataRow,
   type FilterField,
+  type FilterOption,
 } from "@/components/product";
 import { StatusChip } from "./UnitStatus";
 import {
@@ -231,6 +232,8 @@ export function UnitRegister({
   caption,
   periodLabel,
   language,
+  checks = [],
+  checkCodes = null,
 }: {
   /** Every unit the projection returned, unfiltered and in its own order. */
   readonly rows: readonly UnitAttentionRow[];
@@ -242,8 +245,12 @@ export function UnitRegister({
   readonly caption: string;
   readonly periodLabel: string;
   readonly language: Language;
+  /** The unit checks raised in the period, offered as a filter (R04-4). */
+  readonly checks?: readonly FilterOption[];
+  /** The units the chosen check names, or null when none is chosen. */
+  readonly checkCodes?: ReadonlySet<string> | null;
 }) {
-  const matching = filterRows(rows, query);
+  const matching = filterRows(rows, query, checkCodes);
   const ordered = sortRows(matching, query);
 
   /*
@@ -314,6 +321,22 @@ export function UnitRegister({
       value: query.scope,
       options: SCOPE_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
     },
+    /*
+     * A raised unit check opens this register narrowed to the units it names,
+     * so the count beside the filter is the card's count. Offered only while a
+     * check is raised: a filter whose every choice is empty is a dead control.
+     */
+    ...(checks.length === 0
+      ? []
+      : [
+          {
+            kind: "select" as const,
+            name: "check",
+            label: "Attention check",
+            value: query.check ?? "all",
+            options: [{ value: "all", label: "Any" }, ...checks],
+          },
+        ]),
   ];
 
   const columns: readonly DataColumn[] = COLUMNS.map((column) => {
