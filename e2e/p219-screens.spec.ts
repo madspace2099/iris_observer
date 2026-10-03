@@ -75,6 +75,8 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
   await expect(page.locator("main .iris-radar-card").first()).toBeVisible();
   const coaching = await page.locator("main").innerText();
   expect(coaching).toContain("Each spoke is scaled against the strongest agent");
+  /* The plan's second clause for R12-7: a bigger shape is not better (FEJEZET1). */
+  expect(coaching).toContain("A wider shape is a different way of presenting, not a better one.");
   expect(coaching, "nothing else moved to the tab").not.toMatch(/presentations given/i);
 
   await page.getByRole("tab", { name: "Sales Agents" }).click();
