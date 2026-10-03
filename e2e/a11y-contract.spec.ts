@@ -197,10 +197,18 @@ interface Stop {
  * Marks every control a reader can see and reach, then walks the page with Tab
  * until focus comes back round, recording each stop and whether it showed
  * where it was. "Showed" is measured as a difference: the control and its
- * three nearest ancestors are read focused and then blurred, and some outline,
- * shadow, border, background or underline must change. A ring drawn on a card
- * around a field (`:has(:focus-visible)`) counts; a ring that is always there
- * does not.
+ * three nearest ancestors are read focused and again unfocused, and some
+ * outline, shadow, border, background or underline must differ. A ring drawn
+ * on a card around a field (`:has(:focus-visible)`) counts; a ring that is
+ * always there does not.
+ *
+ * The page records its own stops. A `focusin` listener notes each control and
+ * its focused styles as Tab reaches it, so a stop costs one key press; the
+ * unfocused styles are read once, after the walk. Reading every stop from here
+ * cost two round trips each, and on the Meetings register, the screen with the
+ * most controls, that ran past the test's time on CI (P2-ZARAS, 2026-10-03).
+ * Transitions are switched off for the walk, so a ring read at the moment of
+ * focus is the ring at rest and not the first frame of an animation.
  */
 async function walk(page: Page): Promise<{ marked: { n: number; what: string; top: number; left: number; right: number }[]; stops: Stop[] }> {
   const marked = await page.evaluate(() => {
@@ -230,34 +238,61 @@ async function walk(page: Page): Promise<{ marked: { n: number; what: string; to
       out.push({ n, what: `${el.tagName.toLowerCase()} «${text}»`, top: r.top + window.scrollY, left: r.left, right: r.right });
       n += 1;
     }
+
+    const still = document.createElement("style");
+    still.dataset["a11yStill"] = "";
+    still.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; }";
+    document.head.appendChild(still);
+
+    const look = (el: Element): string => {
+      const chain: Element[] = [];
+      for (let e: Element | null = el; e !== null && chain.length < 4; e = e.parentElement) chain.push(e);
+      return chain
+        .map((e) => {
+          const s = getComputedStyle(e);
+          return [s.outlineStyle, s.outlineWidth, s.outlineColor, s.boxShadow, s.borderColor, s.backgroundColor, s.textDecorationLine].join("|");
+        })
+        .join("#");
+    };
+    const w = window as unknown as {
+      __a11yLook: (el: Element) => string;
+      __a11yStops: { el: HTMLElement; focused: string }[];
+    };
+    w.__a11yLook = look;
+    w.__a11yStops = [];
+    document.addEventListener(
+      "focusin",
+      (event) => {
+        if (event.target instanceof HTMLElement) w.__a11yStops.push({ el: event.target, focused: look(event.target) });
+      },
+      true,
+    );
     return out;
   });
 
-  const stops: Stop[] = [];
-  let first: string | null = null;
-  for (let i = 0; i < marked.length + 25; i += 1) {
-    await page.keyboard.press("Tab");
-    const stop = await page.evaluate(() => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el === null || el === document.body) return null;
-      const chain: Element[] = [];
-      for (let e: Element | null = el; e !== null && chain.length < 4; e = e.parentElement) chain.push(e);
-      const read = () =>
-        chain
-          .map((e) => {
-            const s = getComputedStyle(e);
-            return [s.outlineStyle, s.outlineWidth, s.outlineColor, s.boxShadow, s.borderColor, s.backgroundColor, s.textDecorationLine].join("|");
-          })
-          .join("#");
-      const focused = read();
-      el.blur();
-      const blurred = read();
-      el.focus({ preventScroll: true });
+  for (let i = 0; i < marked.length + 25; i += 1) await page.keyboard.press("Tab");
+
+  const log = await page.evaluate(() => {
+    const w = window as unknown as {
+      __a11yLook: (el: Element) => string;
+      __a11yStops: { el: HTMLElement; focused: string }[];
+    };
+    (document.activeElement as HTMLElement | null)?.blur();
+    return w.__a11yStops.map(({ el, focused }) => {
       const n = el.dataset["a11yN"];
       const text = (el.getAttribute("aria-label") ?? el.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 40);
-      return { n: n === undefined ? null : Number(n), what: `${el.tagName.toLowerCase()} «${text}»`, ringed: focused !== blurred };
+      return {
+        n: n === undefined ? null : Number(n),
+        what: `${el.tagName.toLowerCase()} «${text}»`,
+        ringed: focused !== w.__a11yLook(el),
+      };
     });
-    if (stop === null) continue;
+  });
+
+  /* Until focus comes back round to where it first landed. */
+  const stops: Stop[] = [];
+  let first: string | null = null;
+  for (const stop of log) {
     const key = `${String(stop.n)}${stop.what}`;
     if (first === null) first = key;
     else if (key === first) break;
