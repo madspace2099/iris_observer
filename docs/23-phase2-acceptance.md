@@ -1,5 +1,42 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-04 — EJJEL2: the developer's replay links, and the classification checked
+
+Added beside the sections below, which are not changed. Built on `feature/observer-ejjel2`, on
+top of FEJEZET1. **The status of P2-21 is not raised, and no chapter is called done here.**
+
+None of the twelve questions put to Máté on 2026-10-03 (`_review/_inbox/dontesek2.md`) carries an
+answer yet, so nothing that waits on them was built: no chip direction (B2), no silent-source list
+(B3), no rows recorded as superseded (A1, A2, B4, B5), no filter (C1–C3), no translation fixture
+(E1).
+
+### R08-6: the developer's replay links, fixed on three screens; the item stays PARTIAL
+
+The replay route admits the sales agent, the agency manager and MADSPACE, not the developer, who
+may read each of these screens. Each screen now reads that rule as the meeting register and a
+unit's page do, and a developer gets the meetings as text, or, on an assisted sale, its unit:
+
+- Sales Flow (`f9d841e`): the longest presentations and the IRIS-assisted sales;
+- What needs attention (`4a15e1e`): the unrecorded-outcome card's meetings;
+- the audience builder (`1943479`): every matching meeting.
+
+`e2e/nav-reachability.spec.ts` holds each screen for a developer and for a manager, and each was
+mutated red. Replay links a developer is shown, counted on the render, before and after:
+
+| Project     | Sales Flow | What needs attention | Audience builder |
+| ----------- | ---------- | -------------------- | ---------------- |
+| Northgate   | 14 → 0     | 5 → 0                | 67 → 0           |
+| Riverside   | 8 → 0      | 5 → 0                | 28 → 0           |
+| ISTER TOWER | 8 → 0      | 5 → 0                | 68 → 0           |
+
+A manager's counts are unchanged (Northgate 14, 5 and 67). A sweep of seventeen views of Northgate
+as the developer (the main screens, two unit pages, an agent's page, Ask and its history) found no
+other replay link. The report page does still link five meetings in its "A single meeting" section;
+it is a printed report, and this round did not touch it.
+
+**R08-6 is not verified by this.** MAX Ask still waits on the durable tier store, which decision 14
+keeps for Phase 3.
+
 ## 2026-10-03 — FEJEZET1: R02-1, R04, R12 and what moved
 
 Added beside the sections below, which are not changed. Built and measured on
