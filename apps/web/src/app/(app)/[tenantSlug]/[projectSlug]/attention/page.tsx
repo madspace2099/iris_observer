@@ -8,6 +8,7 @@ import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { Method } from "@/showroom/parts";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Attention" };
@@ -130,10 +131,15 @@ export default async function AttentionPage({
         <section className="ox-plane">
           <div className="ox-section-head">
             <h2 className="ox-section-title">Raised in this period</h2>
-            <p className="ox-section-note">
+            {/*
+             * The ordering rule is method (K4's rule: it explains a ranking and
+             * a sample, it states no finding), so it folds closed like
+             * Project's, at the measure the note it replaces had (R04-7).
+             */}
+            <Method style={{ maxWidth: "58ch" }}>
               Severity first, then how much each one is about. A state below its minimum sample is
               stated without a rank.
-            </p>
+            </Method>
           </div>
 
           {raised === 0 ? (
@@ -164,7 +170,7 @@ export default async function AttentionPage({
               <span className="ox-chart-period">{view.context.period.label}</span>
             </div>
 
-            <ChecksRegister checks={view.checks} period={period} />
+            <ChecksRegister checks={view.checks} states={view.states} period={period} />
 
             <div className="ox-finding-foot">
               <Evidence language={view.context.language} evidence={view.evidence} period={period} />

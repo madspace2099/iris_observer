@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import type { Language, PeriodPreset, UnitAttentionRow } from "@observer/readmodels";
-import { NOT_STATED, roomsWord } from "@observer/readmodels";
+import { NOT_STATED, duration, roomsWord } from "@observer/readmodels";
 import { getMetric } from "@observer/metrics";
 
 import { dynamicRoute } from "@/lib/href";
@@ -12,6 +12,7 @@ import {
   type DataColumn,
   type DataRow,
   type FilterField,
+  type FilterOption,
 } from "@/components/product";
 import { StatusChip } from "./UnitStatus";
 import {
@@ -143,7 +144,7 @@ const COLUMNS: readonly RegisterColumn[] = [
     key: "demand",
     label: DEMAND_SIGNAL_LABEL,
     numeric: false,
-    note: "DERIVED. This unit's share of the looking time the busiest unit in the project drew, over the same period. It is an ordering aid and not a verdict: below the minimum sample the unit's own page states the shortfall instead of a direction.",
+    note: "DERIVED. This unit's share of the looking time the busiest unit in the project drew, over the same period. The time beside it is the unit's own total looking time, the figure the share is taken from. It is an ordering aid and not a verdict: below the minimum sample the unit's own page states the shortfall instead of a direction.",
   },
   /*
    * A THIRTEENTH COLUMN USED TO SIT HERE, AND WHY IT DOES NOT.
@@ -211,11 +212,25 @@ function Comparisons({ row }: { readonly row: UnitAttentionRow }) {
  * `--ox-fill` consumed by the sheet would say the same thing without an inline
  * declaration.
  */
-function Demand({ row }: { readonly row: UnitAttentionRow }) {
+/*
+ * The share, with the time it is taken from (R07-2). "Real count or time beside
+ * a named reference": the unit's own total looking time, first, so the line
+ * cannot be read as the busiest unit's time, then its share of the busiest
+ * unit's. The same caption span and bar; nothing about the column's look moves.
+ */
+function Demand({
+  row,
+  language,
+}: {
+  readonly row: UnitAttentionRow;
+  readonly language: Language;
+}) {
   const share = Math.round(row.attention * 100);
   return (
     <>
-      <span className="ox-of">{share}% of the busiest unit</span>
+      <span className="ox-of">
+        {duration(row.totalDwellSeconds, language)} · {share}% of the busiest unit
+      </span>
       <div className="ox-track" aria-hidden="true">
         <div className="ox-track-fill" style={{ width: `${share}%` } as CSSProperties} />
       </div>
@@ -231,6 +246,8 @@ export function UnitRegister({
   caption,
   periodLabel,
   language,
+  checks = [],
+  checkCodes = null,
 }: {
   /** Every unit the projection returned, unfiltered and in its own order. */
   readonly rows: readonly UnitAttentionRow[];
@@ -242,8 +259,12 @@ export function UnitRegister({
   readonly caption: string;
   readonly periodLabel: string;
   readonly language: Language;
+  /** The unit checks raised in the period, offered as a filter (R04-4). */
+  readonly checks?: readonly FilterOption[];
+  /** The units the chosen check names, or null when none is chosen. */
+  readonly checkCodes?: ReadonlySet<string> | null;
 }) {
-  const matching = filterRows(rows, query);
+  const matching = filterRows(rows, query, checkCodes);
   const ordered = sortRows(matching, query);
 
   /*
@@ -314,6 +335,22 @@ export function UnitRegister({
       value: query.scope,
       options: SCOPE_OPTIONS.map((option) => ({ value: option.value, label: option.label })),
     },
+    /*
+     * A raised unit check opens this register narrowed to the units it names,
+     * so the count beside the filter is the card's count. Offered only while a
+     * check is raised: a filter whose every choice is empty is a dead control.
+     */
+    ...(checks.length === 0
+      ? []
+      : [
+          {
+            kind: "select" as const,
+            name: "check",
+            label: "Attention check",
+            value: query.check ?? "all",
+            options: [{ value: "all", label: "Any" }, ...checks],
+          },
+        ]),
   ];
 
   const columns: readonly DataColumn[] = COLUMNS.map((column) => {
@@ -370,7 +407,7 @@ export function UnitRegister({
       favourites: row.favourites,
       plans: row.pdfOpens,
       comparisons: <Comparisons row={row} />,
-      demand: <Demand row={row} />,
+      demand: <Demand row={row} language={language} />,
     };
     return { key: row.unitId, cells };
   });

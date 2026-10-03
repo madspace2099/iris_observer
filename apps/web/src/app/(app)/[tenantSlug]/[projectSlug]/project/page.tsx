@@ -6,7 +6,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
-import { Finding, Gaps, SourceChips } from "@/showroom/parts";
+import { Finding, Gaps, Method, SourceChips } from "@/showroom/parts";
 import { PairedRates, ParityScale, QuadrantMatrix } from "@/showroom/charts";
 import { BulletChart, JourneyFlow } from "@/showroom/charts2";
 import { FlowScroller } from "@/showroom/FlowScroller";
@@ -533,32 +533,5 @@ export default async function ProjectPage({
         />
       </section>
     </div>
-  );
-}
-
-/**
- * A METHOD NOTE, FOLDED (P2-19 K4, ZARAS1, 2026-10-02).
- *
- * A paragraph is method when it explains a denominator, a sample, a window or
- * a calculation rule; one that states a figure or a judgement is the finding
- * itself and stays in view. Method is for the second reading, so it starts
- * closed — a disclosure that opens by default is not one. The label is Sales
- * Flow's own, "How to read this"; the screens are English by scope decision
- * (2026-10-02), and the printed report draws none of this.
- */
-function Method({
-  style,
-  children,
-}: {
-  readonly style?: React.CSSProperties;
-  readonly children: React.ReactNode;
-}) {
-  return (
-    <details className="iris-method" style={style}>
-      <summary className="iris-meta">How to read this</summary>
-      <p className="iris-meta" style={{ marginTop: ".375rem" }}>
-        {children}
-      </p>
-    </details>
   );
 }

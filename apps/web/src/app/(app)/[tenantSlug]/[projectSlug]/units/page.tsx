@@ -7,6 +7,7 @@ import { requireViewer } from "@/lib/session";
 import { FindingList, PageHead, StackPlan, Synthetic, Unavailable } from "@/components/product";
 import {
   DemandAttention,
+  UNIT_CHECKS,
   UnitRegister,
   readRegisterQuery,
   type RegisterSearch,
@@ -104,7 +105,18 @@ export default async function UnitsPage({
     repository.getAttention(query),
   ]);
 
-  const registerQuery = readRegisterQuery(search);
+  /*
+   * A RAISED UNIT CHECK NARROWS THE REGISTER (R04-4).
+   *
+   * Its card opens this page with `?check=<kind>`, and the rows shown are the
+   * units that state names, read whole from the attention view. A check that is
+   * not raised in this period is dropped from the query, so a stale link shows
+   * the register rather than a select whose value is none of its options.
+   */
+  const unitStates = attention.states.filter((state) => UNIT_CHECKS.includes(state.kind));
+  const parsedQuery = readRegisterQuery(search);
+  const checked = unitStates.find((state) => state.kind === parsedQuery.check) ?? null;
+  const registerQuery = checked === null ? { ...parsedQuery, check: null } : parsedQuery;
   const root = `/${tenantSlug}/${projectSlug}`;
   const base = `${root}/units`;
   const periodLabel = view.context.period.label.toLowerCase();
@@ -245,6 +257,15 @@ export default async function UnitsPage({
               periodLabel={periodLabel}
               language={view.context.language}
               caption={`Every unit in ${view.context.project.name}, with what buyers did with it in ${periodLabel}.`}
+              checks={unitStates.map((state) => ({
+                value: state.kind,
+                label:
+                  attention.checks.find((check) => check.kind === state.kind)?.label ??
+                  state.alert.title,
+              }))}
+              checkCodes={
+                checked === null ? null : new Set(checked.subjects.map((subject) => subject.id))
+              }
             />
           </div>
         </div>

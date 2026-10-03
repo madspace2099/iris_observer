@@ -15,6 +15,8 @@ import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
+import { maySeeSurface } from "@/lib/routes";
+import { MEETINGS_NOT_OPENABLE } from "@/components/meetings";
 import { requireViewer } from "@/lib/session";
 import { TrendLine } from "@/showroom/charts2";
 import {
@@ -175,10 +177,22 @@ export default async function UnitPage({
     sources: entry.sources,
   }));
 
+  /*
+   * A meeting row opens the replay only for a role the replay admits (R08-6).
+   * The developer may read this page and may not open a replay, and a link that
+   * lands on a refusal is a door that does not open: the rows are listed rather
+   * than linked, with the meeting register's own sentence saying why. The rule
+   * is the replay route's, read through `maySeeSurface`, as the register reads it.
+   */
+  const canOpenMeeting = maySeeSurface(viewer.role, "[meetingId]");
   const meetingRows: readonly DataRow[] = detail.relatedMeetings.map((meeting) => ({
     key: meeting.meetingId,
     cells: {
-      meeting: <Link href={dynamicRoute(withPeriod(meeting.href, period))}>{meeting.label}</Link>,
+      meeting: canOpenMeeting ? (
+        <Link href={dynamicRoute(withPeriod(meeting.href, period))}>{meeting.label}</Link>
+      ) : (
+        meeting.label
+      ),
       when: meeting.startedDisplay,
       agent: meeting.agentName,
       /* Never a name, an email or a phone number. See `VisitorLabel`. */
@@ -468,7 +482,11 @@ export default async function UnitPage({
             </div>
 
             <DataTable
-              caption={`Meetings in ${periodLabel.toLowerCase()} that opened ${unit.unitCode}.`}
+              caption={
+                canOpenMeeting
+                  ? `Meetings in ${periodLabel.toLowerCase()} that opened ${unit.unitCode}.`
+                  : `Meetings in ${periodLabel.toLowerCase()} that opened ${unit.unitCode}. ${MEETINGS_NOT_OPENABLE}`
+              }
               columns={[
                 { key: "meeting", label: "Meeting" },
                 { key: "when", label: "Started" },

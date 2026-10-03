@@ -73,7 +73,11 @@ test("R04-5 · every raised state names its severity, and the page prints the ru
   ] as const) {
     const text = await mainText(page, who, path);
     expect(text).toContain("Red is kept for a record going missing right now");
-    expect(text).toContain("Severity first, then how much each one is about.");
+    /* The ordering rule is method, folded since FEJEZET1 (R04-7): read it opened. */
+    await page.locator("main details.iris-method summary").click();
+    expect(await page.locator("main").innerText()).toContain(
+      "Severity first, then how much each one is about.",
+    );
     const headings = await page
       .locator("main h3")
       .evaluateAll((hs) => hs.map((h) => (h.textContent ?? "").replace(/\s+/g, " ").trim()));

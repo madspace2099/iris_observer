@@ -1,5 +1,106 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-03 — FEJEZET1: R02-1, R04, R12 and what moved
+
+Added beside the sections below, which are not changed. Built and measured on
+`feature/observer-fejezet1`, on top of the measurement of the same day. **The status of P2-21 is
+not raised, and no chapter is called done outside this document.**
+
+### R12: every item verified
+
+- **R12-2, recorded as superseded.** The row says "no automatic verdict before or after 20
+  meetings". On 2026-10-02 Máté decided that the agent flag stays at twenty meetings or more, as
+  decided on 2026-09-27, and that under twenty only counts are shown
+  (`_review/dontesek-2026-10-02.md`, decision 6). The row's "after 20" is superseded by that
+  decision. The product follows it: an agent card under the floor draws no flag (`563929e`,
+  2026-09-08), and Sales Flow compares no agent with the team below it (`788cd3f`, 2026-10-01). The
+  under-twenty half is on the render (`p221-meres.spec.ts`, R12-2). **R12-2: VERIFIED, as
+  decided.**
+- **R12-7, held whole.** The 2026-10-03 measurement counted it verified on K5, which asserted the
+  Coaching tab and the scale sentence but not the plan's second clause, that a bigger shape is not
+  better performance. That sentence was rendered and held by nothing; it is asserted now
+  (`0b8138f`, `p219-screens.spec.ts`, K5), and removing it turns the test red.
+- **With these two, all seven R12 items are verified on the render:** R12-1 and R12-3
+  (`p221-render.spec.ts`, R12-1 · R12-3), R12-2 (`p221-meres.spec.ts`, R12-2), R12-4
+  (`p221-render.spec.ts` and `p221-meres.spec.ts`, R12-4), R12-5 (`p221-meres.spec.ts`, R12-5),
+  R12-6 (`dontesek1.spec.ts`, R12-6), R12-7 (`p219-screens.spec.ts`, K5).
+
+### R04: six of seven verified, not closed
+
+- **R04-7: VERIFIED** (`0fd7a5f`; `fejezet1.spec.ts`, R04-7). Every check in the register names
+  its next step: a raised check's step is its state's own action, the same words and destination as
+  the raised card; a clear check reads "None needed"; a check that could not be asked, or a raised
+  state with no permitted list, reads "None on this screen". The ordering rule folds closed behind
+  K4's "How to read this". Ingestion delay reads Not evaluated with no figure.
+- **R04-4: PARTIAL** (`97832cd`; `fejezet1.spec.ts`, three R04-4 tests). Built and on the render:
+  the two unit checks open the unit register narrowed to the units they name, and its count is the
+  card's; a card names five subjects and counts the rest; the no-CRM card opens the meeting
+  register for the period, every presentation it is about. **One card still opens no list:** a
+  source that has gone quiet or never reported. Its subjects are the project's sources. No list of
+  the silent sources alone exists, so no list can match the card's count, and the plan's R04 layout
+  keeps technical diagnostics to a permitted administrator's area, while the shell shows every
+  reader the connected sources. Whether a
+  reader's list of silent sources is built, or the card is an administrator's, is Máté's to decide.
+  The 2026-10-03 row named only the filter and the five-chip cap; the 2026-09-27 row below already
+  said "two kinds have no permitted destination".
+- **The R04 chapter is not closed:** R04-1, R04-2, R04-3, R04-5, R04-6 and R04-7 are verified;
+  R04-4 waits for that decision.
+
+### R02-1: VERIFIED, with one question
+
+`5ad4888`; `dontesek1.spec.ts`, R02-1. The verdict sentence now names the window the chip names,
+and no sentence claims "on course": with no named plan, decision 4 of 2026-10-02 keeps that word to
+a plan and a threshold. On Northgate's quarter it read "The showroom is on course." and now reads
+"Against last month, meetings and progression held up."; without a comparison it states why there
+is no verdict. **The question, for Máté:** the chip's direction comes from the deadbanded trend, so
+"Above last month" prints over 32 meetings against 32, and over drops of up to a fifth in meetings
+and a tenth in progression. Saying "Above" only for a real rise needs a tolerance band for "In line
+with", which is a threshold nobody has named. The sentence says "held up", which is true under
+either answer.
+
+### R08-6: the unit page's replay links, fixed; the item stays PARTIAL
+
+`9128aab`; `nav-reachability.spec.ts`, three unit-page tests. The replay route admits the sales
+agent, the agency manager and MADSPACE, not the developer. A developer reading Northgate's B-501
+was shown its meetings as replay links that landed on Ask IRIS, refused; on a sold unit the
+IRIS-assisted finding offered "Open that meeting" the same way. Following the replay route's own
+rule, as the meeting register does, the developer now gets the meetings listed rather than
+linked, with the register's sentence saying why, and the sale finding's "See every dated sale"; a
+manager's rows still open the replay. **R08-6 is not verified by this:** MAX Ask waits on the
+tier store, and on the render a developer is still offered replay links elsewhere on Northgate:
+14 on Sales Flow, 5 on What needs attention and 67 in the audience builder (counted 2026-10-03).
+
+### The rest of the round's list
+
+- **R07-2: VERIFIED** (`6c499fc`; `units-register.spec.ts`, R07-2, on the wide, desktop and mobile
+  projects). The derived column prints the unit's own total looking time beside its share of the
+  busiest unit, and the test proves the time is the share's numerator. No chapter closes: R07
+  holds R07-7 (BLOCKED) and others.
+- **Stopped, each on a decision or an input, and recorded rather than built:**
+  - **R02-5:** the empty branch needs a project and period that raise nothing. The ingest path
+    cannot produce one without a rule on source health, and an in-process scenario would add a
+    tenant, a project and a persona to the shared demonstration world. Either is Máté's choice, or
+    he records the empty half as unreachable.
+  - **R02-3:** carrying each Briefing sentence's metric ids through the plan gate is plain work,
+    but a render proof needs a Briefing figure priced above FREE: a pricing entry for every tenant,
+    or a pricing seam for the test harness alone. Both are Máté's.
+  - **R02-7:** a KPI order needs a reorder control the Briefing does not have, and its form and
+    place are a visual decision.
+  - **R10-7:** folding the Features register after five rows would hide its least-reached
+    features, and the screen tells the reader "its bottom is visible", one of the refusals the
+    screen is built on. A table fold is also a new visual element.
+  - **R09-1:** the replay's visitor name would extend decision B (names on an agent's register
+    only) to the replay, and a name without a contact link has no source. The time zone, session id
+    and visitor label are plain work, but the item cannot close without the name, so it is not
+    half-built.
+- **None of these closes a chapter.**
+
+### The four numbers after this round
+
+VERIFIED 47, PARTIAL 28, NOT_DONE 6, BLOCKED 7: R02-1, R04-7, R07-2 and R12-2 move from partial to
+verified. Nothing else moves here; the item table of the 2026-10-03 measurement below is not
+re-edited.
+
 ## 2026-10-03 — the 88 items measured again
 
 Measured on `feature/observer-p221-meres` (`main` at `bd40d2d`, plus the two guards `ff6b120` and
@@ -250,8 +351,8 @@ them (above), so the four numbers wait for a new measurement rather than standin
 - every BLOCKED item stands by name with the input it is missing;
 - no gate item on the machine side is open.
 
-This is offered for Máté's decision. The status is not raised, and nothing below is re-read
-under it.
+Máté approved this definition on 2026-10-03. The status of P2-21 is raised only when all three
+conditions hold as measured; the measurement of 2026-10-03 above judges them one by one.
 
 ## 2026-10-02 — the open decisions, decided
 

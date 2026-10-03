@@ -12,6 +12,12 @@ import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 
 /**
+ * How many of a state's subjects a card names before it counts the rest, on
+ * both screens that draw them (this list and the units screen's own block).
+ */
+export const SUBJECTS_SHOWN = 5;
+
+/**
  * THE RAISED STATES, WITH EVERYTHING NEEDED TO ARGUE WITH ONE.
  *
  * `AttentionList` in `components/product` renders an `AlertItem`: a title, a
@@ -146,10 +152,12 @@ export function StateList({
             {/*
              * WHAT IT IS ABOUT, NAMED.
              *
-             * The read model caps this at five, and the cap is not restated as
-             * "and more" — there is no count of the remainder on the state, and
-             * inventing one would be a figure with nothing behind it. Each
-             * subject that has a route is a link, and each that does not is
+             * The read model holds every subject; the screen names the first
+             * `SUBJECTS_SHOWN` and counts the rest (R04-4), so five chips under
+             * a card about nine no longer read as the whole of it. The count is
+             * of rows the state holds, not a figure computed here, and it is
+             * plain text: the card's own action already opens the full list.
+             * Each subject that has a route is a link, and each that does not is
              * plain text: a chip that looks identical to its neighbours and
              * does nothing when pressed is the control-that-does-nothing the
              * doctrine forbids, and it is worst in a row where the others move.
@@ -157,7 +165,7 @@ export function StateList({
             {state.subjects.length === 0 ? null : (
               <div className="ox-alert-foot">
                 <ul className="ox-chipset" aria-label={`What this is about: ${state.alert.title}`}>
-                  {state.subjects.map((subject) => (
+                  {state.subjects.slice(0, SUBJECTS_SHOWN).map((subject) => (
                     <li key={subject.id}>
                       {subject.href === null ? (
                         <span className="ox-n">{subject.label}</span>
@@ -171,6 +179,13 @@ export function StateList({
                       )}
                     </li>
                   ))}
+                  {state.subjects.length > SUBJECTS_SHOWN ? (
+                    <li>
+                      <span className="ox-n">
+                        and {state.subjects.length - SUBJECTS_SHOWN} more
+                      </span>
+                    </li>
+                  ) : null}
                 </ul>
               </div>
             )}

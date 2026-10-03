@@ -270,6 +270,45 @@ test.describe("a meeting row is a link only for a reader who may open one", () =
       "a developer was offered a meeting link that would bounce them",
     ).toHaveCount(0);
   });
+
+  /*
+   * The same rule on a unit's page (R08-6, FEJEZET1). B-501's meetings were
+   * fifteen links for a developer, each one landing on Ask IRIS, refused.
+   */
+  test("on a unit's page, a developer gets the meetings that opened it as text, and is told why", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/units/B-501`);
+    const table = page.getByRole("table", { name: /that opened B-501/ });
+    await expect(table.locator("tbody tr").first(), "no meeting opened B-501 in the period").toBeVisible();
+    await expect(table).toContainText(/listed rather than linked/i);
+    await expect(
+      page.locator('main a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
+  });
+
+  test("on a sold unit's page, a developer's sale finding does not open a meeting", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/units/A-402`);
+    await expect(
+      page.locator("main").getByRole("link", { name: "See every dated sale" }),
+      "A-402's dated-sale finding did not render, or offered the meeting",
+    ).toBeVisible();
+    await expect(page.locator('main a[href*="/meetings/"]')).toHaveCount(0);
+  });
+
+  test("on a unit's page, a manager's meeting rows open the replay", async ({ page }) => {
+    await signInAs(page, "Tomáš Varga");
+    await page.goto(`${NORTHGATE}/units/B-501`);
+    const table = page.getByRole("table", { name: /that opened B-501/ });
+    await expect(table).not.toContainText(/listed rather than linked/i);
+    const link = table.locator('a[href*="/meetings/"]').first();
+    await expect(link, "no meeting row on B-501 to open").toBeAttached();
+    await link.click();
+    await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
+  });
 });
 
 test.describe("Administration is reachable without opening a project first", () => {

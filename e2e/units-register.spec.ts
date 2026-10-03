@@ -130,3 +130,36 @@ test("the column definitions are contained on a phone", async ({ page }) => {
     .analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
 });
+
+/*
+ * R07-2 (FEJEZET1): the derived column prints a real time beside its named
+ * reference. The time is the share's own numerator: the first row, the busiest
+ * unit under the default sort, reads 100% beside the largest time, and every
+ * other share is its printed time over that one, within a point of rounding.
+ */
+test("R07-2 · the derived column prints each unit's own looking time beside its share of the busiest unit", async ({
+  page,
+}) => {
+  await signInAs(page, "Petra Novák");
+  await page.goto("/alpha/northgate/units", { waitUntil: "networkidle" });
+  await expect(
+    page.getByRole("columnheader", { name: "Demand signal · derived", exact: true }).first(),
+  ).toBeVisible();
+  const texts = await page.locator('main td[data-col="demand"] .ox-of').allTextContents();
+  expect(texts.length, "the register has rows").toBeGreaterThan(0);
+  const read = texts.map((text) => {
+    const m = /^(?:(\d+)m (\d{2})s|(\d+)s) · (\d{1,3})% of the busiest unit$/.exec(text.trim());
+    expect(m, `"${text}" prints a time and names its reference`).not.toBeNull();
+    const seconds = m![3] !== undefined ? Number(m![3]) : Number(m![1]) * 60 + Number(m![2]);
+    return { seconds, share: Number(m![4]) };
+  });
+  const peak = Math.max(...read.map((r) => r.seconds));
+  expect(peak, "the busiest unit has measured time").toBeGreaterThan(0);
+  expect(read[0], "row one is the reference: the busiest unit, at 100%").toEqual({ seconds: peak, share: 100 });
+  for (const r of read) {
+    expect(
+      Math.abs(Math.round((r.seconds / peak) * 100) - r.share),
+      "the share is taken from the printed time",
+    ).toBeLessThanOrEqual(1);
+  }
+});

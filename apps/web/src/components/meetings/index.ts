@@ -14,7 +14,7 @@
  * somebody exactly as they were read.
  */
 
-export { MeetingRegister } from "./MeetingRegister";
+export { MEETINGS_NOT_OPENABLE, MeetingRegister } from "./MeetingRegister";
 export { MeetingReplayView } from "./MeetingReplayView";
 export { MeetingJourney } from "./MeetingJourney";
 export { MeetingOutcomes } from "./MeetingOutcomes";

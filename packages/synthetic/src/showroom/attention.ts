@@ -381,7 +381,7 @@ export function buildAttention(
           n: falling.length,
           baseline: context.period.baselineLabel,
         }),
-        subjects: falling.slice(0, 5).map((u) => ({
+        subjects: falling.map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.before, locale)} → ${count(u.now, locale)}`,
           href: `${root}/units?unit=${u.code}`,
@@ -392,7 +392,13 @@ export function buildAttention(
         tier: "statistical_association",
         sources: DERIVED,
         actionLabel: "Open unit attention",
-        actionHref: `${root}/units`,
+        /*
+         * The register narrowed to the units this state counts (R04-4): the list
+         * it opens holds as many rows as the card says. `shown=all`, because a
+         * unit whose attention fell may have no meeting in the period at all,
+         * and the register's default hides those.
+         */
+        actionHref: `${root}/units?check=demand_dropping&shown=all`,
         observationCount: falling.length,
       });
     }
@@ -454,8 +460,14 @@ export function buildAttention(
       belowMinimum: false,
       tier: "observed_sequence",
       sources: OBSERVED,
-      actionLabel: null,
-      actionHref: null,
+      /*
+       * The affected list is every presentation in the period, and the meeting
+       * register for the period is that list, open to every role that can read
+       * this screen (R04-4). It holds as many rows as the detail counts.
+       * Connecting a CRM is the remedy, and it is not this reader's to take.
+       */
+      actionLabel: "See the meetings",
+      actionHref: `${root}/meetings`,
       observationCount: sessions.length,
     });
   } else {
@@ -500,7 +512,6 @@ export function buildAttention(
       detail: `${count(unrecorded, locale)} of ${count(sessions.length, locale)} presentations (${percent(rate, locale)}) ended with no outcome recorded.`,
       subjects: sessions
         .filter((s) => outcomeIsUnknown(s.outcome))
-        .slice(0, 5)
         .map((s) => ({
           id: s.meetingId,
           label: s.meetingId,
@@ -636,7 +647,7 @@ export function buildAttention(
           fromWord: slovakZForm(never.length),
           minimum: count(UNIT_MIN_SAMPLE, locale),
         }),
-        subjects: never.slice(0, 5).map((u) => ({
+        subjects: never.map((u) => ({
           id: u.code,
           label: `${u.code} · ${count(u.views, locale)} views, ${count(u.meetings, locale)} meetings`,
           href: `${root}/units?unit=${u.code}`,
@@ -647,7 +658,7 @@ export function buildAttention(
         tier: "statistical_association",
         sources: DERIVED,
         actionLabel: "Open unit attention",
-        actionHref: `${root}/units`,
+        actionHref: `${root}/units?check=viewed_never_shortlisted&shown=all`,
         observationCount: never.length,
       });
     }

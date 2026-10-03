@@ -1128,6 +1128,13 @@ export function buildUnitDetail(
     context.language,
   );
   if (sale !== null) {
+    /*
+     * The meeting the sale is placed against opens only for a role the replay
+     * admits (R08-6; `AGENT_REGISTER_ROLES` is held equal to the replay's roles).
+     * Any other reader gets the step this finding already takes when no meeting
+     * can be named.
+     */
+    const openable = AGENT_REGISTER_ROLES.includes(context.viewer.role) ? sale.meetingHref : null;
     findings.push({
       id: `unit-${unitCode}-iris-assisted`,
       statement: sale.statement,
@@ -1135,13 +1142,13 @@ export function buildUnitDetail(
       soWhat:
         "It places the sale against the last time the showroom opened this unit. It is an order of events under a stated rule, the same rule for every sale on Sales Flow.",
       nextStep:
-        sale.meetingHref === null
+        openable === null
           ? { label: "See every dated sale", href: `${root}/flow` }
-          : { label: "Open that meeting", href: sale.meetingHref },
+          : { label: "Open that meeting", href: openable },
       evidence: evidenceRef(
         `unit-${unitCode}-iris-assisted`,
         "observed_sequence",
-        sale.meetingHref ?? `${root}/flow`,
+        openable ?? `${root}/flow`,
         1,
       ),
       sampleSize: 1,

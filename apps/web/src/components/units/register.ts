@@ -1,4 +1,4 @@
-import type { UnitAttentionRow } from "@observer/readmodels";
+import type { AttentionKind, UnitAttentionRow } from "@observer/readmodels";
 
 /** What the rooms filter carries for units whose count the catalogue did not state. */
 export const ROOMS_UNSTATED = "unstated";
@@ -92,6 +92,16 @@ export const STATUS_OPTIONS: readonly { readonly value: string; readonly label: 
  * where the named flat sits among its neighbours instead of being handed it
  * alone.
  */
+/**
+ * The attention checks whose subjects are units, and so can narrow this register
+ * (R04-4). A raised card opens the register with `?check=<kind>`, and the rows
+ * shown are the units that state names, read from the state, never recomputed.
+ */
+export const UNIT_CHECKS: readonly AttentionKind[] = [
+  "demand_dropping",
+  "viewed_never_shortlisted",
+];
+
 export interface RegisterQuery {
   readonly q: string;
   readonly status: string;
@@ -102,6 +112,8 @@ export interface RegisterQuery {
   /** True once the reader has asked past the first page of rows. */
   readonly more: boolean;
   readonly unit: string | null;
+  /** The unit check the register is narrowed to, or null for none. */
+  readonly check: AttentionKind | null;
 }
 
 /** The raw shape a page receives from `searchParams`. Every field optional. */
@@ -114,6 +126,7 @@ export interface RegisterSearch {
   readonly dir?: string;
   readonly more?: string;
   readonly unit?: string;
+  readonly check?: string;
 }
 
 function isSortKey(value: string | undefined): value is UnitSortKey {
@@ -153,6 +166,7 @@ export function readRegisterQuery(search: RegisterSearch): RegisterQuery {
     dir: dir ?? (sort === "code" || sort === "status" ? "ascending" : "descending"),
     more: search.more === "1",
     unit: search.unit === undefined || search.unit === "" ? null : search.unit,
+    check: UNIT_CHECKS.find((kind) => kind === search.check) ?? null,
   };
 }
 
@@ -167,6 +181,7 @@ function parametersOf(query: RegisterQuery): URLSearchParams {
   params.set("dir", query.dir === "ascending" ? "asc" : "desc");
   if (query.more) params.set("more", "1");
   if (query.unit !== null) params.set("unit", query.unit);
+  if (query.check !== null) params.set("check", query.check);
   return params;
 }
 
@@ -227,9 +242,12 @@ export function sortStateFor(
 export function filterRows(
   rows: readonly UnitAttentionRow[],
   query: RegisterQuery,
+  /** The units a raised check names, when the register is narrowed to it. */
+  codes: ReadonlySet<string> | null = null,
 ): readonly UnitAttentionRow[] {
   const needle = query.q.toLowerCase();
   return rows.filter((row) => {
+    if (codes !== null && !codes.has(row.unitCode)) return false;
     if (query.scope === "opened" && row.meetings === 0) return false;
     if (query.status !== "all" && row.status !== query.status) return false;
     if (query.rooms !== "all" && roomsKey(row.rooms) !== query.rooms) return false;

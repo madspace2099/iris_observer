@@ -12,6 +12,7 @@ import {
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { AttentionList, Sample } from "@/components/product";
+import { SUBJECTS_SHOWN } from "@/components/attention";
 
 /**
  * HIGH INTEREST, LOW CONVERSION.
@@ -163,7 +164,7 @@ export function DemandAttention({
           <div key={state.kind}>
             <p className="ox-subhead">{state.alert.title}</p>
             <ul className="ox-chipset">
-              {state.subjects.map((subject) => (
+              {state.subjects.slice(0, SUBJECTS_SHOWN).map((subject) => (
                 <li key={subject.id}>
                   {subject.href === null ? (
                     /*
@@ -183,6 +184,11 @@ export function DemandAttention({
                   )}
                 </li>
               ))}
+              {state.subjects.length > SUBJECTS_SHOWN ? (
+                <li>
+                  <span className="ox-n">and {state.subjects.length - SUBJECTS_SHOWN} more</span>
+                </li>
+              ) : null}
             </ul>
           </div>
         ),
