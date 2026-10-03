@@ -377,7 +377,11 @@ export function AskFrame({
                  * it uses, and the shared `name` keeps the two mutually
                  * exclusive with no script at all.
                  */}
-                <ClosableDetails className="ask-model-details" name="ask-composer-menu">
+                <ClosableDetails
+                  className="ask-model-details"
+                  name="ask-composer-menu"
+                  closeOnFocusOut
+                >
                   <summary className="ask-model" aria-label="Model">
                     <span className="ask-model-name" title={composerLabel}>
                       {composerLabel}
@@ -487,7 +491,11 @@ export function AskFrame({
                * states its own limit above.
                */}
               <div className="ask-scope-wrap">
-                <ClosableDetails className="ask-model-details" name="ask-composer-menu">
+                <ClosableDetails
+                  className="ask-model-details"
+                  name="ask-composer-menu"
+                  closeOnFocusOut
+                >
                   <summary className="ask-model" aria-label="Which project this question is about">
                     <span
                       className="ask-model-name"
