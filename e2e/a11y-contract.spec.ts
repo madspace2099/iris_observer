@@ -54,11 +54,14 @@ const PERIOD: Popup = {
   trigger: '.ox-context summary.ox-menu-button[aria-label="Period"]',
   kind: "details",
 };
-const COLUMNS: Popup = {
-  name: "the column chooser",
-  trigger: "details.ox-table-prefs-columns > summary",
-  kind: "details",
-};
+/*
+ * Not every <details> is a pop-up. The registers' column chooser, "Show all"
+ * and "How to read this" open in the flow of the page and push what follows
+ * down; nothing is beneath them, so Tab walking on to the next control is the
+ * reading order, not an escape. The chooser was on this list once, and the
+ * change made to satisfy it broke a press on the density buttons beside it
+ * (reverted in a25c222). Only panels drawn over the page are listed here.
+ */
 
 /** Picks a period from the shell's period menu: the change every analytical screen shares. */
 async function changePeriod(page: Page): Promise<string> {
@@ -123,13 +126,13 @@ const SURFACES: readonly Surface[] = [
   {
     key: "Units",
     path: `${ROOT}/units`,
-    popups: [PERIOD, COLUMNS],
+    popups: [PERIOD],
     change: (page) => filterRegister(page, "status"),
   },
   {
     key: "Meetings",
     path: `${ROOT}/meetings`,
-    popups: [PERIOD, COLUMNS],
+    popups: [PERIOD],
     change: (page) => filterRegister(page, "agent"),
   },
   {
