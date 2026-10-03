@@ -1,5 +1,184 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-03 — the 88 items measured again
+
+Measured on `feature/observer-p221-meres` (`main` at `bd40d2d`, plus the two guards `ff6b120` and
+`33acdc9` and the render spec below), beside the measurements below, which are not changed. **The
+status of P2-21 is not raised here.**
+
+**The method is the one of 2026-10-02:** each item is held by an end-to-end test that loads the page
+and asserts the requirement's own claim on what renders. A unit test or a reading of the source is
+not render proof. Where the render holds one half of a requirement and not the other, the item is
+partial. This round read that last rule strictly, and it found 18 of the 38 verified items held on
+half a claim: the four groups named but not their definitions (R05-2), the doors keeping the period
+but not the project (R02-6), the first-meeting bucket but not the returning ones (R12-4). Sixteen of
+them were built whole, and `e2e/p221-meres.spec.ts` puts the missing half on the render; the same spec
+holds the remaining half of R06-3 and R06-8 and the under-twenty half of R12-2. It is 19 tests, all
+green, and two of them were mutated (the reader's projects dropped from "Where else they present",
+the chosen pair dropped from the mode tabs) and turned red. The other two halves cannot be rendered
+by the synthetic world, and those items are partial: a Briefing with nothing raised (R02-5) and a
+sale with no Sold date (R07-6).
+
+Every test file an item cites exists today, here and in the measurements below. The 23 cited render
+specs ran green on the desktop project before this section was written; the four-project run is the
+gate of this round.
+
+### The four numbers
+
+|          | 2026-10-02 | 2026-10-03 |
+| -------- | ---------: | ---------: |
+| VERIFIED |         38 |         43 |
+| PARTIAL  |         30 |         32 |
+| NOT_DONE |          9 |          6 |
+| BLOCKED  |         11 |          7 |
+
+### What moved, and why
+
+- **Up to verified (7):**
+  - R04-1, the shortlist check retired (`65a23c1`; `dontesek1.spec.ts`, R04-1 · R07-3).
+  - R07-8 and R08-8, column choice and density on the shared registers (P2-20;
+    `p220-table-preferences.spec.ts`).
+  - R12-6, the agent card's two links (`7a839e1`; `dontesek1.spec.ts`, R12-6).
+  - R12-7, the radars on a Coaching tab with their scale (K5; `p219-screens.spec.ts`).
+  - R06-3: the 1.51× half is closed as not reproducible (decision of 2026-10-02), and `/project` and
+    `/units` now print one index for the same rooms on the render (`p221-meres.spec.ts`, R06-3).
+  - R06-8: the method folded (K4) and one next step per finding (`p221-meres.spec.ts`, R06-8).
+- **Down to partial (2), with no change to the product:** R02-5 and R07-6, the two halves above that
+  the synthetic world cannot render. Both were counted verified on the other half.
+- **Out of BLOCKED (4):** the cycle's start was decided and built (`c845178`), and the conversation
+  store's missing half was narrowed by a notice (`e4b6652`).
+  - R02-4 to not done: what is left is the open decision on the Briefing's figures.
+  - R05-4 and R07-4 to partial: built, not whole on the render.
+  - R03-5 to partial: the reopened answer says it is recalculated; keeping the answer as given still
+    needs the conversation store.
+- **Not done to partial (1):** R10-7, the four Features views (K6); no long list on `/features` folds.
+
+### The eleven BLOCKED items of 2026-10-02
+
+| Item  | The input named on 2026-10-02                                                     | Today                                                               |
+| ----- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| R02-4 | the cycle's start; WEBIRIS online sessions                                        | the start is decided and built; not BLOCKED (above)                 |
+| R03-5 | a conversation store                                                              | still missing; the notice half is built; not BLOCKED (above)        |
+| R05-4 | the cycle's start; WEBIRIS online sessions                                        | the start is decided and built; not BLOCKED (above)                 |
+| R05-7 | a durable tier store                                                              | still missing, the same input; BLOCKED until Phase 3 by decision 14 |
+| R06-6 | a showroom reference on the CRM deal, or a subjectKey↔contactId resolution        | still missing, the same input                                       |
+| R07-4 | the cycle's start; WEBIRIS online sessions                                        | the start is decided and built; not BLOCKED (above)                 |
+| R07-7 | a durable tier store                                                              | still missing, the same input                                       |
+| R09-5 | a contact id on the session from a live source (a UE5 field or a CRM appointment) | still missing, the same input; both live folds set it to null       |
+| R10-3 | the initial time-of-day and weather state and the switch times (UE5 contract)     | still missing, the same input                                       |
+| R11-5 | a session-to-deal link                                                            | still missing, the same input                                       |
+| R13-4 | a person or case detail, and the identity link to it                              | still missing, the same input                                       |
+
+The WEBIRIS online sessions are still produced by nothing, but the cycle as decided on 2026-10-02
+runs from the first recorded showroom opening, so no item waits on them today.
+
+### Item by item
+
+"Render proof" names the spec and the test; "waits for" is given for every item that is not
+verified, as one of a decision, a missing input or work.
+
+| Item  | 10-02    | 10-03    | Render proof                                                                         | Waits for                                                                                                                                                                                                      |
+| ----- | -------- | -------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| R01-1 | PARTIAL  | PARTIAL  | `ask-iris-scope.spec.ts` (the project scope only)                                    | Work: a "My meetings" record filter apart from the Scope radio. The label is screen English and `Viewer.agentId` exists.                                                                                       |
+| R01-2 | PARTIAL  | PARTIAL  | `dontesek1.spec.ts`, R01-2; `no-foreign-prose.spec.ts`                               | Work: openings are offered for a period with no meetings (Kingsford, last quarter); the empty state exists and is never reached. Northgate's script is retired (`5221a6f`).                                    |
+| R01-3 | PARTIAL  | PARTIAL  | `showroom.spec.ts`, "Ask Observer answers from evidence" (in part)                   | Input: a Claude connection (provider, key and the cost of calls; decision 10 of 2026-10-02). The label half is closed.                                                                                         |
+| R02-1 | PARTIAL  | PARTIAL  | `dontesek1.spec.ts`, R02-1 (the chip)                                                | Work: on Northgate the answer still reads "The showroom is on course." beside the chip "Above last month", against no plan (rendered on 2026-10-03; `views3.ts:2256`).                                         |
+| R02-2 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R02-2 · R04-6                                                 | –                                                                                                                                                                                                              |
+| R02-3 | NOT_DONE | NOT_DONE | –                                                                                    | Work: tier-check the Briefing's sentences; the replacement words are screen English. A render proof also needs a figure priced above FREE.                                                                     |
+| R02-4 | BLOCKED  | NOT_DONE | –                                                                                    | Decision (open): whether the Sold cycle joins the Briefing's figures.                                                                                                                                          |
+| R02-5 | VERIFIED | PARTIAL  | `p221-render.spec.ts`, R02-5 (one alert at most)                                     | Work: no synthetic project or period raises nothing, so the empty state never renders; it needs a scenario pushed through the ingest API.                                                                      |
+| R02-6 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R02-6                                                          | –                                                                                                                                                                                                              |
+| R02-7 | NOT_DONE | NOT_DONE | –                                                                                    | Work: a KPI order from a verified set, kept in the URL and said to be unsaved; no store is needed.                                                                                                             |
+| R03-1 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R03-1                                                         | –                                                                                                                                                                                                              |
+| R03-2 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R03-2 · R03-6 and R03-3; `p221-meres.spec.ts`, R03-2          | –                                                                                                                                                                                                              |
+| R03-3 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R03-3                                                         | –                                                                                                                                                                                                              |
+| R03-4 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R03-4                                                         | –                                                                                                                                                                                                              |
+| R03-5 | BLOCKED  | PARTIAL  | `dontesek1.spec.ts`, R03-5 (the notice)                                              | Input: a conversation store that keeps the answer as it was given.                                                                                                                                             |
+| R03-6 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R03-2 · R03-6 and R03-1                                       | –                                                                                                                                                                                                              |
+| R04-1 | NOT_DONE | VERIFIED | `dontesek1.spec.ts`, R04-1 · R07-3                                                   | –                                                                                                                                                                                                              |
+| R04-2 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R04-2                                                         | –                                                                                                                                                                                                              |
+| R04-3 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R04-3                                                         | –                                                                                                                                                                                                              |
+| R04-4 | PARTIAL  | PARTIAL  | –                                                                                    | Work: the unit register has no filter for the two unit checks, and a check's subject chips stop at five with no remainder.                                                                                     |
+| R04-5 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R04-5; `p221-meres.spec.ts`, R04-5                            | –                                                                                                                                                                                                              |
+| R04-6 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R02-2 · R04-6                                                 | –                                                                                                                                                                                                              |
+| R04-7 | PARTIAL  | PARTIAL  | –                                                                                    | Work: `/attention` folds no method and offers no next step per check.                                                                                                                                          |
+| R05-1 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R05-1; `p221-meres.spec.ts`, R05-1                            | –                                                                                                                                                                                                              |
+| R05-2 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R05-2                                                          | –                                                                                                                                                                                                              |
+| R05-3 | PARTIAL  | PARTIAL  | –                                                                                    | Work: the cohort figure is defined (`flow.stage_conversion`) and not computed.                                                                                                                                 |
+| R05-4 | BLOCKED  | PARTIAL  | `dontesek1.spec.ts`, R05-4 (the definition)                                          | Work: under ten sales the card prints "3 of 4 sales measured", so no time to sale is on the render; the whole-history start needs a scenario with a figure worked out beside it.                               |
+| R05-5 | PARTIAL  | PARTIAL  | –                                                                                    | Work: no per-unit count of distinct presentations before a sale.                                                                                                                                               |
+| R05-6 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R05-6                                                         | –                                                                                                                                                                                                              |
+| R05-7 | BLOCKED  | BLOCKED  | –                                                                                    | Input: a durable tier store (Phase 3, decision 14).                                                                                                                                                            |
+| R05-8 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R05-8                                                          | –                                                                                                                                                                                                              |
+| R06-1 | PARTIAL  | PARTIAL  | –                                                                                    | Decision (open): the three questions of the filter sketch.                                                                                                                                                     |
+| R06-2 | NOT_DONE | NOT_DONE | –                                                                                    | Decision: the quadrant labels stay by the decision of 2026-09-27, against the row; reopen it or record the row as superseded. Nothing on `/project` sets recorded progression against verified sales.          |
+| R06-3 | PARTIAL  | VERIFIED | `p221-meres.spec.ts`, R06-3; `project-denominators.spec.ts`                          | –                                                                                                                                                                                                              |
+| R06-4 | VERIFIED | VERIFIED | `project-denominators.spec.ts`; `p221-render.spec.ts`, R06-7                         | –                                                                                                                                                                                                              |
+| R06-5 | PARTIAL  | PARTIAL  | `showroom.spec.ts`, "the audience builder returns meetings"                          | Work: the builder is not held back for want of a verified preference; its label is screen English.                                                                                                             |
+| R06-6 | BLOCKED  | BLOCKED  | –                                                                                    | Input: a showroom reference on the CRM deal, or a subjectKey↔contactId resolution.                                                                                                                             |
+| R06-7 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R06-7                                                         | –                                                                                                                                                                                                              |
+| R06-8 | PARTIAL  | VERIFIED | `p219-screens.spec.ts`, K4; `p221-meres.spec.ts`, R06-8                              | –                                                                                                                                                                                                              |
+| R07-1 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R07-1                                                          | –                                                                                                                                                                                                              |
+| R07-2 | PARTIAL  | PARTIAL  | `units-register.spec.ts`                                                             | Work: the time spent is not printed beside the share, though the row carries it.                                                                                                                               |
+| R07-3 | PARTIAL  | PARTIAL  | `dontesek1.spec.ts`, R04-1 · R07-3                                                   | Work: "High interest, low conversion" still heads a check that reads no outcome.                                                                                                                               |
+| R07-4 | BLOCKED  | PARTIAL  | `dontesek1.spec.ts`, R07-4                                                           | Work: the unit page prints the cycle, not the first opening, the Sold date or the meetings before the sale.                                                                                                    |
+| R07-5 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R07-5                                                          | –                                                                                                                                                                                                              |
+| R07-6 | VERIFIED | PARTIAL  | `p221-render.spec.ts`, R07-6; `dontesek1.spec.ts`, R07-4                             | Work: no synthetic sale lacks a Sold date, so "no date, no time to sale" never renders; it needs such a deal in a scenario.                                                                                    |
+| R07-7 | BLOCKED  | BLOCKED  | –                                                                                    | Input: a durable tier store.                                                                                                                                                                                   |
+| R07-8 | NOT_DONE | VERIFIED | `p220-table-preferences.spec.ts`                                                     | –                                                                                                                                                                                                              |
+| R08-1 | NOT_DONE | NOT_DONE | –                                                                                    | Decision: decision B keeps names off `/meetings`, against the row; reopen B or record the row as superseded.                                                                                                   |
+| R08-2 | NOT_DONE | NOT_DONE | –                                                                                    | Work: a name search on the agent's register that keeps people of one name apart.                                                                                                                               |
+| R08-3 | PARTIAL  | PARTIAL  | –                                                                                    | Work: a partial read of the source is logged, not shown; the flag reaches the page without a frozen file.                                                                                                      |
+| R08-4 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R08-4                                                         | –                                                                                                                                                                                                              |
+| R08-5 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R08-5                                                         | –                                                                                                                                                                                                              |
+| R08-6 | PARTIAL  | PARTIAL  | `nav-reachability.spec.ts`; `authorization.spec.ts`                                  | Input: the tier store, for MAX Ask. Also work: the developer is shown 15 replay links on Northgate's B-501, and following one lands on Ask, refused (rendered on 2026-10-03; `units/[unitCode]/page.tsx:181`). |
+| R08-7 | VERIFIED | VERIFIED | `layout-integrity.spec.ts`, meetings                                                 | –                                                                                                                                                                                                              |
+| R08-8 | NOT_DONE | VERIFIED | `p220-table-preferences.spec.ts`                                                     | –                                                                                                                                                                                                              |
+| R09-1 | PARTIAL  | PARTIAL  | `nav-reachability.spec.ts`, the agent's name                                         | Work: the replay prints no time zone, session id or visitor label; the data exists and the labels are screen English.                                                                                          |
+| R09-2 | PARTIAL  | PARTIAL  | –                                                                                    | Work: say on the screen what was not recorded (the replay's gap list also prints on the report, so not there).                                                                                                 |
+| R09-3 | PARTIAL  | PARTIAL  | –                                                                                    | Input: a meeting↔deal link.                                                                                                                                                                                    |
+| R09-4 | PARTIAL  | PARTIAL  | –                                                                                    | Work: refuse a session with no start in the live fold; an unknown start would need a frozen contract.                                                                                                          |
+| R09-5 | BLOCKED  | BLOCKED  | –                                                                                    | Input: a contact id on the session from a live source.                                                                                                                                                         |
+| R09-6 | PARTIAL  | PARTIAL  | `frame-language.spec.ts`                                                             | Input: the tier store (PRO export and MAX gate) and a Claude connection (the summary). German is dropped by decision.                                                                                          |
+| R10-1 | PARTIAL  | PARTIAL  | –                                                                                    | Work: separate definitions on `/features`, the screenshot total and clicks stated as not recorded.                                                                                                             |
+| R10-2 | PARTIAL  | PARTIAL  | –                                                                                    | Work: count the unknown ids dropped, through the connector's outcome rather than the frozen session.                                                                                                           |
+| R10-3 | BLOCKED  | BLOCKED  | –                                                                                    | Input: the initial time-of-day and weather state and the switch times (UE5 contract).                                                                                                                          |
+| R10-4 | PARTIAL  | PARTIAL  | –                                                                                    | Input: as R10-3; the unknown bucket belongs to the duration share.                                                                                                                                             |
+| R10-5 | PARTIAL  | PARTIAL  | –                                                                                    | Work: a link from a pair to its meetings, and a feature filter on `/meetings`.                                                                                                                                 |
+| R10-6 | VERIFIED | VERIFIED | `showroom.spec.ts`, the rating; `agent-authorisation.spec.ts`                        | –                                                                                                                                                                                                              |
+| R10-7 | NOT_DONE | PARTIAL  | `p219-screens.spec.ts`, K6                                                           | Work: the four views are built; no long list on `/features` folds.                                                                                                                                             |
+| R11-1 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R11-1; `p221-meres.spec.ts`, R11-1                            | –                                                                                                                                                                                                              |
+| R11-2 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R11-2                                                         | –                                                                                                                                                                                                              |
+| R11-3 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R11-3; `period-travels.spec.ts`                                | –                                                                                                                                                                                                              |
+| R11-4 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R11-4; `showroom.spec.ts`, "a comparison never claims a cause" | –                                                                                                                                                                                                              |
+| R11-5 | BLOCKED  | BLOCKED  | –                                                                                    | Input: a session-to-deal link.                                                                                                                                                                                 |
+| R11-6 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R11-6; `layout-integrity.spec.ts`, presentation at 393         | –                                                                                                                                                                                                              |
+| R12-1 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R12-1 · R12-3                                                 | –                                                                                                                                                                                                              |
+| R12-2 | PARTIAL  | PARTIAL  | `p221-meres.spec.ts`, R12-2 (under twenty)                                           | Decision: the flag at twenty or more stays by Máté's decision, against the row's "after 20"; record the row as superseded or reopen it.                                                                        |
+| R12-3 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R12-1 · R12-3                                                 | –                                                                                                                                                                                                              |
+| R12-4 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R12-4; `p221-meres.spec.ts`, R12-4                            | –                                                                                                                                                                                                              |
+| R12-5 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R12-5                                                          | –                                                                                                                                                                                                              |
+| R12-6 | PARTIAL  | VERIFIED | `dontesek1.spec.ts`, R12-6                                                           | –                                                                                                                                                                                                              |
+| R12-7 | PARTIAL  | VERIFIED | `p219-screens.spec.ts`, K5                                                           | –                                                                                                                                                                                                              |
+| R13-1 | VERIFIED | VERIFIED | `p221-render.spec.ts`, R13-1                                                         | –                                                                                                                                                                                                              |
+| R13-2 | VERIFIED | VERIFIED | `visitor-name.spec.ts`                                                               | –                                                                                                                                                                                                              |
+| R13-3 | PARTIAL  | PARTIAL  | –                                                                                    | Input: a deal↔meeting link, for verified outcomes.                                                                                                                                                             |
+| R13-4 | BLOCKED  | BLOCKED  | –                                                                                    | Input: a person or case detail, and the identity link to it.                                                                                                                                                   |
+| R13-5 | PARTIAL  | PARTIAL  | `agent-report.spec.ts`; `p217-approved.spec.ts`                                      | Decision: the approval of the Slovak and Hungarian text, which has no file to stand in (below). German is dropped by decision.                                                                                 |
+| R13-6 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R13-6                                                          | –                                                                                                                                                                                                              |
+| R13-7 | VERIFIED | VERIFIED | `p221-meres.spec.ts`, R13-7; `register-gate.spec.ts`                                 | –                                                                                                                                                                                                              |
+
+### The translation approval (R13-5, P2-17)
+
+The P2-17 rows say the Slovak and Hungarian text awaits approval, and name no file. The one file this
+document names for it is `_review/p217/review-sheet.md`, under "What Phase 2 needs to be accepted"
+below. It exists on the desk where the measurements are made, but `_review/` is ignored by git
+(`.gitignore:51`), so it is not in the repository, and a reader of the repository cannot find it.
+The approved texts themselves stand in three sheets beside it in `_review/p217/`, equally outside the
+repository; against today's render they hold 638 of 638 measurable texts. The file named on
+2026-10-02 for recording an approval of the English and Hungarian columns, `docs/translations-review.csv`
+(an item "B18"), does not exist, and no commit on any branch has ever touched that path.
+
 ## 2026-10-03 — the gate's machine side, and where P2-21 stands
 
 This section is added beside the ones below, which are not changed. **P2-21 is not checked off
