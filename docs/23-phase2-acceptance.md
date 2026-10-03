@@ -179,6 +179,41 @@ repository; against today's render they hold 638 of 638 measurable texts. The fi
 2026-10-02 for recording an approval of the English and Hungarian columns, `docs/translations-review.csv`
 (an item "B18"), does not exist, and no commit on any branch has ever touched that path.
 
+### P2-21 under the approved definition
+
+Máté approved the definition in the section below on 2026-10-03. Its three conditions, as measured on
+2026-10-03:
+
+1. **Every item that can be verified with the inputs that exist today is verified: does not hold.**
+   Of the 88 items, 43 are verified and 7 are BLOCKED. Each of the other 38 names what it waits for in
+   the table above:
+   - a decision, 6: R02-4, R06-1, R06-2, R08-1, R12-2, R13-5. Three of them (R06-2, R08-1, R12-2) were
+     decided against the letter of their row, and wait for the row to be recorded as superseded or the
+     decision reopened;
+   - a missing input, 7: R01-3, R03-5, R08-6, R09-3, R09-6, R10-4, R13-3;
+   - nothing but work, 25: R01-1, R01-2, R02-1, R02-3, R02-5, R02-7, R04-4, R04-7, R05-3, R05-4, R05-5,
+     R06-5, R07-2, R07-3, R07-4, R07-6, R08-2, R08-3, R09-1, R09-2, R09-4, R10-1, R10-2, R10-5, R10-7.
+
+   What it needs: the 25 built and held on the render. For 22 that is building what the table names.
+   R02-5, R05-4 and R07-6 are built, and need a scenario pushed through the ingest API that renders
+   the branch the synthetic world does not reach. Or a decision of Máté's that takes an item out of
+   P2-21.
+
+2. **Every BLOCKED item stands by name with the input it is missing: holds.** All seven — R05-7,
+   R06-6, R07-7, R09-5, R10-3, R11-5 and R13-4 — name it, in the table of the eleven above and in the
+   route tables below. Each is still missing today, and each is the input named on 2026-10-02.
+3. **No gate item on the machine side is open: holds.** The three items of the section below are
+   closed: the mobile (ii) class (`77b1be8`), the guard that nothing fixed covers a reachable or
+   readable element (`050f677`, `9f43b9d`), and the accessibility contract on the main screens
+   (`70fceb0`, with the fixes `4b88dd5`, `16e666e`, `d7d74fa` and `0a5f5be`). The two guards of
+   this round are in, each with a mutation that turns it red: no announcer region on a page the
+   P2-17 sheets are measured on (`ff6b120`), and a JSON Web Token as a credential in the secret
+   audit (`33acdc9`).
+
+**Condition 1 does not hold, so the three do not hold together as measured on 2026-10-03.** P2-21
+needs the 25 items above built and on the render, or Máté's decision on which of them leave P2-21.
+The status is not raised.
+
 ## 2026-10-03 — the gate's machine side, and where P2-21 stands
 
 This section is added beside the ones below, which are not changed. **P2-21 is not checked off
@@ -209,7 +244,7 @@ here, and nothing in this section says Phase 2 is done.**
 11 blocked. They have not been measured again since. The decisions of 2026-10-02 built several of
 them (above), so the four numbers wait for a new measurement rather than standing as today's.
 
-**How P2-21 could be checked off — PROPOSAL, NOT APPLIED.** P2-21 is checked off when:
+**How P2-21 could be checked off — APPROVED BY MÁTÉ 2026-10-03.** P2-21 is checked off when:
 
 - every item that can be verified with the inputs that exist today is verified;
 - every BLOCKED item stands by name with the input it is missing;
