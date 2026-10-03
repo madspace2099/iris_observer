@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import type { Language, PeriodPreset, UnitAttentionRow } from "@observer/readmodels";
-import { NOT_STATED, roomsWord } from "@observer/readmodels";
+import { NOT_STATED, duration, roomsWord } from "@observer/readmodels";
 import { getMetric } from "@observer/metrics";
 
 import { dynamicRoute } from "@/lib/href";
@@ -144,7 +144,7 @@ const COLUMNS: readonly RegisterColumn[] = [
     key: "demand",
     label: DEMAND_SIGNAL_LABEL,
     numeric: false,
-    note: "DERIVED. This unit's share of the looking time the busiest unit in the project drew, over the same period. It is an ordering aid and not a verdict: below the minimum sample the unit's own page states the shortfall instead of a direction.",
+    note: "DERIVED. This unit's share of the looking time the busiest unit in the project drew, over the same period. The time beside it is the unit's own total looking time, the figure the share is taken from. It is an ordering aid and not a verdict: below the minimum sample the unit's own page states the shortfall instead of a direction.",
   },
   /*
    * A THIRTEENTH COLUMN USED TO SIT HERE, AND WHY IT DOES NOT.
@@ -212,11 +212,25 @@ function Comparisons({ row }: { readonly row: UnitAttentionRow }) {
  * `--ox-fill` consumed by the sheet would say the same thing without an inline
  * declaration.
  */
-function Demand({ row }: { readonly row: UnitAttentionRow }) {
+/*
+ * The share, with the time it is taken from (R07-2). "Real count or time beside
+ * a named reference": the unit's own total looking time, first, so the line
+ * cannot be read as the busiest unit's time, then its share of the busiest
+ * unit's. The same caption span and bar; nothing about the column's look moves.
+ */
+function Demand({
+  row,
+  language,
+}: {
+  readonly row: UnitAttentionRow;
+  readonly language: Language;
+}) {
   const share = Math.round(row.attention * 100);
   return (
     <>
-      <span className="ox-of">{share}% of the busiest unit</span>
+      <span className="ox-of">
+        {duration(row.totalDwellSeconds, language)} · {share}% of the busiest unit
+      </span>
       <div className="ox-track" aria-hidden="true">
         <div className="ox-track-fill" style={{ width: `${share}%` } as CSSProperties} />
       </div>
@@ -393,7 +407,7 @@ export function UnitRegister({
       favourites: row.favourites,
       plans: row.pdfOpens,
       comparisons: <Comparisons row={row} />,
-      demand: <Demand row={row} />,
+      demand: <Demand row={row} language={language} />,
     };
     return { key: row.unitId, cells };
   });
