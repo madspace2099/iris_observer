@@ -58,9 +58,46 @@ and a tenth in progression. Saying "Above" only for a real rise needs a toleranc
 with", which is a threshold nobody has named. The sentence says "held up", which is true under
 either answer.
 
+### R08-6: the unit page's replay links, fixed; the item stays PARTIAL
+
+`9128aab`; `nav-reachability.spec.ts`, three unit-page tests. The replay route admits the sales
+agent, the agency manager and MADSPACE, not the developer. A developer reading Northgate's B-501
+was shown its meetings as replay links that landed on Ask IRIS, refused; on a sold unit the
+IRIS-assisted finding offered "Open that meeting" the same way. Following the replay route's own
+rule, as the meeting register does, the developer now gets the meetings listed rather than
+linked, with the register's sentence saying why, and the sale finding's "See every dated sale"; a
+manager's rows still open the replay. **R08-6 is not verified by this:** MAX Ask waits on the
+tier store, and on the render a developer is still offered replay links elsewhere on Northgate:
+14 on Sales Flow, 5 on What needs attention and 67 in the audience builder (counted 2026-10-03).
+
+### The rest of the round's list
+
+- **R07-2: VERIFIED** (`6c499fc`; `units-register.spec.ts`, R07-2, on the wide, desktop and mobile
+  projects). The derived column prints the unit's own total looking time beside its share of the
+  busiest unit, and the test proves the time is the share's numerator. No chapter closes: R07
+  holds R07-7 (BLOCKED) and others.
+- **Stopped, each on a decision or an input, and recorded rather than built:**
+  - **R02-5:** the empty branch needs a project and period that raise nothing. The ingest path
+    cannot produce one without a rule on source health, and an in-process scenario would add a
+    tenant, a project and a persona to the shared demonstration world. Either is Máté's choice, or
+    he records the empty half as unreachable.
+  - **R02-3:** carrying each Briefing sentence's metric ids through the plan gate is plain work,
+    but a render proof needs a Briefing figure priced above FREE: a pricing entry for every tenant,
+    or a pricing seam for the test harness alone. Both are Máté's.
+  - **R02-7:** a KPI order needs a reorder control the Briefing does not have, and its form and
+    place are a visual decision.
+  - **R10-7:** folding the Features register after five rows would hide its least-reached
+    features, and the screen tells the reader "its bottom is visible", one of the refusals the
+    screen is built on. A table fold is also a new visual element.
+  - **R09-1:** the replay's visitor name would extend decision B (names on an agent's register
+    only) to the replay, and a name without a contact link has no source. The time zone, session id
+    and visitor label are plain work, but the item cannot close without the name, so it is not
+    half-built.
+- **None of these closes a chapter.**
+
 ### The four numbers after this round
 
-VERIFIED 46, PARTIAL 29, NOT_DONE 6, BLOCKED 7: R02-1, R04-7 and R12-2 move from partial to
+VERIFIED 47, PARTIAL 28, NOT_DONE 6, BLOCKED 7: R02-1, R04-7, R07-2 and R12-2 move from partial to
 verified. Nothing else moves here; the item table of the 2026-10-03 measurement below is not
 re-edited.
 
