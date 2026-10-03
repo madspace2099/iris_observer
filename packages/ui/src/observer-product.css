@@ -762,6 +762,17 @@
   color: var(--iris-accent-strong);
 }
 
+/*
+ * On paper the brand accent measures 2.73:1 and is never text (the rule at the
+ * head of this file), so a link there takes the dim step of the same hue at
+ * 5.39:1, as the focus ring and a chart's accent already do. The underline still
+ * says it is a link; hovering does not lighten it back below the threshold.
+ */
+.ox-paper .ox-link,
+.ox-paper .ox-link:hover {
+  color: var(--iris-accent-dim);
+}
+
 .ox-head-aside {
   display: flex;
   flex-direction: column;
