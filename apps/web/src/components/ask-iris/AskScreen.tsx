@@ -924,7 +924,9 @@ export function AskConversationPanel({
             </span>
             <div className="ask-msg-body">
               <span className="ask-msg-who">{viewerName}</span>
-              <p className="ask-msg-text">{question}</p>
+              <p className="ask-msg-text" data-announce="">
+                {question}
+              </p>
             </div>
             <span className="ask-msg-when">{session.context.periodLabel}</span>
           </li>

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -6,6 +6,7 @@ import { NotFoundError, NotPermittedError } from "@observer/readmodels";
 
 import { SettingsLink } from "@/components/iris/SettingsLink";
 import { Shell } from "@/components/iris/Shell";
+import { StateAnnouncer } from "@/components/iris/StateAnnouncer";
 import type { SwitchOption } from "@/components/ContextSwitcher";
 import { AskDock } from "@/components/ask-iris/AskDock";
 import { HOME_SEGMENT } from "@/lib/routes";
@@ -305,6 +306,10 @@ export default async function ProjectLayout({
         {/* The last child of `<main>`, after the content, in the flow. */}
         <AskDock root={root} projectLabel={project.name} />
       </Shell>
+      {/* Outside <main>: it speaks a change of state, and is not page text. */}
+      <Suspense fallback={null}>
+        <StateAnnouncer />
+      </Suspense>
     </div>
   );
 }

@@ -162,7 +162,9 @@ export function FilterBar({
        * baseline-aligned flex row would push the count out of line with the
        * fields it counts.
        */}
-      <span className="ox-filters-count">{resultCount}</span>
+      <span className="ox-filters-count" data-announce="">
+        {resultCount}
+      </span>
     </form>
   );
 }
