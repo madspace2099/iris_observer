@@ -355,6 +355,43 @@ test.describe("a meeting row is a link only for a reader who may open one", () =
     await link.click();
     await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
   });
+
+  /*
+   * And on What needs attention (R08-6, EJJEL2): the unrecorded-outcome card
+   * named its meetings as five replay links for a developer. The chips have no
+   * caption, so the meetings are named as text; the card's own "See the
+   * meetings" opens the register, whose caption says why.
+   */
+  const outcomeCard = (page: Page) =>
+    page
+      .locator("main li.ox-alert")
+      .filter({ has: page.locator("h3", { hasText: "Meetings ending without a recorded outcome" }) });
+
+  test("on What needs attention, a developer's unrecorded-outcome card names its meetings as text", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/attention`);
+    const card = outcomeCard(page);
+    await expect(card, "the unrecorded-outcome card did not render").toHaveCount(1);
+    await expect(card.locator("ul.ox-chipset > li").first(), "the meetings are still named").toHaveText(
+      /^mtg_/,
+    );
+    await expect(card.locator("ul.ox-chipset a")).toHaveCount(0);
+    await expect(
+      page.locator('main a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
+  });
+
+  test("on What needs attention, a manager's unrecorded-outcome card opens the replay", async ({ page }) => {
+    await signInAs(page, "Tomáš Varga");
+    await page.goto(`${NORTHGATE}/attention`);
+    const links = outcomeCard(page).locator('ul.ox-chipset a[href*="/meetings/"]');
+    await expect(links, "the card names five meetings as links").toHaveCount(5);
+    await links.first().click();
+    await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
+  });
 });
 
 test.describe("Administration is reachable without opening a project first", () => {
