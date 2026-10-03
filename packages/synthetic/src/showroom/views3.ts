@@ -2251,12 +2251,20 @@ export function buildHome(
       (sessions.length === 0
         ? `No presentations were recorded in ${context.period.label.toLowerCase()}.`
         : "The showroom is running; no outcomes are being recorded."))
-    : readable
-      ? signal === "good"
-        ? "The showroom is on course."
-        : signal === "poor"
-          ? "The showroom is going the wrong way."
-          : "The showroom needs a look."
+    : /*
+       * "On course" needs a named plan and threshold (R02-1, Máté 2026-10-02),
+       * and none exists, so a verdict names the window it was measured against,
+       * the one the chip names. "Held up" is `trend()`'s deadbanded "up", not
+       * "above": the figures beside it may be level.
+       */
+      comparedWith !== null
+      ? `Against ${comparedWith}, ${
+          signal === "good"
+            ? "meetings and progression held up"
+            : signal === "poor"
+              ? "the showroom is going the wrong way"
+              : "the showroom needs a look"
+        }.`
       : windowDecided < AGENT_MIN_SAMPLE
         ? `${outcomes(windowDecided)} ${volume.nowWords}; ${count(AGENT_MIN_SAMPLE, locale)} needed for a verdict.`
         : !hasBaseline

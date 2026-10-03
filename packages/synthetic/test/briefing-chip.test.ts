@@ -34,14 +34,19 @@ describe("the Briefing chip's comparison", () => {
           .catch(() => null);
         if (home === null) continue;
         const where = `${projectSlug} ${period}`;
+        /* The sentence makes no course claim: there is no named plan (FEJEZET1). */
+        expect(home.verdict, where).not.toMatch(/on course/i);
         if (home.signal === "no_verdict") {
           expect(home.comparedWith, where).toBeNull();
           expect(home.movement, where).toBeNull();
+          expect(home.verdict, where).not.toMatch(/^Against /);
           continue;
         }
         verdicts += 1;
         expect(home.comparedWith, where).toMatch(/\S/);
         expect(home.comparedWith, where).not.toMatch(/^in /);
+        /* The sentence names the window the chip names. */
+        expect(home.verdict, where).toMatch(new RegExp(`^Against ${home.comparedWith}, `));
         if (home.signal === "good") expect(home.movement, where).toBe("above");
         if (home.signal === "poor") expect(home.movement, where).toBe("below");
         if (home.signal === "attention")

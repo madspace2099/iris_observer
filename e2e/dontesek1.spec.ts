@@ -44,15 +44,34 @@ test("R12-6 · an agent card leads with Agent detail, then its meetings and its 
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("R02-1 · the Briefing chip names what it compares against, and never a bare On course", async ({
+test("R02-1 · the Briefing chip and its sentence name what they compare against, and neither says On course", async ({
   page,
 }) => {
+  /*
+   * The sentence beside the chip names the same window (FEJEZET1): "On course"
+   * needs a named plan and threshold, and none exists. Exact words only on
+   * Northgate, whose day is pinned; ISTER TOWER changes with the lab's plane.
+   */
+  const EXPECTED: Readonly<Record<string, string>> = {
+    [`${ROOT}/showroom`]: "Against last month, meetings and progression held up.",
+    [`${ROOT}/showroom?period=last_28_days`]: "Against the previous 28 days, meetings and progression held up.",
+    [`${ROOT}/showroom?period=last_quarter`]:
+      "There is no earlier period to compare against, so there is no verdict.",
+  };
   await signInAs(page, "Tomáš Varga");
-  for (const path of [`${ROOT}/showroom`, `${ROOT}/showroom?period=last_28_days`, "/alpha/ister-tower/showroom"]) {
+  for (const path of [...Object.keys(EXPECTED), "/alpha/ister-tower/showroom"]) {
     await page.goto(path, { waitUntil: "networkidle" });
     const chip = (await page.locator(".ox-head-aside .ox-chip").first().innerText()).trim();
     expect(chip, path).not.toBe("On course");
     expect(chip, path).toMatch(/^(?:(?:Above|In line with|Below|Mixed against) \S.*|No verdict)$/);
+    const answer = (await page.locator(".ox-head .ox-answer").first().innerText()).trim();
+    expect(answer, path).not.toMatch(/on course/i);
+    if (chip === "No verdict") expect(answer, path).not.toMatch(/^Against /);
+    else
+      expect(answer, `${path}: the sentence names the chip's window`).toContain(
+        `Against ${chip.replace(/^(?:Above|In line with|Below|Mixed against) /, "")}, `,
+      );
+    if (path in EXPECTED) expect(answer, path).toBe(EXPECTED[path]);
   }
 });
 
