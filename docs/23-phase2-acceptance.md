@@ -16,13 +16,15 @@ here, and nothing in this section says Phase 2 is done.**
    Flow, Project, Units, Meetings, Features, Sales Agents, Ask and the report. The report keeps four;
    an announcement there needs product words nobody has written.
    - The first measurement found every screen green on keyboard reach, focus and reading order.
-   - It found 21 defects:
-     - a pop-up drawn over the page let Tab land beneath it (the shared project and period menu on
-       every screen, a figure's explanation, the register column chooser and the Ask pickers), and
-       three of those ignored Escape;
+   - It found 19 defects:
+     - a pop-up drawn over the page let Tab land beneath it: the shared project and period menu on
+       every screen but Ask, a figure's explanation (which also ignored Escape) and the Ask pickers;
      - no change of state was announced on any of the eight screens.
-   - All 21 are fixed (`4b88dd5`, `16e666e`, `6598a12`, `d7d74fa`, `0a5f5be`).
+   - All 19 are fixed (`4b88dd5`, `16e666e`, `d7d74fa`, `0a5f5be`).
    - Each clause and each fix has a mutation that turns its test red.
+   - The register column chooser was measured as a pop-up at first, and changed (`6598a12`). It opens
+     in the flow of the page, so nothing is beneath it; the change broke a press beside it and is
+     reverted (`a25c222`), and the spec no longer lists it (`292995c`).
 
 **The 88 items.** The last measurement of them is the one below: 38 verified, 30 partial, 9 not done,
 11 blocked. They have not been measured again since. The decisions of 2026-10-02 built several of
