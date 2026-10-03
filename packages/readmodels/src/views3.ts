@@ -61,6 +61,17 @@ export interface ShowroomDoor {
 export interface ShowroomHome {
   readonly context: ViewContext;
   readonly signal: ShowroomSignal;
+  /**
+   * What the signal compares the window against ("last month"), or null when
+   * there is no verdict. A verdict names its comparison (R02-1, Máté
+   * 2026-10-02): the chip says "Above last month", never a bare "On course".
+   */
+  readonly comparedWith: string | null;
+  /**
+   * How meetings and their progression moved against `comparedWith`: both up,
+   * both flat, both down, or not together. Null when there is no verdict.
+   */
+  readonly movement: "above" | "in_line" | "below" | "mixed" | null;
   /** One sentence. The whole ten-second answer. */
   readonly verdict: string;
   /** Why the signal is what it is. One clause, never a paragraph. */

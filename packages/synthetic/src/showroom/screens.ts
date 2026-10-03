@@ -19,6 +19,7 @@ import {
   insufficient as shortOfSample,
 } from "@observer/metrics";
 import type {
+  DeliveredDeals,
   AgentBuyerInterest,
   AgentDetailView,
   AgentFollowUp,
@@ -46,6 +47,7 @@ import type {
   VisitorLabelKind,
 } from "@observer/readmodels";
 import {
+  classifySaleCycle,
   AGENT_REGISTER_ROLES,
   MEETINGS,
   OUTCOME_WORDS,
@@ -63,6 +65,9 @@ import {
   type PluralForms,
   type Sentence,
   isUnnamedPresenter,
+  addressOf,
+  replayHref,
+  agentDetailHref,
 } from "@observer/readmodels";
 import { visitorNameFor } from "../contacts";
 import { catalogueFor, roomCounts, type RawUnit } from "../pulse";
@@ -81,6 +86,7 @@ import {
 } from "../format";
 import { assistedSaleOf, dealsFor } from "../deals";
 import { startOfWeekIn } from "../time";
+import { showroomSaleCycleInputs } from "./sale-cycles";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import {
@@ -635,6 +641,9 @@ export function buildUnitDetail(
   sessions: readonly ShowroomSession[],
   previous: readonly ShowroomSession[],
   unitCode: string,
+  /** The CRM's deals and the whole visible history, for the unit's sale cycle (R07-4). */
+  deals: DeliveredDeals | null = null,
+  history: readonly ShowroomSession[] = sessions,
 ): UnitDetailView | null {
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
@@ -744,7 +753,7 @@ export function buildUnitDetail(
     const touch = session.units.find((u) => u.unitCode === unitCode);
     if (touch === undefined) continue;
     const agentName = presenterName(session.projectId, session.agentId, language);
-    const meetingHref = `${root}/meetings/${session.meetingId}`;
+    const meetingHref = replayHref(addressOf(context), session.meetingId);
     const channelLabel = SESSION_CHANNEL_LABELS[session.channel];
     const stamp = `${dayLabel(session.startedAt, locale, timeZone)} · ${clockLabel(session.startedAt, locale, timeZone)}`;
 
@@ -1008,7 +1017,7 @@ export function buildUnitDetail(
           sampleSize,
           minimumSampleSize: AGENT_MIN_SAMPLE,
           belowMinimum: sampleSize < AGENT_MIN_SAMPLE,
-          href: `${root}/agents/${agent.id}`,
+          href: agentDetailHref(addressOf(context), agent.id),
         },
       ];
     })
@@ -1115,7 +1124,7 @@ export function buildUnitDetail(
     DEFAULT_IRIS_ASSIST_POLICY,
     locale,
     timeZone,
-    (meetingId) => `${root}/meetings/${encodeURIComponent(meetingId)}`,
+    (meetingId) => replayHref(addressOf(context), meetingId),
     context.language,
   );
   if (sale !== null) {
@@ -1176,6 +1185,15 @@ export function buildUnitDetail(
     relatedAgents,
     trend,
     findings,
+    saleCycle:
+      deals === null
+        ? null
+        : (() => {
+            const sale = showroomSaleCycleInputs(deals, history).find(
+              (s) => s.unitCode === unitCode,
+            );
+            return sale === undefined ? null : classifySaleCycle(sale);
+          })(),
     emptyState:
       row.meetings === 0
         ? `No meeting in ${context.period.label.toLowerCase()} opened ${unitCode}. The unit is in the catalogue and was available to be shown.`
@@ -1546,7 +1564,10 @@ export function buildAgentDetail(
           projectName: project.name,
           meetings: there.length,
           isCurrent: project.id === context.project.id,
-          href: `/${context.tenant.slug}/${project.slug}/agents/${agentId}`,
+          href: agentDetailHref(
+            { tenantSlug: context.tenant.slug, projectSlug: project.slug },
+            agentId,
+          ),
         },
       ];
     },
@@ -1758,7 +1779,7 @@ export function buildAgentDetail(
       evidence: evidenceRef(
         `agent-signature-${agentId}`,
         "statistical_association",
-        `${root}/agents/${agentId}`,
+        agentDetailHref(addressOf(context), agentId),
         mine.length,
       ),
       sampleSize: mine.length,
@@ -1832,7 +1853,7 @@ export function buildAgentDetail(
     evidence: evidenceRef(
       `agent-detail-${agentId}`,
       "observed_sequence",
-      `${root}/agents/${agentId}`,
+      agentDetailHref(addressOf(context), agentId),
       mine.length,
     ),
   };

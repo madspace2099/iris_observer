@@ -1,4 +1,4 @@
-import type { SurfaceDescriptor } from "@observer/readmodels";
+import { AGENT_DETAIL_ROUTE, REPLAY_ROUTE, type SurfaceDescriptor } from "@observer/readmodels";
 
 /**
  * Surfaces, and who they are for.
@@ -128,7 +128,7 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["developer", "agency_manager", "sales_agent"],
   },
   {
-    route: "/[tenantSlug]/[projectSlug]/meetings/[meetingId]",
+    route: REPLAY_ROUTE,
     audience: "internal",
     requiresRole: ["sales_agent", "agency_manager", "madspace_admin"],
   },
@@ -223,7 +223,7 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
    * MADSPACE-only, and nothing of another project is reachable at any scope.
    */
   {
-    route: "/[tenantSlug]/[projectSlug]/agents/[agentId]",
+    route: AGENT_DETAIL_ROUTE,
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },

@@ -11,6 +11,8 @@ import {
   type Sentence,
   type SentenceIn,
   type ViewContext,
+  addressOf,
+  replayHref,
 } from "@observer/readmodels";
 
 import { buildAssistedSales, dealsFor } from "./deals";
@@ -442,7 +444,7 @@ export function assistedSalesAnswer(context: ViewContext): AskAnswer | null {
       catalogueFor(project).some((u) => u.code === code)
         ? `${root}/units/${encodeURIComponent(code)}`
         : null,
-    (meetingId) => `${root}/meetings/${encodeURIComponent(meetingId)}`,
+    (meetingId) => replayHref(addressOf(context), meetingId),
     context.language,
   );
   if (assisted.source !== "crm") return null;

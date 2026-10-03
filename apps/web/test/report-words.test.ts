@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LANGUAGES, sentence, slovakZForm } from "@observer/readmodels";
 
 import {
+  AGENT_REPORT_WORDS,
   REPORT_BLANK_SECTIONS,
   REPORT_COVERAGE_CAPTION,
   REPORT_LEFT_OUT_SECTIONS,
@@ -51,5 +52,20 @@ describe("the report page's words", () => {
         from: slovakZForm(74),
       }),
     ).toContain("meranie zachytáva 60 zo 74 stretnutí");
+  });
+});
+
+describe("item 27 in Slovak, as Máté wrote it (DONTESEK1, 2026-10-02)", () => {
+  /*
+   * The name stands as a label, in the nominative, so no name is ever
+   * declined: two different names arrive exactly as given. The text after the
+   * name is Máté's, with the period in its slot.
+   */
+  it("puts any name in front unchanged, and keeps 6 as an upper bound", () => {
+    for (const name of ["Akhilesh Undev", "Lucia Bartošová"]) {
+      expect(AGENT_REPORT_WORDS.sk.unitsCaption(name, "Od začiatku štvrťroka")).toBe(
+        `${name}: Najviac 6 bytov, ktoré otvorili na najväčšom podiele stretnutí (od začiatku štvrťroka). Ide len o súvislosť so zvykom pri prezentáciách tejto osoby: byt, ktorý otvárajú na väčšine stretnutí, môže byť ten, na ktorý sa pýtajú kupujúci, alebo ten, po ktorom maklér zvyčajne siahne.`,
+      );
+    }
   });
 });

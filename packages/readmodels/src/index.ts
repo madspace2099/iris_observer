@@ -27,3 +27,4 @@ export * from "./words";
 export * from "./language";
 export * from "./sentence";
 export * from "./duration";
+export * from "./routes";

@@ -22,13 +22,16 @@ import { AttentionList, Sample } from "@/components/product";
  * is invisible in a table sorted by views, because the two columns that
  * disagree sit ten inches apart.
  *
- * Two of the checks in `ATTENTION_KIND_DEFINITIONS` ask exactly that pair
- * of questions, from the two ends:
+ * One check in `ATTENTION_KIND_DEFINITIONS` asks it:
  *
  *   viewed_never_shortlisted     opened again and again, never kept.
- *   high_interest_no_follow_up   kept, and then nothing was recorded.
  *
- * They are read straight off `getAttention` and neither is recomputed here. A
+ * Its other end, "kept, and then nothing was recorded", was retired on
+ * 2026-10-02 (R04-1, R07-3): a shortlist that ended "Presentation only" or "Not
+ * interested" is accounted for, and one with no recorded outcome is the meeting
+ * register's own check. Measured before it went, nothing was left for it.
+ *
+ * The check is read straight off `getAttention` and not recomputed here. A
  * screen that derived its own version of this state would be a second answer to
  * a question the product already answers on the attention surface, three clicks
  * away and disagreeing.
@@ -37,10 +40,9 @@ import { AttentionList, Sample } from "@/components/product";
  *
  * "Nothing is wrong" and "we could not look" are different answers and an empty
  * panel renders them identically. `AttentionCheck` carries `clear` and
- * `unavailable` as distinct states with a sentence for each — a project with no
- * CRM connected genuinely cannot be asked whether a shortlist was followed up,
- * and saying so is the honest reading. So the alerts are one list and the
- * questions are another, and both are always present.
+ * `unavailable` as distinct states with a sentence for each — a check that
+ * could not be asked says so, and that is the honest reading. So the alerts are
+ * one list and the questions are another, and both are always present.
  *
  * ## The sample size, and the noun this file has to supply
  *
@@ -52,12 +54,11 @@ import { AttentionList, Sample } from "@/components/product";
  * reported: the noun belongs beside the number in the read model.
  */
 
-/** The two questions this region asks, in the order a flat travels through. */
-const KINDS: readonly AttentionKind[] = ["viewed_never_shortlisted", "high_interest_no_follow_up"];
+/** The question this region asks. */
+const KINDS: readonly AttentionKind[] = ["viewed_never_shortlisted"];
 
 const SAMPLE_NOUNS: Readonly<Record<string, string>> = {
   viewed_never_shortlisted: "recorded views",
-  high_interest_no_follow_up: "meetings that shortlisted a unit",
 };
 
 /*
@@ -111,8 +112,8 @@ export function DemandAttention({
             count: meetingCount,
             period: periodLabel,
           })}{" "}
-          A unit opened repeatedly and never kept, and a unit kept with nothing recorded afterwards,
-          are two ends of one question the register cannot show in a column.
+          A unit opened repeatedly and never kept is a question the register cannot show in a
+          column.
         </p>
       </div>
 
@@ -121,7 +122,7 @@ export function DemandAttention({
         alerts={mine.map((state) => state.alert)}
         period={period}
         label="High interest, low conversion"
-        emptyNote="Neither question was raised in this period. What each of them asked, and what it found, is below."
+        emptyNote="The question was not raised in this period. What it asked, and what it found, is below."
       />
 
       <ul className="ox-scope">

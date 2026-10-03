@@ -141,7 +141,7 @@ describe("a project a real source delivers for runs on the real clock", () => {
     );
   });
 
-  it("offers the IRIS-assisted question as a fifth opening where a CRM is connected", async () => {
+  it("offers the IRIS-assisted question after the computed openings where a CRM is connected", async () => {
     const session = await repository.getAskSession(
       {
         viewer: madspace,
@@ -152,12 +152,13 @@ describe("a project a real source delivers for runs on the real clock", () => {
       },
       null,
     );
-    expect(session.suggestions).toHaveLength(5);
-    expect(session.suggestions[0], "the scenario's four openings stay first").toBe(
-      "Why did demand fall this quarter?",
+    /* Northgate's scripted scenario is retired (R01-2, Máté 2026-10-02): the computed openings come first. */
+    expect(session.suggestions).toHaveLength(4);
+    expect(session.suggestions[0]).toBe(
+      "How many presentations were recorded, and how did they end?",
     );
-    expect(session.suggestions[4]).toBe("Which sales followed a showing in IRIS?");
-    const assisted = session.answers.find((x) => x.question === session.suggestions[4]);
+    expect(session.suggestions[3]).toBe("Which sales followed a showing in IRIS?");
+    const assisted = session.answers.find((x) => x.question === session.suggestions[3]);
     expect(assisted?.answer).toMatch(
       /dated sales .* followed an IRIS showing of the unit within 72 hours/,
     );

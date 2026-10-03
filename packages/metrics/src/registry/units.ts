@@ -120,6 +120,45 @@ export const activeDwell = defineMetric({
   roles: ["developer", "agency_manager", "sales_agent"],
 });
 
+/*
+ * THE UNITS REGISTER'S DERIVED COLUMN, NAMED FOR WHAT IT IS (R07-2, Máté 2026-10-02).
+ *
+ * The register's "Demand · derived" column was a computation with no entry
+ * here. It is not the attention index — that compares a segment's share of
+ * looking time with its share of the unsold stock — so it is declared as its
+ * own metric under its own name rather than borrowing that one.
+ */
+export const demandSignal = defineMetric({
+  id: "unit.demand_signal",
+  displayName: "Demand signal · derived",
+  businessDefinition:
+    "How much looking time this unit drew, against the unit that drew the most in the same project and period. An ordering aid, not a verdict.",
+  kind: "ratio",
+  calculation:
+    "The unit's total active dwell in the period, divided by the largest total active dwell of any unit in the project over the same period. The busiest unit reads 1 and a unit nobody looked at reads 0. Because the denominator is a project-relative peak, it orders units within one project and period and is never compared across projects or periods. It is not the attention index, which compares a segment's share of looking time with its share of the unsold stock.",
+  numerator: "the unit's total active dwell",
+  denominator: "the largest total active dwell of any unit in the project",
+  exclusions: [
+    "durations from measurement methods the dwell policy marks unreliable",
+    "activity by erased contacts",
+  ],
+  dimensions: UNIT_DIMENSIONS,
+  timeWindow: "period",
+  requiredFacts: ["unit.viewed"],
+  requiredCrmFields: [],
+  requiredUnitAttributes: [],
+  minimumSampleSize: 3,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "No measured attention on any unit in this period.",
+    insufficient: insufficient(3, "views"),
+    unavailable: NO_CATALOGUE,
+  },
+  drillTo: "units",
+  roles: ["developer", "agency_manager", "sales_agent"],
+});
+
 export const favourites = unitCounter(
   "unit.favourites",
   "Favourites",
@@ -575,6 +614,7 @@ export const UNIT_METRICS = [
   rawViews,
   meaningfulViews,
   activeDwell,
+  demandSignal,
   favourites,
   shares,
   materialOpens,

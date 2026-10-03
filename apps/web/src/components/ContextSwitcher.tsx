@@ -83,12 +83,25 @@ export function ContextSwitcher({
     const onDown = (event: PointerEvent) => {
       if (el.open && !el.contains(event.target as Node)) el.open = false;
     };
+    /*
+     * And the third: Tab past the last row (P2-ZARAS, 2026-10-03). The panel
+     * is drawn over the page, so focus that walked on out of it landed on a
+     * control the open panel was covering. A disclosure is not a modal, so it
+     * does not trap; it closes as focus leaves it, and nothing is left open
+     * over where the reader now is.
+     */
+    const onFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget as Node | null;
+      if (el.open && next !== null && !el.contains(next)) el.open = false;
+    };
 
     document.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onDown);
+    el.addEventListener("focusout", onFocusOut);
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onDown);
+      el.removeEventListener("focusout", onFocusOut);
     };
   }, []);
 

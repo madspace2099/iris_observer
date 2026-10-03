@@ -215,6 +215,20 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     unit: "count",
   },
   {
+    /* R05-4, Máté 2026-10-02: the cycle as the showroom can measure it, until WEBIRIS sessions arrive. */
+    id: "flow.showroom_sale_cycle",
+    label: "Sales cycle",
+    icon: "clock",
+    whatItMeasures:
+      "Measured from the first recorded showroom opening to the date the deal entered the Sold stage.",
+    howItIsComputed:
+      "The median and 80th percentile days for sales whose Sold date falls in the window, from the unit's earliest showroom opening anywhere in the visible history. Sales with no Sold date, no recorded opening, an opening after the sale or an opening at the very start of the data are counted and left out.",
+    sources: ["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"],
+    limitation:
+      "It starts at the showroom, not at a buyer's first contact: online visits before the first showing are not counted yet.",
+    unit: "count",
+  },
+  {
     id: "showroom.units_opened",
     label: "Units opened",
     icon: "layers",

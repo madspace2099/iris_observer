@@ -1,5 +1,78 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-03 — the gate's machine side, and where P2-21 stands
+
+This section is added beside the ones below, which are not changed. **P2-21 is not checked off
+here, and nothing in this section says Phase 2 is done.**
+
+**The three gate items that are not among the 88:**
+
+1. **The mobile (ii) class: closed** (`77b1be8`).
+2. **The guard that nothing fixed covers a reachable or readable element: closed** (`050f677`,
+   `9f43b9d`, `e2e/fixed-covers-nothing.spec.ts`). The guard holds the general claim, not the dock by
+   name.
+3. **The accessibility contract on the main screens: built in this round**
+   (`e2e/a11y-contract.spec.ts`). The five clauses held on the design lab are held on Briefing, Sales
+   Flow, Project, Units, Meetings, Features, Sales Agents, Ask and the report. The report keeps four;
+   an announcement there needs product words nobody has written.
+   - The first measurement found every screen green on keyboard reach, focus and reading order.
+   - It found 19 defects:
+     - a pop-up drawn over the page let Tab land beneath it: the shared project and period menu on
+       every screen but Ask, a figure's explanation (which also ignored Escape) and the Ask pickers;
+     - no change of state was announced on any of the eight screens.
+   - All 19 are fixed (`4b88dd5`, `16e666e`, `d7d74fa`, `0a5f5be`).
+   - Each clause and each fix has a mutation that turns its test red.
+   - The register column chooser was measured as a pop-up at first, and changed (`6598a12`). It opens
+     in the flow of the page, so nothing is beneath it; the change broke a press beside it and is
+     reverted (`a25c222`), and the spec no longer lists it (`292995c`).
+
+**The 88 items.** The last measurement of them is the one below: 38 verified, 30 partial, 9 not done,
+11 blocked. They have not been measured again since. The decisions of 2026-10-02 built several of
+them (above), so the four numbers wait for a new measurement rather than standing as today's.
+
+**How P2-21 could be checked off — PROPOSAL, NOT APPLIED.** P2-21 is checked off when:
+
+- every item that can be verified with the inputs that exist today is verified;
+- every BLOCKED item stands by name with the input it is missing;
+- no gate item on the machine side is open.
+
+This is offered for Máté's decision. The status is not raised, and nothing below is re-read
+under it.
+
+## 2026-10-02 — the open decisions, decided
+
+Máté answered every open decision of the acceptance on 2026-10-02 (`_review/dontesek-2026-10-02.md`).
+Lines 167 and 217 of the measurement below are R02-1 and R06-3, so the seventeen open items were
+fifteen decisions. The measurement below is not changed; this is what was decided on it.
+
+**Recorded, nothing to build:**
+
+- **R12-2.** The agent flag stays at twenty meetings or more (the decision of 2026-09-27, 6); under
+  twenty only counts are shown, as `788cd3f` already draws them.
+- **R01-3.** The OpenAI connection may serve as an interim assistant but is not the Claude
+  integration asked for by name. The Claude half stays BLOCKED until the provider, its key and the
+  cost of calls are settled; the banner half is closed.
+- **R06-3 (P1-04).** The 1.51× is closed as not reproducible on the evidence available. Nothing in
+  the repository yields it; the figures it can be traced to are 1.41×, 1.39× and 1.30×, from the
+  three calculations that were removed (`_review/blokk-0927b/report.md:53`). It reopens on new
+  evidence.
+- **R05-7, R07-7, R08-6.** The durable tier store stays BLOCKED until Phase 3: no Supabase table and
+  no RLS for it in this phase. R08-6's route-map links are machine work and go ahead without it.
+- **P2-17, item 76.** The approved Hungarian date is `aug. 24.`. The report's kicker shows it in
+  capitals through CSS; the source, the copied text and the spoken text keep the approved form.
+- **P2-17, item 27.** "At most 6" stays an upper bound, not a count of the units listed.
+
+**Decided, built in the round that follows:** R12-6 (the card's two links), P2-17 items 27 and 38
+(Slovak text supplied by Máté), R02-1 (the Briefing chip names its comparison), R07-2 (`Demand
+signal · derived`), R04-1 and R07-3 (one follow-up definition), R01-2 (Northgate's scripted Ask
+retired), R05-4, R07-4 and R02-4 (the cycle from the first recorded showroom opening, said so on the
+page) and R03-5 (a reopened answer says it is recalculated).
+
+**Decided, sketched first:** R06-1, the building, floor and price filters.
+
+No decision of Máté's is open after this. R06-6, R11-5 and R13-4 wait on CRM or UE5 links; the rule
+Máté is to set for each falls due when that input exists.
+
 ## 2026-09-30 — accepted with known gaps
 
 This section is added beside the measurement below, which is not changed: it was made on 2026-09-27

@@ -181,3 +181,18 @@ describe("an agent summary in each language", () => {
     }
   });
 });
+
+describe("a meeting summary's date is written as approved", () => {
+  /*
+   * ITEM 76 HU (DONTESEK1, Máté 2026-10-02).
+   *
+   * The approved Hungarian date is `aug. 24.`, lower case. The report's kicker
+   * shows it in capitals through CSS alone; what the source writes, what is
+   * copied and what is read aloud stays as approved.
+   */
+  it("keeps the Hungarian month abbreviation in lower case in the source", async () => {
+    const scope = await repo.getReportScope(where("hu"), { meetingId: "mtg_ng0132" as MeetingId });
+    expect(scope.scope.label).toContain("aug. 24.");
+    expect(scope.scope.label).not.toContain("AUG.");
+  });
+});

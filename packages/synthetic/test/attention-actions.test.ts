@@ -97,18 +97,4 @@ describe("an action that promises the counted meetings", () => {
     // No label promises "those" today; the rule stands for the next one that does.
     void checked;
   });
-
-  it("names the register it opens for the shortlisted follow-up state", async () => {
-    const state = (
-      await repo.getAttention({
-        viewer: VIEWERS.agencyManager,
-        tenantSlug: "alpha",
-        projectSlug: "northgate",
-        period: "quarter_to_date",
-        language: DEFAULT_LANGUAGE,
-      })
-    ).states.find((s) => s.alert.title === "Units shortlisted with no follow-up recorded");
-    expect(state?.alert.actionHref).toBe("/alpha/northgate/meetings");
-    expect(state?.alert.actionLabel).toBe("Open the meeting register");
-  });
 });

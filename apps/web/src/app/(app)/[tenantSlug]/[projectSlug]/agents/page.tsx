@@ -12,7 +12,7 @@ import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { Radar, RankedBars } from "@/showroom/charts2";
 
-import { DEFAULT_LANGUAGE } from "@observer/readmodels";
+import { DEFAULT_LANGUAGE, agentDetailHref } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Sales Agents" };
 
 /**
@@ -94,7 +94,12 @@ export default async function AgentsPage({
     );
 
   const detailHref = (agentId: string) =>
-    `/${tenantSlug}/${projectSlug}/agents/${agentId}?${new URLSearchParams({ period }).toString()}`;
+    `${agentDetailHref({ tenantSlug, projectSlug }, agentId)}?${new URLSearchParams({ period }).toString()}`;
+  const agentHref = (page: "meetings" | "report", agentId: string) =>
+    withPeriod(
+      `/${tenantSlug}/${projectSlug}/${page}?${new URLSearchParams({ agent: agentId }).toString()}`,
+      period,
+    );
 
   return (
     <div className="iris-one">
@@ -204,6 +209,16 @@ export default async function AgentsPage({
                   <Link className="iris-action" href={dynamicRoute(detailHref(a.agentId))}>
                     Agent detail →
                   </Link>
+                  {/*
+                   * R12-6 (Máté, 2026-10-02): the agent's meetings and report
+                   * second, quieter than the one action; Report goes to the
+                   * report page, never the export panel.
+                   */}
+                  <p className="iris-meta">
+                    <Link href={dynamicRoute(agentHref("meetings", a.agentId))}>Meetings</Link>
+                    {" · "}
+                    <Link href={dynamicRoute(agentHref("report", a.agentId))}>Report</Link>
+                  </p>
                 </article>
               ))}
             </div>

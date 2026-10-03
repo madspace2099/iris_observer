@@ -199,6 +199,48 @@ export const salesCycleDuration = defineMetric({
   roles: ["developer", "agency_manager"],
 });
 
+/*
+ * THE CYCLE AS THE SHOWROOM CAN MEASURE IT (R05-4, R07-4, Máté 2026-10-02).
+ *
+ * `flow.sales_cycle_duration` starts at a buyer's first contact, online or in
+ * the showroom, and needs WEBIRIS sessions that do not reach Observer yet. Until
+ * they do, the cycle is measured from the unit's first recorded showroom
+ * opening, and every surface that shows it says so. A separate metric, so the
+ * full-channel one keeps its meaning for the day its inputs arrive.
+ */
+export const showroomSaleCycle = defineMetric({
+  id: "flow.showroom_sale_cycle",
+  displayName: "Sales cycle, from the showroom",
+  businessDefinition:
+    "How long a sold unit took from its first recorded showroom opening to the CRM's Sold stage.",
+  kind: "duration",
+  calculation:
+    "Median and 80th percentile days from the unit's earliest showroom opening anywhere in the visible history to the date the CRM states the deal entered the Sold stage, for sales whose Sold date falls in the window. Computed by the shared calculator in `sale-cycle.ts`. The two ends are on two clocks — the opening is observed by the showroom, the Sold date is stated by the CRM — and both are named.",
+  numerator: "days from first showroom opening to the Sold stage",
+  denominator: "sales examined",
+  exclusions: [
+    "sales the CRM gives no Sold date",
+    "units with no showroom opening in the visible history",
+    "openings after the sale",
+    "units whose first opening is the first moment the data covers",
+  ],
+  dimensions: ["project", "period"],
+  timeWindow: "period",
+  requiredFacts: ["unit.viewed", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage"],
+  requiredUnitAttributes: [],
+  minimumSampleSize: 10,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "No sale was recorded in this window.",
+    insufficient: insufficient(10, "measured sales"),
+    unavailable: NO_CRM,
+  },
+  drillTo: "deals",
+  roles: ["developer", "agency_manager"],
+});
+
 export const stalledOpportunities = defineMetric({
   id: "flow.stalled_opportunities",
   displayName: "Stalled opportunities",
@@ -278,6 +320,7 @@ export const FLOW_METRICS = [
   timeBetweenMeetings,
   timeInStage,
   salesCycleDuration,
+  showroomSaleCycle,
   stalledOpportunities,
   irisAssistedSales,
 ] as const;

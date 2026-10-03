@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import Link from "next/link";
 import type { Language, PeriodPreset, UnitAttentionRow } from "@observer/readmodels";
 import { NOT_STATED, roomsWord } from "@observer/readmodels";
+import { getMetric } from "@observer/metrics";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -89,6 +90,13 @@ interface RegisterColumn {
  * That order is why the table can be read left to right as a sentence about one
  * apartment rather than as a grid whose columns happen to be adjacent.
  */
+/* R07-2 (Máté, 2026-10-02): the derived column carries its own registry metric's name. */
+const DEMAND_SIGNAL_LABEL = (() => {
+  const metric = getMetric("unit.demand_signal");
+  if (metric === undefined) throw new Error("unit.demand_signal is not in the registry");
+  return metric.displayName;
+})();
+
 const COLUMNS: readonly RegisterColumn[] = [
   { key: "code", label: "Unit", numeric: false, note: null },
   {
@@ -133,7 +141,7 @@ const COLUMNS: readonly RegisterColumn[] = [
   },
   {
     key: "demand",
-    label: "Demand · derived",
+    label: DEMAND_SIGNAL_LABEL,
     numeric: false,
     note: "DERIVED. This unit's share of the looking time the busiest unit in the project drew, over the same period. It is an ordering aid and not a verdict: below the minimum sample the unit's own page states the shortfall instead of a direction.",
   },

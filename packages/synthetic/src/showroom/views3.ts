@@ -59,6 +59,10 @@ import {
   type Language,
   type Sentence,
   isUnnamedPresenter,
+  addressOf,
+  type ProjectAddress,
+  replayHref,
+  agentDetailHref,
 } from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
@@ -596,7 +600,7 @@ function buildRing(
   session: readonly ShowroomSession[],
   agentId: string,
   name: string,
-  base: string,
+  at: ProjectAddress,
   teamProgressed: number,
   locale: string,
   language: Language,
@@ -611,7 +615,7 @@ function buildRing(
     slices: outcomeSlices(session, language),
     progressedShare: share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length),
     flag: outcomeFlag(session, teamProgressed, locale, language),
-    href: `${base}/agents/${agentId}`,
+    href: agentDetailHref(at, agentId),
   };
 }
 
@@ -912,7 +916,7 @@ export function buildSalesFlow(
         sessions.filter((s) => s.agentId === a.id),
         a.id,
         a.name,
-        base,
+        addressOf(context),
         teamProgressed,
         locale,
         context.language,
@@ -1111,7 +1115,7 @@ export function buildSalesFlow(
       locale,
       context.project.timeZone,
       unitHref,
-      (meetingId) => `${base}/meetings/${encodeURIComponent(meetingId)}`,
+      (meetingId) => replayHref(addressOf(context), meetingId),
       context.language,
     ),
   };
@@ -1760,7 +1764,15 @@ export function buildAgentsView(
             : null,
         medianDurationDisplay:
           timed.length === 0 ? "—" : duration(Math.round(median(timed)), context.language),
-        ring: buildRing(mine, a.id, a.name, base, teamProgressed, locale, context.language),
+        ring: buildRing(
+          mine,
+          a.id,
+          a.name,
+          addressOf(context),
+          teamProgressed,
+          locale,
+          context.language,
+        ),
         repeats: repeatDistribution(mine),
         sections,
         signature:
@@ -1774,7 +1786,7 @@ export function buildAgentsView(
                 responses: rated.length,
               }
             : null,
-        href: `${base}/agents/${a.id}`,
+        href: agentDetailHref(addressOf(context), a.id),
       } satisfies AgentProfile;
     },
   );
@@ -2010,7 +2022,7 @@ export function buildAudience(
           places.length === 0
             ? `${units.join(", ")}`
             : `${units.join(", ")} · ${places.map((p) => `${p.placeName} ${p.dwellSeconds}s`).join(", ")}`,
-        href: `${base}/meetings/${s.meetingId}`,
+        href: replayHref(addressOf(context), s.meetingId),
         // The showroom's own record of the meeting: its units and its places.
         source: "IRIS_SHOWROOM_OBSERVED" as const,
         /*
@@ -2215,6 +2227,16 @@ export function buildHome(
       : volumeTrend === "down" && progressTrend === "down"
         ? "poor"
         : "attention";
+  const comparedWith = readable ? volume.beforeWords.replace(/^in /, "") : null;
+  const movement: ShowroomHome["movement"] = !readable
+    ? null
+    : volumeTrend === progressTrend
+      ? volumeTrend === "up"
+        ? "above"
+        : volumeTrend === "down"
+          ? "below"
+          : "in_line"
+      : "mixed";
 
   const outcomes = (n: number) =>
     `${count(n, locale)} recorded ${n === 1 ? "outcome" : "outcomes"}`;
@@ -2394,6 +2416,8 @@ export function buildHome(
   return {
     context,
     signal,
+    comparedWith,
+    movement,
     verdict,
     because,
     figures,

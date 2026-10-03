@@ -106,7 +106,6 @@ const SEVERITY_LABEL: Readonly<Record<AlertSeverity, string>> = {
  * check counts cannot leave this file describing the old thing.
  */
 const SAMPLE_NOUNS: Readonly<Record<AttentionKind, string>> = {
-  high_interest_no_follow_up: "meetings that shortlisted a unit",
   follow_up_lateness: "follow-ups",
   demand_dropping: "baseline observations",
   outcome_not_recorded: "presentations",

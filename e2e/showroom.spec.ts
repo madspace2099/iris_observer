@@ -212,7 +212,8 @@ test.describe("the product rules, at the surface", () => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/showroom");
     const ask = page.getByPlaceholder("Ask IRIS…");
-    await ask.fill("Why did demand fall this quarter?");
+    // A computed opening since the Northgate script was retired (R01-2, Máté 2026-10-02).
+    await ask.fill("Which apartments were opened most?");
     await ask.press("Enter");
     await page.waitForURL(/\/ask\?q=/);
 

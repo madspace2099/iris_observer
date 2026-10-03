@@ -61,7 +61,7 @@ const many = (n: number, agentId: string) =>
 /* Monika clears the floor with five to spare; Akhilesh is fifteen short. */
 const charts = buildAgentCharts(
   [...many(AGENT_MIN_SAMPLE + 5, "agt_monika"), ...many(5, "agt_akhilesh")],
-  "/test-tenant/test-project",
+  { tenantSlug: "test-tenant", projectSlug: "test-project" },
   "en-GB",
   "en",
 );

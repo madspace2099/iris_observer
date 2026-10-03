@@ -42,7 +42,12 @@ const NORTHGATE_ONLY = [
 
 const REFUSAL = "That is not a question Observer can answer from this project’s read models today.";
 
+/*
+ * Northgate is on the list too since its own script was retired (R01-2, Máté
+ * 2026-10-02): no project speaks the scenario, its own included.
+ */
 const ELSEWHERE = [
+  { who: "Monika Kováčová", root: "/alpha/northgate", name: "Northgate Residences" },
   { who: "Petra Novák", root: "/alpha/riverside", name: "Riverside Walk" },
   { who: "Tomáš Varga", root: "/beta/kingsford", name: "Kingsford Yard" },
   { who: "Martin Kováč", root: "/alpha/ister-tower", name: "ISTER TOWER" },
@@ -79,13 +84,19 @@ for (const { who, root, name } of ELSEWHERE) {
   }
 }
 
-/* Guards the guard: Northgate keeps its scenario, or a refusal everywhere would pass above. */
-test("Monika Kováčová · /alpha/northgate: Northgate still answers its own prepared question", async ({
+/*
+ * Guards the guard: a computed question is still answered, or a refusal
+ * everywhere would pass above. Northgate's scripted answer was this anchor
+ * until the script was retired (R01-2, Máté 2026-10-02).
+ */
+test("Monika Kováčová · /alpha/northgate: a computed question is still answered", async ({
   page,
 }) => {
   await signIn(page, "Monika Kováčová");
-  await page.goto(`/alpha/northgate/ask?q=${encodeURIComponent("Prepare me for Viktória's meeting.")}`);
+  await page.goto(
+    `/alpha/northgate/ask?q=${encodeURIComponent("How many presentations were recorded, and how did they end?")}`,
+  );
   const main = page.locator("main");
-  await expect(main.getByText(/Three visits in three weeks/)).toBeVisible();
+  await expect(main.getByRole("link", { name: "Open the meetings" }).first()).toBeVisible();
   await expect(main.getByText(REFUSAL)).toHaveCount(0);
 });

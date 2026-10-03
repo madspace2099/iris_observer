@@ -350,6 +350,27 @@
       ]
     },
     {
+      "id": "flow.showroom_sale_cycle",
+      "displayName": "Sales cycle, from the showroom",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "none",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
       "id": "flow.stalled_opportunities",
       "displayName": "Stalled opportunities",
       "kind": "count",
@@ -462,6 +483,25 @@
       "requiredUnitAttributes": [],
       "minimumSampleSize": 3,
       "comparison": "previous_period",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent"
+      ]
+    },
+    {
+      "id": "unit.demand_signal",
+      "displayName": "Demand signal · derived",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 3,
+      "comparison": "none",
       "drillTo": "units",
       "roles": [
         "developer",
@@ -1846,6 +1886,7 @@
         "flow.reservation_to_sale",
         "flow.time_in_stage",
         "flow.sales_cycle_duration",
+        "flow.showroom_sale_cycle",
         "flow.stalled_opportunities",
         "flow.iris_assisted_sales",
         "project.sold_by_segment",
@@ -2251,11 +2292,13 @@
       "requiredBy": [
         "exec.unrealised_potential",
         "exec.notable_changes",
+        "flow.showroom_sale_cycle",
         "flow.iris_assisted_sales",
         "unit.unique_interested_contacts",
         "unit.raw_views",
         "unit.meaningful_views",
         "unit.active_dwell",
+        "unit.demand_signal",
         "unit.recent_interest",
         "unit.demand_trend",
         "unit.sharp_demand_decline",

@@ -11,6 +11,7 @@ import {
 } from "@observer/contracts";
 import type {
   ActivityMatrix,
+  DeliveredDeals,
   AgentCharts,
   AgentRadar,
   BehaviourFunnel,
@@ -29,7 +30,16 @@ import type {
   TrendSeries,
   ViewContext,
 } from "@observer/readmodels";
-import { KPI_WINDOWS, duration, type Language } from "@observer/readmodels";
+import {
+  KPI_WINDOWS,
+  duration,
+  type Language,
+  addressOf,
+  type ProjectAddress,
+  replayHref,
+  agentDetailHref,
+  summariseSaleCycles,
+} from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
   count,
@@ -42,7 +52,8 @@ import {
 } from "../format";
 import { endOfDayIn, monthKeyIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { presenterName, presentersIn } from "./sessions";
-import { AGENT_MIN_SAMPLE } from "@observer/metrics";
+import { AGENT_MIN_SAMPLE, getMetric } from "@observer/metrics";
+import { showroomSaleCycleInputs } from "./sale-cycles";
 import { meetings, sliceSpan, suppressionNoteFor } from "./views3";
 
 /**
@@ -138,6 +149,8 @@ export function buildKpis(
   locale: string,
   timeZone: string,
   language: Language,
+  /** The CRM's deals, for the cycle; null where no CRM is connected. */
+  deals: DeliveredDeals | null = null,
 ): KpiPanel {
   const spec = KPI_WINDOWS.find((w) => w.id === windowId) ?? KPI_WINDOWS[2];
   const day = 24 * 60 * 60 * 1000;
@@ -306,6 +319,9 @@ export function buildKpis(
     },
   ];
 
+  const cycle = saleCycleFigure(deals, all, from, to, windowWords, locale);
+  if (cycle !== null) figures.push(cycle);
+
   return {
     window: spec.id,
     windowLabel: spec.label,
@@ -316,8 +332,69 @@ export function buildKpis(
         : now.length < 5
           ? `${meetings(now.length, locale, language)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
           : null,
-    groups: KPI_GROUPS,
+    groups: KPI_GROUPS.map((group) =>
+      group.id === "cycle_time" ? cycleTimeGroup(deals !== null) : group,
+    ),
     ungrouped: ["duration"],
+  };
+}
+
+/*
+ * CYCLE TIME, FROM THE SHOWROOM (R05-4, Máté 2026-10-02).
+ *
+ * The definition is Máté's sentence. Without a CRM no sale has a Sold date, so
+ * the group is printed empty and says why rather than drawn at zero.
+ */
+const CYCLE_DEFINITION =
+  "Measured from the first recorded showroom opening to the date the deal entered the Sold stage.";
+
+function cycleTimeGroup(crm: boolean): KpiGroup {
+  return {
+    id: "cycle_time",
+    label: "Cycle time",
+    definition: CYCLE_DEFINITION,
+    figureIds: crm ? ["sale_cycle"] : [],
+    missing: crm ? null : "No CRM is connected, so no sale has a Sold date to measure to.",
+  };
+}
+
+/** The cycle over the window's sales, by the shared calculator; null without a CRM. */
+function saleCycleFigure(
+  deals: DeliveredDeals | null,
+  history: readonly ShowroomSession[],
+  from: number,
+  to: number,
+  windowWords: string,
+  locale: string,
+): KpiFigure | null {
+  if (deals === null) return null;
+  const minimum = getMetric("flow.showroom_sale_cycle")?.minimumSampleSize ?? 10;
+  const summary = summariseSaleCycles(
+    showroomSaleCycleInputs(deals, history, { from, to }),
+    minimum,
+  );
+  const days = (n: number) =>
+    `${count(Math.round(n), locale)} ${Math.round(n) === 1 ? "day" : "days"}`;
+  const measured = `${count(summary.measured, locale)} of ${count(summary.examined, locale)} sales measured`;
+  return {
+    id: "sale_cycle",
+    label: "Sales cycle",
+    measurementId: "flow.showroom_sale_cycle",
+    value:
+      summary.examined === 0
+        ? "No sale"
+        : summary.state === "ok" && summary.medianDays !== null
+          ? days(summary.medianDays)
+          : measured,
+    qualifier:
+      summary.examined === 0
+        ? windowWords
+        : summary.state === "ok" && summary.p80Days !== null
+          ? `median · 80% within ${days(summary.p80Days)} · ${measured}`
+          : `${count(minimum, locale)} measured sales needed for a median · ${windowWords}`,
+    delta: null,
+    tone: "flat",
+    points: [],
   };
 }
 
@@ -518,7 +595,7 @@ const RADAR_TONES = [
 
 export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
-  base: string,
+  at: ProjectAddress,
   locale: string,
   language: Language,
 ): AgentCharts {
@@ -612,7 +689,7 @@ export function buildAgentCharts(
             : `median ${duration(median(timed), language)}`,
         value: mine.length,
         display: count(mine.length, locale),
-        href: `${base}/agents/${r.id}`,
+        href: agentDetailHref(at, r.id),
       };
     })
     .sort((a, b) => b.value - a.value);
@@ -746,7 +823,7 @@ export function buildFeatureUsage(
 
 export function buildLongestMeetings(
   sessions: readonly ShowroomSession[],
-  base: string,
+  at: ProjectAddress,
   locale: string,
   timeZone: string,
   language: Language,
@@ -761,7 +838,7 @@ export function buildLongestMeetings(
       sub: `${presenterName(s.projectId, s.agentId, language)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
       display: duration(s.durationSeconds, language),
-      href: `${base}/meetings/${s.meetingId}`,
+      href: replayHref(at, s.meetingId),
     }));
 }
 
@@ -1033,11 +1110,12 @@ export function buildFlowCharts(
   all: readonly ShowroomSession[],
   today: Date,
   windowId: KpiWindowId,
+  deals: DeliveredDeals | null = null,
 ): FlowCharts {
   const locale = context.project.locale;
   const timeZone = context.project.timeZone;
   const base = `/${context.tenant.slug}/${context.project.slug}`;
-  const charts = buildAgentCharts(sessions, base, locale, context.language);
+  const charts = buildAgentCharts(sessions, addressOf(context), locale, context.language);
   const span = sliceSpan(context, today);
   /*
    * A running slice ends at the end of today in UTC, which in Bratislava is
@@ -1051,13 +1129,19 @@ export function buildFlowCharts(
 
   return {
     context,
-    kpis: buildKpis(all, today, windowId, locale, timeZone, context.language),
+    kpis: buildKpis(all, today, windowId, locale, timeZone, context.language, deals),
     activity: buildActivity(sessions, timeZone),
     composition: buildComposition(sessions, locale, timeZone, monthSpan),
     trend: buildTrend(sessions, locale, timeZone, span),
     funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,
-    longestMeetings: buildLongestMeetings(sessions, base, locale, timeZone, context.language),
+    longestMeetings: buildLongestMeetings(
+      sessions,
+      addressOf(context),
+      locale,
+      timeZone,
+      context.language,
+    ),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }
