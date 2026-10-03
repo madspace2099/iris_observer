@@ -250,8 +250,8 @@ them (above), so the four numbers wait for a new measurement rather than standin
 - every BLOCKED item stands by name with the input it is missing;
 - no gate item on the machine side is open.
 
-This is offered for Máté's decision. The status is not raised, and nothing below is re-read
-under it.
+Máté approved this definition on 2026-10-03. The status of P2-21 is raised only when all three
+conditions hold as measured; the measurement of 2026-10-03 above judges them one by one.
 
 ## 2026-10-02 — the open decisions, decided
 
