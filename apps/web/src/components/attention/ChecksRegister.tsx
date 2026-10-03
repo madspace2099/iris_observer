@@ -1,12 +1,16 @@
+import Link from "next/link";
 import {
   ATTENTION_KIND_DEFINITIONS,
   type AttentionCheck,
   type AttentionCheckState,
   type AttentionKind,
+  type AttentionState,
   type PeriodPreset,
 } from "@observer/readmodels";
 
 import { DataTable, type DataColumn, type DataRow } from "@/components/product";
+import { dynamicRoute } from "@/lib/href";
+import { withPeriod } from "@/lib/period";
 
 /**
  * EVERY QUESTION THIS SCREEN ASKED, AND THE ANSWER TO EACH.
@@ -26,7 +30,7 @@ import { DataTable, type DataColumn, type DataRow } from "@/components/product";
  *
  * ## Why a real table, and why it is the paper region of the screen
  *
- * A few rows of three short columns is a register, and ADR-0034 puts a register
+ * A few rows of four short columns is a register, and ADR-0034 puts a register
  * on paper: above the seam what we conclude, below it what we measured. The
  * raised states are a conclusion and stay on graphite; this is the working out.
  *
@@ -68,6 +72,21 @@ const STATE_TONES: Readonly<Record<AttentionCheckState, string>> = {
   unavailable: "none",
 };
 
+/**
+ * The next step where a check has none on this screen (R04-7).
+ *
+ * A raised check's step is its state's own action, the same words and the same
+ * place the raised card sends the reader. A clear check needs nothing; a check
+ * that could not be asked, or a raised state with no permitted list to open,
+ * has nothing a reader can do from here, and says so rather than leaving a
+ * blank cell that reads as a missing value.
+ */
+const NO_STEP: Readonly<Record<AttentionCheckState, string>> = {
+  raised: "None on this screen",
+  clear: "None needed",
+  unavailable: "None on this screen",
+};
+
 /** The question a kind asks, from the definitions the read model publishes. */
 function questionOf(kind: AttentionKind): string | null {
   return (
@@ -79,17 +98,23 @@ const COLUMNS: readonly DataColumn[] = [
   { key: "check", label: "Check" },
   { key: "answer", label: "Answer" },
   { key: "found", label: "What it found" },
+  { key: "next", label: "Next step" },
 ];
 
 export function ChecksRegister({
   checks,
+  states,
   period,
 }: {
   readonly checks: readonly AttentionCheck[];
+  /** The raised states, whose actions are the register's next steps. */
+  readonly states: readonly AttentionState[];
   readonly period: PeriodPreset;
 }) {
   const rows: readonly DataRow[] = checks.map((check) => {
     const question = questionOf(check.kind);
+    const alert =
+      check.state === "raised" ? states.find((s) => s.kind === check.kind)?.alert : undefined;
     return {
       key: check.kind,
       cells: {
@@ -106,6 +131,14 @@ export function ChecksRegister({
           </span>
         ),
         found: check.reason,
+        next:
+          alert === undefined || alert.actionHref === null || alert.actionLabel === null ? (
+            NO_STEP[check.state]
+          ) : (
+            <Link className="ox-link" href={dynamicRoute(withPeriod(alert.actionHref, period))}>
+              {alert.actionLabel}
+            </Link>
+          ),
       },
     };
   });

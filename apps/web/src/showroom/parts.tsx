@@ -542,3 +542,31 @@ export function OutcomeContext({
     </div>
   );
 }
+
+/**
+ * A METHOD NOTE, FOLDED (P2-19 K4, ZARAS1, 2026-10-02).
+ *
+ * A paragraph is method when it explains a denominator, a sample, a window or
+ * a calculation rule; one that states a figure or a judgement is the finding
+ * itself and stays in view. Method is for the second reading, so it starts
+ * closed — a disclosure that opens by default is not one. The label is Sales
+ * Flow's own, "How to read this"; the screens are English by scope decision
+ * (2026-10-02), and the printed report draws none of this. Shared since
+ * FEJEZET1 (R04-7): /attention folds its ordering rule the same way.
+ */
+export function Method({
+  style,
+  children,
+}: {
+  readonly style?: CSSProperties;
+  readonly children: ReactNode;
+}) {
+  return (
+    <details className="iris-method" style={style}>
+      <summary className="iris-meta">How to read this</summary>
+      <p className="iris-meta" style={{ marginTop: ".375rem" }}>
+        {children}
+      </p>
+    </details>
+  );
+}

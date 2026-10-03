@@ -91,3 +91,73 @@ test("R04-4 · with no CRM, the card opens every presentation it says cannot be 
   await page.waitForURL(/\/meetings(\?|$)/);
   await expect(page.locator(".ox-filters-count")).toHaveText(`${n} of ${n} meetings`);
 });
+
+const METHOD = [
+  "Severity first, then how much each one is about.",
+  "A state below its minimum sample is stated without a rank.",
+];
+
+test("R04-7 · every check names its next step, the method folds closed, and ingestion is Not evaluated", async ({
+  page,
+}) => {
+  for (const [who, path] of [
+    ["Tomáš Varga", "/alpha/northgate/attention"],
+    ["Petra Novák", "/alpha/riverside/attention"],
+  ] as const) {
+    const closed = await open(page, who, path);
+    const fold = page.locator("main details.iris-method");
+    await expect(fold, path).toHaveCount(1);
+    await expect(fold.locator("summary"), path).toHaveText("How to read this");
+    for (const sentence of METHOD) expect(closed, `${path}: folded until asked for`).not.toContain(sentence);
+    expect(closed, `${path}: the answer stays in view`).toMatch(/\d+ of \d+ checks raised something on /);
+    expect(closed, `${path}: the rank stays in view`).toContain("Rank 1 of");
+
+    const table = page.getByRole("table", { name: /Every question this screen asks of the period/ });
+    await expect(table.getByRole("columnheader", { name: "Next step" }), path).toHaveCount(1);
+    const raisedList = page.getByRole("list", { name: "States raised in this period" });
+    const rows = table.locator("tbody tr");
+    expect(await rows.count(), path).toBeGreaterThan(0);
+    for (const row of await rows.all()) {
+      const answer = (await row.locator('td[data-label="Answer"]').innerText()).trim();
+      const found = (await row.locator('td[data-label="What it found"]').innerText()).trim();
+      const step = row.locator('td[data-label="Next step"]');
+      if (answer === "Clear") {
+        await expect(step, `${path}: ${found}`).toHaveText("None needed");
+        await expect(step.locator("a")).toHaveCount(0);
+      } else if (answer === "Not evaluated") {
+        await expect(step, `${path}: ${found}`).toHaveText("None on this screen");
+        await expect(step.locator("a")).toHaveCount(0);
+      } else {
+        expect(answer, path).toBe("Raised");
+        const state = raisedList
+          .locator("li.ox-alert")
+          .filter({ has: page.locator(".ox-alert-detail", { hasText: found }) });
+        await expect(state, `${path}: one raised card per raised row`).toHaveCount(1);
+        const own = state.locator(":scope > a.ox-btn");
+        if ((await own.count()) === 1) {
+          await expect(step.locator("a"), `${path}: ${found}`).toHaveText(await own.innerText());
+          expect(await step.locator("a").getAttribute("href")).toBe(await own.getAttribute("href"));
+        } else {
+          await expect(step, `${path}: ${found}`).toHaveText("None on this screen");
+          await expect(step.locator("a")).toHaveCount(0);
+        }
+      }
+    }
+    const ingestion = rows.filter({ hasText: "Ingestion delay" });
+    await expect(ingestion.locator('td[data-label="Answer"]'), path).toHaveText("Not evaluated");
+    expect(await ingestion.innerText(), `${path}: no queue figure`).not.toMatch(/\d/);
+
+    await fold.locator("summary").click();
+    const opened = await page.locator("main").innerText();
+    for (const sentence of METHOD) expect(opened, `${path}: there when asked for`).toContain(sentence);
+  }
+  /* The branch with a route is on the render: Northgate's unrecorded outcomes. */
+  await open(page, "Tomáš Varga", "/alpha/northgate/attention");
+  const outcome = page
+    .getByRole("table", { name: /Every question this screen asks of the period/ })
+    .locator("tbody tr")
+    .filter({ hasText: "Outcome not recorded" })
+    .locator('td[data-label="Next step"] a');
+  await expect(outcome).toHaveText("See the meetings");
+  expect(await outcome.getAttribute("href")).toContain("/alpha/northgate/meetings?outcome=skipped");
+});
