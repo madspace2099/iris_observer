@@ -151,3 +151,48 @@ test("R10-5 · a pair narrowing written twice still opens the register", async (
   expect(r?.status()).toBeLessThan(400);
   await expect(page.locator(".ox-filters-count")).toHaveText(/^\d+ of \d+ meetings$/);
 });
+
+/** Every listed meeting names the recorded place it stands on, and every row is a meeting. */
+async function standsOnRecordedPlace(page: Page): Promise<number> {
+  const rows = page.locator('.iris-matrix[data-columns="audience"] .iris-matrix-row');
+  await expect(rows.first()).toBeVisible();
+  const n = await rows.count();
+  const why = await page
+    .locator('.iris-matrix[data-columns="audience"] .iris-audience-why > .iris-bar-label')
+    .evaluateAll((els) => els.map((e) => e.getAttribute("title") ?? ""));
+  expect(why).toHaveLength(n);
+  for (const w of why) expect(w, "a row stands on units alone").toMatch(/ · .+ \d+s$/);
+  await expect(page.locator(".iris-audience-basis", { hasText: "IRIS observed · Recorded today" })).toHaveCount(n);
+  await expect(page.locator('.iris-matrix[data-columns="audience"] a.iris-matrix-row[href*="/meetings/"]')).toHaveCount(n);
+  return n;
+}
+
+test("R06-5 · Build audience lists only meetings that stand on a recorded place, every row a meeting", async ({
+  page,
+}) => {
+  await open(page, "Tomáš Varga", "/alpha/northgate/project?segment=rooms-2");
+  const pill = page.locator("main a.iris-action", { hasText: "Build an audience from this" });
+  await expect(pill).toHaveCount(1);
+  await pill.click();
+  await page.waitForURL(/\/audience\?/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^\d+ of \d+ meetings match\.$/);
+  expect(await standsOnRecordedPlace(page)).toBeGreaterThan(0);
+  await expect(page.locator("main")).toContainText("and spent at least 25 seconds on places of any kind.");
+
+  await page.getByRole("tab", { name: "Merely opened it" }).click();
+  await page.waitForURL(/all=1/);
+  await standsOnRecordedPlace(page);
+
+  await page.goto("/alpha/northgate/project?segment=rooms-2", { waitUntil: "networkidle" });
+  const finding = page.locator("main article.iris-finding", { hasText: "places take" });
+  await expect(finding).toHaveCount(1);
+  await finding.getByRole("link", { name: "Build an audience", exact: true }).click();
+  await page.waitForURL(/\/audience\?category=/);
+  await standsOnRecordedPlace(page);
+
+  /* Transport leads here, and none of its places is recorded: the finding offers no audience. */
+  await page.goto("/alpha/northgate/project?period=last_28_days", { waitUntil: "networkidle" });
+  const transport = page.locator("main article.iris-finding", { hasText: "Transport places take" });
+  await expect(transport).toHaveCount(1);
+  await expect(transport.getByRole("link", { name: "Build an audience" })).toHaveCount(0);
+});
