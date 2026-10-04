@@ -44,11 +44,7 @@ import {
   unitIntentSentence,
   unitsViewedSentence,
 } from "../src/showroom/project";
-import {
-  SCREENS_OPENED_SENTENCE,
-  SCREENS_SHORTLISTED_SENTENCE,
-  SCREENS_UNIT_HEADLINE,
-} from "../src/showroom/screens";
+import { SCREENS_OPENED_SENTENCE, SCREENS_UNIT_HEADLINE } from "../src/showroom/screens";
 import {
   VIEWS3_LAST_MONTH_SENTENCE,
   VIEWS3_LAST_WEEK_SENTENCE,
@@ -418,26 +414,6 @@ const CASES: readonly Case[] = [
     en: ["Opened 1 time", "Opened 3 times", "Opened 5 times"],
     sk: ["Otvorená 1 raz", "Otvorená 3 razy", "Otvorená 5 ráz"],
     hu: ["1 alkalommal megnyitva", "3 alkalommal megnyitva", "5 alkalommal megnyitva"],
-  },
-  {
-    name: "screens.ts: shortlisted in meetings, none followed up",
-    entry: SCREENS_SHORTLISTED_SENTENCE,
-    values: (n) => ({ ...counted(n), unit: "B-302" }),
-    en: [
-      "B-302 was shortlisted in 1 meeting, none of which recorded a follow-up.",
-      "B-302 was shortlisted in 3 meetings, none of which recorded a follow-up.",
-      "B-302 was shortlisted in 5 meetings, none of which recorded a follow-up.",
-    ],
-    sk: [
-      "Jednotka B-302 bola zaradená do výberu v 1 stretnutí a pri ňom nebol zaznamenaný žiadny ďalší krok.",
-      "Jednotka B-302 bola zaradená do výberu v 3 stretnutiach a pri žiadnom z nich nebol zaznamenaný ďalší krok.",
-      "Jednotka B-302 bola zaradená do výberu v 5 stretnutiach a pri žiadnom z nich nebol zaznamenaný ďalší krok.",
-    ],
-    hu: [
-      "A B-302 egység 1 találkozón került a kiválasztottak közé, és azon nem rögzítettek utánkövetést.",
-      "A B-302 egység 3 találkozón került a kiválasztottak közé, és egyiken sem rögzítettek utánkövetést.",
-      "A B-302 egység 5 találkozón került a kiválasztottak közé, és egyiken sem rögzítettek utánkövetést.",
-    ],
   },
   {
     name: "screens.ts: a unit's headline",

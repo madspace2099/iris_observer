@@ -227,10 +227,7 @@ describe("4. the unit page", () => {
     expect(followUp?.tier).toBe("observed_sequence");
   });
 
-  it("raises the shortlist-without-follow-up finding, without a CRM", () => {
-    expect(
-      view?.findings.map((f) => f.id),
-      "the finding was withheld as though it were the CRM's to make",
-    ).toContain(`unit-${UNIT}-shortlist-no-follow-up`);
+  it("makes no shortlist-without-follow-up finding: a shortlist that ended Presentation only is accounted for (decision 8)", () => {
+    expect(view?.findings.map((f) => f.id)).not.toContain(`unit-${UNIT}-shortlist-no-follow-up`);
   });
 });

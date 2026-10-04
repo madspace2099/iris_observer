@@ -469,7 +469,7 @@ export default async function UnitPage({
             )}
 
             <div className="ox-section-head">
-              {/* The shortlist finding below links here: this table has the Shortlisted and Follow-up columns it rests on. */}
+              {/* This table has the Shortlisted and Follow-up columns. */}
               <h2 className="ox-section-title" id="meetings-that-opened-it">
                 Meetings that opened it
               </h2>

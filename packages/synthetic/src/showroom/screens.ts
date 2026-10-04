@@ -111,35 +111,6 @@ export const SCREENS_OPENED_SENTENCE: Sentence = {
   hu: { text: "{count} alkalommal megnyitva" },
 };
 
-/** "B-302 was shortlisted in 3 meetings, none of which recorded a follow-up." */
-export const SCREENS_SHORTLISTED_SENTENCE: Sentence = {
-  en: {
-    text: "{unit} was shortlisted in {count} {meetings|n}, none of which recorded a follow-up.",
-    words: { meetings: MEETINGS.en },
-  },
-  sk: {
-    text: "Jednotka {unit} bola zaradená do výberu v {count} {meetings|n} a {none|n}.",
-    words: {
-      /* After "v": the locative. */
-      meetings: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" },
-      none: {
-        one: "pri ňom nebol zaznamenaný žiadny ďalší krok",
-        few: "pri žiadnom z nich nebol zaznamenaný ďalší krok",
-        other: "pri žiadnom z nich nebol zaznamenaný ďalší krok",
-      },
-    },
-  },
-  hu: {
-    text: "{Az:unit} egység {count} találkozón került a kiválasztottak közé, és {none|n}.",
-    words: {
-      none: {
-        one: "azon nem rögzítettek utánkövetést",
-        other: "egyiken sem rögzítettek utánkövetést",
-      },
-    },
-  },
-};
-
 /** "B-302 · 2 rooms · 63 m² · €240,000 · opened in 3 meetings": a unit's headline. */
 export const SCREENS_UNIT_HEADLINE: Sentence = {
   en: {
@@ -1097,38 +1068,9 @@ export function buildUnitDetail(
 
   const findings: ShowroomFinding[] = [...(attentionView.selected?.findings ?? [])];
 
-  if (row.favourites > 0 && followUpIn.length === 0) {
-    findings.push({
-      id: `unit-${unitCode}-shortlist-no-follow-up`,
-      statement: sentence(language, SCREENS_SHORTLISTED_SENTENCE, {
-        unit: unitCode,
-        count: count(row.favourites, locale),
-        n: row.favourites,
-      }),
-      baseline: `${count(row.meetings, locale)} meetings opened it`,
-      soWhat:
-        "Shortlisting is the strongest interest signal the showroom produces. A shortlist with nothing recorded after it is a call somebody may still owe.",
-      /*
-       * The unit's own table of the meetings that opened it, with their
-       * Shortlisted and Follow-up columns. "See those meetings" opened the
-       * whole register, which has no filter by unit.
-       */
-      nextStep: {
-        label: "See the meetings that opened it",
-        href: `${root}/units/${encodeURIComponent(unitCode)}#meetings-that-opened-it`,
-      },
-      // The same table as the step: "N records" opened the whole register too.
-      evidence: evidenceRef(
-        `unit-${unitCode}-follow-up`,
-        "observed_sequence",
-        `${root}/units/${encodeURIComponent(unitCode)}#meetings-that-opened-it`,
-        row.favourites,
-      ),
-      sampleSize: row.meetings,
-      sources: OBSERVED,
-      caveat: "A follow-up agreed but not recorded in the room would not appear here.",
-    });
-  }
+  /* A shortlist with no follow-up recorded: retired (R07-3, Máté 2026-10-02). "Presentation only"
+   * and "Not interested" account for a shortlist, and an unrecorded outcome is
+   * `outcome_not_recorded`'s. Measured on every project and period before it went: nothing was left. */
 
   /*
    * IRIS-assisted sale (ADR-0039): whether the CRM's dated sale of THIS unit

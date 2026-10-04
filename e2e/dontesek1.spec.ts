@@ -89,6 +89,49 @@ test("R04-1 · R07-3 · the shortlist follow-up check is retired on attention an
   expect(units).toContain("A unit opened repeatedly and never kept is a question the register cannot show in a column.");
 });
 
+test("R07-3 · the units page states high interest without a conversion its check does not read, and no lateness", async ({
+  page,
+}) => {
+  await signInAs(page, "Petra Novák");
+  let raised = 0;
+  for (const project of ["northgate", "riverside", "ister-tower"]) {
+    await page.goto(`/alpha/${project}/units`, { waitUntil: "networkidle" });
+    const region = page.locator("main section.ox-plane").filter({ hasText: "A unit opened repeatedly and never kept" });
+    await expect(region, project).toHaveCount(1);
+    const asked = (await region.locator("li.ox-scope-item > span:first-child").allInnerTexts()).map((t) => t.trim());
+    expect(asked, project).toEqual(["Opened repeatedly, never shortlisted"]);
+    await expect(region.locator("h2.ox-section-title"), project).toHaveText("High interest, never shortlisted");
+    expect(await region.innerText(), project).not.toMatch(/conver|no follow-up|overdue|\blate\b/i);
+    await expect(region.locator('[aria-label*="conver" i]'), project).toHaveCount(0);
+    raised += await region.locator("ul.ox-attention").count();
+  }
+  expect(raised, "the check was raised on no project, so its list's name was never read").toBeGreaterThan(0);
+});
+
+test("R07-3 · a unit's page reads no owed or late call into a shortlist with no follow-up outcome", async ({
+  page,
+}) => {
+  await signInAs(page, "Tomáš Varga");
+  /* Both raised "…none of which recorded a follow-up … a call somebody may still owe" before decision 8 was applied here. */
+  for (const code of ["B-501", "C-301"]) {
+    await page.goto(`${ROOT}/units/${code}?period=year_to_date`, { waitUntil: "networkidle" });
+    const funnel = page.getByRole("group", { name: "From opened to sold" });
+    const stage = (label: string | RegExp) =>
+      funnel.locator(".ox-stage").filter({ has: page.locator(".ox-stage-label", { hasText: label }) });
+    /* The state the retired claim was made on is still on the page, as a recorded count. */
+    expect(Number(await stage(/^Shortlisted/).locator(".ox-figure").first().innerText()), code).toBeGreaterThan(0);
+    await expect(stage("Meeting asked for a follow-up"), code).toContainText(
+      "No meeting that shortlisted this unit recorded a follow-up.",
+    );
+    /* And no finding reads it as a missing or owed follow-up. */
+    const findings = page
+      .locator("main section.ox-plane")
+      .filter({ has: page.getByRole("heading", { name: `What the period says about ${code}` }) });
+    await expect(findings, code).toHaveCount(1);
+    expect(await findings.innerText(), code).not.toMatch(/recorded a follow-up|still owe|overdue|\blate\b/i);
+  }
+});
+
 test("R01-2 · Northgate's Ask opens on computed questions, with no scripted scenario", async ({
   page,
 }) => {
