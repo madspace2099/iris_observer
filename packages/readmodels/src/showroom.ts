@@ -565,6 +565,8 @@ export interface StorytellingIntelligence {
   readonly sections: readonly SectionUsage[];
   readonly pairings: readonly FeaturePairing[];
   readonly environment: EnvironmentUsage;
+  /** Screenshots taken in the period's presentations: each session's own total, summed (R10-1). */
+  readonly screenshots: number;
   /** What tends to happen before a unit is shortlisted. */
   readonly beforeShortlist: readonly {
     readonly sectionId: SectionId;

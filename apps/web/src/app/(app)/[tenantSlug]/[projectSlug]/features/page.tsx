@@ -396,6 +396,16 @@ export default async function FeaturesPage({
                 }
               />
             ) : null}
+            {/*
+             * R10-1: the total screenshot count gets a place. A plain count, on
+             * the presentations the first cell counts, so its base is named.
+             */}
+            {recorded ? (
+              <TallyItem
+                label="Screenshots taken in the presentations recorded"
+                value={<KeyCount n={view.screenshots} />}
+              />
+            ) : null}
           </Tally>
 
           {/*
@@ -420,6 +430,18 @@ export default async function FeaturesPage({
               period={period}
             />
           )}
+
+          {/*
+           * R10-1: reach, opens, clicks and time spent are four definitions, and
+           * the third has no data. Said once, in the region's own form, so an
+           * open is never read as a click.
+           */}
+          <Unavailable
+            what="Clicks inside a feature"
+            why="the presentation record this product keeps holds no click count, so none is shown for any feature; Opens counts entries into a feature, not clicks"
+            action={null}
+            period={period}
+          />
 
           <Sources
             language={view.context.language}

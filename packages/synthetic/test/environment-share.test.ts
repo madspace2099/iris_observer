@@ -138,3 +138,18 @@ describe("the set the share stands on", () => {
     expect(shareOf([PARTLY, UNTIMED]), "nothing to stand on was reported as a share").toBeNull();
   });
 });
+
+/*
+ * R10-1 (VEGHAJRAS1): the total screenshot count gets a place on /features,
+ * and it is each presentation's own total, summed — not a count of
+ * presentations, which the render alone could not tell apart.
+ */
+describe("the screenshot total", () => {
+  it("sums each presentation's own total", () => {
+    const view = buildStorytelling(CONTEXT, [
+      { ...A, screenshots: 2 },
+      { ...B, screenshots: 3 },
+    ]);
+    expect(view.screenshots).toBe(5);
+  });
+});
