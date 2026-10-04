@@ -3,7 +3,8 @@
 ## 2026-10-04 — VEGHAJRAS1: the work-only items, and an open question
 
 Added beside the sections below, which are not changed. Built on `feature/observer-veghajras1`, on
-top of EJJEL2. **P2-17 and P2-21 are not checked off, and no status is raised here.**
+top of EJJEL2. **P2-17 and P2-21 are not checked off or declared done, and the status of P2-21 is
+not raised.**
 
 Question E1 of 2026-10-03 (whether the approved Slovak and Hungarian report texts enter the
 repository as fixtures) carries no answer, so the P2-17 fixtures were not built.
@@ -16,6 +17,96 @@ question, and it is not answered or interpreted here. If it does, the 21 items t
 decision may stand named with the decision they wait on, as the four BLOCKED items stand with
 their missing inputs. If it does not, all 21 have to be built. The status of P2-21 is not raised
 under either reading.
+
+### The thirteen work-only items, read again requirement first
+
+Each item's row in the plan was read before its "Waits for" cell, and each built item was measured
+on the render before it was changed, held by a render test, and turned red by mutations of the
+change. Eight are built, one commit each; five stop, and nothing of them is in the tree.
+
+**Built, and now VERIFIED:**
+
+- **R11-5** (`577a692`): the Presentation DNA page draws no sold/unsold comparison and no buyer's
+  path, and its "What this source cannot say" list now says why for each: no control group for the
+  first, no link from a deal's buyer to the visitor in the room for the second.
+  `p221-meres.spec.ts`, "R11-5 · no sold and unsold comparison and no buyer’s path, and the page
+  says why for each"; six mutations, each red. Before: three tabs, no buyer's path, one gap line.
+- **R10-1** (`728edc5`): `/features` keeps reach, opens and stay apart, states clicks inside a
+  feature as unavailable (this product's presentation record holds no click count; opens count
+  entries, not clicks) and prints the period's screenshot total, summed in the read model from a
+  field every session carries. Northgate, this quarter: 62. `veghajras1.spec.ts`, R10-1; eight
+  mutations, each red. On a phone the tally's fifth cell sits alone in its row: that is the
+  existing tally grid, not a new layout.
+- **R10-5** (`f65a751`): each pair on `/features` opens the meeting register narrowed to the
+  presentations that reached both features, and the pairing finding's evidence goes there instead
+  of to the `/storytelling` redirect. The narrowing is carried by the link and offered as a select
+  only while applied (R04-4's pattern); the replay's way back keeps it. Northgate, this quarter:
+  eight pairs, each register count equal to its "N of 74". `veghajras1.spec.ts`, four R10-5 tests;
+  nine mutations, each red. The pairs table still lists up to eight pairs: the route layout's "at
+  most three pairs plus details" is a fold of the table, a visual question no open question names
+  (B4 asks only about the Features register).
+- **R07-3** (`5781583`): the units page's check is headed "High interest, never shortlisted", which
+  is what it reads; and the unit page's "shortlisted in N meetings, none of which recorded a
+  follow-up … a call somebody may still owe" is retired under decision 8, as the attention check
+  was in `65a23c1`. Measured first, as decision 8 asks: it was raised on 97 unit pages (Northgate
+  15 and 15, Riverside 28 and 33, ISTER TOWER 5 and 1, this quarter and year to date), and on every
+  one the funnel already read "No meeting that shortlisted this unit recorded a follow-up." Nothing
+  was left for it. `dontesek1.spec.ts`, two R07-3 tests; four mutations, each red.
+- **R07-4** (`ea31f30`): the unit page's cycle line now carries the first recorded showroom
+  opening, the Sold stage date, the meetings that opened the unit by its Sold date and the day the
+  showroom history begins, 0 of 4 before, 4 of 4 after. The count and the history's edge live
+  beside the shared calculator's inputs (P2-08: no formula of the panel's own). `dontesek1.spec.ts`,
+  the second R07-4 test, ties each fact to its source on the page; eight mutations, each red. The
+  two units read are Available in the catalogue and sold in the CRM, so their pages say "Entered the
+  Sold stage" beside "The catalogue does not list this unit as sold": two facts, kept apart as
+  R07-6 asks, which a reader may still stumble on. The calculator's inputs read every session
+  whatever its channel; no project has both a CRM and WEB IRIS sessions today, so nothing renders
+  wrong.
+- **R07-6** (`9d445ba`): a unit the catalogue lists as Sold with no dated sale in the CRM now reads
+  "Sales cycle: none, because the CRM states no Sold date for this sale", with its first opening;
+  an available unit prints no line. Northgate's eight catalogue-sold units: 0 lines before, 8 after.
+  The 2026-10-03 cell said this needed a scenario; it did not. On a project with no CRM the unit
+  page prints no line (Riverside's eight, unchanged): that is P2-06's runtime-blocked case, not
+  built. `p221-render.spec.ts`, R07-6; four mutations, each red.
+- **R06-5** (`a547731`): an audience list stands only on a recorded place. "Any" was ignoring
+  places and the threshold printed above it, so rows stood on units alone; it is now a recorded
+  place of any kind held to that threshold, and the places finding offers "Build an audience" only
+  where its leading kind has a recorded place. Northgate, this quarter: the two-room audience 58 →
+  30 meetings (10 had stood on units alone), the bare audience 67 → 35; last 28 days, Transport led
+  with nothing recorded and its finding no longer offers the list. The manager's 67 replay links in
+  the R08-6 table above are 35 now for the same reason. `veghajras1.spec.ts`, R06-5; five
+  mutations, each red (one on the unit test).
+- **R13-3** (`71b2315`): the agent page's verified outcomes stand as their own Unavailable band
+  after the recorded outcomes, in the words the note used; every recorded figure is over the
+  agent's own meetings. `veghajras1.spec.ts`, R13-3; five mutations, each red.
+
+**Stopped, with nothing in the tree:**
+
+- **R10-2:** counting the unknown ids dropped is work, but holding "not dropped silently" on the
+  render needs data the harness reads to carry an unknown feature, and every way in is closed: a
+  test-side push needs the source token, a new token is minted by activation, an unknown path in
+  the harness's meeting is a scenario built for a row, and a new harness action is a seam. That is
+  R08-3's case, and the seam is Máté's.
+- **R01-1:** the "My meetings" filter is a new control on the Ask landing, which keeps two pills
+  and no selector band by design: where it stands is a visual decision. What it does to the
+  IRIS-assisted sales answer, whether "Who presented" stays under "mine", and what the permitted
+  team narrows to for a manager (no team entity exists) are new questions.
+- **R01-2:** built, then reverted. Offering only answerable openings empties the Ask landing for a
+  period with no meetings (Kingsford, last quarter), and the empty panel keeps the chat panel's
+  fixed height: at 1440 × 900 three lines of text over about 400 px of nothing, with the quick links
+  below the fold. Sizing that panel is a visual decision. The change is kept as
+  `_review/veghajras1/r01-2-stopped.patch`.
+- **R06-6:** the Sold patterns panel is a new element on the frozen Project page, and the control
+  group it compares against is the rule this document already gives to Máté.
+- **R09-2:** the screenshots total is measured on every source, so the requirement is to print it
+  on the replay, and every place for it is new or changes what an existing block means. The place
+  is Máté's; the languages and clicks lines alone would leave the item half built.
+
+**Chapters.** R11 is the only one that closes: R11-1, R11-2, R11-3, R11-4 and R11-6 were verified,
+and R11-5 is now. That holds for Phase 2; the route's Ask row is P3-08. No other item closes its
+chapter: R01, R06, R07, R10 and R13 each keep an item that waits on a decision or an input.
+
+**The four numbers after this round:** VERIFIED 55, PARTIAL 21, NOT_DONE 8, BLOCKED 4.
 
 ## 2026-10-04 — EJJEL2: the developer's replay links, and the classification checked
 
