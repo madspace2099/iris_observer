@@ -265,17 +265,22 @@ export default async function PresentationPage({
           </>
         )}
 
+        {/*
+         * R11 row 5 (P2-13): a sold and unsold comparison only with an evaluable
+         * cohort, a buyer's path only from an existing link. Neither is drawn, and
+         * the route's scenario asks the page to say so, each with its own reason.
+         */}
         <Gaps
-          gaps={
-            timingBlind
+          gaps={[
+            ...(timingBlind
               ? [
                   "Some sessions in this period came from the legacy analytics, which records the order of sections but not when each was entered. Their sequence is real; their pacing is unknown.",
-                  "Filter state is not emitted by the current showroom build, so what buyers searched for cannot be placed in the sequence.",
                 ]
-              : [
-                  "Filter state is not emitted by the current showroom build, so what buyers searched for cannot be placed in the sequence.",
-                ]
-          }
+              : []),
+            "Filter state is not emitted by the current showroom build, so what buyers searched for cannot be placed in the sequence.",
+            "Sold and unsold units are not compared on this page: it has no control group to measure such a comparison against.",
+            "The buyer of a deal is not linked to the visitor in the room, so no buyer’s path is drawn.",
+          ]}
         />
       </aside>
 

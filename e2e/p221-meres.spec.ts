@@ -276,6 +276,45 @@ test("R11-6 · at phone width the comparison stands above the lanes, in one colu
   expect(Math.abs(aside!.x - lanes!.x), "one column").toBeLessThanOrEqual(32);
 });
 
+/*
+ * R11-5 (VEGHAJRAS1): a sold and unsold comparison only with an evaluable
+ * cohort, a buyer's path only from an existing link. Neither is drawn on any
+ * mode, and the page's own list of what it cannot say gives each its reason.
+ */
+test("R11-5 · no sold and unsold comparison and no buyer’s path, and the page says why for each", async ({
+  page,
+}) => {
+  await signInAs(page, "Tomáš Varga");
+  for (const mode of ["agents", "cohorts", "periods"] as const) {
+    await page.goto(`${ROOT}/presentation?mode=${mode}`, { waitUntil: "networkidle" });
+    const tabs = await page
+      .getByRole("tablist", { name: "Comparison mode" })
+      .getByRole("tab")
+      .allInnerTexts();
+    expect(tabs, mode).toHaveLength(3);
+    expect(tabs.join(" | "), `${mode}: no mode compares sales`).not.toMatch(/\b(un)?sold\b|\bsales?\b/i);
+    expect(
+      (await page.locator("main aside .iris-dna").allInnerTexts()).join(" | "),
+      `${mode}: no lane is a sold or unsold group`,
+    ).not.toMatch(/\b(un)?sold\b/i);
+    const said = page
+      .locator("main aside .iris-gap")
+      .filter({ hasText: "What this source cannot say" })
+      .locator("li");
+    await expect(
+      said.filter({ hasText: "Sold and unsold units are not compared" }).filter({ hasText: "control group" }),
+      mode,
+    ).toHaveCount(1);
+    await expect(
+      said.filter({ hasText: "no buyer’s path is drawn" }).filter({ hasText: "not linked to the visitor" }),
+      mode,
+    ).toHaveCount(1);
+    await expect(page.locator("main").getByText(/buyer.s path/i), `${mode}: no buyer’s path offered`).toHaveCount(1);
+  }
+  await page.goto(`${ROOT}/presentation?mode=cohorts`, { waitUntil: "networkidle" });
+  await expect(page.locator("main aside .iris-dna .iris-dna-lane"), "the cohorts lanes are drawn").toHaveCount(2);
+});
+
 test("R12-2 · under twenty meetings an agent gets counts, no flag and no comparison with the team", async ({
   page,
 }) => {
