@@ -380,15 +380,22 @@ export default async function AgentPage({
 
             <p className="ox-section-note">
               What {view.name} entered on the showroom&rsquo;s outcome widget as a purchase or a
-              reservation. It is the agent&rsquo;s own record — not a reservation and not a sale,
-              and no CRM or other system of record has confirmed it: Observer links no deal to a
-              meeting. Kept apart from the outcome mix below, which is every outcome including the
-              ones nobody recorded. The tier on each says how strong the claim is; the source says
-              what kind of fact it rests on.
+              reservation. It is the agent&rsquo;s own record — not a reservation and not a sale.
+              Kept apart from the outcome mix below, which is every outcome including the ones
+              nobody recorded. The tier on each says how strong the claim is; the source says what
+              kind of fact it rests on.
               {outcomesHaveEvidence
                 ? ""
                 : " Neither figure carries a drill-down reference; the meetings behind them are in the register at the foot of this page."}
             </p>
+
+            {/* Verified outcomes, stated as unavailable and apart from what the agent recorded: no deal is linked to a meeting (ADR-0039), so this claims nothing (R13-3). */}
+            <Unavailable
+              what="Verified outcomes"
+              why="Observer links no deal to a meeting, so no CRM or other system of record has confirmed an outcome of theirs."
+              action={null}
+              period={period}
+            />
           </div>
         </div>
 

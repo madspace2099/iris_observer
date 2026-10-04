@@ -196,3 +196,64 @@ test("R06-5 · Build audience lists only meetings that stand on a recorded place
   await expect(transport).toHaveCount(1);
   await expect(transport.getByRole("link", { name: "Build an audience" })).toHaveCount(0);
 });
+
+test("R13-3 · activity, recorded outcomes, verified outcomes and follow-up completion stand apart, each figure with its real denominator", async ({
+  page,
+}) => {
+  await open(page, "Tomáš Varga", "/alpha/northgate/agents/agt_monika");
+  const plate = page
+    .locator("main .ox-plate-inner")
+    .filter({ has: page.getByRole("heading", { level: 2, name: "Activity in this period" }) });
+  await expect(plate).toHaveCount(1);
+  const read = await plate.evaluate((el) => ({
+    tokens: [...el.querySelectorAll(":scope > *")]
+      .map((c) =>
+        c.matches("dl.ox-tally")
+          ? "T"
+          : c.matches("p.ox-subhead")
+            ? (c.textContent ?? "").trim()
+            : c.matches("div.ox-unavailable")
+              ? ((c.textContent ?? "").split(" — ")[0] ?? "").trim()
+              : null,
+      )
+      .filter((t) => t !== null),
+    verified: (el.querySelector(":scope > div.ox-unavailable:last-child")?.textContent ?? "").trim(),
+    tallies: [...el.querySelectorAll(":scope > dl.ox-tally")].map((dl) =>
+      [...dl.querySelectorAll(".ox-tally-item")].map((it) => ({
+        dt: (it.querySelector("dt")?.textContent ?? "").trim(),
+        figure: it.querySelector(".ox-figure")?.textContent?.trim() ?? null,
+        of: (it.querySelector(".ox-of")?.textContent ?? "").trim(),
+        missing: it.querySelector('.ox-value[data-missing="true"]')?.textContent?.trim() ?? null,
+      })),
+    ),
+    text: el.textContent ?? "",
+  }));
+
+  /* Four regions, apart, the verified one as an availability state with no figure. */
+  expect(read.tokens).toEqual(["T", "Follow-up", "T", "Follow-ups completed", "Outcomes they recorded", "T", "Verified outcomes"]);
+  expect(read.verified).toMatch(/^Verified outcomes — \D+$/);
+
+  const [activity, followUp, recorded] = read.tallies;
+  expect(activity).toHaveLength(4);
+  for (const item of activity ?? []) expect(item.of, item.dt).not.toBe("");
+  const p = activity?.[0]?.figure ?? "";
+  expect(activity?.[0]?.of).toMatch(/^of [\d\s.,  ]+ on this project$/);
+
+  expect(recorded).toHaveLength(2);
+  const counted = [followUp?.[0], recorded?.[0], recorded?.[1]];
+  let measured = 0;
+  for (const item of counted) {
+    if (item?.figure === "0") expect(item.of, item.dt).toMatch(/^No meeting of theirs in this period/);
+    else {
+      measured += 1;
+      expect(item?.of, item?.dt).toBe(`of ${p} meetings`);
+    }
+  }
+  expect(measured, "the page measures nothing").toBeGreaterThan(0);
+
+  expect(followUp?.[1]?.dt).toBe("Follow-ups completed");
+  expect(followUp?.[1]?.missing).toBe("Unavailable");
+  expect(followUp?.[1]?.figure).toBeNull();
+
+  expect(read.text, "an unknown follow-up is not lateness").not.toMatch(/\b(late|overdue)\b/i);
+});
