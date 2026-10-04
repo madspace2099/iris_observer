@@ -1,5 +1,22 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-04 — VEGHAJRAS1: the work-only items, and an open question
+
+Added beside the sections below, which are not changed. Built on `feature/observer-veghajras1`, on
+top of EJJEL2. **P2-17 and P2-21 are not checked off, and no status is raised here.**
+
+Question E1 of 2026-10-03 (whether the approved Slovak and Hungarian report texts enter the
+repository as fixtures) carries no answer, so the P2-17 fixtures were not built.
+
+### An open question for Máté: is a decision awaited an input?
+
+The approved definition's first condition reads: every item that can be verified with the inputs
+that exist today is verified. Whether a decision awaited from Máté counts as such an input is his
+question, and it is not answered or interpreted here. If it does, the 21 items that wait on a
+decision may stand named with the decision they wait on, as the four BLOCKED items stand with
+their missing inputs. If it does not, all 21 have to be built. The status of P2-21 is not raised
+under either reading.
+
 ## 2026-10-04 — EJJEL2: the developer's replay links, and the classification checked
 
 Added beside the sections below, which are not changed. Built on `feature/observer-ejjel2`, on
