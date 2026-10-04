@@ -17,6 +17,7 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import {
+  AGENT_REGISTER_ROLES,
   ATTENTION_KIND_DEFINITIONS,
   sentence,
   slovakZForm,
@@ -515,7 +516,15 @@ export function buildAttention(
         .map((s) => ({
           id: s.meetingId,
           label: s.meetingId,
-          href: replayHref(addressOf(context), s.meetingId),
+          /*
+           * The meeting opens only for a role the replay admits (R08-6;
+           * AGENT_REGISTER_ROLES is held equal to the replay's roles by
+           * apps/web/test/surfaces.test.ts). Any other reader gets it named as
+           * text, and the card's own "See the meetings" opens the register.
+           */
+          href: AGENT_REGISTER_ROLES.includes(context.viewer.role)
+            ? replayHref(addressOf(context), s.meetingId)
+            : null,
         })),
       sampleSize: sessions.length,
       minimumSampleSize: UNIT_MIN_SAMPLE,

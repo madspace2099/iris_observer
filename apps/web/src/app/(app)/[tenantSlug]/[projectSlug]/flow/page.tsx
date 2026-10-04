@@ -9,6 +9,7 @@ import {
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
+import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AssistedSales, FlowLadder } from "@/components/flow";
@@ -79,6 +80,12 @@ export default async function FlowPage({
   const { tenantSlug, projectSlug } = await params;
   // Declared in SURFACES, enforced here — a hidden link is not access control.
   requireSurface(viewer, "flow", `/${tenantSlug}/${projectSlug}`);
+  /*
+   * A presentation opens its replay only for a role the replay admits (R08-6),
+   * read as the meeting register and a unit's page read it. Any other reader
+   * gets the rows as text, and an assisted sale opens its unit instead.
+   */
+  const canOpenMeeting = maySeeSurface(viewer.role, "[meetingId]");
   const { period, window: windowParam } = await searchParams;
 
   const query = {
@@ -306,7 +313,11 @@ export default async function FlowPage({
         {view.assisted.source === "crm" ? (
           <>
             <hr className="iris-rule iris-section-rule" />
-            <AssistedSales assisted={view.assisted} period={query.period} />
+            <AssistedSales
+              assisted={view.assisted}
+              period={query.period}
+              canOpen={canOpenMeeting}
+            />
           </>
         ) : null}
 
@@ -546,7 +557,11 @@ export default async function FlowPage({
             {/* R05 item 8: a date, a length and a line of context per row, no denominator. */}
             <RankedBars
               period={query.period}
-              rows={charts.longestMeetings}
+              rows={
+                canOpenMeeting
+                  ? charts.longestMeetings
+                  : charts.longestMeetings.map((row) => ({ ...row, href: null }))
+              }
               measured
               collapseAfter={5}
             />

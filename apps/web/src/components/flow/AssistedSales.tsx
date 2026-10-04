@@ -20,14 +20,18 @@ import { RankedBars } from "@/showroom/charts2";
  * the rule separates.
  *
  * Each row opens the meeting that showed the unit — the evidence for the row's
- * claim — and the unit itself where no meeting did.
+ * claim — and the unit itself where no meeting did, or where the reader's role
+ * may not open a replay (R08-6).
  */
 export function AssistedSales({
   assisted,
   period,
+  canOpen,
 }: {
   readonly assisted: Extract<AssistedSalesView, { readonly source: "crm" }>;
   readonly period: PeriodPreset;
+  /** Whether the reader's role may open a meeting replay. */
+  readonly canOpen: boolean;
 }) {
   return (
     <div>
@@ -41,7 +45,7 @@ export function AssistedSales({
         <RankedBars
           period={period}
           rows={assisted.sales.map((sale) => {
-            const href = sale.meetingHref ?? sale.unitHref;
+            const href = (canOpen ? sale.meetingHref : null) ?? sale.unitHref;
             return {
               id: sale.externalId,
               label: `${sale.unitCode} · ${sale.stageLabel} ${sale.stageDateDisplay}`,

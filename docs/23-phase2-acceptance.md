@@ -1,5 +1,123 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-04 — EJJEL2: the developer's replay links, and the classification checked
+
+Added beside the sections below, which are not changed. Built on `feature/observer-ejjel2`, on
+top of FEJEZET1. **The status of P2-21 is not raised, and no chapter is called done here.**
+
+None of the twelve questions put to Máté on 2026-10-03 (`_review/_inbox/dontesek2.md`) carries an
+answer yet, so nothing that waits on them was built: no chip direction (B2), no silent-source list
+(B3), no rows recorded as superseded (A1, A2, B4, B5), no filter (C1–C3), no translation fixture
+(E1).
+
+### R08-6: the developer's replay links, fixed on three screens; the item stays PARTIAL
+
+The replay route admits the sales agent, the agency manager and MADSPACE, not the developer, who
+may read each of these screens. Each screen now reads that rule as the meeting register and a
+unit's page do, and a developer gets the meetings as text, or, on an assisted sale, its unit:
+
+- Sales Flow (`f9d841e`): the longest presentations and the IRIS-assisted sales;
+- What needs attention (`4a15e1e`): the unrecorded-outcome card's meetings;
+- the audience builder (`1943479`): every matching meeting.
+
+`e2e/nav-reachability.spec.ts` holds each screen for a developer and for a manager, and each was
+mutated red. Replay links a developer is shown, counted on the render, before and after:
+
+| Project     | Sales Flow | What needs attention | Audience builder |
+| ----------- | ---------- | -------------------- | ---------------- |
+| Northgate   | 14 → 0     | 5 → 0                | 67 → 0           |
+| Riverside   | 8 → 0      | 5 → 0                | 28 → 0           |
+| ISTER TOWER | 8 → 0      | 5 → 0                | 68 → 0           |
+
+A manager's counts are unchanged (Northgate 14, 5 and 67). A sweep of seventeen views of Northgate
+as the developer (the main screens, two unit pages, an agent's page, Ask and its history) found no
+other replay link. The report page does still link five meetings in its "A single meeting" section;
+it is a printed report, and this round did not touch it.
+
+**R08-6 is not verified by this.** MAX Ask still waits on the durable tier store, which decision 14
+keeps for Phase 3.
+
+### What each item waits for, read again against its own requirement
+
+The "Waits for" column of the 2026-10-03 table below is a summary, and it has misled three rounds:
+R04-4's third gap, R12-7's half claim, five "work" items that waited on a decision or an input. So
+every one of the 41 items not verified was read again, requirement text first: its row in the plan's
+route checklist, the route's target layout, data boundary and acceptance scenario, and its task's
+done-when, then the classification. Each judgement was checked a second time by a reader trying to
+refute it. **Twenty cells were wrong; twenty-one were right.** The table below is not edited; this
+list supersedes its "Waits for" cell for these twenty items.
+
+**A decision, where the cell said work:**
+
+- **R05-3:** the cohort figure would be a new number on an accepted screen, and the project state
+  records that it asks its own approval first; as the registry defines it, it also needs each
+  deal's path through the stages, which no source delivers.
+- **R05-4:** under the registry's floor of ten sales no time to sale is on the render; more dated
+  sales, a scenario or a lower floor would each be Máté's choice, and the route's scenario wants the
+  same cycle on the report (plan, R05 scenario), which would be new report text.
+- **R05-5:** the count of distinct presentations before a sale is plain work, but it is a new figure
+  on an accepted screen, and its place and form wait for an approval nobody has asked for.
+- **R08-2:** the row asks for a name search on the meeting register itself (plan, R08 layout and
+  scenario), which prints no names under decision B; whether names reach it, the row is superseded
+  with R08-1, or the search moves to an agent's register is Máté's. Question A2 names only R08-1.
+- **R08-3:** that no full count is claimed without a backend count can be rendered only at 50,000
+  events or 2,000 sessions on one project: a volume scenario or a harness seam, as with R02-3 and
+  R02-5, is Máté's choice. Paging the register is work.
+- **R09-1:** the row asks for the visitor's name on the replay, which is open question B5. The time
+  zone, session id and visitor label are work.
+- **R09-4:** the acceptance scenario asks for untimed events to stand as a group (plan, R09
+  scenario; P2-10's done-when); the journey has no group form, so it needs a visual decision.
+  Refusing a session with no start in the live fold is work.
+
+**Not a missing input:**
+
+- **R06-6:** the row asks the Sold patterns panel to tell frequent patterns from those that differ
+  from a control, with no post-sale event. The plan's condition for it is a valid Sold time and the
+  unit–session links (plan, P2-13 capability), which exist; the buyer link is needed only for the
+  final buyer's path, which is R11-5's row. **Work, and NOT_DONE rather than BLOCKED.** One caveat
+  for its render proof: the demonstration CRM derives its deals from meeting outcomes, so on the
+  synthetic world the panel would read part of the outcome back.
+- **R11-5:** the row is two guards, a sold/non-sold comparison only with an evaluable cohort and a
+  buyer path only from an existing link, and both hold by absence; the route's scenario asks for
+  the comparison stated as unavailable instead, which is work. **PARTIAL rather than BLOCKED.**
+- **R13-3:** the route's data boundary states missing data as an availability state, so verified
+  outcomes need an Unavailable state of their own on the agent page, apart from recorded outcomes,
+  and none of the four figures is held on the render. **Work, not input.**
+- **R09-5:** the plan sets no integration condition for the related-meetings call to action, and a
+  third of the synthetic meetings carry a contact id; what it lacks is a place to list one visitor's
+  meetings, a person surface whose home ADR-0033 left open. **A decision not yet asked, and
+  NOT_DONE rather than BLOCKED.**
+- **R13-4:** besides the missing person identity, the person or case detail it should open does not
+  exist, and where it lives is an open decision (ADR-0033), not an input. It stays BLOCKED.
+
+**The right class, with a clause the cell left out:**
+
+- **R06-1:** besides the sketch's three questions, the room-count switch changes no shortlist
+  figure or verified result, which the route's scenario requires; that half is work.
+- **R06-2:** besides recording the labels' decision, the frame calls its second axis conversion and
+  its cells speak of buying, where the axis is recorded progression; naming it so is work.
+- **R07-4:** the unit page also omits the coverage of the history behind the cycle.
+- **R07-6:** units the catalogue lists as sold with no dated CRM sale already exist; the page never
+  says their sale date is unknown, which is work, and no scenario is needed.
+- **R07-7:** besides the tier store, the register's columns reach the page as plain numbers the gate
+  does not recognise, which is work.
+- **R08-6:** besides the tier store for MAX Ask, the report page's "A single meeting" section offers
+  a developer five replay links; printing them as text would make its caption untrue in all three
+  languages, so that part needs report words this phase may not write, Máté's to give or to rule
+  outside the item.
+- **R09-6:** the meeting report's Slovak and Hungarian text waits on the same approval as R13-5
+  (question E1), and the export's PRO gate on the tier store; the MAX summary is Phase 3 and needs
+  no Claude connection.
+- **R13-5:** the open question is E1, whether the approved texts enter the repository; the approval
+  itself is given. Four render proofs are work: a language pressed in the export panel, a period
+  carried into its link, one report's figures across two languages, and an agent's own report.
+
+**The four numbers after this reading:** VERIFIED 47, PARTIAL 29, NOT_DONE 8, BLOCKED 4. R06-6 and
+R09-5 move from BLOCKED to NOT_DONE and R11-5 from BLOCKED to PARTIAL; the four still BLOCKED are
+R05-7, R07-7, R10-3 and R13-4. Of the 41 items not verified, 13 wait on nothing but work (R01-1,
+R01-2, R06-5, R06-6, R07-3, R07-4, R07-6, R09-2, R10-1, R10-2, R10-5, R11-5, R13-3), 7 on an input
+alone, and 21 on a decision, some also on work or an input.
+
 ## 2026-10-03 — FEJEZET1: R02-1, R04, R12 and what moved
 
 Added beside the sections below, which are not changed. Built and measured on

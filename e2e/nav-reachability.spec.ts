@@ -309,6 +309,119 @@ test.describe("a meeting row is a link only for a reader who may open one", () =
     await link.click();
     await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
   });
+
+  /*
+   * The same rule on Sales Flow (R08-6, EJJEL2): its longest presentations and
+   * its IRIS-assisted sales were fourteen replay links for a developer on
+   * Northgate. There is no caption to carry the register's sentence, so the
+   * rows are listed as text, and an assisted sale opens its unit instead.
+   */
+  const block = (page: Page, name: RegExp) =>
+    page
+      .locator("main div")
+      .filter({ has: page.getByRole("heading", { name }) })
+      .last();
+
+  test("on Sales Flow, a developer is offered no replay: presentations are listed, a sale opens its unit", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/flow`);
+    await expect(
+      block(page, /^Longest presentations this period$/i).locator("li").first(),
+      "no presentation listed on Sales Flow",
+    ).toBeVisible();
+    await expect(
+      block(page, /^IRIS-assisted sales$/i).locator('a[href*="/units/"]').first(),
+      "an assisted sale no longer opens its unit",
+    ).toBeAttached();
+    await expect(
+      page.locator('main a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
+  });
+
+  test("on Sales Flow, a manager's presentations and assisted sales open the replay", async ({ page }) => {
+    await signInAs(page, "Tomáš Varga");
+    await page.goto(`${NORTHGATE}/flow`);
+    await expect(
+      block(page, /^IRIS-assisted sales$/i).locator('a[href*="/meetings/"]').first(),
+      "an assisted sale no longer opens its meeting for a manager",
+    ).toBeAttached();
+    const link = block(page, /^Longest presentations this period$/i)
+      .locator('a[href*="/meetings/"]')
+      .first();
+    await expect(link, "no presentation on Sales Flow to open").toBeVisible();
+    await link.click();
+    await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
+  });
+
+  /*
+   * And on What needs attention (R08-6, EJJEL2): the unrecorded-outcome card
+   * named its meetings as five replay links for a developer. The chips have no
+   * caption, so the meetings are named as text; the card's own "See the
+   * meetings" opens the register, whose caption says why.
+   */
+  const outcomeCard = (page: Page) =>
+    page
+      .locator("main li.ox-alert")
+      .filter({ has: page.locator("h3", { hasText: "Meetings ending without a recorded outcome" }) });
+
+  test("on What needs attention, a developer's unrecorded-outcome card names its meetings as text", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/attention`);
+    const card = outcomeCard(page);
+    await expect(card, "the unrecorded-outcome card did not render").toHaveCount(1);
+    await expect(card.locator("ul.ox-chipset > li").first(), "the meetings are still named").toHaveText(
+      /^mtg_/,
+    );
+    await expect(card.locator("ul.ox-chipset a")).toHaveCount(0);
+    await expect(
+      page.locator('main a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
+  });
+
+  test("on What needs attention, a manager's unrecorded-outcome card opens the replay", async ({ page }) => {
+    await signInAs(page, "Tomáš Varga");
+    await page.goto(`${NORTHGATE}/attention`);
+    const links = outcomeCard(page).locator('ul.ox-chipset a[href*="/meetings/"]');
+    await expect(links, "the card names five meetings as links").toHaveCount(5);
+    await links.first().click();
+    await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
+  });
+
+  /*
+   * And in the audience builder (R08-6, EJJEL2): every matching meeting was a
+   * replay link, 67 of them for a developer on Northgate. The matrix has no
+   * caption; a developer gets the matrix's plain row, as /project's demand
+   * rows are drawn.
+   */
+  test("in the audience builder, a developer gets the matching meetings as rows, not replay links", async ({
+    page,
+  }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/audience`);
+    const rows = page.locator('.iris-matrix[data-columns="audience"] .iris-matrix-row');
+    await expect(rows.first(), "no meeting matched on Northgate in the period").toBeVisible();
+    await expect(
+      page.locator('main a[href*="/meetings/"]'),
+      "a developer was offered a meeting link that would bounce them",
+    ).toHaveCount(0);
+  });
+
+  test("in the audience builder, a manager's rows open the replay", async ({ page }) => {
+    await signInAs(page, "Tomáš Varga");
+    await page.goto(`${NORTHGATE}/audience`);
+    const link = page
+      .locator('.iris-matrix[data-columns="audience"] a.iris-matrix-row[href*="/meetings/"]')
+      .first();
+    await expect(link, "no audience row on Northgate to open").toBeAttached();
+    await link.click();
+    await page.waitForURL(/\/meetings\/[^/?]+(\?|$)/);
+  });
 });
 
 test.describe("Administration is reachable without opening a project first", () => {

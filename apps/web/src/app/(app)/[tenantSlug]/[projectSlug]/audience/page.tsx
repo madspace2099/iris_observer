@@ -12,6 +12,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
+import { maySeeSurface } from "@/lib/routes";
 import { AVAILABILITY_WORDS, Gaps, SourceChips } from "@/showroom/parts";
 
 export const metadata: Metadata = { title: "Audience" };
@@ -57,6 +58,13 @@ export default async function AudiencePage({
   const { tenantSlug, projectSlug } = await params;
   // Declared in SURFACES, enforced here — a hidden link is not access control.
   requireSurface(viewer, "audience", `/${tenantSlug}/${projectSlug}`);
+  /*
+   * A row opens the replay only for a role the replay admits (R08-6). The rule
+   * is the replay route's, read through maySeeSurface as the meeting register
+   * reads it; any other reader gets the matrix's plain row, as /project's
+   * demand rows are drawn.
+   */
+  const canOpen = maySeeSurface(viewer.role, "[meetingId]");
   const search = await searchParams;
 
   // Any positive whole number is a legitimate question to ask of the
@@ -201,29 +209,40 @@ export default async function AudiencePage({
               <span>Why it matched</span>
               <span style={{ textAlign: "right" }}>Outcome</span>
             </div>
-            {view.matches.map((m) => (
-              <Link
-                className="iris-matrix-row"
-                key={m.meetingId}
-                href={dynamicRoute(withPeriod(m.href, presetFrom(search.period)))}
-              >
-                <span className="iris-matrix-code">{m.startedDisplay}</span>
-                <span className="iris-bar-label" title={m.agentName}>
-                  {m.agentName}
-                </span>
-                <span className="iris-audience-why">
-                  <span className="iris-bar-label" title={m.because}>
-                    {m.because}
+            {view.matches.map((m) => {
+              const cells = (
+                <>
+                  <span className="iris-matrix-code">{m.startedDisplay}</span>
+                  <span className="iris-bar-label" title={m.agentName}>
+                    {m.agentName}
                   </span>
-                  <span className="iris-audience-basis" data-availability={m.availability}>
-                    {INSIGHT_SOURCE_LABELS[m.source]} · {AVAILABILITY_WORDS[m.availability]}
+                  <span className="iris-audience-why">
+                    <span className="iris-bar-label" title={m.because}>
+                      {m.because}
+                    </span>
+                    <span className="iris-audience-basis" data-availability={m.availability}>
+                      {INSIGHT_SOURCE_LABELS[m.source]} · {AVAILABILITY_WORDS[m.availability]}
+                    </span>
                   </span>
-                </span>
-                <span className="iris-matrix-num" style={{ textAlign: "right" }}>
-                  {m.outcomeLabel}
-                </span>
-              </Link>
-            ))}
+                  <span className="iris-matrix-num" style={{ textAlign: "right" }}>
+                    {m.outcomeLabel}
+                  </span>
+                </>
+              );
+              return canOpen ? (
+                <Link
+                  className="iris-matrix-row"
+                  key={m.meetingId}
+                  href={dynamicRoute(withPeriod(m.href, presetFrom(search.period)))}
+                >
+                  {cells}
+                </Link>
+              ) : (
+                <div className="iris-matrix-row" key={m.meetingId}>
+                  {cells}
+                </div>
+              );
+            })}
           </div>
         )}
 
