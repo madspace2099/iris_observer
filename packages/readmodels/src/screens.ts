@@ -530,9 +530,17 @@ export interface UnitDetailView {
    * This unit's sale, through the shared calculator (R07-4, Máté 2026-10-02):
    * from its first recorded showroom opening to the CRM's Sold stage, or the
    * reason it has no duration. Null when no CRM is connected or the unit is
-   * not sold.
+   * not sold. Beside it: the cycle's two ends, what the history covers, and the
+   * meetings that opened the unit before the sale (R07-4).
    */
-  readonly saleCycle: SaleCycleVerdict | null;
+  readonly saleCycle:
+    | (SaleCycleVerdict & {
+        readonly firstOpenedDisplay: string | null;
+        readonly soldDisplay: string | null;
+        readonly historyFromDisplay: string | null;
+        readonly meetingsBeforeSale: number | null;
+      })
+    | null;
   /** Present when nothing in the period touched this unit. Never a row of zeros. */
   readonly emptyState: string | null;
   readonly evidence: EvidenceRef;

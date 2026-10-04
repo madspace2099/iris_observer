@@ -12,12 +12,33 @@ import type { ShowroomSession } from "@observer/contracts";
  * `within` limits the sales by their Sold date. A sale the CRM gives no date
  * has no place in a window, so it appears only when no window is asked for.
  */
+/** The earliest moment the visible history covers; Infinity when it holds none. */
+export const historyStart = (history: readonly ShowroomSession[]): number =>
+  history.reduce((min, s) => Math.min(min, Date.parse(s.startedAt)), Infinity);
+
+/**
+ * P2-06's meeting count (R07-4): the meetings that opened the unit by its Sold
+ * date, the bound the calculator and the assisted-sales rule use. One session
+ * is one meeting. Null with no date.
+ */
+export function countMeetingsBeforeSale(
+  history: readonly ShowroomSession[],
+  unitCode: string,
+  soldAt: string | null,
+): number | null {
+  const sold = soldAt === null ? NaN : Date.parse(soldAt);
+  if (!Number.isFinite(sold)) return null;
+  return history.filter(
+    (s) => Date.parse(s.startedAt) <= sold && s.units.some((u) => u.unitCode === unitCode),
+  ).length;
+}
+
 export function showroomSaleCycleInputs(
   deals: DeliveredDeals,
   history: readonly ShowroomSession[],
   within: { readonly from: number; readonly to: number } | null = null,
 ): readonly SaleCycleInput[] {
-  const edge = history.reduce((min, s) => Math.min(min, Date.parse(s.startedAt)), Infinity);
+  const edge = historyStart(history);
   const firstOpened = new Map<string, number>();
   for (const session of history) {
     const at = Date.parse(session.startedAt);

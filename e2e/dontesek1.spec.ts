@@ -164,6 +164,54 @@ test("R07-4 · a sold unit's page states its cycle, or why it has none", async (
   );
 });
 
+test("R07-4 · a sold unit's page shows its first opening, its Sold date, the meetings before the sale and what the data covers", async ({
+  page,
+}) => {
+  await signInAs(page, "Tomáš Varga");
+  /* en-GB short months can run to four letters ("Sept"). Northgate's world is 2026. */
+  const D = "\\d{1,2} [A-Z][a-z]{2,3}";
+  const at = (label: string | undefined) => {
+    const m = /^(\d{1,2}) ([A-Z][a-z]{2})/.exec(label ?? "");
+    return m ? Date.UTC(2026, "JanFebMarAprMayJunJulAugSepOctNovDec".indexOf(m[2] ?? "") / 3, Number(m[1])) : NaN;
+  };
+  const facts = async (path: string) => {
+    await page.goto(path, { waitUntil: "networkidle" });
+    const text = (await page.locator("main .ox-result", { hasText: "Sales cycle:" }).innerText()).replace(/\s+/g, " ");
+    const fact = (label: string) => new RegExp(`${label} (${D})\\.`).exec(text)?.[1];
+    return {
+      cycle: Number(/Sales cycle: (\d+) days?\./.exec(text)?.[1]),
+      first: fact("First recorded showroom opening:"),
+      sold: fact("Entered the Sold stage:"),
+      from: fact("The data covers showroom meetings from"),
+      before: Number(/(\d+) recorded meetings? opened it before the sale\./.exec(text)?.[1]),
+      purchase: new RegExp(`the purchase date the CRM states, (${D})`).exec(await page.locator("main").innerText())?.[1],
+    };
+  };
+
+  /* Year to date holds the whole history; the cycle line reads history, not the period. */
+  const a = await facts(`${ROOT}/units/A-802?period=year_to_date`);
+  expect(a.first && a.sold && a.from, JSON.stringify(a)).toBeTruthy();
+  expect(Number.isNaN(a.before), "the meetings before the sale").toBe(false);
+  expect(Math.abs((at(a.sold) - at(a.first)) / 86_400_000 - a.cycle), "the two dates are the cycle's two ends").toBeLessThanOrEqual(1);
+  expect(a.sold, "the Sold date is the CRM's").toBe(a.purchase);
+  expect(at(a.from), "the data covers more than this unit's first opening").toBeLessThan(at(a.first));
+
+  const days = (
+    await page
+      .getByRole("table", { name: /that opened A-802/ })
+      .locator('tbody td[data-label="Started"]')
+      .allInnerTexts()
+  ).map((t) => at(t.split("·")[0]?.trim()));
+  expect(at(a.first), "the first opening is the earliest meeting that opened it").toBe(Math.min(...days));
+  expect(a.before, "the meetings by the Sold date, and not those after it").toBe(days.filter((d) => d <= at(a.sold)).length);
+  expect(a.before, "A-802 was opened after its sale too, so the bound is read").toBeLessThan(days.length);
+
+  /* Excluded at the edge: its first opening is where the data begins. */
+  const b = await facts(`${ROOT}/units/B-502`);
+  expect(b.first, "B-502's first opening is the data's edge").toBe(b.from);
+  expect(b.sold).toBeTruthy();
+});
+
 test("R03-5 · a reopened answer says it is recalculated", async ({ page }) => {
   await signInAs(page, "Tomáš Varga");
   await page.goto(`${ROOT}/ask/history`, { waitUntil: "networkidle" });

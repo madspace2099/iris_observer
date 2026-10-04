@@ -87,7 +87,7 @@ import {
 } from "../format";
 import { assistedSaleOf, dealsFor } from "../deals";
 import { startOfWeekIn } from "../time";
-import { showroomSaleCycleInputs } from "./sale-cycles";
+import { countMeetingsBeforeSale, historyStart, showroomSaleCycleInputs } from "./sale-cycles";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import {
@@ -1160,7 +1160,19 @@ export function buildUnitDetail(
             const sale = showroomSaleCycleInputs(deals, history).find(
               (s) => s.unitCode === unitCode,
             );
-            return sale === undefined ? null : classifySaleCycle(sale);
+            if (sale === undefined) return null;
+            const from = historyStart(history);
+            const day = (iso: string | null) =>
+              iso === null ? null : dayLabel(iso, locale, timeZone);
+            return {
+              ...classifySaleCycle(sale),
+              firstOpenedDisplay: day(sale.firstOpenedAt),
+              soldDisplay: day(sale.soldAt),
+              historyFromDisplay: Number.isFinite(from)
+                ? dayLabel(new Date(from), locale, timeZone)
+                : null,
+              meetingsBeforeSale: countMeetingsBeforeSale(history, unitCode, sale.soldAt),
+            };
           })(),
     emptyState:
       row.meetings === 0
