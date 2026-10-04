@@ -12,9 +12,9 @@ import { signInAs } from "./sign-in";
  * status read from the source has been wrong before, so each is asserted here
  * on the screen, in the words the screen prints.
  *
- * Two halves stay off the render because the synthetic world cannot reach
- * them: a Briefing with nothing raised (R02-5) and a sale with no Sold date
- * (R07-6). The measurement in `docs/23` records them as such.
+ * One half stays off the render because the synthetic world cannot reach it:
+ * a Briefing with nothing raised (R02-5). The measurement in `docs/23` records
+ * it as such. A sale with no Sold date (R07-6) is held in `p221-render.spec.ts`.
  *
  * Every test names its item by route and position and asserts only what the
  * requirement claims.

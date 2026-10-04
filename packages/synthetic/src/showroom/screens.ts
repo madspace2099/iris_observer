@@ -35,6 +35,7 @@ import type {
   MeetingRow,
   MetricValue,
   ProjectSummary,
+  SaleCycleInput,
   ShowroomFinding,
   UnitAgentInterest,
   UnitAttentionRow,
@@ -566,6 +567,29 @@ export function buildMeetings(
 }
 
 /* --- 2. one unit ----------------------------------------------------------- */
+
+/**
+ * Sold in the catalogue and undated in the CRM: Sold, date unknown, not unsold
+ * (R07-6). The calculator answers it as `no_sale_date`; the opening is the
+ * unit's real first one, so the page prints no false "no opening".
+ */
+function undatedSale(
+  history: readonly ShowroomSession[],
+  unitCode: string,
+  edge: number,
+): SaleCycleInput {
+  const first = history
+    .filter((s) => s.units.some((u) => u.unitCode === unitCode))
+    .reduce((min, s) => Math.min(min, Date.parse(s.startedAt)), Infinity);
+  return {
+    unitCode,
+    firstOpenedAt: Number.isFinite(first) ? new Date(first).toISOString() : null,
+    openingClock: "showroom_observed",
+    soldAt: null,
+    soldClock: "crm_stated",
+    openingAtDataEdge: Number.isFinite(first) && first === edge,
+  };
+}
 
 const STATUS_LABELS: Record<RawUnit["status"], string> = {
   available: "Available",
@@ -1157,11 +1181,11 @@ export function buildUnitDetail(
       deals === null
         ? null
         : (() => {
-            const sale = showroomSaleCycleInputs(deals, history).find(
-              (s) => s.unitCode === unitCode,
-            );
-            if (sale === undefined) return null;
             const from = historyStart(history);
+            const sale =
+              showroomSaleCycleInputs(deals, history).find((s) => s.unitCode === unitCode) ??
+              (raw.status === "sold" ? undatedSale(history, unitCode, from) : undefined);
+            if (sale === undefined) return null;
             const day = (iso: string | null) =>
               iso === null ? null : dayLabel(iso, locale, timeZone);
             return {
