@@ -1,7 +1,12 @@
+import Link from "next/link";
+
 import { sectionLabel } from "@observer/contracts";
 import type { Language, FeaturePairing, PeriodPreset } from "@observer/readmodels";
 
+import { withMeetingFilters } from "@/components/meetings/filters";
 import { DataTable, Sources, Tier, type DataRow } from "@/components/product";
+import { dynamicRoute } from "@/lib/href";
+import { withPeriod } from "@/lib/period";
 import { Count } from "./Reading";
 import { liftDisplay } from "./vocabulary";
 
@@ -55,6 +60,7 @@ export function Pairings({
   ranked,
   minimumSample,
   language,
+  meetingsHref,
   narrowedTo = null,
 }: {
   readonly pairings: readonly FeaturePairing[];
@@ -66,6 +72,8 @@ export function Pairings({
   readonly ranked: boolean;
   readonly minimumSample: number;
   readonly language: Language;
+  /** The meeting register, which a pair narrows to the presentations it was counted from (R10-5). */
+  readonly meetingsHref: string;
   /** The register's view, when it keeps only the pairs that include one of its features. */
   readonly narrowedTo?: string | null;
 }) {
@@ -89,7 +97,23 @@ export function Pairings({
   const rows: readonly DataRow[] = pairings.map((pairing) => ({
     key: `${pairing.a}-${pairing.b}`,
     cells: {
-      pair: `${sectionLabel(pairing.a)} and ${sectionLabel(pairing.b)}`,
+      pair: (
+        <Link
+          href={dynamicRoute(
+            withPeriod(
+              withMeetingFilters(meetingsHref, {
+                agentId: null,
+                channel: null,
+                outcome: null,
+                features: [pairing.a, pairing.b],
+              }),
+              period,
+            ),
+          )}
+        >
+          {`${sectionLabel(pairing.a)} and ${sectionLabel(pairing.b)}`}
+        </Link>
+      ),
       together: <Count n={pairing.together} of={meetingsTotal} />,
       lift: liftDisplay(pairing.lift),
     },
@@ -98,7 +122,7 @@ export function Pairings({
   return (
     <>
       <DataTable
-        caption={`Features reached in the same presentation, ${periodLabel}. A pair appears here once it has been seen together in at least five presentations; the strongest eight are listed.${narrowedTo === null ? "" : ` This view keeps those that include a ${narrowedTo} feature.`}`}
+        caption={`Features reached in the same presentation, ${periodLabel}. A pair appears here once it has been seen together in at least five presentations; the strongest eight are listed. Each pair opens the presentations it was counted from.${narrowedTo === null ? "" : ` This view keeps those that include a ${narrowedTo} feature.`}`}
         columns={[
           { key: "pair", label: "Pair" },
           { key: "together", label: "Presentations with both", numeric: true },

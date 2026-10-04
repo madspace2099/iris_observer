@@ -45,3 +45,109 @@ test("R10-1 · Features keeps reach, opens and stay apart, states clicks as unav
   const n = Number((await cell.locator(".ox-figure").innerText()).replace(/\D/g, ""));
   expect(Number.isInteger(n) && n > 0, `screenshots ${n}`).toBe(true);
 });
+
+/** The pairs table on /features, as the reader sees it: pair text, link, "N of M". */
+async function pairRows(page: Page) {
+  const main = page.locator("main");
+  const total = Number(
+    (
+      await main
+        .locator(".ox-tally-item")
+        .filter({ has: page.locator("dt", { hasText: /^Presentations recorded$/ }) })
+        .locator(".ox-figure")
+        .innerText()
+    ).replace(/\D/g, ""),
+  );
+  const pairs = main.getByRole("table", { name: /Features reached in the same presentation/ });
+  await expect(pairs).toHaveCount(1);
+  const rows: { text: string; href: string; together: number; of: number }[] = [];
+  for (const row of await pairs.locator("tbody tr").all()) {
+    const m = /^(\d+) of (\d+)$/.exec((await row.locator('td[data-label="Presentations with both"]').innerText()).trim());
+    const link = row.locator("td.ox-table-code a");
+    await expect(link, "each pair opens its presentations").toHaveCount(1);
+    rows.push({
+      text: (await link.innerText()).trim(),
+      href: (await link.getAttribute("href")) ?? "",
+      together: Number(m?.[1]),
+      of: Number(m?.[2]),
+    });
+  }
+  return { total, pairs, rows };
+}
+
+test("R10-5 · a pair claims no order and no effect, states its floor and denominator, and opens the presentations it was counted from", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await open(page, "Tomáš Varga", "/alpha/northgate/features");
+  const main = page.locator("main");
+  const { total, pairs, rows } = await pairRows(page);
+
+  await expect(pairs.locator("caption")).toContainText("seen together in at least five presentations");
+  await expect(main).toContainText(
+    "it carries no order between the two features and no claim about what either one did to the buyer",
+  );
+  await expect(
+    page
+      .locator("main .ox-plate")
+      .filter({ has: page.getByRole("table", { name: /Features reached in the same presentation/ }) })
+      .locator('span.ox-tier[data-tier="statistical_association"]'),
+    "the pair is a pattern, not an effect",
+  ).toHaveCount(1);
+
+  expect(rows.length, "the period lists pairs").toBeGreaterThan(0);
+  for (const row of rows) {
+    expect(row.of, `${row.text}: the denominator is the period's presentations`).toBe(total);
+    expect(row.together, `${row.text}: the floor`).toBeGreaterThanOrEqual(5);
+  }
+
+  for (const row of rows) {
+    await page.goto(row.href, { waitUntil: "networkidle" });
+    await expect(page.locator(".ox-filters-count"), row.text).toHaveText(`${row.together} of ${total} meetings`);
+    await expect(
+      main.getByRole("table", { name: /^Showroom presentations on/ }).locator("tbody tr"),
+      row.text,
+    ).toHaveCount(row.together);
+    const select = page.getByLabel("Features reached", { exact: true });
+    await expect(select).toHaveValue(new URL(row.href, page.url()).searchParams.get("features") ?? "");
+    await expect(select.locator("option:checked")).toHaveText(`${row.text} (${row.together})`);
+  }
+
+  const first = rows[0]!;
+  await page.goto(first.href, { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: /open this meeting/ }).first().click();
+  await page.waitForURL(/\/meetings\/mtg_/);
+  const back = page.getByRole("link", { name: "Back to the narrowed register" });
+  await expect(back, "the replay says it returns to the pair's presentations").toBeVisible();
+  await back.click();
+  await page.waitForURL(/\/meetings\?/);
+  await expect(page.locator(".ox-filters-count")).toHaveText(`${first.together} of ${total} meetings`);
+});
+
+test("R10-5 · the pairing finding's evidence opens the presentations it rests on", async ({ page }) => {
+  await open(page, "Tomáš Varga", "/alpha/northgate/features");
+  const { total } = await pairRows(page);
+  const finding = page.locator("main article.ox-finding", { hasText: /appear together in \d+ meetings/ });
+  await expect(finding).toHaveCount(1);
+  const k = Number(/appear together in (\d+) meetings/.exec(await finding.innerText())?.[1]);
+  await finding.locator("a.ox-evidence").click();
+  await page.waitForURL(/\/meetings\?/);
+  await expect(page.locator(".ox-filters-count")).toHaveText(`${k} of ${total} meetings`);
+});
+
+test("R10-5 · a developer opens a pair's presentations as a list", async ({ page }) => {
+  await open(page, "Petra Novák", "/alpha/northgate/features");
+  const { total, rows } = await pairRows(page);
+  const first = rows[0]!;
+  await page.locator("main td.ox-table-code a").first().click();
+  await page.waitForURL(/\/meetings\?/);
+  await expect(page.locator(".ox-filters-count")).toHaveText(`${first.together} of ${total} meetings`);
+  await expect(page.locator("main .ox-table-code a"), "a developer's register rows are text").toHaveCount(0);
+});
+
+test("R10-5 · a pair narrowing written twice still opens the register", async ({ page }) => {
+  await signInAs(page, "Tomáš Varga");
+  const r = await page.goto("/alpha/northgate/meetings?features=compare&features=shortlist");
+  expect(r?.status()).toBeLessThan(400);
+  await expect(page.locator(".ox-filters-count")).toHaveText(/^\d+ of \d+ meetings$/);
+});

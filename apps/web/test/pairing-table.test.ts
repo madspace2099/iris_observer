@@ -27,6 +27,7 @@ const render = (props: {
       periodLabel: "this quarter",
       minimumSample: 20,
       language: "en",
+      meetingsHref: "/alpha/northgate/meetings",
     }),
   );
 

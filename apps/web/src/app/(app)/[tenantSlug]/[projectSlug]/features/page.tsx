@@ -542,6 +542,7 @@ export default async function FeaturesPage({
 
             <Pairings
               language={view.context.language}
+              meetingsHref={`${root}/meetings`}
               pairings={view.pairings.filter((pair) => inView(pair.a) || inView(pair.b))}
               narrowedTo={featureView === "all" ? null : viewLabel}
               meetingsTotal={meetingsTotal}

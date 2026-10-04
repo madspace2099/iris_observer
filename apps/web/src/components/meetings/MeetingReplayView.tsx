@@ -92,7 +92,11 @@ export function MeetingReplayView({
   readonly crmConnected: boolean;
 }) {
   const register = withMeetingFilters(`${base}/meetings`, filters);
-  const narrowed = filters.agentId !== null || filters.channel !== null || filters.outcome !== null;
+  const narrowed =
+    filters.agentId !== null ||
+    filters.channel !== null ||
+    filters.outcome !== null ||
+    (filters.features ?? null) !== null;
   return (
     <div className="ox-page">
       <PageHead

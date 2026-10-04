@@ -3,6 +3,7 @@ import type {
   EvidenceTier,
   InsightSource,
   MeetingOutcome,
+  SectionId,
   SessionChannel,
 } from "@observer/contracts";
 import type { TrendSeries } from "./charts";
@@ -287,13 +288,20 @@ export interface MeetingFilterOptions {
   readonly agents: readonly MeetingFilterOption[];
   readonly channels: readonly MeetingFilterOption[];
   readonly outcomes: readonly MeetingFilterOption[];
+  /** The applied features as one option, counted over the period; empty when none is applied. */
+  readonly features: readonly MeetingFilterOption[];
 }
 
-/** Null on every axis is the unfiltered list. There is no implicit default. */
+/**
+ * Null on every axis is the unfiltered list. There is no implicit default.
+ * `features` may also be left out, which reads as null.
+ */
 export interface MeetingFilters {
   readonly agentId: string | null;
   readonly channel: SessionChannel | null;
   readonly outcome: MeetingOutcome | null;
+  /** Presentations that reached every one of these features: a pair's source meetings (R10-5). */
+  readonly features?: readonly SectionId[] | null;
 }
 
 export interface MeetingListView {

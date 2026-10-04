@@ -5,6 +5,7 @@ import {
   SESSION_CHANNEL_LABELS,
   hasProgressed,
   outcomeIsUnknown,
+  sectionLabel,
   type InsightSource,
   type MeetingOutcome,
   type SectionId,
@@ -450,11 +451,18 @@ export function buildMeetings(
     outcomeCounts.set(s.outcome, (outcomeCounts.get(s.outcome) ?? 0) + 1);
   }
 
+  /* A pair's source meetings: every presentation that reached all of them (R10-5). */
+  const features = filters.features ?? null;
+  const reachesAll = (s: ShowroomSession): boolean =>
+    features === null || features.every((id) => reached(s, id));
+  const featuresLabel = features === null ? null : features.map(sectionLabel).join(" and ");
+
   const matched = sessions.filter(
     (s) =>
       (filters.agentId === null || s.agentId === filters.agentId) &&
       (filters.channel === null || s.channel === filters.channel) &&
-      (filters.outcome === null || s.outcome === filters.outcome),
+      (filters.outcome === null || s.outcome === filters.outcome) &&
+      reachesAll(s),
   );
 
   const rows = buildMeetingRows(context, matched);
@@ -536,6 +544,7 @@ export function buildMeetings(
       : presenterName(context.project.id as string, filters.agentId, context.language),
     filters.channel === null ? null : SESSION_CHANNEL_LABELS[filters.channel],
     filters.outcome === null ? null : OUTCOME_LABELS[filters.outcome],
+    featuresLabel,
   ].filter((x): x is string => x !== null);
 
   const emptyState =
@@ -568,6 +577,16 @@ export function buildMeetings(
         Object.keys(OUTCOME_LABELS),
         outcomeCounts,
       ),
+      features:
+        features === null
+          ? []
+          : [
+              {
+                id: features.join(","),
+                label: featuresLabel ?? "",
+                count: sessions.filter(reachesAll).length,
+              },
+            ],
     },
     findings,
     emptyState,
