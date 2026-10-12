@@ -2342,7 +2342,7 @@ export function buildStorytelling(
       evidence: evidenceRef(
         `pair-${topPair.a}-${topPair.b}`,
         "statistical_association",
-        `${base}/meetings?features=${topPair.a},${topPair.b}`,
+        `${base}/meetings?features=${encodeURIComponent(`${topPair.a},${topPair.b}`)}`,
         topPair.together,
       ),
       sampleSize: n,

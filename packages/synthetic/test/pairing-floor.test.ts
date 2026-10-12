@@ -91,4 +91,11 @@ describe("the pairing finding on Features", () => {
       /^Compare and Shortlist appear together/,
     );
   });
+
+  it("opens the presentations it was counted from, at the address the register itself writes", () => {
+    /* A raw comma here left the browser's prefetch of this link open on /features (VEGHAJRAS1 gate). */
+    expect(pairingIn(AGENT_MIN_SAMPLE)?.evidence.href).toBe(
+      "/test-tenant/test-project/meetings?features=compare%2Cshortlist",
+    );
+  });
 });
