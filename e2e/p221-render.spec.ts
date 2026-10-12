@@ -195,6 +195,25 @@ test("R07-6 · the register prints no verified-outcome row beside the sold statu
   expect(text).not.toContain("Verified outcome");
 });
 
+/* Sold in the catalogue with no dated sale in the CRM, and available (VEGHAJRAS1 probe). */
+const SOLD_UNDATED = "B-201";
+const UNSOLD = "B-501";
+
+test("R07-6 · a unit sold with no dated sale says it has no cycle, and an unsold one says nothing", async ({
+  page,
+}) => {
+  await signInAs(page, "Tomáš Varga");
+  const main = page.locator("main");
+  const status = main.locator(".ox-tally-item").filter({ has: page.locator("dt", { hasText: /^Status$/ }) });
+  await page.goto(`${ROOT}/units/${SOLD_UNDATED}`, { waitUntil: "networkidle" });
+  await expect(status).toContainText("Sold");
+  await expect(main).toContainText("Sales cycle: none, because the CRM states no Sold date for this sale.");
+  await expect(main).not.toContainText(/Sales cycle: \d/);
+  await page.goto(`${ROOT}/units/${UNSOLD}`, { waitUntil: "networkidle" });
+  await expect(status).toContainText("Available");
+  await expect(main).not.toContainText("Sales cycle:");
+});
+
 test("R08-4 · the outcome filter is named as recorded", async ({ page }) => {
   await mainText(page, "Tomáš Varga", `${ROOT}/meetings`);
   await expect(page.getByLabel("Recorded outcome", { exact: true })).toHaveCount(1);

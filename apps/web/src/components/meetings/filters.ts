@@ -1,7 +1,9 @@
 import {
   MEETING_OUTCOMES,
+  SECTION_IDS,
   SESSION_CHANNELS,
   type MeetingOutcome,
+  type SectionId,
   type SessionChannel,
 } from "@observer/contracts";
 import type { MeetingFilterOptions, MeetingFilters } from "@observer/readmodels";
@@ -38,12 +40,17 @@ import type { FilterField, FilterOption } from "@/components/product";
  * That is a narrowing rather than a shrug, and it is reported: the read model
  * offers no from/to on `MeetingFilters`, so a register cannot be cut to "the
  * week of the launch" without the period happening to be that week.
+ *
+ * `features` is carried by a link rather than offered: a pair on /features opens
+ * the presentations it was counted from (R10-5), and the control appears only
+ * while that narrowing is applied, so the reader can see it and clear it.
  */
 
 /** The query-string names. Short, lower case, and stable — they get shared. */
 export const AGENT_PARAM = "agent";
 export const CHANNEL_PARAM = "channel";
 export const OUTCOME_PARAM = "outcome";
+export const FEATURES_PARAM = "features";
 
 /** The value a select carries when nothing is chosen. Empty, not "all". */
 const ANY = "";
@@ -52,6 +59,7 @@ export interface MeetingSearch {
   readonly [AGENT_PARAM]?: string;
   readonly [CHANNEL_PARAM]?: string;
   readonly [OUTCOME_PARAM]?: string;
+  readonly [FEATURES_PARAM]?: string;
 }
 
 /**
@@ -74,6 +82,10 @@ export function parseMeetingFilters(search: MeetingSearch): MeetingFilters {
   const channel = search[CHANNEL_PARAM];
   const outcome = search[OUTCOME_PARAM];
   const agent = search[AGENT_PARAM];
+  /* String(): a repeated parameter arrives as an array, and must fall back rather than throw. */
+  const features = [...new Set(String(search[FEATURES_PARAM] ?? "").split(","))].filter(
+    (id): id is SectionId => (SECTION_IDS as readonly string[]).includes(id),
+  );
 
   return {
     agentId: agent === undefined || agent === ANY ? null : agent,
@@ -83,6 +95,7 @@ export function parseMeetingFilters(search: MeetingSearch): MeetingFilters {
     outcome: (MEETING_OUTCOMES as readonly string[]).includes(outcome ?? "")
       ? (outcome as MeetingOutcome)
       : null,
+    features: features.length === 0 ? null : features,
   };
 }
 
@@ -103,6 +116,7 @@ export function withMeetingFilters(href: string, filters: MeetingFilters): strin
     [AGENT_PARAM, filters.agentId],
     [CHANNEL_PARAM, filters.channel],
     [OUTCOME_PARAM, filters.outcome],
+    [FEATURES_PARAM, filters.features?.join(",") ?? null],
   ];
   for (const [name, value] of axes) {
     if (value === null) params.delete(name);
@@ -157,6 +171,7 @@ export function meetingFilterFields(
   options: MeetingFilterOptions,
   applied: MeetingFilters,
 ): readonly FilterField[] {
+  const features = applied.features?.join(",") ?? null;
   return [
     {
       kind: "select",
@@ -179,5 +194,17 @@ export function meetingFilterFields(
       value: applied.outcome ?? ANY,
       options: optionsWith(options.outcomes, applied.outcome, "Any outcome"),
     },
+    /* Offered only while applied: a pair's link carries it, and this clears it. */
+    ...(features === null
+      ? []
+      : [
+          {
+            kind: "select" as const,
+            name: FEATURES_PARAM,
+            label: "Features reached",
+            value: features,
+            options: optionsWith(options.features, features, "Any features"),
+          },
+        ]),
   ];
 }

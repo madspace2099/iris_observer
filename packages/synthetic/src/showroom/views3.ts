@@ -1545,10 +1545,12 @@ export function buildProjectView(
       baseline: `${count(topCategory.meetings, locale)} meetings reached them`,
       soWhat:
         "What buyers linger on is the argument they are buying. It is also the sharpest way to pick who to contact when something in that category changes.",
-      nextStep: {
-        label: "Build an audience",
-        href: `${base}/audience?category=${topCategory.category}`,
-      },
+      /* Only where a recorded place of this kind stands behind the list (R06-5). */
+      nextStep: sessions.some((s) =>
+        s.places.some((p) => p.category === topCategory.category && recordedPlace(p)),
+      )
+        ? { label: "Build an audience", href: `${base}/audience?category=${topCategory.category}` }
+        : null,
       evidence: evidenceRef(
         "project-places",
         "observed_sequence",
@@ -1933,8 +1935,8 @@ function recordedPlace(place: ShowroomPlaceInteraction): boolean {
 }
 
 /**
- * No list, and why, when the kind of place asked for has nothing recorded
- * behind it.
+ * No list, and why, when the kind of place asked for, or any kind, has nothing
+ * recorded behind it.
  *
  * Empty is a different answer. A kind with recorded places that nobody lingered
  * on this period gets "nothing matched". A kind whose only places are
@@ -1946,8 +1948,10 @@ function audienceUnavailable(
   sessions: readonly ShowroomSession[],
   asked: PlaceCategory | null,
 ): AudienceUnavailable | null {
-  if (asked === null || sessions.length === 0) return null;
-  const reached = sessions.flatMap((s) => s.places.filter((p) => p.category === asked));
+  if (sessions.length === 0) return null;
+  const reached = sessions.flatMap((s) =>
+    s.places.filter((p) => asked === null || p.category === asked),
+  );
   if (reached.some(recordedPlace)) return null;
   if (!sessions.some((s) => s.places.some(recordedPlace))) {
     return {
@@ -1988,14 +1992,13 @@ export function buildAudience(
       const units = criteria.favouritedOnly ? s.units.filter((u) => u.favourited) : s.units;
       const unitOk =
         roomCodes === null ? units.length > 0 : units.some((u) => roomCodes.has(u.unitCode));
-      const placeOk =
-        criteria.placeCategory === null ||
-        s.places.some(
-          (p) =>
-            recordedPlace(p) &&
-            p.category === criteria.placeCategory &&
-            p.dwellSeconds >= criteria.minimumPlaceSeconds,
-        );
+      /* A list stands only on a recorded place (R06-5, P2-18); "Any" is any kind of one. */
+      const placeOk = s.places.some(
+        (p) =>
+          recordedPlace(p) &&
+          (criteria.placeCategory === null || p.category === criteria.placeCategory) &&
+          p.dwellSeconds >= criteria.minimumPlaceSeconds,
+      );
       return unitOk && placeOk;
     })
     .map((s) => {
@@ -2045,10 +2048,11 @@ export function buildAudience(
     rooms,
     label: roomLabel(rooms),
   }));
-  const placeText =
+  const placeText = ` and spent at least ${criteria.minimumPlaceSeconds} seconds on ${
     criteria.placeCategory === null
-      ? ""
-      : ` and spent at least ${criteria.minimumPlaceSeconds} seconds on ${PLACE_CATEGORY_LABELS[criteria.placeCategory].toLowerCase()} places`;
+      ? "places of any kind"
+      : `${PLACE_CATEGORY_LABELS[criteria.placeCategory].toLowerCase()} places`
+  }`;
 
   return {
     context,

@@ -23,6 +23,7 @@ const FILLED: MeetingFilters = {
   agentId: "agt_lucia",
   channel: "webiris",
   outcome: "follow_up_needed",
+  features: ["compare", "shortlist"],
 };
 
 function searchOf(href: string): MeetingSearch & { period?: string } {
@@ -45,6 +46,7 @@ describe("the meeting register survives the round trip through a replay", () => 
     expect(back.agentId, "the agent").toBe(FILLED.agentId);
     expect(back.channel, "the channel").toBe(FILLED.channel);
     expect(back.outcome, "the recorded outcome").toBe(FILLED.outcome);
+    expect(back.features, "the features a pair carried").toEqual(FILLED.features);
     expect(searchOf(opened).period, "the period the row already carried").toBe("last_28_days");
   });
 

@@ -87,7 +87,7 @@ describe("a sold unit's page", () => {
 
     const soldCodes = new Set(sold.map((d) => d.unitCode));
     const register = await repo.getUnitAttention(at("northgate"), null);
-    const unsold = register.rows.find((r) => !soldCodes.has(r.unitCode));
+    const unsold = register.rows.find((r) => !soldCodes.has(r.unitCode) && r.status !== "sold");
     if (unsold === undefined) throw new Error("every unit sold");
     expect((await repo.getUnitDetail(at("northgate"), unsold.unitCode)).saleCycle).toBeNull();
   });

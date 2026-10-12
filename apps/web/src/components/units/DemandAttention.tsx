@@ -15,7 +15,7 @@ import { AttentionList, Sample } from "@/components/product";
 import { SUBJECTS_SHOWN } from "@/components/attention";
 
 /**
- * HIGH INTEREST, LOW CONVERSION.
+ * HIGH INTEREST, NEVER SHORTLISTED.
  *
  * The one state a unit register exists to surface. A flat that nobody opens is
  * a marketing question; a flat that everybody opens and nobody keeps, or keeps
@@ -107,7 +107,7 @@ export function DemandAttention({
   return (
     <section className="ox-plane">
       <div className="ox-section-head">
-        <h2 className="ox-section-title">High interest, low conversion</h2>
+        <h2 className="ox-section-title">High interest, never shortlisted</h2>
         <p className="ox-section-note">
           {sentence(language, DEMAND_ATTENTION_ASKED_SENTENCE, {
             count: meetingCount,
@@ -122,7 +122,7 @@ export function DemandAttention({
         language={language}
         alerts={mine.map((state) => state.alert)}
         period={period}
-        label="High interest, low conversion"
+        label="High interest, never shortlisted"
         emptyNote="The question was not raised in this period. What it asked, and what it found, is below."
       />
 

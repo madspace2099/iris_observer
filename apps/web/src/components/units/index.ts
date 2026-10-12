@@ -19,7 +19,7 @@
  *   UnitRegister   twelve columns of measurement, on the paper ground.
  *   UnitStatus     availability, and the one place that still restates it.
  *   UnitFunnel     only a verified stage may look verified.
- *   DemandAttention  high interest and low conversion, from both ends.
+ *   DemandAttention  high interest, never shortlisted.
  */
 
 export { UnitRegister } from "./UnitRegister";

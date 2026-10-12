@@ -439,7 +439,23 @@ export default async function UnitPage({
                   CYCLE_EXCLUDED[detail.saleCycle.why]
                 )}
                 . Measured from the first recorded showroom opening to the date the deal entered the
-                Sold stage.
+                Sold stage.{" "}
+                {[
+                  detail.saleCycle.firstOpenedDisplay === null
+                    ? null
+                    : `First recorded showroom opening: ${detail.saleCycle.firstOpenedDisplay}.`,
+                  detail.saleCycle.soldDisplay === null
+                    ? null
+                    : `Entered the Sold stage: ${detail.saleCycle.soldDisplay}.`,
+                  detail.saleCycle.meetingsBeforeSale === null
+                    ? null
+                    : `${detail.saleCycle.meetingsBeforeSale} recorded ${detail.saleCycle.meetingsBeforeSale === 1 ? "meeting" : "meetings"} opened it before the sale.`,
+                  detail.saleCycle.historyFromDisplay === null
+                    ? null
+                    : `The data covers showroom meetings from ${detail.saleCycle.historyFromDisplay}.`,
+                ]
+                  .filter((part) => part !== null)
+                  .join(" ")}
               </span>
             </div>
           )}
@@ -469,7 +485,7 @@ export default async function UnitPage({
             )}
 
             <div className="ox-section-head">
-              {/* The shortlist finding below links here: this table has the Shortlisted and Follow-up columns it rests on. */}
+              {/* This table has the Shortlisted and Follow-up columns. */}
               <h2 className="ox-section-title" id="meetings-that-opened-it">
                 Meetings that opened it
               </h2>
