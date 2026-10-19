@@ -101,7 +101,7 @@ test.describe("Ask IRIS against the delivered design", () => {
    * captured half drawn. This file measures a moving light — its lap, its
    * period, its heat — so it asks for motion back; Ask IRIS draws no chart.
    */
-  test.use({ reducedMotion: "no-preference" });
+  test.use({ contextOptions: { reducedMotion: "no-preference" } });
 
   /* --- the reference --------------------------------------------------- */
 

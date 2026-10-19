@@ -216,9 +216,9 @@ export default defineConfig({
      * drawn at once. A review screenshot or an axe scan taken mid-entry would
      * capture a half-drawn chart, or text at a fraction of its opacity, so the
      * suite reads the final frame. A spec that measures motion asks for it
-     * back with `reducedMotion: "no-preference"`.
+     * back with `contextOptions: { reducedMotion: "no-preference" }`.
      */
-    reducedMotion: "reduce",
+    contextOptions: { reducedMotion: "reduce" },
   },
   /**
    * THE EVIDENCE OF ONE RUN SURVIVES THE NEXT.
