@@ -14,6 +14,7 @@ const SYMBOL: Readonly<Record<string, string>> = {
   prj_riversidew1: "€",
   prj_beta0000001: "£",
   prj_istertower1: "€",
+  prj_sharkres001: "€",
 };
 
 describe("a price a buyer filtered by", () => {

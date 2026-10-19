@@ -147,6 +147,22 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     displayName: VIEWERS.madspace.displayName,
     viewerKey: "madspace",
   },
+  /*
+   * Shark Residence, the demonstration project: its developer and the manager
+   * of the agency selling it. Each holds that one project and nothing else.
+   */
+  {
+    accountId: "acct_clara",
+    email: "clara.weiss@shark-developments.example",
+    displayName: VIEWERS.developerShark.displayName,
+    viewerKey: "developerShark",
+  },
+  {
+    accountId: "acct_daniel",
+    email: "daniel.hart@shark-sales.example",
+    displayName: VIEWERS.managerShark.displayName,
+    viewerKey: "managerShark",
+  },
 ]);
 
 /** Whether this server has been told to offer the synthetic directory. */

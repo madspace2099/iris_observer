@@ -62,16 +62,17 @@ the demo. If it renders correctly, the core product claim is true.
 
 These drive the developer-facing screens rather than the identity logic.
 
-| Scenario                          | Shape                                                                     | Demonstrates                                                                         |
-| --------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **Healthy project**               | steady velocity, ~30% attendance-to-offer, complete data                  | the ordinary case, and the ten-second verdict reading "healthy"                      |
-| **Declining demand**              | trailing 4-week velocity at 0.6× the 12-week figure                       | the velocity-drop detector; sell-out forecast moving out by months                   |
-| **High interest, low conversion** | a segment with `attention_index` 2.1 and half the project's conversion    | the mispriced quadrant — the highest-value finding in the product                    |
-| **Sharp interest decline**        | one unit whose views collapse after a price change                        | the demand-drop warning on unit detail                                               |
-| **Many comparisons, few wins**    | A-402 in 9 compare sets, kept twice, losing to B-301 seven times          | the competition graph and the pricing conclusion                                     |
-| **Multiple agencies**             | two agencies on one project, one above and one below the sample threshold | fair comparison and the refusal to rank on small n                                   |
-| **One developer, two projects**   | shared contacts across projects of one tenant                             | `ProjectContact` separation; cross-project benchmarking                              |
-| **Agency across developers**      | one agency working for both demo tenants                                  | strict isolation: the agency sees each project separately and never the two together |
+| Scenario                          | Shape                                                                                              | Demonstrates                                                                                                                        |
+| --------------------------------- | -------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Healthy project**               | steady velocity, ~30% attendance-to-offer, complete data                                           | the ordinary case, and the ten-second verdict reading "healthy"                                                                     |
+| **Declining demand**              | trailing 4-week velocity at 0.6× the 12-week figure                                                | the velocity-drop detector; sell-out forecast moving out by months                                                                  |
+| **High interest, low conversion** | a segment with `attention_index` 2.1 and half the project's conversion                             | the mispriced quadrant — the highest-value finding in the product                                                                   |
+| **Sharp interest decline**        | one unit whose views collapse after a price change                                                 | the demand-drop warning on unit detail                                                                                              |
+| **Many comparisons, few wins**    | A-402 in 9 compare sets, kept twice, losing to B-301 seven times                                   | the competition graph and the pricing conclusion                                                                                    |
+| **Multiple agencies**             | two agencies on one project, one above and one below the sample threshold                          | fair comparison and the refusal to rank on small n                                                                                  |
+| **One developer, two projects**   | shared contacts across projects of one tenant                                                      | `ProjectContact` separation; cross-project benchmarking                                                                             |
+| **Agency across developers**      | one agency working for both demo tenants                                                           | strict isolation: the agency sees each project separately and never the two together                                                |
+| **Presentation patterns**         | Shark Residence: five presenters with distinct habits, behaviour weighed more in its outcome model | what goes with a meeting that progressed, in Presentation DNA's cohorts, the agent rings and Sales Flow — with exceptions both ways |
 
 ---
 

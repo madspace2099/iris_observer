@@ -53,6 +53,12 @@ export const TENANTS: readonly TenantSummary[] = [
     slug: "madspace-integration",
     name: "MADSPACE Integration Sandbox",
   },
+  /*
+   * The demonstration developer, and the only tenant Shark Residence lives in.
+   * Its own tenant rather than a third Alpha project, so nothing a developer
+   * or a manager sees here sums with Alpha's figures.
+   */
+  { id: tenantId("tnt_sharkdev001"), slug: "shark", name: "Shark Developments" },
 ] as const;
 
 /**
@@ -309,6 +315,57 @@ export const PROJECTS: readonly ProjectSummary[] = [
       neverSeen("src_ad_catalogue", "Unit catalogue", "catalogue"),
     ],
   },
+  /*
+   * SHARK RESIDENCE — THE DEMONSTRATION PROJECT.
+   *
+   * Four sources, five presenters with five recognisably different ways of
+   * telling the story, and enough meetings in the current quarter for each of
+   * them to clear the reporting minimum. Its dataset is the last in
+   * `PROJECT_DATASETS` and its outcome model weighs presentation behaviour more
+   * than the others do (see `SHARK_OUTCOME_MODEL`), so what goes with a meeting
+   * that progressed is visible in this sample — and still only associated with
+   * it.
+   */
+  {
+    id: projectId("prj_sharkres001"),
+    tenantId: tenantId("tnt_sharkdev001"),
+    slug: "shark-residence",
+    name: "Shark Residence",
+    currency: "EUR",
+    locale: "en-GB",
+    timeZone: "Europe/Budapest",
+    connectedSources: ["webiris", "showroom", "crm", "catalogue"],
+    sources: [
+      {
+        id: "src_sr_showroom",
+        displayName: "Shark Residence Showroom PC",
+        kind: "showroom",
+        connected: true,
+        lastSeenAt: "2026-08-24T08:26:00.000+02:00",
+      },
+      {
+        id: "src_sr_webiris",
+        displayName: "WEB IRIS",
+        kind: "webiris",
+        connected: true,
+        lastSeenAt: "2026-08-24T08:03:00.000+02:00",
+      },
+      {
+        id: "src_sr_crm",
+        displayName: "Shark Developments CRM",
+        kind: "crm",
+        connected: true,
+        lastSeenAt: "2026-08-23T21:40:00.000+02:00",
+      },
+      {
+        id: "src_sr_catalogue",
+        displayName: "Shark Residence unit catalogue",
+        kind: "catalogue",
+        connected: true,
+        lastSeenAt: "2026-08-23T10:15:00.000+02:00",
+      },
+    ],
+  },
 ] as const;
 
 /**
@@ -427,6 +484,7 @@ export const VIEWERS = {
       tenantId("tnt_demoalpha01"),
       tenantId("tnt_demobeta002"),
       tenantId("tnt_madspacedemo1"),
+      tenantId("tnt_sharkdev001"),
     ],
     projectIds: [
       projectId("prj_northgate01"),
@@ -434,9 +492,32 @@ export const VIEWERS = {
       projectId("prj_istertower1"),
       projectId("prj_beta0000001"),
       projectId("prj_akhileshdemo1"),
+      projectId("prj_sharkres001"),
     ],
     agentId: null,
     organisationName: "MADSPACE",
+  },
+  /*
+   * Shark Residence's two readers: the developer who owns it and the manager
+   * of the agency selling it. One project each, so either lands straight in it.
+   */
+  developerShark: {
+    userId: "usr_dev_shark",
+    displayName: "Clara Weiss",
+    role: "developer",
+    tenantIds: [tenantId("tnt_sharkdev001")],
+    projectIds: [projectId("prj_sharkres001")],
+    agentId: null,
+    organisationName: "Shark Developments",
+  },
+  managerShark: {
+    userId: "usr_mgr_shark",
+    displayName: "Daniel Hart",
+    role: "agency_manager",
+    tenantIds: [tenantId("tnt_sharkdev001")],
+    projectIds: [projectId("prj_sharkres001")],
+    agentId: null,
+    organisationName: "Shark Sales",
   },
 } satisfies Record<string, Viewer>;
 

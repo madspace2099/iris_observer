@@ -24,9 +24,9 @@
  *
  * **This file imports nothing**, which is the strongest available form of that
  * rule: a table with no imports cannot reach a repository, cannot construct a
- * viewer and cannot be mistaken for a source. The six capacities are named as
+ * viewer and cannot be mistaken for a source. The eight capacities are named as
  * strings and resolved against the real `VIEWERS` by the test, so this file
- * adds no seventh capacity — a parallel viewer factory would be exactly the
+ * adds no ninth capacity — a parallel viewer factory would be exactly the
  * second data layer the rule is about.
  *
  * It is **not a production fallback**. It lives in `test-support/`, which is
@@ -343,7 +343,7 @@ export const ADDRESS_CELLS: readonly AddressCell[] = [
 ];
 
 /**
- * The six capacities the synthetic world declares, named rather than imported.
+ * The eight capacities the synthetic world declares, named rather than imported.
  *
  * This file imports NOTHING, which is the strongest form of the rule it has to
  * obey: a table with no imports cannot be a data layer, cannot reach a
@@ -358,6 +358,8 @@ export const MATRIX_VIEWER_KEYS = [
   "salesAgentIster",
   "salesAgentDual",
   "madspace",
+  "developerShark",
+  "managerShark",
 ] as const;
 export type MatrixViewerKey = (typeof MATRIX_VIEWER_KEYS)[number];
 
