@@ -1,5 +1,73 @@
 # 23 — Phase 2 acceptance (P2-21)
 
+## 2026-10-14 — VEGHAJRAS1 reviewed after the fact: four defects fixed, three claims corrected
+
+Added above the VEGHAJRAS1 section, which is not changed; where a sentence below contradicts one of
+its bullets, this section supersedes it. **P2-17 and P2-21 are not checked off, and the status of
+P2-21 is not raised.** The four numbers are unchanged: VERIFIED 55, PARTIAL 21, NOT_DONE 8,
+BLOCKED 4.
+
+After the round's gate, the nine commits were read again by twelve independent reviewers (one per
+commit, one for the register's new axis, one for the read-model shapes, one for the claims in this
+document and the round's report), and each of their 27 findings was put to three refuters. The two
+surfaces nobody had looked at (`/audience` after R06-5, a catalogue-sold unit's page after R07-6)
+were screenshotted at 1440 and 390 and looked at. What survived:
+
+**Fixed in the commit that adds this section, each held by a test and turned red by a mutation:**
+
+- **R07-6.** A catalogue-sold unit with no sale in the CRM was put through the calculator as a sale
+  with no date, so its page said "the CRM states no Sold date for this sale" of a sale the CRM does
+  not hold. That state is now the unit view's own (`catalogue_sold_no_deal`), outside the shared
+  calculator's vocabulary so Sales Flow's "N of M sales" keeps its M, and the page reads "Sales
+  cycle: none, because the catalogue lists this unit as sold and the CRM holds no sale of it", with
+  the unit's real first opening, or "No showroom opening of this unit is recorded." when there is
+  none. `p221-render.spec.ts`, R07-6.
+- **R07-4.** "7 recorded meetings opened it before the sale" was a count with no base. It now reads
+  "7 of 11 recorded meetings that opened it did so before the sale", counted in the shared module
+  out of every meeting that opened the unit anywhere in the history, and it is absent, not "0 of
+  0", when no meeting opened it. `dontesek1.spec.ts`, the second R07-4 test, holds the base against
+  the unit's meetings table; `sale-cycle-count.test.ts` holds the bound on hand-set instants.
+- **R10-5.** A repeated `?features=` parameter was read as the comma-joined list, so
+  `?features=compare&features=shortlist` narrowed to both while the commit said it "falls back". It
+  now falls back to the whole period, as a channel nobody can name does. `veghajras1.spec.ts`, the
+  fourth R10-5 test, asserts the register is unnarrowed and offers no select.
+- **R06-5.** A row named its two longest recorded places of the kind as "why it matched", one of
+  which could sit under the printed threshold; it now names only the places that selected it.
+  `audience-recorded-places.test.ts`.
+- Three guards tightened in the round's own tests: B-502's edge assertion no longer passes when
+  both facts are absent; the Features register is asserted to exist before its columns are read;
+  the agent page's lateness pattern also catches "lateness".
+
+**Claims corrected:**
+
+- R07-6's "an available unit prints no line" is wrong as written: a unit sold in neither the
+  catalogue nor the CRM prints no line. A-802 and B-502 are catalogue-Available with a dated CRM
+  sale and print the cycle, as the R07-4 bullet says.
+- R10-1's "eight mutations" were seven mutations in eight runs (r101-3 on the render and on the
+  unit test; r101-4 on the unit test alone).
+- R07-4's "no project has both a CRM and WEB IRIS sessions today" holds for the synthetic world
+  only. ISTER TOWER with the lab control plane on and a CRM connector synced has both, and the
+  calculator's inputs, which predate this round (R05-4), read every channel; its first opening and
+  coverage could then be a WEB IRIS session's while the two sentences say "showroom". Recorded, not
+  changed: the calculator's input is R05-4's, which is Máté's.
+
+**Found, and recorded rather than fixed (pre-existing, or Máté's):**
+
+- R06-5: the "Build an audience from this" pill on `/project` stays active on a project whose
+  meetings carry no recorded place (a delivered project), and leads to "No list". A held-back
+  state for the pill is a visual decision; the plan recorded it as a residual.
+- R10-1: a legacy-source session with no `AppEvents` block maps to 0 screenshots on a frozen
+  contract field, so the screenshot cell cannot tell absent from zero for such a session: the
+  limit R09-2 records.
+- R07-4: the count's bound is the Sold instant and the page prints days, so a meeting on the Sold
+  day after the stage instant counts as after it (the synthetic sales carry a clock, a meeting's
+  start plus 21 days). And a unit with two purchase deals: the cycle line takes the first, the
+  assisted-sale finding the newest dated. Both predate the round and belong to the shared
+  calculator.
+- The unit funnel's "No meeting that shortlisted this unit recorded a follow-up." stands over a
+  unit no meeting shortlisted; and `/audience` on a period with no meetings says "Nothing matched…
+  try a weaker strength of interest" under "0 of 0 meetings match." Both predate the round.
+
 ## 2026-10-04 — VEGHAJRAS1: the work-only items, and an open question
 
 Added beside the sections below, which are not changed. Built on `feature/observer-veghajras1`, on

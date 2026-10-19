@@ -534,11 +534,16 @@ export interface UnitDetailView {
    * meetings that opened the unit before the sale (R07-4).
    */
   readonly saleCycle:
-    | (SaleCycleVerdict & {
+    | ((
+        | SaleCycleVerdict
+        /** The catalogue lists the unit as sold and the CRM holds no sale of it: Sold, date unknown (R07-6). */
+        | { readonly kind: "catalogue_sold_no_deal"; readonly unitCode: string }
+      ) & {
         readonly firstOpenedDisplay: string | null;
         readonly soldDisplay: string | null;
         readonly historyFromDisplay: string | null;
-        readonly meetingsBeforeSale: number | null;
+        /** Of the meetings that opened the unit, how many did so by the Sold date. Null with no date, or none. */
+        readonly meetingsBeforeSale: { readonly count: number; readonly of: number } | null;
       })
     | null;
   /** Present when nothing in the period touched this unit. Never a row of zeros. */

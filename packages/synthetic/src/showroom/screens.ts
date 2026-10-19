@@ -35,7 +35,6 @@ import type {
   MeetingRow,
   MetricValue,
   ProjectSummary,
-  SaleCycleInput,
   ShowroomFinding,
   UnitAgentInterest,
   UnitAttentionRow,
@@ -88,7 +87,12 @@ import {
 } from "../format";
 import { assistedSaleOf, dealsFor } from "../deals";
 import { startOfWeekIn } from "../time";
-import { countMeetingsBeforeSale, historyStart, showroomSaleCycleInputs } from "./sale-cycles";
+import {
+  countMeetingsBeforeSale,
+  firstOpeningOf,
+  historyStart,
+  showroomSaleCycleInputs,
+} from "./sale-cycles";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import {
@@ -567,29 +571,6 @@ export function buildMeetings(
 }
 
 /* --- 2. one unit ----------------------------------------------------------- */
-
-/**
- * Sold in the catalogue and undated in the CRM: Sold, date unknown, not unsold
- * (R07-6). The calculator answers it as `no_sale_date`; the opening is the
- * unit's real first one, so the page prints no false "no opening".
- */
-function undatedSale(
-  history: readonly ShowroomSession[],
-  unitCode: string,
-  edge: number,
-): SaleCycleInput {
-  const first = history
-    .filter((s) => s.units.some((u) => u.unitCode === unitCode))
-    .reduce((min, s) => Math.min(min, Date.parse(s.startedAt)), Infinity);
-  return {
-    unitCode,
-    firstOpenedAt: Number.isFinite(first) ? new Date(first).toISOString() : null,
-    openingClock: "showroom_observed",
-    soldAt: null,
-    soldClock: "crm_stated",
-    openingAtDataEdge: Number.isFinite(first) && first === edge,
-  };
-}
 
 const STATUS_LABELS: Record<RawUnit["status"], string> = {
   available: "Available",
@@ -1182,20 +1163,36 @@ export function buildUnitDetail(
         ? null
         : (() => {
             const from = historyStart(history);
-            const sale =
-              showroomSaleCycleInputs(deals, history).find((s) => s.unitCode === unitCode) ??
-              (raw.status === "sold" ? undatedSale(history, unitCode, from) : undefined);
-            if (sale === undefined) return null;
-            const day = (iso: string | null) =>
-              iso === null ? null : dayLabel(iso, locale, timeZone);
+            const day = (at: string | number | null) =>
+              at === null || !Number.isFinite(typeof at === "number" ? at : Date.parse(at))
+                ? null
+                : dayLabel(new Date(at), locale, timeZone);
+            const historyFromDisplay = day(from);
+            const sale = showroomSaleCycleInputs(deals, history).find(
+              (s) => s.unitCode === unitCode,
+            );
+            if (sale !== undefined) {
+              return {
+                ...classifySaleCycle(sale),
+                firstOpenedDisplay: day(sale.firstOpenedAt),
+                soldDisplay: day(sale.soldAt),
+                historyFromDisplay,
+                meetingsBeforeSale: countMeetingsBeforeSale(history, unitCode, sale.soldAt),
+              };
+            }
+            /*
+             * Sold in the catalogue, no sale of it in the CRM: Sold, date unknown,
+             * not unsold (R07-6). Not put through the calculator as a sale the CRM
+             * does not hold, so Sales Flow's "N of M sales" keeps its M.
+             */
+            if (raw.status !== "sold") return null;
             return {
-              ...classifySaleCycle(sale),
-              firstOpenedDisplay: day(sale.firstOpenedAt),
-              soldDisplay: day(sale.soldAt),
-              historyFromDisplay: Number.isFinite(from)
-                ? dayLabel(new Date(from), locale, timeZone)
-                : null,
-              meetingsBeforeSale: countMeetingsBeforeSale(history, unitCode, sale.soldAt),
+              kind: "catalogue_sold_no_deal" as const,
+              unitCode,
+              firstOpenedDisplay: day(firstOpeningOf(history, unitCode)),
+              soldDisplay: null,
+              historyFromDisplay,
+              meetingsBeforeSale: null,
             };
           })(),
     emptyState:

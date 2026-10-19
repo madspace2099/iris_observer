@@ -82,8 +82,9 @@ export function parseMeetingFilters(search: MeetingSearch): MeetingFilters {
   const channel = search[CHANNEL_PARAM];
   const outcome = search[OUTCOME_PARAM];
   const agent = search[AGENT_PARAM];
-  /* String(): a repeated parameter arrives as an array, and must fall back rather than throw. */
-  const features = [...new Set(String(search[FEATURES_PARAM] ?? "").split(","))].filter(
+  /* A repeated parameter arrives as an array; like a channel nobody can name, it falls back to no narrowing. */
+  const raw: unknown = search[FEATURES_PARAM];
+  const features = [...new Set(typeof raw === "string" ? raw.split(",") : [])].filter(
     (id): id is SectionId => (SECTION_IDS as readonly string[]).includes(id),
   );
 

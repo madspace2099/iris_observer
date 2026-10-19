@@ -207,7 +207,10 @@ test("R07-6 · a unit sold with no dated sale says it has no cycle, and an unsol
   const status = main.locator(".ox-tally-item").filter({ has: page.locator("dt", { hasText: /^Status$/ }) });
   await page.goto(`${ROOT}/units/${SOLD_UNDATED}`, { waitUntil: "networkidle" });
   await expect(status).toContainText("Sold");
-  await expect(main).toContainText("Sales cycle: none, because the CRM states no Sold date for this sale.");
+  await expect(main).toContainText(
+    "Sales cycle: none, because the catalogue lists this unit as sold and the CRM holds no sale of it.",
+  );
+  await expect(main, "its real first opening, not a false none").toContainText("First recorded showroom opening:");
   await expect(main).not.toContainText(/Sales cycle: \d/);
   await page.goto(`${ROOT}/units/${UNSOLD}`, { waitUntil: "networkidle" });
   await expect(status).toContainText("Available");

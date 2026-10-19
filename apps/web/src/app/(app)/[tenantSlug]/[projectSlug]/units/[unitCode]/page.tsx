@@ -435,8 +435,10 @@ export default async function UnitPage({
                     {Math.round(detail.saleCycle.days)}{" "}
                     {Math.round(detail.saleCycle.days) === 1 ? "day" : "days"}
                   </strong>
-                ) : (
+                ) : detail.saleCycle.kind === "excluded" ? (
                   CYCLE_EXCLUDED[detail.saleCycle.why]
+                ) : (
+                  "none, because the catalogue lists this unit as sold and the CRM holds no sale of it"
                 )}
                 . Measured from the first recorded showroom opening to the date the deal entered the
                 Sold stage.{" "}
@@ -447,9 +449,13 @@ export default async function UnitPage({
                   detail.saleCycle.soldDisplay === null
                     ? null
                     : `Entered the Sold stage: ${detail.saleCycle.soldDisplay}.`,
+                  detail.saleCycle.firstOpenedDisplay === null &&
+                  detail.saleCycle.kind === "catalogue_sold_no_deal"
+                    ? "No showroom opening of this unit is recorded."
+                    : null,
                   detail.saleCycle.meetingsBeforeSale === null
                     ? null
-                    : `${detail.saleCycle.meetingsBeforeSale} recorded ${detail.saleCycle.meetingsBeforeSale === 1 ? "meeting" : "meetings"} opened it before the sale.`,
+                    : `${detail.saleCycle.meetingsBeforeSale.count} of ${detail.saleCycle.meetingsBeforeSale.of} recorded ${detail.saleCycle.meetingsBeforeSale.of === 1 ? "meeting" : "meetings"} that opened it did so before the sale.`,
                   detail.saleCycle.historyFromDisplay === null
                     ? null
                     : `The data covers showroom meetings from ${detail.saleCycle.historyFromDisplay}.`,

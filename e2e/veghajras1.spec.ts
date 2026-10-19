@@ -32,10 +32,10 @@ test("R10-1 · Features keeps reach, opens and stay apart, states clicks as unav
   await expect(clicks, "the click count is stated as unavailable, once").toHaveCount(1);
   await expect(clicks).toContainText("holds no click count");
   await expect(clicks, "and kept apart from opens").toContainText("Opens counts entries into a feature, not clicks");
+  const register = main.getByRole("table", { name: /features? of the IRIS presentation/ });
+  await expect(register, "the register is on the page").toHaveCount(1);
   await expect(
-    main
-      .getByRole("table", { name: /features? of the IRIS presentation/ })
-      .getByRole("columnheader", { name: /click/i }),
+    register.getByRole("columnheader", { name: /click/i }),
     "no column claims to count clicks",
   ).toHaveCount(0);
   await expect(main.locator(".ox-tally-item dt", { hasText: /click/i })).toHaveCount(0);
@@ -149,7 +149,9 @@ test("R10-5 · a pair narrowing written twice still opens the register", async (
   await signInAs(page, "Tomáš Varga");
   const r = await page.goto("/alpha/northgate/meetings?features=compare&features=shortlist");
   expect(r?.status()).toBeLessThan(400);
-  await expect(page.locator(".ox-filters-count")).toHaveText(/^\d+ of \d+ meetings$/);
+  /* Falls back to the whole period, as a channel nobody can name does: not a guess at both. */
+  await expect(page.locator(".ox-filters-count")).toHaveText(/^(\d+) of \1 meetings$/);
+  await expect(page.getByLabel("Features reached", { exact: true })).toHaveCount(0);
 });
 
 /** Every listed meeting names the recorded place it stands on, and every row is a meeting. */
@@ -255,5 +257,5 @@ test("R13-3 · activity, recorded outcomes, verified outcomes and follow-up comp
   expect(followUp?.[1]?.missing).toBe("Unavailable");
   expect(followUp?.[1]?.figure).toBeNull();
 
-  expect(read.text, "an unknown follow-up is not lateness").not.toMatch(/\b(late|overdue)\b/i);
+  expect(read.text, "an unknown follow-up is not lateness").not.toMatch(/\b(late|lateness|overdue)\b/i);
 });

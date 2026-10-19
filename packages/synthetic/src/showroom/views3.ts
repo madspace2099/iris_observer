@@ -2007,7 +2007,8 @@ export function buildAudience(
         .filter(
           (p) =>
             recordedPlace(p) &&
-            (criteria.placeCategory === null || p.category === criteria.placeCategory),
+            (criteria.placeCategory === null || p.category === criteria.placeCategory) &&
+            p.dwellSeconds >= criteria.minimumPlaceSeconds,
         )
         .sort((a, b) => b.dwellSeconds - a.dwellSeconds)
         .slice(0, 2);

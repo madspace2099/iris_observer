@@ -184,6 +184,15 @@ describe("one meeting at a time", () => {
     expect(both?.because).toBe("A-101 · Park 30s");
   });
 
+  it("names only the places that met the threshold as why it matched", () => {
+    const two = meeting("mtg_two", [
+      place("Park", "amenities", "legacy_available", 30),
+      place("Škôlka", "amenities", "legacy_available", 12),
+    ]);
+    const view = buildAudience(contextFor(PROJECT_ID), [two], FAMILY);
+    expect(view.matches.map((m) => m.because)).toEqual(["A-101 · Park 30s"]);
+  });
+
   it("names no unrecorded place when no kind of place was asked for", () => {
     const view = buildAudience(contextFor(PROJECT_ID), MEETINGS, {
       ...FAMILY,

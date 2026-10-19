@@ -183,7 +183,8 @@ test("R07-4 · a sold unit's page shows its first opening, its Sold date, the me
       first: fact("First recorded showroom opening:"),
       sold: fact("Entered the Sold stage:"),
       from: fact("The data covers showroom meetings from"),
-      before: Number(/(\d+) recorded meetings? opened it before the sale\./.exec(text)?.[1]),
+      before: Number(/(\d+) of \d+ recorded meetings? that opened it did so before the sale\./.exec(text)?.[1]),
+      opened: Number(/\d+ of (\d+) recorded meetings? that opened it did so before the sale\./.exec(text)?.[1]),
       purchase: new RegExp(`the purchase date the CRM states, (${D})`).exec(await page.locator("main").innerText())?.[1],
     };
   };
@@ -205,9 +206,11 @@ test("R07-4 · a sold unit's page shows its first opening, its Sold date, the me
   expect(at(a.first), "the first opening is the earliest meeting that opened it").toBe(Math.min(...days));
   expect(a.before, "the meetings by the Sold date, and not those after it").toBe(days.filter((d) => d <= at(a.sold)).length);
   expect(a.before, "A-802 was opened after its sale too, so the bound is read").toBeLessThan(days.length);
+  expect(a.opened, "the count's base is every meeting that opened it").toBe(days.length);
 
   /* Excluded at the edge: its first opening is where the data begins. */
   const b = await facts(`${ROOT}/units/B-502`);
+  expect(b.first && b.from, JSON.stringify(b)).toBeTruthy();
   expect(b.first, "B-502's first opening is the data's edge").toBe(b.from);
   expect(b.sold).toBeTruthy();
 });
