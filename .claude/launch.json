@@ -6,6 +6,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@observer/web", "dev", "--port", "3310"],
       "port": 3310
+    },
+    {
+      "name": "observer-demo",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/demo-start.mjs"],
+      "port": 3400
     }
   ]
 }
