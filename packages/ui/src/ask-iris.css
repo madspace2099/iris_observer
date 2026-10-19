@@ -2315,3 +2315,157 @@ a.ask-evidence-link:hover {
     display: none !important;
   }
 }
+
+/* ============================================================================
+ * 11. LIVE ANSWERS — a typed question, answered through the analysis tools.
+ *
+ * The openings it adds, the line that says a language model may word the
+ * answer, the trace of what actually ran, and the answer's own parts. Same
+ * hairlines, same type, same blue; nothing here is a new surface.
+ * ========================================================================= */
+
+/*
+ * More than five openings sit closer together, so the list still ends near
+ * the fold. The live ones lead and carry the accent in their mark — the one
+ * difference between a question answered on request and one prepared.
+ */
+.ask-openings[data-dense="true"] {
+  gap: 10px;
+  margin-top: min(72px, max(26px, calc(12vh - 60px)));
+}
+
+.ask-openings[data-dense="true"] .ask-opening {
+  height: 50px;
+}
+
+.ask-openings li[data-live="true"] .ask-opening-mark {
+  border-color: rgb(0 163 255 / 34%);
+  background: rgb(0 163 255 / 8%);
+  color: var(--ask-accent-soft);
+}
+
+.ask-hint-model {
+  margin-top: 4px;
+  color: rgb(170 196 232 / 86%);
+}
+
+/* What Observer did, in the order it did it. */
+.ask-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-trace-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgb(170 186 210 / 86%);
+  animation: ask-rise 320ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+.ask-trace-step[data-state="active"] {
+  color: var(--ask-ink-2);
+}
+
+.ask-trace[data-settled="true"] .ask-trace-step {
+  font-size: 12.5px;
+  color: rgb(150 166 192 / 80%);
+  animation: none;
+}
+
+.ask-trace-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgb(0 163 255 / 44%);
+  color: var(--ask-accent);
+}
+
+.ask-trace-mark svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* In progress: an open arc turning, and no tick until the server says it is done. */
+.ask-trace-step[data-state="active"] .ask-trace-mark {
+  border-color: rgb(0 163 255 / 20%);
+  border-top-color: var(--ask-accent);
+  animation: ask-turn 900ms linear infinite;
+}
+
+.ask-trace-step[data-state="active"] .ask-trace-mark svg {
+  display: none;
+}
+
+@keyframes ask-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A model's words while they arrive: provisional, and drawn as such. */
+.ask-draft {
+  padding-left: 11px;
+  border-inline-start: 2px dashed rgb(0 163 255 / 40%);
+  opacity: 0.72;
+}
+
+.ask-live-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: ask-rise 420ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+.ask-headline {
+  margin: 2px 0 0;
+  font-size: 16.5px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: var(--ask-ink);
+  text-wrap: balance;
+}
+
+.ask-interpretation {
+  font-size: 14px;
+  color: rgb(196 208 228 / 88%);
+}
+
+.ask-limits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 11px;
+  border-inline-start: 2px solid rgb(140 170 215 / 30%);
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ask-ink-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-trace-step,
+  .ask-live-answer {
+    animation: none !important;
+  }
+
+  .ask-trace-step[data-state="active"] .ask-trace-mark {
+    animation: none !important;
+    border-color: var(--ask-accent);
+  }
+}

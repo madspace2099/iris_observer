@@ -31,6 +31,8 @@ export interface ObserverSession {
   readonly outcome: AskOutcome | null;
   /** What the tool layer is doing, in words, while it does it. Real stages. */
   readonly progress: string | null;
+  /** Every stage the server has named this turn, in order. The last is `progress` while it runs. */
+  readonly stages: readonly string[];
   /** Analyses that have actually run this turn. */
   readonly tools: readonly string[];
   /** Provisional streamed prose. Replaced by the validated answer. */
@@ -83,6 +85,7 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
   const [state, setState] = useState<OrbState>("idle");
   const [outcome, setOutcome] = useState<AskOutcome | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
+  const [stages, setStages] = useState<readonly string[]>([]);
   const [tools, setTools] = useState<readonly string[]>([]);
   const [draft, setDraft] = useState<{ answer: string; interpretation: string } | null>(null);
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
@@ -116,6 +119,7 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
       abort.current = controller;
       setState("thinking");
       setProgress("Choosing the analysis");
+      setStages([]);
       setTools([]);
       setDraft(null);
       setLastQuestion(question);
@@ -160,16 +164,19 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
           setState("error");
           return;
         }
-        if (response.status === 429) {
+        /*
+         * Every other refusal carries the gate's own sentence — a ceiling, a
+         * duplicate, a server that cannot take questions — and that sentence is
+         * the one the reader can act on. Only a body with none falls through to
+         * the generic failure below.
+         */
+        if (!response.ok) {
           const body = (await response.json().catch(() => null)) as { error?: string } | null;
-          setOutcome(
-            failure(
-              question,
-              body?.error ?? "You are asking faster than this demonstration allows.",
-            ),
-          );
-          setState("error");
-          return;
+          if (typeof body?.error === "string") {
+            setOutcome(failure(question, body.error));
+            setState("error");
+            return;
+          }
         }
         if (!response.ok || response.body === null) throw new Error(String(response.status));
 
@@ -210,7 +217,11 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
 
             switch (nameLine[1]) {
               case "stage":
-                setProgress((payload as { label: string }).label);
+                {
+                  const label = (payload as { label: string }).label;
+                  setProgress(label);
+                  setStages((current) => (current.includes(label) ? current : [...current, label]));
+                }
                 break;
               case "tool": {
                 const name = (payload as { name: string }).name;
@@ -302,6 +313,7 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
     busy: state === "thinking" || state === "speaking",
     outcome,
     progress,
+    stages,
     tools,
     draft,
     lastQuestion,

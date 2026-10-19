@@ -4,6 +4,7 @@ import type { AskAnswer, AskHistoryView, AskSession, AskThreadSummary } from "@o
 
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
+import { askLink } from "./ask-link";
 import { AskField } from "./AskField";
 import { ClosableDetails } from "./ClosableDetails";
 import { MenuCloseButton } from "./MenuCloseButton";
@@ -13,11 +14,13 @@ import {
   ChevronDown,
   ChevronRight,
   Clock,
+  Compare,
   Dots,
   Info,
   Microphone,
   OPENING_GLYPHS,
   Pencil,
+  People,
   Pin,
   Send,
   Share,
@@ -71,34 +74,8 @@ import {
  * layout around it.
  */
 
-/**
- * One place builds a link on this screen, so one place carries the period.
- *
- * `path` defaults to `/ask` — every existing call site asks a question or
- * opens history on this same route — and takes an explicit sibling path for
- * the three surfaces Ask IRIS names rather than navigates within itself:
- * Briefing (`/showroom`), Attention (`/attention`) and the full history route
- * (`/ask/history`). One function still carries the period for all of them.
- */
-export function askLink(
-  root: string,
-  periodParam: string,
-  params: Readonly<Record<string, string | readonly string[]>> = {},
-  path = "/ask",
-): string {
-  const here = `${root}${path}`;
-  const search = new URLSearchParams();
-  if (periodParam !== "") search.set("period", periodParam);
-  for (const [key, value] of Object.entries(params)) {
-    if (Array.isArray(value)) {
-      for (const one of value) search.append(key, one);
-    } else {
-      search.set(key, value as string);
-    }
-  }
-  const query = search.toString();
-  return query === "" ? here : `${here}?${query}`;
-}
+/* The one link builder this screen uses, in a module of its own (`ask-link.ts`). */
+export { askLink };
 
 /**
  * WHICH PROJECT(S) A QUESTION IS ASKED AGAINST.
@@ -296,8 +273,15 @@ export function AskFrame({
   models,
   scope,
   otherProjects,
+  modelNotice = null,
   children,
 }: {
+  /**
+   * The sentence that says a language model may word a typed question, shown
+   * at the prompt box before the first question is sent (Gate 1). Null when no
+   * model can answer here.
+   */
+  readonly modelNotice?: string | null;
   readonly root: string;
   readonly periodParam: string;
   /** This project's own slug — the implicit member of every Compare set. */
@@ -414,8 +398,9 @@ export function AskFrame({
                      */}
                     <div className="ask-menu-scroll">
                       <p className="ask-menu-note">
-                        Answers here are composed by Observer&rsquo;s own read models, not written
-                        by a language model.
+                        {modelNotice === null
+                          ? "Answers here are composed by Observer’s own read models, not written by a language model."
+                          : `${modelNotice} The prepared openings are the read models’ own words.`}
                       </p>
                       <span className="ask-model-option" aria-current="true">
                         <span>{composerLabel}</span>
@@ -670,6 +655,18 @@ export function AskFrame({
          * genuinely invisible: a textarea that sends on Enter.
          */}
         <p className="ask-hint">Enter sends · Shift + Enter for a new line</p>
+        {/*
+         * THE NOTICE GATE 1 ASKS FOR, AT THE PROMPT BOX.
+         *
+         * Only where a language model can word an answer here, and before the
+         * first question is sent — which is why it lives in the frame rather
+         * than in the answer it would otherwise arrive with.
+         */}
+        {modelNotice === null ? null : (
+          <p className="ask-hint ask-hint-model" data-ai-notice="">
+            {modelNotice}
+          </p>
+        )}
 
         {children}
       </div>
@@ -681,16 +678,29 @@ export function AskFrame({
  * THE OPENINGS
  * ========================================================================= */
 
+/**
+ * The glyphs the live questions wear, one per question in `LIVE_QUESTIONS`:
+ * cohorts compared, presenters, where a presentation is lost, units.
+ */
+const LIVE_GLYPHS = [Compare, People, Target, Building] as const;
+
 export function AskOpeningList({
   suggestions,
   root,
   periodParam,
+  liveQuestions = [],
 }: {
   readonly suggestions: readonly string[];
   readonly root: string;
   readonly periodParam: string;
+  /**
+   * Questions answered through the analysis pipeline rather than prepared.
+   * Listed first and marked in the accent, because they are answered on
+   * request rather than shown — the difference is in the mark, not in a badge.
+   */
+  readonly liveQuestions?: readonly string[];
 }) {
-  if (suggestions.length === 0) {
+  if (suggestions.length === 0 && liveQuestions.length === 0) {
     return (
       <>
         <div className="ask-panel" data-kind="chat">
@@ -707,13 +717,25 @@ export function AskOpeningList({
     );
   }
 
+  const rows = [
+    ...liveQuestions.map((question, index) => ({
+      question,
+      live: true,
+      Glyph: LIVE_GLYPHS[index % LIVE_GLYPHS.length] ?? LIVE_GLYPHS[0],
+    })),
+    ...suggestions.map((question, index) => ({
+      question,
+      live: false,
+      Glyph: OPENING_GLYPHS[index % OPENING_GLYPHS.length] ?? OPENING_GLYPHS[0],
+    })),
+  ];
+
   return (
     <>
-      <ul className="ask-openings">
-        {suggestions.map((suggestion, index) => {
-          const Glyph = OPENING_GLYPHS[index % OPENING_GLYPHS.length] ?? OPENING_GLYPHS[0];
+      <ul className="ask-openings" data-dense={rows.length > 5 ? "true" : "false"}>
+        {rows.map(({ question: suggestion, live, Glyph }) => {
           return (
-            <li key={suggestion}>
+            <li key={suggestion} data-live={live ? "true" : "false"}>
               {/*
                * A link, not a button that fills the field. The export fills the
                * composer and waits for a second press; a link asks the question,
