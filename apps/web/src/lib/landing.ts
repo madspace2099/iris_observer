@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 import type { Viewer } from "@observer/readmodels";
 
+import { safeReturnTo } from "@/portal/return-to";
 import { LAST_PROJECT_COOKIE } from "./cookie-names";
 import { repository } from "./repository";
-import { HOME_SEGMENT } from "./routes";
+import { HOME_SEGMENT, maySeeSurface } from "./routes";
 
 /**
  * WHERE A SIGNED-IN READER GOES — NOT "THE PROJECTS", ANY MORE.
@@ -46,6 +47,39 @@ export async function resolveLandingPath(viewer: Viewer): Promise<string> {
   if (only !== null) return only;
 
   return "/projects";
+}
+
+/**
+ * WHERE THE WELCOME HANDS A READER ON — WHAT THEY ASKED FOR, IF THEY MAY OPEN IT.
+ *
+ * `/welcome?to=…` is a destination the browser carries, so it is treated as one:
+ * `safeReturnTo` decides whether it is a path on this origin at all (no scheme,
+ * no `//`, no backslash, no query, one of the routes this application serves),
+ * and then this viewer must be able to open it — the project resolved through
+ * their grants, the surface admitting their role. Anything else is not refused
+ * loudly; it is replaced by the landing this account would have had anyway.
+ */
+export async function welcomeDestination(
+  viewer: Viewer,
+  raw: string | null | undefined,
+): Promise<string> {
+  const wanted = safeReturnTo(raw);
+  if (wanted !== null && (await mayOpen(viewer, wanted))) return wanted;
+  return resolveLandingPath(viewer);
+}
+
+async function mayOpen(viewer: Viewer, path: string): Promise<boolean> {
+  if (path === "/projects") return true;
+  if (path === "/madspace") return viewer.role === "madspace_admin";
+
+  const [, tenantSlug = "", projectSlug = "", surface = ""] = path.split("/");
+  if (!maySeeSurface(viewer.role, surface)) return false;
+  try {
+    await repository.resolveProject(viewer, tenantSlug, projectSlug);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 async function landingFromLastProject(viewer: Viewer): Promise<string | null> {

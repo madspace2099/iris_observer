@@ -66,6 +66,15 @@ const REFERENCE_ROUTES: readonly string[] = [
    * and is used across every project that account may open.
    */
   "/settings/ai",
+  /*
+   * ADDED AFTER THE REFERENCE, deliberately and with approval.
+   *
+   * The welcome between a password sign-in and the landing it resolved: the
+   * product owner asked for it for the recorded demonstration. It states what
+   * the repository holds for the project it opens and hands the reader on;
+   * the flow is still account, then projects or a project, then Observer.
+   */
+  "/welcome",
   "/madspace",
   "/lab",
   "/lab/sign-in",

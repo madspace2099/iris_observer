@@ -42,6 +42,19 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
 
+  /*
+   * The welcome after a password sign-in: a few seconds between the account
+   * and the project it lands on. Every signed-in role, because every role
+   * signs in; what it states is read from the project the reader may open,
+   * and where it hands them on is checked against their grants
+   * (`welcomeDestination`).
+   */
+  {
+    route: "/welcome",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
+
   /* --- Showroom Intelligence, the primary surfaces (ADR-0023) ------------- */
 
   {
