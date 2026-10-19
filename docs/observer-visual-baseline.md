@@ -138,6 +138,18 @@ specific change), for three items of the v3 plan's R05 chapter and nothing else:
 `12a586f`, `54d67f2`, `74c7784`, `9454a8e`. The figures on the page are the same
 multiset before and after. R01, R02, R06 and R12 were not approved.
 
+### Every chart in the Hyper kit's hand, under explicit approval (ADR-0041)
+
+2026-10-19. Not a defect fix. The product owner chose design-lab variant D's look
+for every chart on a product page, with its draw-in motion, under the fourth
+reason in _The rule_ below (explicit user approval for that specific change):
+chart regions become the kit's black cards on one 20px gutter, with the kit's
+marks at the product's own sizes; on Project the journey funnel replaces the
+sankey and the attention × conversion scatter replaces the four quadrant lists.
+Tables, registers, text plates and the printed report are not part of it. Every
+page it touches needs a fresh screenshot before it is accepted as the new
+baseline.
+
 ## Ask Observer
 
 ### Answer anatomy
