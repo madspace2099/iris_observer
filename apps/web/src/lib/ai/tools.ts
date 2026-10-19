@@ -377,6 +377,102 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
   },
 };
 
+/* --- 3b. compare_agent_outcomes -------------------------------------------- */
+
+/**
+ * WHOSE MEETINGS PROGRESSED MOST, AND HOW THEY PRESENTED.
+ *
+ * Two reads the screens already make, in one answer: the presenters' recorded
+ * outcomes from Sales Agents, then the presentation comparison between the
+ * highest and the lowest of them. Nothing is ranked that the Sales Agents page
+ * would not rank — a presenter below the sample floor, or with no recorded
+ * outcome, is listed as not ranked rather than placed — and the order is the
+ * read model's own share, never a figure worked out here.
+ */
+const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> = {
+  name: "compare_agent_outcomes",
+  description:
+    "Which presenters' meetings progressed most often among those with a recorded outcome (above the sample floor), and how the highest and lowest of them presented differently.",
+  input: z.object({}),
+  async run(context) {
+    const team = await repository.getAgentsView(query(context));
+    const ranked = team.agents
+      .filter((a) => !a.belowMinimum && a.ring.decidedMeetings > 0)
+      .sort((a, b) => b.ring.progressedShare - a.ring.progressedShare);
+    const unranked = team.agents.filter((a) => !ranked.includes(a)).map((a) => a.name);
+    const progressed = (a: (typeof ranked)[number]) => ({
+      label: `${a.name} · progressed`,
+      value: pct(a.ring.progressedShare),
+      note: `of ${a.ring.decidedMeetings} meetings with a recorded outcome`,
+    });
+    const unrankedCaveat =
+      unranked.length === 0
+        ? []
+        : [`Not ranked — below the sample floor or no outcome recorded: ${unranked.join(", ")}.`];
+    const top = ranked[0];
+    const bottom = ranked[ranked.length - 1];
+
+    if (top === undefined || bottom === undefined || top === bottom) {
+      const why =
+        top === undefined
+          ? "No presenter's meetings in this period carry enough recorded outcomes to be ranked."
+          : `Only ${top.name} has enough recorded outcomes in this period to be read, so there is nobody to rank against.`;
+      return {
+        tool: "compare_agent_outcomes",
+        facts: ranked.map(progressed),
+        sources: WITH_OUTCOME,
+        evidence: team.evidence,
+        sampleSize: ranked.reduce((sum, a) => sum + a.ring.decidedMeetings, 0),
+        caveats: [why, ...unrankedCaveat],
+        action: { label: "Open Sales Agents", href: `${root(context)}/agents` },
+        draft: why,
+      };
+    }
+
+    const flows = await repository.getPresentationIntelligence(query(context), {
+      mode: "agents",
+      left: top.agentId,
+      right: bottom.agentId,
+    });
+    const c = flows.comparison;
+    const differences = c === null || c.verdictRefusal !== null ? [] : c.differences.slice(0, 3);
+    const first = differences[0];
+    const how =
+      first === undefined
+        ? (c?.verdictRefusal ?? flows.noComparison ?? "")
+        : `${top.name} ${describe(first, "left")}, where ${bottom.name} ${describe(first, "right")}.`;
+
+    return {
+      tool: "compare_agent_outcomes",
+      facts: [
+        progressed(top),
+        progressed(bottom),
+        ...differences.map((d) => ({
+          label: d.behaviour,
+          value: `${d.leftDisplay} vs ${d.rightDisplay}`,
+          note: `${top.name} against ${bottom.name}`,
+        })),
+        ...ranked.slice(1, -1).map(progressed),
+      ],
+      sources: WITH_OUTCOME,
+      evidence: c?.evidence ?? team.evidence,
+      sampleSize: ranked.reduce((sum, a) => sum + a.ring.decidedMeetings, 0),
+      caveats: [
+        NO_CAUSATION,
+        ...(c === null ? [] : c.withheld),
+        ...unrankedCaveat,
+        "Meetings with no recorded outcome count towards no presenter's share.",
+      ],
+      action: {
+        label: "Open the comparison",
+        href: `${root(context)}/presentation?mode=agents&left=${top.agentId}&right=${bottom.agentId}`,
+      },
+      draft:
+        `Of the ${ranked.length} presenters with enough recorded outcomes, ${top.name}'s meetings progressed most often (${pct(top.ring.progressedShare)} of ${top.ring.decidedMeetings}) and ${bottom.name}'s least (${pct(bottom.ring.progressedShare)} of ${bottom.ring.decidedMeetings}). ${how}`.trim(),
+    };
+  },
+};
+
 /* --- 4. explain_meeting_journey -------------------------------------------- */
 
 const explainMeetingJourney: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString }>> = {
@@ -840,6 +936,7 @@ export const TOOLS = [
   summarizeShowroomPeriod,
   compareAgentFlows,
   compareMeetingCohorts,
+  compareAgentOutcomes,
   explainMeetingJourney,
   analyzeFeatureUsage,
   analyzeUnitAttention,

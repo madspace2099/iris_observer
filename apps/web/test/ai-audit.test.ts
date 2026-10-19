@@ -9,6 +9,7 @@ import type { ModelResolution, ObserverModel } from "../src/lib/ai/provider";
 import type { Admission, TerminalResult } from "../src/lib/ai/quota";
 import type { CurrentPseudonymVersion, PseudonymVersion } from "../src/lib/ai/identity";
 import { resetLimits } from "../src/lib/ai/limits";
+import { rosterOf } from "./support/roster";
 
 /**
  * A stand-in for the asking account's credential.
@@ -75,6 +76,9 @@ const {
 } = await import("../src/lib/ai/identity");
 const { environment, resetEnvironmentCache } = await import("../src/lib/env");
 
+/** Northgate's presenters, read from the repository the gate reads them from. */
+const NORTHGATE_ROSTER = await rosterOf("alpha", "northgate");
+
 const CONTEXT = {
   viewer: VIEWERS.developer,
   tenantSlug: "alpha",
@@ -82,7 +86,7 @@ const CONTEXT = {
   projectLabel: "Northgate",
   periodLabel: "Quarter to date",
   period: "quarter_to_date" as const,
-  agentIds: ["agt_monika", "agt_akhilesh", "agt_jan", "agt_lucia"],
+  roster: NORTHGATE_ROSTER,
   unitCode: null,
   meetingId: null,
   safetyIdentifier: "obs_test",

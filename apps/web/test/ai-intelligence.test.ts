@@ -7,6 +7,7 @@ import type * as ProviderModule from "../src/lib/ai/provider";
 import type { ModelGrant, ModelResolution } from "../src/lib/ai/provider";
 import { resetLimits } from "../src/lib/ai/limits";
 import { resetEnvironmentCache } from "../src/lib/env";
+import { rosterOf } from "./support/roster";
 
 /**
  * The intelligence layer, against a provider that never makes a network call.
@@ -53,6 +54,9 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
 
 const { ask, CAUSAL_PATTERNS } = await import("../src/lib/ai/agent");
 
+/** Northgate's presenters, read from the repository the gate reads them from. */
+const NORTHGATE_ROSTER = await rosterOf("alpha", "northgate");
+
 const CONTEXT: AskContextInput = {
   viewer: VIEWERS.developer,
   tenantSlug: "alpha",
@@ -60,7 +64,7 @@ const CONTEXT: AskContextInput = {
   projectLabel: "Northgate",
   periodLabel: "Quarter to date",
   period: "quarter_to_date",
-  agentIds: ["agt_monika", "agt_akhilesh", "agt_jan", "agt_lucia"],
+  roster: NORTHGATE_ROSTER,
   unitCode: null,
   meetingId: null,
   safetyIdentifier: "obs_test",
