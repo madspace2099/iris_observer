@@ -306,23 +306,8 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
     coverageBias: 0.32,
     homeDwell: 0.75,
     unitsShownMean: 5.6,
-    outcomeBias: 0.07,
+    outcomeBias: 0.3,
     meetingShare: 0.22,
-  },
-  {
-    // The tour guide: a long opening on Home, Surroundings late, little Compare.
-    id: "agt_sharkzsofia01",
-    name: "Zsófia Bárány",
-    organisationName: "Shark Sales",
-    surroundingsEarly: 0.16,
-    amenitiesSkip: 0.08,
-    compareUse: 0.26,
-    returnToShortlist: 0.34,
-    coverageBias: 0.78,
-    homeDwell: 2.2,
-    unitsShownMean: 3.6,
-    outcomeBias: 0.0,
-    meetingShare: 0.2,
   },
   {
     // The rusher: a short opening, thin coverage, Amenities skipped, few units.
@@ -338,6 +323,21 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
     unitsShownMean: 2.4,
     outcomeBias: -0.04,
     meetingShare: 0.18,
+  },
+  {
+    // The tour guide: a long opening on Home, Surroundings late, little Compare.
+    id: "agt_sharkzsofia01",
+    name: "Zsófia Bárány",
+    organisationName: "Shark Sales",
+    surroundingsEarly: 0.16,
+    amenitiesSkip: 0.08,
+    compareUse: 0.26,
+    returnToShortlist: 0.34,
+    coverageBias: 0.78,
+    homeDwell: 2.2,
+    unitsShownMean: 3.6,
+    outcomeBias: 0.0,
+    meetingShare: 0.2,
   },
   {
     // The newcomer: balanced on every habit, and a smaller share of the diary.
@@ -621,11 +621,11 @@ const DEFAULT_OUTCOME_MODEL: OutcomeModel = {
  * different in this sample. Readiness and noise each still outweigh any single
  * behaviour, so thorough meetings still stall and thin ones still progress.
  *
- * Measured in the current quarter when it was set (2026-10-19): a meeting with
- * the shortlist, a return and Compare progressed in 31 of its 39 recorded
- * outcomes (79%); a meeting without the shortlist that skipped Amenities or
- * opened on Home for over a minute, in 4 of 21 (19%). Over all 275 meetings,
- * 77% and 28%.
+ * Measured in the current quarter after the noise was narrowed to 0.30 and
+ * Marek's closing weight raised (2026-10-19): of their recorded outcomes, Lena
+ * progressed 81%, Marek 75%, Iva 42%, Zsófia 38% and Oliver 18%.
+ * `test/shark-story.test.ts` holds that spread, so a change to a weight, a pin
+ * or the seed that flattens it fails before it reaches a recording.
  */
 const SHARK_OUTCOME_MODEL: OutcomeModel = {
   base: 0.11,
@@ -635,7 +635,7 @@ const SHARK_OUTCOME_MODEL: OutcomeModel = {
   compared: 0.05,
   returned: 0.05,
   agentBias: 0.3,
-  noise: 0.34,
+  noise: 0.3,
   shortlist: 0.035,
   fourPlusUnits: 0.03,
   amenitiesSkipped: -0.035,

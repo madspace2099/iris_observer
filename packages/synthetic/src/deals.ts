@@ -449,16 +449,38 @@ export function syntheticDeals(
   fetchedAt: string,
 ): DeliveredDeals {
   const deals: CrmDeal[] = [];
+  /*
+   * ONE FLAT, ONE BUYER. A reservation or a purchase takes its flat off the
+   * market, so a later buyer's deal names the next flat they dwelt on that
+   * nobody holds — and no flat at all when every one they saw is taken, which
+   * the ladder reads as a sale it cannot place rather than a second sale of
+   * the same flat. Claimed in meeting order; Northgate claimed no flat twice
+   * before this rule, so its deals are what they were.
+   */
+  const held = new Set<string>();
+  const holder = new Map<string, string | null>();
+  for (const session of [...sessions].sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))) {
+    const stage = OUTCOME_STAGE[session.outcome];
+    if (stage !== "reservation" && stage !== "purchase") continue;
+    if (Date.parse(session.startedAt) + (STAGE_LAG_DAYS[stage] ?? 0) * DAY_MS > Date.parse(fetchedAt)) continue;
+    const free = [...session.units]
+      .sort((a, b) => b.dwellSeconds - a.dwellSeconds)
+      .find((u) => !held.has(u.unitCode));
+    if (free !== undefined) held.add(free.unitCode);
+    holder.set(session.meetingId, free?.unitCode ?? null);
+  }
   for (const session of sessions) {
     const stage = OUTCOME_STAGE[session.outcome];
     if (stage === undefined) continue;
     const lag = STAGE_LAG_DAYS[stage] ?? 0;
     const entered = new Date(Date.parse(session.startedAt) + lag * DAY_MS);
     if (entered.getTime() > Date.parse(fetchedAt)) continue;
-    const unit = [...session.units].sort((a, b) => b.dwellSeconds - a.dwellSeconds)[0];
+    const top = [...session.units].sort((a, b) => b.dwellSeconds - a.dwellSeconds)[0];
     deals.push({
       externalId: `D-${session.meetingId}`,
-      unitCode: unit?.unitCode ?? null,
+      unitCode: holder.has(session.meetingId)
+        ? (holder.get(session.meetingId) ?? null)
+        : (top?.unitCode ?? null),
       subjectKey: null,
       stage,
       stageRaw: stage,

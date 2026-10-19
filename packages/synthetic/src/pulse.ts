@@ -15,8 +15,10 @@ import {
   attentionIndexDisplay,
   meaningfulDwellThresholdMs,
 } from "@observer/metrics";
+import { syntheticDeals } from "./deals";
 import { NO_PAGE, evidenceRef, moneyOr } from "./format";
-import { unitsForProject } from "./world";
+import { sessionsForProject } from "./showroom/sessions";
+import { TODAY, unitsForProject } from "./world";
 
 /**
  * The Northgate building, generated deterministically.
@@ -62,6 +64,14 @@ export interface BuildingSpec {
    * figure nobody has.
    */
   readonly soldInPeriod?: number;
+  /**
+   * The catalogue was exported after the demonstration CRM's deals: a flat the
+   * CRM holds a purchase on reads sold, one it holds a reservation on reads
+   * reserved. Only on screen — the session generator reads the building as it
+   * stood before those deals, which is also what keeps this from feeding back
+   * into the meetings it is derived from.
+   */
+  readonly statusFromCrm?: true;
 }
 
 /**
@@ -134,13 +144,21 @@ export const BUILDINGS: Readonly<Record<string, BuildingSpec>> = {
     perBlock: 3,
     orientation: { S: "S", H: "SW" },
     soldPressure: 0.32,
+    statusFromCrm: true,
     pinned: {
       "S-101": { rooms: 1, areaSqm: 38, status: "sold" },
       "H-101": { rooms: 1, areaSqm: 36, status: "available" },
+      "S-102": { rooms: 1, areaSqm: 37, status: "available" },
+      "H-102": { rooms: 1, areaSqm: 39, status: "available" },
       "S-203": { rooms: 1, areaSqm: 41, status: "reserved" },
+      "H-203": { rooms: 1, areaSqm: 42, status: "available" },
       "H-303": { rooms: 1, areaSqm: 40, status: "available" },
+      "S-901": { rooms: 4, areaSqm: 112, status: "available" },
       "S-902": { rooms: 4, areaSqm: 116, status: "available" },
+      "H-901": { rooms: 4, areaSqm: 114, status: "available" },
+      "S-1001": { rooms: 4, areaSqm: 121, status: "available" },
       "S-1002": { rooms: 4, areaSqm: 124, status: "reserved" },
+      "H-1001": { rooms: 4, areaSqm: 119, status: "available" },
       "H-1002": { rooms: 4, areaSqm: 118, status: "available" },
     },
   },
@@ -391,7 +409,28 @@ function enumeratedCatalogue(projectId: string): readonly RawUnit[] {
  * delivered for the project, the synthetic one otherwise.
  */
 export function catalogueFor(projectId: string): readonly RawUnit[] {
-  return delivered.get(projectId) ?? syntheticCatalogueFor(projectId);
+  return delivered.get(projectId) ?? withCrmStatus(projectId, syntheticCatalogueFor(projectId));
+}
+
+const crmStatused = new Map<string, readonly RawUnit[]>();
+
+/** `BuildingSpec.statusFromCrm`: the deals' holds laid over the synthetic building. */
+function withCrmStatus(projectId: string, units: readonly RawUnit[]): readonly RawUnit[] {
+  if (BUILDINGS[projectId]?.statusFromCrm !== true) return units;
+  const cached = crmStatused.get(projectId);
+  if (cached !== undefined) return cached;
+  const held = new Map<string, UnitStatus>();
+  for (const d of syntheticDeals(sessionsForProject(projectId), TODAY).deals) {
+    if (d.unitCode === null) continue;
+    if (d.stage === "purchase") held.set(d.unitCode, "sold");
+    else if (d.stage === "reservation" && !held.has(d.unitCode)) held.set(d.unitCode, "reserved");
+  }
+  const out = units.map((u) => {
+    const status = held.get(u.code);
+    return status === undefined || u.status === "sold" ? u : { ...u, status };
+  });
+  crmStatused.set(projectId, out);
+  return out;
 }
 
 /**

@@ -48,8 +48,8 @@ const repo = () => new SyntheticObserverRepository();
 
 /**
  * A viewer holding nothing at all, derived HERE rather than declared in the
- * fixture or added to VIEWERS: the synthetic world has six committed capacities
- * and should not grow a seventh for a test.
+ * fixture or added to VIEWERS: the synthetic world has eight committed capacities
+ * and should not grow a ninth for a test.
  */
 const viewerWithNoGrants = (): Viewer => ({
   ...(VIEWERS.salesAgentIster as Viewer),

@@ -333,7 +333,7 @@ export const PROJECTS: readonly ProjectSummary[] = [
     name: "Shark Residence",
     currency: "EUR",
     locale: "en-GB",
-    timeZone: "Europe/Budapest",
+    timeZone: "Europe/Bratislava",
     connectedSources: ["webiris", "showroom", "crm", "catalogue"],
     sources: [
       {

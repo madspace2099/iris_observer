@@ -340,6 +340,34 @@ export const ADDRESS_CELLS: readonly AddressCell[] = [
     error: "NotFoundError",
     note: "a project slug that exists nowhere",
   },
+  {
+    viewerKey: "developerShark",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    error: "none",
+    note: "the demonstration developer reads its own project",
+  },
+  {
+    viewerKey: "developerShark",
+    tenantSlug: "alpha",
+    projectSlug: "northgate",
+    error: "NotPermittedError",
+    note: "the demonstration tenant holds nothing of another developer's",
+  },
+  {
+    viewerKey: "developer",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    error: "NotPermittedError",
+    note: "and another developer holds nothing of the demonstration tenant's",
+  },
+  {
+    viewerKey: "managerShark",
+    tenantSlug: "alpha",
+    projectSlug: "shark-residence",
+    error: "NotFoundError",
+    note: "the demonstration project through another tenant is not found",
+  },
 ];
 
 /**
