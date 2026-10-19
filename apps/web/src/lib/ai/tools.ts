@@ -643,12 +643,17 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
         tool: "analyze_unit_attention",
         facts: top.map((r) => ({
           label: r.unitCode,
-          value: `${r.meetings} meetings`,
+          value: `${r.meetings} of ${view.evidence.observationCount} meetings`,
           note: `${roomsWord(r.rooms, view.context.language)} · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
         })),
         sources: OBSERVED,
         evidence: view.evidence,
-        sampleSize: top.length,
+        /*
+         * The meetings the ranking was read from, not the five rows it kept:
+         * an answer says "measured across" this, and five units are not five
+         * meetings.
+         */
+        sampleSize: view.evidence.observationCount,
         caveats: [],
         action: { label: "Open Unit attention", href: `${root(context)}/units` },
         draft: `The units drawing most attention are ${top.map((r) => `${r.unitCode} (${r.meetings} meetings)`).join(", ")}.`,
