@@ -13,18 +13,17 @@ import {
   TrendLine,
 } from "@/showroom/charts2";
 
+import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
+
 import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-data";
-import { DCard, Sized } from "./card";
+import { DCard } from "./card";
 import { DDefs } from "./defs";
 import {
   Dumbbell,
-  JourneyFunnel,
   OutcomeFunnels,
   Parallel,
   PunchCard,
   RadialHistogram,
-  Scatter,
-  ScatterKey,
   seriesTone,
 } from "./forms";
 import { BubbleLens } from "./bubble-lens";
@@ -37,9 +36,8 @@ import { BubbleLens } from "./bubble-lens";
  *   A   the product's existing chart components, unchanged, under the kit's
  *       treatment. Every one of them is the component a live screen imports;
  *       what changes is `design-lab-d.css`, scoped to `.dld-root`, and never
- *       the component. The one exception is the scatter: the product has no
- *       scatter component, so it is drawn in `forms.tsx` from the same rows
- *       `QuadrantMatrix` places in its four lists.
+ *       the component. The scatter was drawn here first and is the product's
+ *       own since ADR-0041 (`@/showroom/forms`), over the lab's own rows.
  *   B   forms the product does not have, each over an aggregate `lab-data.ts`
  *       composes and checks against the read model it came from. The two
  *       funnels are here: the journey the product draws as a flow, and the
@@ -198,7 +196,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title={`${data.windowLabel}, the panel's lead figure`}
             reads={`FlowCharts.kpis · ${data.projectName} · ${data.windowLabel}`}
             facts={data.kpi.facts}
-            kind="bloom"
           >
             <div className="dld-kpi">
               <KpiCard
@@ -218,7 +215,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="The period, week by week"
             reads={reads("FlowCharts.trend")}
             facts={data.sparkline.facts}
-            kind="sweep"
           >
             <div className="dld-spark">
               <Sparkline
@@ -236,7 +232,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title={`${trend.agentLabel}, seven days at a time`}
             reads={reads("AgentDetailView.sessionsOverTime")}
             facts={trend.facts}
-            kind="sweep"
             wide
           >
             {trend.series === null ? (
@@ -260,7 +255,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="What the meetings became"
             reads={reads("FlowCharts.composition")}
             facts={data.stacked.facts}
-            kind="rise"
           >
             <div className="dld-stacks">
               <StackedBars
@@ -276,7 +270,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="Presentations given"
             reads={reads("AgentCharts.ranked")}
             facts={data.ranked.facts}
-            kind="sweep"
           >
             <div className="dld-ranked">
               <RankedBars rows={data.ranked.rows} period={data.period} />
@@ -289,7 +282,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="How the meetings ended"
             reads={reads("SalesFlowView.outcomes")}
             facts={data.ring.facts}
-            kind="turn"
           >
             <div className="dld-ring">
               <OutcomeRing slices={data.ring.slices} total={data.ring.total} size={220} measured />
@@ -303,7 +295,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="One way of presenting"
             reads={reads("AgentCharts.radar")}
             facts={data.radarBasic.facts}
-            kind="bloom"
           >
             <RadarBody card={data.radarBasic} order={order} variant="basic" />
           </DCard>
@@ -314,7 +305,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="Another way of presenting"
             reads={reads("AgentCharts.radar")}
             facts={data.radarSimple.facts}
-            kind="bloom"
           >
             <RadarBody card={data.radarSimple} order={order} variant="simple" />
           </DCard>
@@ -325,7 +315,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="Every profile at or above the floor"
             reads={reads("AgentCharts.radar")}
             facts={data.radarMultiply.facts}
-            kind="bloom"
           >
             <RadarBody card={data.radarMultiply} order={order} variant="multiply" />
           </DCard>
@@ -336,7 +325,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="When meetings start"
             reads={reads("FlowCharts.activity")}
             facts={data.heatmapBasic.facts}
-            kind="bloom"
             wide
           >
             <HeatBody card={data.heatmapBasic} variant="basic" />
@@ -348,7 +336,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="When meetings start, as a field"
             reads={reads("FlowCharts.activity")}
             facts={data.heatmapGradient.facts}
-            kind="bloom"
             wide
           >
             <HeatBody card={data.heatmapGradient} variant="gradient" />
@@ -360,7 +347,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="Sold against the plan"
             reads={`ProjectCharts.targets · ${data.projectName}`}
             facts={data.bullet.facts}
-            kind="sweep"
             wide
           >
             <div className="dld-bullets">
@@ -385,7 +371,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
               title={`${sequence.agentLabel}'s running order`}
               reads={reads("AgentDetailView.profile")}
               facts={sequence.facts}
-              kind="sweep"
               wide
             >
               <div className="dld-sequence">
@@ -405,7 +390,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="Attention against conversion"
             reads={reads("ProjectView.segments")}
             facts={data.scatter.facts}
-            kind="bloom"
             wide
           >
             <Sized
@@ -488,7 +472,6 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             title="Where journeys stop"
             reads={reads("ProjectCharts.journey")}
             facts={data.journeyFunnel.facts}
-            kind="bloom"
             wide
           >
             <JourneyFunnel data={data.journeyFunnel} />

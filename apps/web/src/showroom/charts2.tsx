@@ -24,6 +24,7 @@ import Link from "next/link";
 import type { PeriodPreset } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
+import { DrawIn } from "./DrawIn";
 
 /* --- a figure with its history -------------------------------------------- */
 
@@ -48,18 +49,20 @@ export function Sparkline({
   const last = points[points.length - 1] ?? 0;
 
   return (
-    <svg
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      className="iris-spark"
-      role="img"
-      aria-label={label ?? `Recent trend, latest ${last}`}
-    >
-      <path d={`${d} L ${width} ${height} L 0 ${height} Z`} className="iris-spark-fill" />
-      <path d={d} className="iris-spark-line" />
-      <circle cx={width} cy={y(last)} r="2.5" className="iris-spark-tip" />
-    </svg>
+    <DrawIn kind="sweep">
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="iris-spark"
+        role="img"
+        aria-label={label ?? `Recent trend, latest ${last}`}
+      >
+        <path d={`${d} L ${width} ${height} L 0 ${height} Z`} className="iris-spark-fill" />
+        <path d={d} className="iris-spark-line" />
+        <circle cx={width} cy={y(last)} r="2.5" className="iris-spark-tip" />
+      </svg>
+    </DrawIn>
   );
 }
 
@@ -91,23 +94,25 @@ export function KpiCard({
 }) {
   void measurementId;
   return (
-    <article className="iris-kpi">
-      <p className="iris-kpi-label">{info ?? label}</p>
-      <p className="iris-kpi-value">{value}</p>
-      <div className="iris-kpi-foot">
-        <div>
-          {delta === null ? null : (
-            <span className="iris-kpi-delta" data-tone={tone}>
-              {delta}
-            </span>
+    <DrawIn kind="bloom">
+      <article className="iris-kpi">
+        <p className="iris-kpi-label">{info ?? label}</p>
+        <p className="iris-kpi-value">{value}</p>
+        <div className="iris-kpi-foot">
+          <div>
+            {delta === null ? null : (
+              <span className="iris-kpi-delta" data-tone={tone}>
+                {delta}
+              </span>
+            )}
+            {qualifier === null ? null : <span className="iris-code">{qualifier}</span>}
+          </div>
+          {points === undefined ? null : (
+            <Sparkline points={points} label={`${value} over recent weeks`} />
           )}
-          {qualifier === null ? null : <span className="iris-code">{qualifier}</span>}
         </div>
-        {points === undefined ? null : (
-          <Sparkline points={points} label={`${value} over recent weeks`} />
-        )}
-      </div>
-    </article>
+      </article>
+    </DrawIn>
   );
 }
 
@@ -143,79 +148,81 @@ export function TrendLine({
   const marked = annotation === undefined || annotation === null ? null : points[annotation.index];
 
   return (
-    <svg
-      viewBox={`0 0 ${width} ${height}`}
-      className={`iris-trend${measured ? " iris-trend-measured" : ""}`}
-      role="img"
-      aria-label={`${valueLabel}: ${points.map((p) => `${p.label} ${p.value}`).join(", ")}`}
-    >
-      {[0, 0.5, 1].map((t) => (
-        <g key={t}>
-          <line
-            x1={pad.left}
-            x2={width - pad.right}
-            y1={y(peak * t)}
-            y2={y(peak * t)}
-            className="iris-trend-grid"
-          />
-          <text x={pad.left - 6} y={y(peak * t) + 3} className="iris-trend-tick" textAnchor="end">
-            {Math.round(peak * t)}
-          </text>
-        </g>
-      ))}
+    <DrawIn kind="sweep">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className={`iris-trend${measured ? " iris-trend-measured" : ""}`}
+        role="img"
+        aria-label={`${valueLabel}: ${points.map((p) => `${p.label} ${p.value}`).join(", ")}`}
+      >
+        {[0, 0.5, 1].map((t) => (
+          <g key={t}>
+            <line
+              x1={pad.left}
+              x2={width - pad.right}
+              y1={y(peak * t)}
+              y2={y(peak * t)}
+              className="iris-trend-grid"
+            />
+            <text x={pad.left - 6} y={y(peak * t) + 3} className="iris-trend-tick" textAnchor="end">
+              {Math.round(peak * t)}
+            </text>
+          </g>
+        ))}
 
-      <path
-        d={`${line} L ${x(points.length - 1)} ${pad.top + innerH} L ${x(0)} ${pad.top + innerH} Z`}
-        className="iris-trend-fill"
-      />
-      <path d={line} className="iris-trend-line" />
+        <path
+          d={`${line} L ${x(points.length - 1)} ${pad.top + innerH} L ${x(0)} ${pad.top + innerH} Z`}
+          className="iris-trend-fill"
+        />
+        <path d={line} className="iris-trend-line" />
 
-      {points.map((p, i) => (
-        <circle key={p.label} cx={x(i)} cy={y(p.value)} r="2.5" className="iris-trend-dot">
-          <title>{`${p.label}: ${p.value}`}</title>
-        </circle>
-      ))}
+        {points.map((p, i) => (
+          <circle key={p.label} cx={x(i)} cy={y(p.value)} r="2.5" className="iris-trend-dot">
+            <title>{`${p.label}: ${p.value}`}</title>
+          </circle>
+        ))}
 
-      {/* The annotation is the reason a line beats a table: it points at when. */}
-      {marked === undefined || marked === null || annotation == null ? null : (
-        <g>
-          <line
-            x1={x(annotation.index)}
-            x2={x(annotation.index)}
-            y1={pad.top}
-            y2={pad.top + innerH}
-            className="iris-trend-mark"
-          />
-          {/*
-           * Flipped to the left once the mark is past the midpoint, so a note
-           * on the last week is readable rather than clipped by the frame.
-           */}
-          <text
-            x={x(annotation.index) + (annotation.index > points.length / 2 ? -6 : 6)}
-            y={pad.top + 10}
-            textAnchor={annotation.index > points.length / 2 ? "end" : "start"}
-            className="iris-trend-note"
-          >
-            {annotation.text}
-          </text>
-        </g>
-      )}
+        {/* The annotation is the reason a line beats a table: it points at when. */}
+        {marked === undefined || marked === null || annotation == null ? null : (
+          <g>
+            <line
+              x1={x(annotation.index)}
+              x2={x(annotation.index)}
+              y1={pad.top}
+              y2={pad.top + innerH}
+              className="iris-trend-mark"
+            />
+            {/*
+             * Flipped to the left once the mark is past the midpoint, so a note
+             * on the last week is readable rather than clipped by the frame.
+             */}
+            <text
+              x={x(annotation.index) + (annotation.index > points.length / 2 ? -6 : 6)}
+              y={pad.top + 10}
+              textAnchor={annotation.index > points.length / 2 ? "end" : "start"}
+              className="iris-trend-note"
+            >
+              {annotation.text}
+            </text>
+          </g>
+        )}
 
-      {points.map((p, i) =>
-        i % Math.ceil(points.length / 8) === 0 ? (
-          <text
-            key={`${p.label}-x`}
-            x={x(i)}
-            y={height - 8}
-            className="iris-trend-tick"
-            /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
-            textAnchor={i === points.length - 1 ? "end" : "middle"}
-          >
-            {p.label}
-          </text>
-        ) : null,
-      )}
-    </svg>
+        {points.map((p, i) =>
+          i % Math.ceil(points.length / 8) === 0 ? (
+            <text
+              key={`${p.label}-x`}
+              x={x(i)}
+              y={height - 8}
+              className="iris-trend-tick"
+              /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
+              textAnchor={i === points.length - 1 ? "end" : "middle"}
+            >
+              {p.label}
+            </text>
+          ) : null,
+        )}
+      </svg>
+    </DrawIn>
   );
 }
 
@@ -245,38 +252,43 @@ export function StackedBars({
   const peak = Math.max(1, ...columns.map((c) => c.total));
 
   return (
-    <div className="iris-stacks">
-      <div className="iris-stacks-plot">
-        {columns.map((col) => (
-          <div className="iris-stacks-item" key={col.label}>
-            <span className="iris-stacks-column" style={{ height: `${(col.total / peak) * 100}%` }}>
-              {keys.map((k) => {
-                const v = col.parts[k.id] ?? 0;
-                if (v === 0) return null;
-                return (
-                  <span
-                    key={k.id}
-                    style={{ height: `${(v / col.total) * 100}%`, background: k.colour }}
-                    title={`${col.label} · ${k.label}: ${v}`}
-                  />
-                );
-              })}
-            </span>
-            <span className="iris-stacks-total">{col.total}</span>
-            <span className="iris-stacks-label">{col.label}</span>
-          </div>
-        ))}
+    <DrawIn kind="rise">
+      <div className="iris-stacks">
+        <div className="iris-stacks-plot">
+          {columns.map((col) => (
+            <div className="iris-stacks-item" key={col.label}>
+              <span
+                className="iris-stacks-column"
+                style={{ height: `${(col.total / peak) * 100}%` }}
+              >
+                {keys.map((k) => {
+                  const v = col.parts[k.id] ?? 0;
+                  if (v === 0) return null;
+                  return (
+                    <span
+                      key={k.id}
+                      style={{ height: `${(v / col.total) * 100}%`, background: k.colour }}
+                      title={`${col.label} · ${k.label}: ${v}`}
+                    />
+                  );
+                })}
+              </span>
+              <span className="iris-stacks-total">{col.total}</span>
+              <span className="iris-stacks-label">{col.label}</span>
+            </div>
+          ))}
+        </div>
+        <ul className="iris-ring-key iris-stacks-key">
+          {keys.map((k) => (
+            <li key={k.id}>
+              <i style={{ background: k.colour }} />
+              {k.label}
+              <b>{keyTotals?.[k.id] ?? columns.reduce((a, c) => a + (c.parts[k.id] ?? 0), 0)}</b>
+            </li>
+          ))}
+        </ul>
       </div>
-      <ul className="iris-ring-key iris-stacks-key">
-        {keys.map((k) => (
-          <li key={k.id}>
-            <i style={{ background: k.colour }} />
-            {k.label}
-            <b>{keyTotals?.[k.id] ?? columns.reduce((a, c) => a + (c.parts[k.id] ?? 0), 0)}</b>
-          </li>
-        ))}
-      </ul>
-    </div>
+    </DrawIn>
   );
 }
 
@@ -304,62 +316,65 @@ export function BulletChart({
   }[];
 }) {
   return (
-    <div className="iris-bullets">
-      {rows.map((row) => {
-        const pct = (v: number) => `${Math.min(100, Math.max(0, (v / row.total) * 100))}%`;
-        const unavailable = row.actual === null;
-        const behind = !unavailable && row.actual < row.pace;
-        return (
-          <div className="iris-bullet" key={row.id}>
-            <span className="iris-bullet-label">{row.label}</span>
-            <span
-              className="iris-bullet-track"
-              title={row.note}
-              data-unavailable={unavailable ? "true" : undefined}
-            >
-              {/* The qualitative bands: behind, on pace, ahead. */}
-              <em
-                className="iris-bullet-band"
-                style={{ width: pct(row.pace * 0.8) }}
-                data-band="behind"
-              />
-              <em
-                className="iris-bullet-band"
-                style={{ width: pct(row.pace * 1.1) }}
-                data-band="near"
-              />
-              {/*
+    <DrawIn kind="sweep">
+      <div className="iris-bullets">
+        {rows.map((row) => {
+          const pct = (v: number) => `${Math.min(100, Math.max(0, (v / row.total) * 100))}%`;
+          const unavailable = row.actual === null;
+          const behind = !unavailable && row.actual < row.pace;
+          return (
+            <div className="iris-bullet" key={row.id}>
+              <span className="iris-bullet-label">{row.label}</span>
+              <span
+                className="iris-bullet-track"
+                title={row.note}
+                data-unavailable={unavailable ? "true" : undefined}
+              >
+                {/* The qualitative bands: behind, on pace, ahead. */}
+                <em
+                  className="iris-bullet-band"
+                  style={{ width: pct(row.pace * 0.8) }}
+                  data-band="behind"
+                />
+                <em
+                  className="iris-bullet-band"
+                  style={{ width: pct(row.pace * 1.1) }}
+                  data-band="near"
+                />
+                {/*
                 No fill drawn when the source is not connected — an
                 unmeasured actual gets no track at all, the same rule Unit
                 Detail's evidence ladder applies, rather than a bar reading
                 as a real, measured zero.
               */}
-              {unavailable ? null : (
-                <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
-              )}
-              <b
-                style={{ "--pos": pct(row.pace) } as React.CSSProperties}
-                title={`Needed by now: ${Math.round(row.pace)}`}
-              />
-              <u
-                style={{ "--pos": pct(row.target) } as React.CSSProperties}
-                title={`Target: ${row.target}`}
-              />
-            </span>
-            <span
-              className="iris-bullet-value"
-              data-behind={behind ? "true" : undefined}
-              data-unavailable={unavailable ? "true" : undefined}
-            >
-              {unavailable ? "Unavailable" : `${row.actual} / ${row.target}`}
-            </span>
-          </div>
-        );
-      })}
-      <p className="iris-code" style={{ color: "var(--ink-3)" }}>
-        The vertical mark is where the schedule wanted this to be by now; the outline is the target.
-      </p>
-    </div>
+                {unavailable ? null : (
+                  <i style={{ width: pct(row.actual) }} data-behind={behind ? "true" : undefined} />
+                )}
+                <b
+                  style={{ "--pos": pct(row.pace) } as React.CSSProperties}
+                  title={`Needed by now: ${Math.round(row.pace)}`}
+                />
+                <u
+                  style={{ "--pos": pct(row.target) } as React.CSSProperties}
+                  title={`Target: ${row.target}`}
+                />
+              </span>
+              <span
+                className="iris-bullet-value"
+                data-behind={behind ? "true" : undefined}
+                data-unavailable={unavailable ? "true" : undefined}
+              >
+                {unavailable ? "Unavailable" : `${row.actual} / ${row.target}`}
+              </span>
+            </div>
+          );
+        })}
+        <p className="iris-code" style={{ color: "var(--ink-3)" }}>
+          The vertical mark is where the schedule wanted this to be by now; the outline is the
+          target.
+        </p>
+      </div>
+    </DrawIn>
   );
 }
 
@@ -396,50 +411,52 @@ export function Heatmap({
   const short = (label: string) => (/^\d\d:\d\d$/.test(label) ? label.slice(0, 2) : label);
 
   return (
-    <figure className="iris-heat" style={{ margin: 0 }}>
-      {/*
-       * One image with a stated summary, not 70 unlabelled squares.
-       *
-       * A screen reader walking a grid of numbers learns nothing a sentence
-       * could not have told it, so the caption carries the finding and the
-       * squares carry the shape.
-       */}
-      <div
-        className="iris-heat-grid"
-        role="img"
-        aria-label={caption}
-        style={{ gridTemplateColumns: `4.5rem repeat(${columns.length}, minmax(0, 1fr))` }}
-      >
-        <span />
-        {columns.map((c) => (
-          <span className="iris-heat-col" key={c}>
-            {short(c)}
-          </span>
-        ))}
-        {rows.map((r) => (
-          <React.Fragment key={r}>
-            <span className="iris-heat-row">{r}</span>
-            {columns.map((c) => {
-              const v = cells[`${r}|${c}`] ?? 0;
-              return (
-                <span
-                  key={`${r}-${c}`}
-                  className="iris-heat-cell"
-                  style={{ "--v": (v / peak).toFixed(3) } as React.CSSProperties}
-                  title={`${r} ${c}: ${v}`}
-                  data-empty={v === 0 ? "true" : undefined}
-                >
-                  {v === 0 ? "" : v}
-                </span>
-              );
-            })}
-          </React.Fragment>
-        ))}
-      </div>
-      <figcaption className="iris-meta iris-meta-measured" style={{ marginTop: ".625rem" }}>
-        {caption}
-      </figcaption>
-    </figure>
+    <DrawIn kind="bloom">
+      <figure className="iris-heat" style={{ margin: 0 }}>
+        {/*
+         * One image with a stated summary, not 70 unlabelled squares.
+         *
+         * A screen reader walking a grid of numbers learns nothing a sentence
+         * could not have told it, so the caption carries the finding and the
+         * squares carry the shape.
+         */}
+        <div
+          className="iris-heat-grid"
+          role="img"
+          aria-label={caption}
+          style={{ gridTemplateColumns: `4.5rem repeat(${columns.length}, minmax(0, 1fr))` }}
+        >
+          <span />
+          {columns.map((c) => (
+            <span className="iris-heat-col" key={c}>
+              {short(c)}
+            </span>
+          ))}
+          {rows.map((r) => (
+            <React.Fragment key={r}>
+              <span className="iris-heat-row">{r}</span>
+              {columns.map((c) => {
+                const v = cells[`${r}|${c}`] ?? 0;
+                return (
+                  <span
+                    key={`${r}-${c}`}
+                    className="iris-heat-cell"
+                    style={{ "--v": (v / peak).toFixed(3) } as React.CSSProperties}
+                    title={`${r} ${c}: ${v}`}
+                    data-empty={v === 0 ? "true" : undefined}
+                  >
+                    {v === 0 ? "" : v}
+                  </span>
+                );
+              })}
+            </React.Fragment>
+          ))}
+        </div>
+        <figcaption className="iris-meta iris-meta-measured" style={{ marginTop: ".625rem" }}>
+          {caption}
+        </figcaption>
+      </figure>
+    </DrawIn>
   );
 }
 
@@ -468,40 +485,42 @@ export function Funnel({
   const first = Math.max(1, steps[0]?.count ?? 1);
 
   return (
-    <div className="iris-funnel">
-      {steps.map((step, i) => {
-        const previous = steps[i - 1]?.count ?? step.count;
-        const lost = previous - step.count;
-        return (
-          <div className="iris-funnel-step" key={step.id}>
-            <span className="iris-funnel-bar" style={{ width: `${(step.count / first) * 100}%` }}>
-              <b>{step.count}</b>
-            </span>
-            <span className="iris-funnel-label">
-              {step.label}
-              {step.note === null ? null : (
-                <em>
-                  {step.note} on its own
-                  {step.comparisonNote === null || step.comparisonNote === undefined
-                    ? null
-                    : ` · ${step.comparisonNote} elsewhere`}
-                </em>
-              )}
-            </span>
-            <span className="iris-funnel-drop">
-              {i === 0
-                ? `${Math.round((step.count / first) * 100)}%`
-                : lost === 0
-                  ? "—"
-                  : `−${lost}`}
-            </span>
-          </div>
-        );
-      })}
-      <p className="iris-code" style={{ color: "var(--ink-3)" }}>
-        Compared against {totalLabel}
-      </p>
-    </div>
+    <DrawIn kind="sweep">
+      <div className="iris-funnel">
+        {steps.map((step, i) => {
+          const previous = steps[i - 1]?.count ?? step.count;
+          const lost = previous - step.count;
+          return (
+            <div className="iris-funnel-step" key={step.id}>
+              <span className="iris-funnel-bar" style={{ width: `${(step.count / first) * 100}%` }}>
+                <b>{step.count}</b>
+              </span>
+              <span className="iris-funnel-label">
+                {step.label}
+                {step.note === null ? null : (
+                  <em>
+                    {step.note} on its own
+                    {step.comparisonNote === null || step.comparisonNote === undefined
+                      ? null
+                      : ` · ${step.comparisonNote} elsewhere`}
+                  </em>
+                )}
+              </span>
+              <span className="iris-funnel-drop">
+                {i === 0
+                  ? `${Math.round((step.count / first) * 100)}%`
+                  : lost === 0
+                    ? "—"
+                    : `−${lost}`}
+              </span>
+            </div>
+          );
+        })}
+        <p className="iris-code" style={{ color: "var(--ink-3)" }}>
+          Compared against {totalLabel}
+        </p>
+      </div>
+    </DrawIn>
   );
 }
 
@@ -545,70 +564,72 @@ export function Radar({
   };
 
   return (
-    <div className="iris-radar">
-      <svg
-        width={size + padX * 2}
-        height={size}
-        viewBox={`${-padX} 0 ${size + padX * 2} ${size}`}
-        role="img"
-        aria-label={`Profile across ${axes.join(", ")}`}
-      >
-        {[0.25, 0.5, 0.75, 1].map((ring) => (
-          <polygon
-            key={ring}
-            className="iris-radar-web"
-            points={axes.map((_, i) => point(i, ring).join(",")).join(" ")}
-          />
-        ))}
-        {axes.map((_, i) => {
-          const [x, y] = point(i, 1);
-          return <line key={i} x1={c} y1={c} x2={x} y2={y} className="iris-radar-spoke" />;
-        })}
-        {series.map((s) => (
-          <polygon
-            key={s.id}
-            className="iris-radar-shape"
-            style={{ "--tone": s.tone } as React.CSSProperties}
-            points={s.values
-              .map((v, i) => point(i, Math.max(0.02, Math.min(1, v))).join(","))
-              .join(" ")}
-          />
-        ))}
-        {axes.map((axis, i) => {
-          const [x, y] = point(i, 1.16);
-          return (
-            <text
-              key={axis}
-              x={x}
-              y={y}
-              className="iris-radar-axis"
-              textAnchor={x < c - 4 ? "end" : x > c + 4 ? "start" : "middle"}
-              dominantBaseline="middle"
-            >
-              {axis}
-            </text>
-          );
-        })}
-      </svg>
-      {/*
-       * A key tells shapes apart. One shape has nothing to tell apart, and
-       * its label is the card's caption, drawn by the card under the shape.
-       * The roster hands one profile per cell, and each cell was getting a
-       * key for one shape — a swatch beside the one name — standing where
-       * the caption belongs.
-       */}
-      {series.length > 1 ? (
-        <ul className="iris-ring-key">
-          {series.map((s) => (
-            <li key={s.id}>
-              <i style={{ background: s.tone }} />
-              {s.label}
-              <b />
-            </li>
+    <DrawIn kind="bloom">
+      <div className="iris-radar">
+        <svg
+          width={size + padX * 2}
+          height={size}
+          viewBox={`${-padX} 0 ${size + padX * 2} ${size}`}
+          role="img"
+          aria-label={`Profile across ${axes.join(", ")}`}
+        >
+          {[0.25, 0.5, 0.75, 1].map((ring) => (
+            <polygon
+              key={ring}
+              className="iris-radar-web"
+              points={axes.map((_, i) => point(i, ring).join(",")).join(" ")}
+            />
           ))}
-        </ul>
-      ) : null}
-    </div>
+          {axes.map((_, i) => {
+            const [x, y] = point(i, 1);
+            return <line key={i} x1={c} y1={c} x2={x} y2={y} className="iris-radar-spoke" />;
+          })}
+          {series.map((s) => (
+            <polygon
+              key={s.id}
+              className="iris-radar-shape"
+              style={{ "--tone": s.tone } as React.CSSProperties}
+              points={s.values
+                .map((v, i) => point(i, Math.max(0.02, Math.min(1, v))).join(","))
+                .join(" ")}
+            />
+          ))}
+          {axes.map((axis, i) => {
+            const [x, y] = point(i, 1.16);
+            return (
+              <text
+                key={axis}
+                x={x}
+                y={y}
+                className="iris-radar-axis"
+                textAnchor={x < c - 4 ? "end" : x > c + 4 ? "start" : "middle"}
+                dominantBaseline="middle"
+              >
+                {axis}
+              </text>
+            );
+          })}
+        </svg>
+        {/*
+         * A key tells shapes apart. One shape has nothing to tell apart, and
+         * its label is the card's caption, drawn by the card under the shape.
+         * The roster hands one profile per cell, and each cell was getting a
+         * key for one shape — a swatch beside the one name — standing where
+         * the caption belongs.
+         */}
+        {series.length > 1 ? (
+          <ul className="iris-ring-key">
+            {series.map((s) => (
+              <li key={s.id}>
+                <i style={{ background: s.tone }} />
+                {s.label}
+                <b />
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
+    </DrawIn>
   );
 }
 
@@ -689,18 +710,18 @@ export function RankedBars({
     </li>
   );
 
-  const shown = <ol className={className}>{rows.slice(0, cut).map((r, i) => item(r, i + 1))}</ol>;
-  if (cut === rows.length) return shown;
   return (
-    <>
-      {shown}
-      <details className="iris-ranked-more">
-        <summary className="iris-action">Show all</summary>
-        <ol className={className} start={cut + 1}>
-          {rows.slice(cut).map((r, i) => item(r, cut + i + 1))}
-        </ol>
-      </details>
-    </>
+    <DrawIn kind="sweep">
+      <ol className={className}>{rows.slice(0, cut).map((r, i) => item(r, i + 1))}</ol>
+      {cut === rows.length ? null : (
+        <details className="iris-ranked-more">
+          <summary className="iris-action">Show all</summary>
+          <ol className={className} start={cut + 1}>
+            {rows.slice(cut).map((r, i) => item(r, cut + i + 1))}
+          </ol>
+        </details>
+      )}
+    </DrawIn>
   );
 }
 
@@ -746,44 +767,46 @@ export function SectionSequence({
   const peak = Math.max(1, ...rows.map((r) => r.medianDwellSeconds ?? 0));
 
   return (
-    <ol className="iris-sequence">
-      {rows.map((row) => (
-        <li key={row.sectionId}>
-          <span className="iris-sequence-step">{row.order}</span>
+    <DrawIn kind="sweep">
+      <ol className="iris-sequence">
+        {rows.map((row) => (
+          <li key={row.sectionId}>
+            <span className="iris-sequence-step">{row.order}</span>
+            <span className="iris-sequence-name">
+              {row.label}
+              <em>
+                reached in {Math.round(row.reachRate * 100)}% of their meetings
+                {row.returnRate < 0.05
+                  ? null
+                  : ` · came back in ${Math.round(row.returnRate * 100)}%`}
+              </em>
+            </span>
+            <span className="iris-sequence-track">
+              {/*
+               * Scaled against this agent's own longest stop, so the bar shows
+               * where their time went. The comparison to the team is the number
+               * beside it, not a second bar — two scales in one row is how a
+               * reader reads the wrong one.
+               */}
+              <i style={{ width: `${((row.medianDwellSeconds ?? 0) / peak) * 100}%` }} />
+            </span>
+            <span className="iris-sequence-time">
+              {row.dwellDisplay}
+              {showTeam ? <em>team {row.teamDwellDisplay}</em> : null}
+            </span>
+          </li>
+        ))}
+        <li className="iris-sequence-foot">
+          <span />
           <span className="iris-sequence-name">
-            {row.label}
             <em>
-              reached in {Math.round(row.reachRate * 100)}% of their meetings
-              {row.returnRate < 0.05
-                ? null
-                : ` · came back in ${Math.round(row.returnRate * 100)}%`}
+              {agentLabel} typically opens these in this order. Times are the median stay in each
+              section, not the total.
             </em>
           </span>
-          <span className="iris-sequence-track">
-            {/*
-             * Scaled against this agent's own longest stop, so the bar shows
-             * where their time went. The comparison to the team is the number
-             * beside it, not a second bar — two scales in one row is how a
-             * reader reads the wrong one.
-             */}
-            <i style={{ width: `${((row.medianDwellSeconds ?? 0) / peak) * 100}%` }} />
-          </span>
-          <span className="iris-sequence-time">
-            {row.dwellDisplay}
-            {showTeam ? <em>team {row.teamDwellDisplay}</em> : null}
-          </span>
         </li>
-      ))}
-      <li className="iris-sequence-foot">
-        <span />
-        <span className="iris-sequence-name">
-          <em>
-            {agentLabel} typically opens these in this order. Times are the median stay in each
-            section, not the total.
-          </em>
-        </span>
-      </li>
-    </ol>
+      </ol>
+    </DrawIn>
   );
 }
 

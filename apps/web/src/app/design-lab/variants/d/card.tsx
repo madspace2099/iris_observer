@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { DFacts, DRankRow } from "../../lab-data";
-import { DrawIn, type DrawKind } from "./draw-in";
+import { DrawIn, type DrawKind } from "@/showroom/DrawIn";
 
 /**
  * ONE CARD, FOUR PARTS, IN THIS ORDER.
@@ -42,7 +42,8 @@ export function DCard({
   readonly title: string;
   readonly reads: string;
   readonly facts: DFacts;
-  readonly kind: DrawKind;
+  /** Absent for a product component, which draws itself in. */
+  readonly kind?: DrawKind;
   readonly wide?: boolean;
   /** The drawing takes the card's whole width at every size, and the facts go under it. */
   readonly full?: boolean;
@@ -65,7 +66,7 @@ export function DCard({
         </header>
 
         <div className="dld-plot">
-          <DrawIn kind={kind}>{children}</DrawIn>
+          {kind === undefined ? children : <DrawIn kind={kind}>{children}</DrawIn>}
           {/* A full card gives the room under its drawing to the drawing; its definition closes the card. */}
           {full ? null : <p className="dld-card-note">{facts.note}</p>}
           <p className="dld-sr">{facts.summary}</p>
@@ -133,19 +134,5 @@ function Ranking({
       )}
       {note === null ? null : <p className="dld-rank-note">{note}</p>}
     </section>
-  );
-}
-
-/** Both geometries of a new form; the card's own width decides which is shown. */
-export function Sized({ xl, l }: { readonly xl: ReactNode; readonly l: ReactNode }) {
-  return (
-    <>
-      <div className="dld-size" data-size="xl">
-        {xl}
-      </div>
-      <div className="dld-size" data-size="l">
-        {l}
-      </div>
-    </>
   );
 }

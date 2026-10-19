@@ -71,11 +71,14 @@ test("the attention index says what it is a multiple of, everywhere it is drawn"
 }) => {
   /*
    * The claim that moved here from the file-reading guard, which matched a
-   * regex against `charts.tsx`'s source. Read off the rendered matrix instead:
-   * every placed segment, and every withheld one.
+   * regex against `charts.tsx`'s source. Read off the rendered frame instead,
+   * the scatter's key since ADR-0041: every placed segment, and every one
+   * listed under the frame as not placed. Not empty, or the filter below
+   * would pass on a key nobody drew.
    */
   await open(page);
-  const rows = await page.locator(".iris-quad-segments li, .iris-quad-withheld li").allInnerTexts();
+  const rows = await page.locator(".dld-scatter-key li, .dld-withheld li").allInnerTexts();
+  expect(rows.length, "the frame's key drew no segment").toBeGreaterThan(0);
   const bare = rows.filter((text) => !/× attention for its share of\s+stock/.test(text));
   expect(bare, "an index drawn as a bare multiple").toEqual([]);
 });
