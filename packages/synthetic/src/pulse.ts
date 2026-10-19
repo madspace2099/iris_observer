@@ -121,11 +121,12 @@ export const BUILDINGS: Readonly<Record<string, BuildingSpec>> = {
     },
   },
   /*
-   * Shark Residence: a south block and a harbour block, ten floors, three
-   * apartments per level. The rule gives two- and three-room plans; the pins
-   * add compact studios low down and four-room plans at the top, so the stock
-   * has four room segments rather than two. Block letters S and H on purpose:
-   * the code-keyed maps in this file name A, B, C, K, R and W units.
+   * Shark Residence: two blocks, S facing south and H south-west, ten floors,
+   * three apartments per block on each. The rule gives two- and three-room
+   * plans; the pins add compact one-room flats low down and four-room plans at
+   * the top, so the stock has four room segments rather than two. Block letters
+   * S and H on purpose: the code-keyed maps in this file name A, B, C, K, R and
+   * W units.
    */
   prj_sharkres001: {
     floors: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],

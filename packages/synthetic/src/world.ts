@@ -319,11 +319,12 @@ export const PROJECTS: readonly ProjectSummary[] = [
    * SHARK RESIDENCE — THE DEMONSTRATION PROJECT.
    *
    * Four sources, five presenters with five recognisably different ways of
-   * telling the story, and enough meetings in every window for each of them to
-   * clear the reporting minimum. Its dataset is the last in `PROJECT_DATASETS`
-   * and its outcome model weighs presentation behaviour more than the others
-   * do (see `SHARK_OUTCOME_MODEL`), so what goes with a meeting that progressed
-   * is visible in this sample — and still only associated with it.
+   * telling the story, and enough meetings in the current quarter for each of
+   * them to clear the reporting minimum. Its dataset is the last in
+   * `PROJECT_DATASETS` and its outcome model weighs presentation behaviour more
+   * than the others do (see `SHARK_OUTCOME_MODEL`), so what goes with a meeting
+   * that progressed is visible in this sample — and still only associated with
+   * it.
    */
   {
     id: projectId("prj_sharkres001"),

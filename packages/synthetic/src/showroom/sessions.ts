@@ -275,8 +275,9 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
    *
    * Each is a tendency, not a script: every one of them has meetings with and
    * without Compare, with and without the shortlist, and the noisy outcome
-   * model gives each of them exceptions both ways. The shares keep all five
-   * above `AGENT_MIN_SAMPLE` in the current quarter.
+   * model gives each of them exceptions both ways. The shares, with the
+   * dataset's seed, keep all five above `AGENT_MIN_SAMPLE` in the current
+   * quarter.
    */
   {
     // The storyteller: the neighbourhood early, Compare, back to the shortlist.
@@ -324,7 +325,7 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
     meetingShare: 0.2,
   },
   {
-    // The rusher: thin coverage, Amenities skipped, few units, rarely back.
+    // The rusher: a short opening, thin coverage, Amenities skipped, few units.
     id: "agt_sharkoliver01",
     name: "Oliver Grant",
     organisationName: "Shark Sales",
@@ -620,10 +621,11 @@ const DEFAULT_OUTCOME_MODEL: OutcomeModel = {
  * different in this sample. Readiness and noise each still outweigh any single
  * behaviour, so thorough meetings still stall and thin ones still progress.
  *
- * Measured over all 275 meetings when it was set (2026-10-19): a meeting with
- * the shortlist, a return and Compare progressed in 77% of the recorded ones,
- * a meeting without the shortlist that skipped Amenities or opened on Home for
- * over a minute in 23%. In the current quarter alone, 79% and 14%.
+ * Measured in the current quarter when it was set (2026-10-19): a meeting with
+ * the shortlist, a return and Compare progressed in 31 of its 39 recorded
+ * outcomes (79%); a meeting without the shortlist that skipped Amenities or
+ * opened on Home for over a minute, in 4 of 21 (19%). Over all 275 meetings,
+ * 77% and 28%.
  */
 const SHARK_OUTCOME_MODEL: OutcomeModel = {
   base: 0.11,
@@ -634,10 +636,10 @@ const SHARK_OUTCOME_MODEL: OutcomeModel = {
   returned: 0.05,
   agentBias: 0.3,
   noise: 0.34,
-  shortlist: 0.045,
+  shortlist: 0.035,
   fourPlusUnits: 0.03,
-  amenitiesSkipped: -0.04,
-  longOpening: -0.04,
+  amenitiesSkipped: -0.035,
+  longOpening: -0.035,
 };
 
 export const PROJECT_DATASETS: readonly ProjectDataset[] = [
@@ -735,6 +737,11 @@ export const PROJECT_DATASETS: readonly ProjectDataset[] = [
    * Three windows like ISTER TOWER's, a steeper climb, and an outcome model of
    * its own (`SHARK_OUTCOME_MODEL`) under which the five presenters' habits
    * show up in what their meetings came to.
+   *
+   * The seed is chosen, not incidental. Who presents a meeting is read from its
+   * first draw, and under the first seed tried Oliver Grant drew 13 of the
+   * current quarter's 150 — under `AGENT_MIN_SAMPLE`. This one gives the five
+   * 39, 33, 27, 26 and 25.
    */
   {
     projectId: "prj_sharkres001",
