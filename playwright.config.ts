@@ -211,6 +211,14 @@ export default defineConfig({
     baseURL: EXTERNAL ?? `http://localhost:${PORT}`,
     trace: "retain-on-failure",
     colorScheme: "dark",
+    /*
+     * Every chart draws itself in (ADR-0041), and under reduced motion it is
+     * drawn at once. A review screenshot or an axe scan taken mid-entry would
+     * capture a half-drawn chart, or text at a fraction of its opacity, so the
+     * suite reads the final frame. A spec that measures motion asks for it
+     * back with `reducedMotion: "no-preference"`.
+     */
+    reducedMotion: "reduce",
   },
   /**
    * THE EVIDENCE OF ONE RUN SURVIVES THE NEXT.
