@@ -19,6 +19,7 @@ import type {
   FlowCharts,
   BehaviourStep,
   JourneyFlowModel,
+  JourneyFunnel,
   KpiFigure,
   KpiGroup,
   KpiPanel,
@@ -48,6 +49,7 @@ import {
   monthLabel,
   monthYearLabel,
   percent,
+  shareDisplay,
   signedPercent,
 } from "../format";
 import { endOfDayIn, monthKeyIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
@@ -1084,14 +1086,15 @@ export function buildJourney(
   const opened = sessions.filter((s) => s.units.length > 0);
   const shortlisted = opened.filter((s) => s.units.some((u) => u.favourited));
   const progressed = shortlisted.filter((s) => hasProgressed(s.outcome));
+  const stages = [
+    { id: "all", label: "Presented", count: sessions.length },
+    { id: "opened", label: "Opened a unit", count: opened.length },
+    { id: "shortlisted", label: "Shortlisted one", count: shortlisted.length },
+    { id: "progressed", label: "Progressed", count: progressed.length },
+  ];
 
   return {
-    stages: [
-      { id: "all", label: "Presented", count: sessions.length },
-      { id: "opened", label: "Opened a unit", count: opened.length },
-      { id: "shortlisted", label: "Shortlisted one", count: shortlisted.length },
-      { id: "progressed", label: "Progressed", count: progressed.length },
-    ],
+    stages,
     links: [
       { from: "all", to: "opened", count: opened.length },
       { from: "opened", to: "shortlisted", count: shortlisted.length },
@@ -1099,6 +1102,47 @@ export function buildJourney(
     ],
     droppedLabel: `${count(sessions.length - progressed.length, locale)} did not reach the end of this path`,
     note: "Each band is what survived the previous step. A meeting that stopped is not a failure — most presentations are not meant to close on the day.",
+    funnel: journeyFunnel(stages, locale),
+  };
+}
+
+/**
+ * The same stages as one narrowing path. Every stage is a subset of the one
+ * before it, so no band is wider than the band above; a stage nobody stopped
+ * before would add a band exactly as wide as the last, and is named instead.
+ */
+function journeyFunnel(
+  stages: readonly { readonly id: string; readonly label: string; readonly count: number }[],
+  locale: string,
+): JourneyFunnel {
+  const first = stages[0];
+  if (first === undefined || first.count === 0) {
+    return {
+      steps: [],
+      merged: null,
+      of: "No meeting was presented in this period, so there is no journey to draw.",
+    };
+  }
+  const drawn = stages.filter((s, i) => s.count !== stages[i - 1]?.count);
+  const merged = stages.flatMap((s, i) => {
+    const before = stages[i - 1];
+    return before === undefined || drawn.includes(s)
+      ? []
+      : [
+          `"${s.label}" is not drawn: all ${count(s.count, locale)} at "${before.label}" reached it, so nobody stopped between the two.`,
+        ];
+  });
+  return {
+    steps: drawn.map((s) => ({
+      id: s.id,
+      label: s.label,
+      count: s.count,
+      countDisplay: count(s.count, locale),
+      share: s.count / first.count,
+      shareDisplay: shareDisplay(s.count / first.count, locale),
+    })),
+    merged: merged.length === 0 ? null : merged.join(" "),
+    of: `Each share is out of the first band: the ${count(first.count, locale)} ${first.count === 1 ? "meeting" : "meetings"} presented in the period.`,
   };
 }
 

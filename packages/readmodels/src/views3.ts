@@ -312,6 +312,47 @@ export interface SegmentConversion {
   readonly quadrant: SegmentQuadrant | null;
   /** Why there is no quadrant, in words; null when there is one. */
   readonly withheld: string | null;
+  /**
+   * The reading in one line, with what the index is a multiple of and the set
+   * the rate stands on: "1.45× attention for its share of stock · 37%
+   * converted against 29% · n = 61". Null where the segment has no index.
+   */
+  readonly display: string | null;
+}
+
+/** One segment placed on the attention × conversion scatter. */
+export interface SegmentScatterPoint {
+  readonly id: string;
+  readonly label: string;
+  readonly index: number;
+  readonly share: number;
+  readonly decided: number;
+  readonly quadrant: SegmentQuadrant;
+  /** `SegmentConversion.display`. */
+  readonly display: string;
+  /** The project page with this segment selected, without the period. */
+  readonly href?: string;
+}
+
+/**
+ * The attention × conversion frame as points: every segment with a quadrant,
+ * in the frame's order (hero, mispriced, hidden gem, dead stock), then by
+ * index. A segment with an index and no quadrant is in `offChart` with its
+ * line and its reason; one with no index is stated under the parity scale.
+ */
+export interface SegmentScatter {
+  readonly points: readonly SegmentScatterPoint[];
+  /** The project's own conversion share, the level line; null with nothing decided. */
+  readonly projectShare: number | null;
+  /** The attention axis runs from nought to here: at least 2, else the largest index rounded up to a half. */
+  readonly indexMax: number;
+  readonly offChart: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly display: string;
+    readonly reason: string;
+    readonly href?: string;
+  }[];
 }
 
 export interface StatedDemand {
@@ -341,6 +382,7 @@ export interface ProjectView {
   readonly segments: readonly SegmentInterest[];
   /** What the attention × conversion frame rests on, said once for the whole matrix. */
   readonly matrixNote: string;
+  readonly scatter: SegmentScatter;
   readonly selectedSegment: SegmentInterest | null;
   readonly demand: readonly StatedDemand[];
   readonly places: readonly PlaceInterest[];
