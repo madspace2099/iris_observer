@@ -52,6 +52,13 @@ import "@observer/ui/madspace.css";
 import "@observer/ui/design-lab-a.css";
 import "@observer/ui/design-lab-b.css";
 import "@observer/ui/design-lab-c.css";
+/*
+ * Variant D, the Hyper kit's chart treatment, is no longer the lab's alone: the
+ * owner chose it for every chart on a product page (ADR-0041). Last, because its
+ * product rules restyle chart classes the sheets above declare, and every one of
+ * them is scoped to `[data-charts="d"] .d-card`, which only a chart region wears.
+ */
+import "@observer/ui/design-lab-d.css";
 import { environment, isStaging } from "@/lib/env";
 
 // The startup report lives in instrumentation.ts, which Next calls once per

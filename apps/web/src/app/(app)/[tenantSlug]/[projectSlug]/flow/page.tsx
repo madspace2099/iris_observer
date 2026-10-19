@@ -157,7 +157,7 @@ export default async function FlowPage({
 
         {/* --- the figures, over a window the reader picks ---------------- */}
 
-        <div>
+        <div className="d-card" key={`kpi-${query.period}-${kpiWindow}`}>
           <div className="iris-window">
             <p className="iris-kicker iris-kicker-measured" style={{ margin: 0 }}>
               Summary over
@@ -271,7 +271,7 @@ export default async function FlowPage({
         {view.ladder.source === "crm" ? (
           <>
             <hr className="iris-rule iris-section-rule" />
-            <div>
+            <div className="d-card">
               <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
                 Stalled deals, longest on their rung first
               </h2>
@@ -323,8 +323,8 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
-        <div className="iris-band">
-          <div>
+        <div className="iris-band" key={`steps-${query.period}`}>
+          <div className="d-card">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Meetings, and how many progressed
             </h2>
@@ -349,7 +349,7 @@ export default async function FlowPage({
             )}
           </div>
 
-          <div className="iris-band-side">
+          <div className="iris-band-side d-card">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
               Every outcome
             </h2>
@@ -413,7 +413,7 @@ export default async function FlowPage({
 
         {/* --- when meetings actually happen ------------------------------ */}
 
-        <div>
+        <div className="d-card" key={`heat-${query.period}`}>
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             When showroom meetings happen
           </h2>
@@ -440,8 +440,8 @@ export default async function FlowPage({
 
         {/* --- volume over time, and its composition ---------------------- */}
 
-        <div className="iris-band">
-          <div>
+        <div className="iris-band" key={`trend-${query.period}`}>
+          <div className="d-card">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations week by week
             </h2>
@@ -464,7 +464,7 @@ export default async function FlowPage({
             </p>
           </div>
 
-          <div className="iris-band-side">
+          <div className="iris-band-side d-card">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               What those meetings became
             </h2>
@@ -474,7 +474,7 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
-        <div>
+        <div className="d-card" key={`agents-${query.period}`}>
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: "1.25rem" }}>
             How each agent&rsquo;s meetings end
           </h2>
@@ -530,7 +530,7 @@ export default async function FlowPage({
 
         {/* --- what the quietest meetings had in common ------------------- */}
 
-        <div>
+        <div className="d-card" key={`funnel-${query.period}`}>
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             {charts.funnel.cohortLabel}
           </h2>
@@ -549,8 +549,8 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
-        <div className="iris-band">
-          <div>
+        <div className="iris-band" key={`longest-${query.period}`}>
+          <div className="d-card">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
@@ -566,7 +566,7 @@ export default async function FlowPage({
               collapseAfter={5}
             />
           </div>
-          <div className="iris-band-side">
+          <div className="iris-band-side d-card">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations given
             </h2>

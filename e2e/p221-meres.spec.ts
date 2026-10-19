@@ -270,7 +270,11 @@ test("R11-6 · at phone width the comparison stands above the lanes, in one colu
   await page.setViewportSize({ width: 393, height: 852 });
   await mainText(page, "Tomáš Varga", `${ROOT}/presentation?mode=cohorts`);
   const aside = await page.locator("main aside.iris-plane").boundingBox();
-  const lanes = await page.locator("main section.iris-plane .iris-dna").first().boundingBox();
+  /* The lanes stand in their chart card since ADR-0041: the column is the card's, inset by its padding. */
+  const lanes = await page
+    .locator("main section.iris-plane .d-card:has(.iris-dna)")
+    .first()
+    .boundingBox();
   expect(aside && lanes).toBeTruthy();
   expect(aside!.y + aside!.height, "the comparison ends before the lanes begin").toBeLessThanOrEqual(lanes!.y + 1);
   expect(Math.abs(aside!.x - lanes!.x), "one column").toBeLessThanOrEqual(32);

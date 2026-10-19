@@ -11,6 +11,7 @@ import { Missing, ShareFigure } from "@/components/agents";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { Radar, RankedBars } from "@/showroom/charts2";
+import { DrawIn } from "@/showroom/DrawIn";
 
 import { DEFAULT_LANGUAGE, agentDetailHref } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Sales Agents" };
@@ -120,7 +121,7 @@ export default async function AgentsPage({
           <>
             <div className="iris-rings">
               {view.agents.map((a) => (
-                <article className="iris-ring-card" key={a.agentId}>
+                <article className="iris-ring-card d-card" key={`${a.agentId}-${period}`}>
                   <h3>{a.name}</h3>
                   <p className="iris-meta" style={{ margin: "0 0 .5rem" }}>
                     {a.organisationName}
@@ -233,7 +234,7 @@ export default async function AgentsPage({
             </p>
             <div className="iris-radars">
               {charts.radar.profiles.map((profile) => (
-                <figure className="iris-radar-card" key={profile.id}>
+                <figure className="iris-radar-card d-card" key={`${profile.id}-${period}`}>
                   {/*
                    * Below the floor the card stays and the shape does not: a
                    * shape scaled against the strongest colleague on every axis
@@ -277,8 +278,8 @@ export default async function AgentsPage({
           <>
             <hr className="iris-rule" />
 
-            <div className="iris-band">
-              <div>
+            <div className="iris-band" key={`ranked-${period}`}>
+              <div className="d-card">
                 <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
                   Presentations given
                 </p>
@@ -289,28 +290,30 @@ export default async function AgentsPage({
                 </p>
               </div>
 
-              <div className="iris-band-side">
+              <div className="iris-band-side d-card">
                 <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
                   Across every agent
                 </p>
-                <div className="iris-bars">
-                  {view.repeats.map((r) => (
-                    <div className="iris-bar" key={r.visits ?? "unlinked"}>
-                      <span className="iris-bar-label" title={r.label}>
-                        {r.label}
-                      </span>
-                      <span
-                        className="iris-bar-track"
-                        style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
-                      >
-                        <i />
-                      </span>
-                      <span className="iris-bar-value">
-                        {r.meetings} · {Math.round(r.share * 100)}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
+                <DrawIn kind="sweep">
+                  <div className="iris-bars">
+                    {view.repeats.map((r) => (
+                      <div className="iris-bar" key={r.visits ?? "unlinked"}>
+                        <span className="iris-bar-label" title={r.label}>
+                          {r.label}
+                        </span>
+                        <span
+                          className="iris-bar-track"
+                          style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
+                        >
+                          <i />
+                        </span>
+                        <span className="iris-bar-value">
+                          {r.meetings} · {Math.round(r.share * 100)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </DrawIn>
               </div>
             </div>
 

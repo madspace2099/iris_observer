@@ -10,6 +10,7 @@ import { Finding, Gaps, Method, SourceChips } from "@/showroom/parts";
 import { PairedRates, ParityScale } from "@/showroom/charts";
 import { BulletChart } from "@/showroom/charts2";
 import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
+import { DrawIn } from "@/showroom/DrawIn";
 import { ExportReport } from "@/components/report";
 import { withPeriod, withPeriodOnLinks } from "@/lib/period";
 
@@ -361,26 +362,28 @@ export default async function ProjectPage({
                * transition bars already use holds every name here; below the
                * width that column fits, the name wraps instead of clipping.
                */}
-              <div className="iris-bars" data-wide-labels="true">
-                {segment.attendedTo.map((a) => (
-                  <div className="iris-bar" key={a.label}>
-                    <span className="iris-bar-label" title={a.category}>
-                      {a.label}
-                    </span>
-                    <span
-                      className="iris-bar-track"
-                      style={
-                        {
-                          "--v": (a.share / (segment.attendedTo[0]?.share ?? 1)).toFixed(3),
-                        } as React.CSSProperties
-                      }
-                    >
-                      <i />
-                    </span>
-                    <span className="iris-bar-value">{a.shareDisplay}</span>
-                  </div>
-                ))}
-              </div>
+              <DrawIn kind="sweep">
+                <div className="iris-bars" data-wide-labels="true">
+                  {segment.attendedTo.map((a) => (
+                    <div className="iris-bar" key={a.label}>
+                      <span className="iris-bar-label" title={a.category}>
+                        {a.label}
+                      </span>
+                      <span
+                        className="iris-bar-track"
+                        style={
+                          {
+                            "--v": (a.share / (segment.attendedTo[0]?.share ?? 1)).toFixed(3),
+                          } as React.CSSProperties
+                        }
+                      >
+                        <i />
+                      </span>
+                      <span className="iris-bar-value">{a.shareDisplay}</span>
+                    </div>
+                  ))}
+                </div>
+              </DrawIn>
               <Method style={{ marginTop: ".625rem" }}>
                 Share of the time these meetings spent on any named place.
               </Method>
@@ -450,30 +453,32 @@ export default async function ProjectPage({
             )}
           </div>
 
-          <div className="iris-band-side">
+          <div className="iris-band-side d-card" key={`places-${query.period}`}>
             <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
               What the neighbourhood is doing
             </p>
-            <div className="iris-bars">
-              {view.placeCategories.slice(0, 7).map((c) => (
-                <div className="iris-bar" key={c.category}>
-                  <span className="iris-bar-label" title={c.label}>
-                    {c.label}
-                  </span>
-                  <span
-                    className="iris-bar-track"
-                    style={
-                      {
-                        "--v": (c.share / (view.placeCategories[0]?.share ?? 1)).toFixed(3),
-                      } as React.CSSProperties
-                    }
-                  >
-                    <i />
-                  </span>
-                  <span className="iris-bar-value">{c.shareDisplay}</span>
-                </div>
-              ))}
-            </div>
+            <DrawIn kind="sweep">
+              <div className="iris-bars">
+                {view.placeCategories.slice(0, 7).map((c) => (
+                  <div className="iris-bar" key={c.category}>
+                    <span className="iris-bar-label" title={c.label}>
+                      {c.label}
+                    </span>
+                    <span
+                      className="iris-bar-track"
+                      style={
+                        {
+                          "--v": (c.share / (view.placeCategories[0]?.share ?? 1)).toFixed(3),
+                        } as React.CSSProperties
+                      }
+                    >
+                      <i />
+                    </span>
+                    <span className="iris-bar-value">{c.shareDisplay}</span>
+                  </div>
+                ))}
+              </div>
+            </DrawIn>
             <Method style={{ marginTop: ".625rem" }}>
               Share of all time spent on named places, by what kind of place it is.
             </Method>

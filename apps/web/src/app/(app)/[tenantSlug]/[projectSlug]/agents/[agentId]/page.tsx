@@ -464,7 +464,7 @@ export default async function AgentPage({
              * is not put beside them at all.
              */}
             {view.belowMinimum ? (
-              <div className="ox-chart">
+              <div className="ox-chart d-card ox-graphite">
                 <div className="ox-chart-head">
                   <h3 className="ox-chart-title">What their buyers opened</h3>
                   <span className="ox-chart-period">{periodLabel}</span>

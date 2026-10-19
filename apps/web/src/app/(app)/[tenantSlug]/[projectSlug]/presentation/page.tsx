@@ -7,6 +7,7 @@ import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { DnaLane, Finding, Gaps, SourceChips, shortCode } from "@/showroom/parts";
+import { DrawIn } from "@/showroom/DrawIn";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Presentation" };
@@ -161,29 +162,39 @@ export default async function PresentationPage({
           </p>
         ) : (
           <>
-            <div className="iris-dna">
-              <DnaLane lane={comparison.left} compact />
-              <DnaLane lane={comparison.right} compact />
+            <div
+              className="d-card"
+              key={`pair-${mode}-${comparison.left.id}-${comparison.right.id}-${query.period}`}
+            >
+              <DrawIn kind="bloom">
+                <div className="iris-dna">
+                  <DnaLane lane={comparison.left} compact />
+                  <DnaLane lane={comparison.right} compact />
+                </div>
+              </DrawIn>
+              {/*
+               * The key the compact lanes are read by. They print codes, and a
+               * title is no answer on a touch screen: the plan's R11 asks that no
+               * reading hang on an abbreviation, and the lane's own comment
+               * promised this key.
+               */}
+              <p className="iris-meta" style={{ marginTop: ".25rem" }}>
+                {[
+                  ...new Set(
+                    [...comparison.left.steps, ...comparison.right.steps].map((s) => s.label),
+                  ),
+                ]
+                  .map((label) => `${shortCode(label)} ${label}`)
+                  .join(" · ")}
+              </p>
             </div>
-            {/*
-             * The key the compact lanes are read by. They print codes, and a
-             * title is no answer on a touch screen: the plan's R11 asks that no
-             * reading hang on an abbreviation, and the lane's own comment
-             * promised this key.
-             */}
-            <p className="iris-meta" style={{ marginTop: ".25rem" }}>
-              {[
-                ...new Set(
-                  [...comparison.left.steps, ...comparison.right.steps].map((s) => s.label),
-                ),
-              ]
-                .map((label) => `${shortCode(label)} ${label}`)
-                .join(" · ")}
-            </p>
 
             <hr className="iris-rule" />
 
-            <div>
+            <div
+              className="d-card"
+              key={`differs-${mode}-${comparison.left.id}-${comparison.right.id}-${query.period}`}
+            >
               <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
                 What differs
               </p>
@@ -200,47 +211,49 @@ export default async function PresentationPage({
                   No behaviour differs between the two by more than four percentage points.
                 </p>
               ) : (
-                <div className="iris-diff">
-                  <div className="iris-diff-row">
-                    <span className="iris-code">behaviour</span>
-                    <span className="iris-code" style={{ textAlign: "right" }}>
-                      {comparison.left.label.split(" ")[0]}
-                    </span>
-                    <span className="iris-code" style={{ textAlign: "center" }}>
-                      gap
-                    </span>
-                    <span className="iris-code" style={{ textAlign: "right" }}>
-                      {comparison.right.label.split(" ")[0]}
-                    </span>
-                  </div>
-                  {comparison.differences.map((d) => (
-                    <div className="iris-diff-row" key={d.id}>
-                      <span className="iris-diff-behaviour">{d.behaviour}</span>
-                      <span className="iris-diff-value">{d.leftDisplay}</span>
-                      <span
-                        className="iris-diff-bar"
-                        style={{ "--magnitude": d.magnitude.toFixed(3) } as React.CSSProperties}
-                        title={`${Math.round(d.magnitude * 100)} percentage points`}
-                      >
-                        <i />
+                <DrawIn kind="sweep">
+                  <div className="iris-diff">
+                    <div className="iris-diff-row">
+                      <span className="iris-code">behaviour</span>
+                      <span className="iris-code" style={{ textAlign: "right" }}>
+                        {comparison.left.label.split(" ")[0]}
                       </span>
-                      <span className="iris-diff-value">{d.rightDisplay}</span>
-                      {/*
-                       * A row whose sample is narrower than the lane's says so
-                       * on the row, with its own n: the "n = L and R" line
-                       * below is the lanes' count, not this row's.
-                       */}
-                      {d.note === null &&
-                      d.sampleLeft === comparison.left.meetingCount &&
-                      d.sampleRight === comparison.right.meetingCount ? null : (
-                        <p className="iris-diff-note">
-                          {d.note === null ? "" : `${d.note} `}n = {d.sampleLeft} and{" "}
-                          {d.sampleRight}.
-                        </p>
-                      )}
+                      <span className="iris-code" style={{ textAlign: "center" }}>
+                        gap
+                      </span>
+                      <span className="iris-code" style={{ textAlign: "right" }}>
+                        {comparison.right.label.split(" ")[0]}
+                      </span>
                     </div>
-                  ))}
-                </div>
+                    {comparison.differences.map((d) => (
+                      <div className="iris-diff-row" key={d.id}>
+                        <span className="iris-diff-behaviour">{d.behaviour}</span>
+                        <span className="iris-diff-value">{d.leftDisplay}</span>
+                        <span
+                          className="iris-diff-bar"
+                          style={{ "--magnitude": d.magnitude.toFixed(3) } as React.CSSProperties}
+                          title={`${Math.round(d.magnitude * 100)} percentage points`}
+                        >
+                          <i />
+                        </span>
+                        <span className="iris-diff-value">{d.rightDisplay}</span>
+                        {/*
+                         * A row whose sample is narrower than the lane's says so
+                         * on the row, with its own n: the "n = L and R" line
+                         * below is the lanes' count, not this row's.
+                         */}
+                        {d.note === null &&
+                        d.sampleLeft === comparison.left.meetingCount &&
+                        d.sampleRight === comparison.right.meetingCount ? null : (
+                          <p className="iris-diff-note">
+                            {d.note === null ? "" : `${d.note} `}n = {d.sampleLeft} and{" "}
+                            {d.sampleRight}.
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </DrawIn>
               )}
               {comparison.withheld.map((sentence) => (
                 <p className="iris-meta" key={sentence} style={{ marginTop: ".5rem" }}>
@@ -296,17 +309,21 @@ export default async function PresentationPage({
           at all.
         </p>
 
-        <div className="iris-dna" style={{ marginTop: "1rem" }}>
-          <DnaLane lane={view.teamBenchmark} />
-          <hr className="iris-rule" style={{ margin: ".5rem 0" }} />
-          {view.lanes.map((lane) => (
-            <DnaLane key={lane.id} lane={lane} />
-          ))}
+        <div className="d-card" key={`lanes-${query.period}`}>
+          <DrawIn kind="bloom">
+            <div className="iris-dna">
+              <DnaLane lane={view.teamBenchmark} />
+              <hr className="iris-rule" style={{ margin: ".5rem 0" }} />
+              {view.lanes.map((lane) => (
+                <DnaLane key={lane.id} lane={lane} />
+              ))}
+            </div>
+          </DrawIn>
         </div>
 
         <hr className="iris-rule" />
 
-        <div>
+        <div className="d-card" key={`transitions-${query.period}`}>
           <p className="iris-kicker" style={{ marginBottom: ".5rem" }}>
             Most common transitions
           </p>
@@ -321,38 +338,40 @@ export default async function PresentationPage({
             Each share is of the moves out of that row&rsquo;s own starting section, printed beneath
             it. Two rows have two denominators, so a longer bar is not more meetings.
           </p>
-          <div className="iris-bars" data-wide-labels="true" data-fraction="true">
-            {/*
-             * Sorted by share, not by raw count.
-             *
-             * The read model orders by volume because that is what the AI
-             * tools want; a reader looking at bars expects the longest one
-             * first, and a list whose order contradicts its own bars reads as
-             * a rendering bug.
-             */}
-            {[...view.transitions]
-              .sort((a, b) => b.share - a.share)
-              .slice(0, 6)
-              .map((t) => (
-                <div className="iris-bar" key={`${t.from}-${t.to}`}>
-                  <span className="iris-bar-label" title={`${t.from} → ${t.to}`}>
-                    {t.from} → {t.to}
-                  </span>
-                  <span
-                    className="iris-bar-track"
-                    style={{ "--v": t.share.toFixed(3) } as React.CSSProperties}
-                  >
-                    <i />
-                  </span>
-                  <span className="iris-bar-value">
-                    {Math.round(t.share * 100)}%
-                    <span className="iris-bar-of">
-                      {t.count} of {t.outOf}
+          <DrawIn kind="sweep">
+            <div className="iris-bars" data-wide-labels="true" data-fraction="true">
+              {/*
+               * Sorted by share, not by raw count.
+               *
+               * The read model orders by volume because that is what the AI
+               * tools want; a reader looking at bars expects the longest one
+               * first, and a list whose order contradicts its own bars reads as
+               * a rendering bug.
+               */}
+              {[...view.transitions]
+                .sort((a, b) => b.share - a.share)
+                .slice(0, 6)
+                .map((t) => (
+                  <div className="iris-bar" key={`${t.from}-${t.to}`}>
+                    <span className="iris-bar-label" title={`${t.from} → ${t.to}`}>
+                      {t.from} → {t.to}
                     </span>
-                  </span>
-                </div>
-              ))}
-          </div>
+                    <span
+                      className="iris-bar-track"
+                      style={{ "--v": t.share.toFixed(3) } as React.CSSProperties}
+                    >
+                      <i />
+                    </span>
+                    <span className="iris-bar-value">
+                      {Math.round(t.share * 100)}%
+                      <span className="iris-bar-of">
+                        {t.count} of {t.outOf}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </DrawIn>
         </div>
 
         {view.findings.map((finding) => (
