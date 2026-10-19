@@ -435,11 +435,33 @@ export default async function UnitPage({
                     {Math.round(detail.saleCycle.days)}{" "}
                     {Math.round(detail.saleCycle.days) === 1 ? "day" : "days"}
                   </strong>
-                ) : (
+                ) : detail.saleCycle.kind === "excluded" ? (
                   CYCLE_EXCLUDED[detail.saleCycle.why]
+                ) : (
+                  "none, because the catalogue lists this unit as sold and the CRM holds no sale of it"
                 )}
                 . Measured from the first recorded showroom opening to the date the deal entered the
-                Sold stage.
+                Sold stage.{" "}
+                {[
+                  detail.saleCycle.firstOpenedDisplay === null
+                    ? null
+                    : `First recorded showroom opening: ${detail.saleCycle.firstOpenedDisplay}.`,
+                  detail.saleCycle.soldDisplay === null
+                    ? null
+                    : `Entered the Sold stage: ${detail.saleCycle.soldDisplay}.`,
+                  detail.saleCycle.firstOpenedDisplay === null &&
+                  detail.saleCycle.kind === "catalogue_sold_no_deal"
+                    ? "No showroom opening of this unit is recorded."
+                    : null,
+                  detail.saleCycle.meetingsBeforeSale === null
+                    ? null
+                    : `${detail.saleCycle.meetingsBeforeSale.count} of ${detail.saleCycle.meetingsBeforeSale.of} recorded ${detail.saleCycle.meetingsBeforeSale.of === 1 ? "meeting" : "meetings"} that opened it did so before the sale.`,
+                  detail.saleCycle.historyFromDisplay === null
+                    ? null
+                    : `The data covers showroom meetings from ${detail.saleCycle.historyFromDisplay}.`,
+                ]
+                  .filter((part) => part !== null)
+                  .join(" ")}
               </span>
             </div>
           )}
@@ -469,7 +491,7 @@ export default async function UnitPage({
             )}
 
             <div className="ox-section-head">
-              {/* The shortlist finding below links here: this table has the Shortlisted and Follow-up columns it rests on. */}
+              {/* This table has the Shortlisted and Follow-up columns. */}
               <h2 className="ox-section-title" id="meetings-that-opened-it">
                 Meetings that opened it
               </h2>

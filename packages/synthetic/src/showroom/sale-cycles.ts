@@ -12,12 +12,44 @@ import type { ShowroomSession } from "@observer/contracts";
  * `within` limits the sales by their Sold date. A sale the CRM gives no date
  * has no place in a window, so it appears only when no window is asked for.
  */
+/** The earliest moment the visible history covers; Infinity when it holds none. */
+export const historyStart = (history: readonly ShowroomSession[]): number =>
+  history.reduce((min, s) => Math.min(min, Date.parse(s.startedAt)), Infinity);
+
+/** The instant of the unit's first recorded opening anywhere in the history; Infinity when none. */
+export const firstOpeningOf = (history: readonly ShowroomSession[], unitCode: string): number =>
+  history
+    .filter((s) => s.units.some((u) => u.unitCode === unitCode))
+    .reduce((min, s) => Math.min(min, Date.parse(s.startedAt)), Infinity);
+
+/**
+ * P2-06's meeting count (R07-4): of the meetings that opened the unit anywhere
+ * in the history, how many did so by its Sold date, the bound the calculator
+ * and the assisted-sales rule use. One session is one meeting. Null with no
+ * date, and null when no meeting opened the unit: that is an absence, not a
+ * zero of something.
+ */
+export function countMeetingsBeforeSale(
+  history: readonly ShowroomSession[],
+  unitCode: string,
+  soldAt: string | null,
+): { readonly count: number; readonly of: number } | null {
+  const sold = soldAt === null ? NaN : Date.parse(soldAt);
+  if (!Number.isFinite(sold)) return null;
+  const opened = history.filter((s) => s.units.some((u) => u.unitCode === unitCode));
+  if (opened.length === 0) return null;
+  return {
+    count: opened.filter((s) => Date.parse(s.startedAt) <= sold).length,
+    of: opened.length,
+  };
+}
+
 export function showroomSaleCycleInputs(
   deals: DeliveredDeals,
   history: readonly ShowroomSession[],
   within: { readonly from: number; readonly to: number } | null = null,
 ): readonly SaleCycleInput[] {
-  const edge = history.reduce((min, s) => Math.min(min, Date.parse(s.startedAt)), Infinity);
+  const edge = historyStart(history);
   const firstOpened = new Map<string, number>();
   for (const session of history) {
     const at = Date.parse(session.startedAt);

@@ -2342,7 +2342,7 @@ export function buildStorytelling(
       evidence: evidenceRef(
         `pair-${topPair.a}-${topPair.b}`,
         "statistical_association",
-        `${base}/storytelling`,
+        `${base}/meetings?features=${encodeURIComponent(`${topPair.a},${topPair.b}`)}`,
         topPair.together,
       ),
       sampleSize: n,
@@ -2393,6 +2393,7 @@ export function buildStorytelling(
       meetingsTotal: n,
       timeShare: environmentTimeShare(sessions),
     },
+    screenshots: sessions.reduce((sum, s) => sum + s.screenshots, 0),
     beforeShortlist,
     findings,
     evidence: evidenceRef("storytelling", "observed_sequence", `${base}/storytelling`, n),

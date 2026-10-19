@@ -542,8 +542,8 @@ export interface AudienceMatch {
 }
 
 /**
- * Why there is no list, when the kind of place asked for has no recorded point
- * of interest behind it. Not "nothing matched", which says the criteria were too
+ * Why there is no list, when the kind of place asked for, or any kind, has no
+ * recorded point of interest behind it. Not "nothing matched", which says the criteria were too
  * tight: what is missing is the input, and this names it.
  */
 export interface AudienceUnavailable {
@@ -561,7 +561,7 @@ export interface AudienceView {
   readonly matches: readonly AudienceMatch[];
   readonly total: number;
   readonly ofMeetings: number;
-  /** Null whenever a list stands: on recorded places, or on units alone. */
+  /** Null whenever a list stands, and a list stands only on a recorded place (P2-18). */
   readonly unavailable: AudienceUnavailable | null;
   readonly caveats: readonly string[];
   readonly evidence: EvidenceRef;

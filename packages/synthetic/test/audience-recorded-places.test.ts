@@ -184,16 +184,23 @@ describe("one meeting at a time", () => {
     expect(both?.because).toBe("A-101 · Park 30s");
   });
 
+  it("names only the places that met the threshold as why it matched", () => {
+    const two = meeting("mtg_two", [
+      place("Park", "amenities", "legacy_available", 30),
+      place("Škôlka", "amenities", "legacy_available", 12),
+    ]);
+    const view = buildAudience(contextFor(PROJECT_ID), [two], FAMILY);
+    expect(view.matches.map((m) => m.because)).toEqual(["A-101 · Park 30s"]);
+  });
+
   it("names no unrecorded place when no kind of place was asked for", () => {
     const view = buildAudience(contextFor(PROJECT_ID), MEETINGS, {
       ...FAMILY,
       placeCategory: null,
     });
     expect(view.matches.map((m) => m.because)).toEqual([
-      "A-101",
       "A-101 · Materská škola 30s",
       "A-101 · Park 30s",
-      "A-101",
     ]);
   });
 
@@ -230,9 +237,12 @@ describe("one meeting at a time", () => {
       expect([view.unavailable, view.total]).toEqual([null, 0]);
     });
 
-    it("keeps a list when the kind has a recorded place, or when no kind was asked for", () => {
+    it("keeps a list only when a recorded place stands behind it, whether or not a kind was asked for", () => {
       expect(unavailable(MEETINGS, FAMILY)).toBeNull();
-      expect(unavailable([meeting("mtg_live", [])], { ...FAMILY, placeCategory: null })).toBeNull();
+      expect(unavailable(MEETINGS, { ...FAMILY, placeCategory: null })).toBeNull();
+      const said = unavailable([meeting("mtg_live", [])], { ...FAMILY, placeCategory: null });
+      expect(said?.missing).toMatch(/UE5 v2 event/);
+      expect(said?.missing).toMatch(/legacy Amenities items mapped to places/);
     });
   });
 });

@@ -5,6 +5,7 @@ import {
   SESSION_CHANNEL_LABELS,
   hasProgressed,
   outcomeIsUnknown,
+  sectionLabel,
   type InsightSource,
   type MeetingOutcome,
   type SectionId,
@@ -86,7 +87,12 @@ import {
 } from "../format";
 import { assistedSaleOf, dealsFor } from "../deals";
 import { startOfWeekIn } from "../time";
-import { showroomSaleCycleInputs } from "./sale-cycles";
+import {
+  countMeetingsBeforeSale,
+  firstOpeningOf,
+  historyStart,
+  showroomSaleCycleInputs,
+} from "./sale-cycles";
 import { presenterName, presentersIn, sessionsForProject, sessionsInPeriod } from "./sessions";
 import { buildMeetingList, buildUnitAttention } from "./project";
 import {
@@ -108,35 +114,6 @@ export const SCREENS_OPENED_SENTENCE: Sentence = {
   en: { text: "Opened {count} {times|n}", words: { times: TIMES.en } },
   sk: { text: "Otvorená {count} {times|n}", words: { times: TIMES.sk } },
   hu: { text: "{count} alkalommal megnyitva" },
-};
-
-/** "B-302 was shortlisted in 3 meetings, none of which recorded a follow-up." */
-export const SCREENS_SHORTLISTED_SENTENCE: Sentence = {
-  en: {
-    text: "{unit} was shortlisted in {count} {meetings|n}, none of which recorded a follow-up.",
-    words: { meetings: MEETINGS.en },
-  },
-  sk: {
-    text: "Jednotka {unit} bola zaradená do výberu v {count} {meetings|n} a {none|n}.",
-    words: {
-      /* After "v": the locative. */
-      meetings: { one: "stretnutí", few: "stretnutiach", other: "stretnutiach" },
-      none: {
-        one: "pri ňom nebol zaznamenaný žiadny ďalší krok",
-        few: "pri žiadnom z nich nebol zaznamenaný ďalší krok",
-        other: "pri žiadnom z nich nebol zaznamenaný ďalší krok",
-      },
-    },
-  },
-  hu: {
-    text: "{Az:unit} egység {count} találkozón került a kiválasztottak közé, és {none|n}.",
-    words: {
-      none: {
-        one: "azon nem rögzítettek utánkövetést",
-        other: "egyiken sem rögzítettek utánkövetést",
-      },
-    },
-  },
 };
 
 /** "B-302 · 2 rooms · 63 m² · €240,000 · opened in 3 meetings": a unit's headline. */
@@ -450,11 +427,18 @@ export function buildMeetings(
     outcomeCounts.set(s.outcome, (outcomeCounts.get(s.outcome) ?? 0) + 1);
   }
 
+  /* A pair's source meetings: every presentation that reached all of them (R10-5). */
+  const features = filters.features ?? null;
+  const reachesAll = (s: ShowroomSession): boolean =>
+    features === null || features.every((id) => reached(s, id));
+  const featuresLabel = features === null ? null : features.map(sectionLabel).join(" and ");
+
   const matched = sessions.filter(
     (s) =>
       (filters.agentId === null || s.agentId === filters.agentId) &&
       (filters.channel === null || s.channel === filters.channel) &&
-      (filters.outcome === null || s.outcome === filters.outcome),
+      (filters.outcome === null || s.outcome === filters.outcome) &&
+      reachesAll(s),
   );
 
   const rows = buildMeetingRows(context, matched);
@@ -536,6 +520,7 @@ export function buildMeetings(
       : presenterName(context.project.id as string, filters.agentId, context.language),
     filters.channel === null ? null : SESSION_CHANNEL_LABELS[filters.channel],
     filters.outcome === null ? null : OUTCOME_LABELS[filters.outcome],
+    featuresLabel,
   ].filter((x): x is string => x !== null);
 
   const emptyState =
@@ -568,6 +553,16 @@ export function buildMeetings(
         Object.keys(OUTCOME_LABELS),
         outcomeCounts,
       ),
+      features:
+        features === null
+          ? []
+          : [
+              {
+                id: features.join(","),
+                label: featuresLabel ?? "",
+                count: sessions.filter(reachesAll).length,
+              },
+            ],
     },
     findings,
     emptyState,
@@ -1078,38 +1073,9 @@ export function buildUnitDetail(
 
   const findings: ShowroomFinding[] = [...(attentionView.selected?.findings ?? [])];
 
-  if (row.favourites > 0 && followUpIn.length === 0) {
-    findings.push({
-      id: `unit-${unitCode}-shortlist-no-follow-up`,
-      statement: sentence(language, SCREENS_SHORTLISTED_SENTENCE, {
-        unit: unitCode,
-        count: count(row.favourites, locale),
-        n: row.favourites,
-      }),
-      baseline: `${count(row.meetings, locale)} meetings opened it`,
-      soWhat:
-        "Shortlisting is the strongest interest signal the showroom produces. A shortlist with nothing recorded after it is a call somebody may still owe.",
-      /*
-       * The unit's own table of the meetings that opened it, with their
-       * Shortlisted and Follow-up columns. "See those meetings" opened the
-       * whole register, which has no filter by unit.
-       */
-      nextStep: {
-        label: "See the meetings that opened it",
-        href: `${root}/units/${encodeURIComponent(unitCode)}#meetings-that-opened-it`,
-      },
-      // The same table as the step: "N records" opened the whole register too.
-      evidence: evidenceRef(
-        `unit-${unitCode}-follow-up`,
-        "observed_sequence",
-        `${root}/units/${encodeURIComponent(unitCode)}#meetings-that-opened-it`,
-        row.favourites,
-      ),
-      sampleSize: row.meetings,
-      sources: OBSERVED,
-      caveat: "A follow-up agreed but not recorded in the room would not appear here.",
-    });
-  }
+  /* A shortlist with no follow-up recorded: retired (R07-3, Máté 2026-10-02). "Presentation only"
+   * and "Not interested" account for a shortlist, and an unrecorded outcome is
+   * `outcome_not_recorded`'s. Measured on every project and period before it went: nothing was left. */
 
   /*
    * IRIS-assisted sale (ADR-0039): whether the CRM's dated sale of THIS unit
@@ -1196,10 +1162,38 @@ export function buildUnitDetail(
       deals === null
         ? null
         : (() => {
+            const from = historyStart(history);
+            const day = (at: string | number | null) =>
+              at === null || !Number.isFinite(typeof at === "number" ? at : Date.parse(at))
+                ? null
+                : dayLabel(new Date(at), locale, timeZone);
+            const historyFromDisplay = day(from);
             const sale = showroomSaleCycleInputs(deals, history).find(
               (s) => s.unitCode === unitCode,
             );
-            return sale === undefined ? null : classifySaleCycle(sale);
+            if (sale !== undefined) {
+              return {
+                ...classifySaleCycle(sale),
+                firstOpenedDisplay: day(sale.firstOpenedAt),
+                soldDisplay: day(sale.soldAt),
+                historyFromDisplay,
+                meetingsBeforeSale: countMeetingsBeforeSale(history, unitCode, sale.soldAt),
+              };
+            }
+            /*
+             * Sold in the catalogue, no sale of it in the CRM: Sold, date unknown,
+             * not unsold (R07-6). Not put through the calculator as a sale the CRM
+             * does not hold, so Sales Flow's "N of M sales" keeps its M.
+             */
+            if (raw.status !== "sold") return null;
+            return {
+              kind: "catalogue_sold_no_deal" as const,
+              unitCode,
+              firstOpenedDisplay: day(firstOpeningOf(history, unitCode)),
+              soldDisplay: null,
+              historyFromDisplay,
+              meetingsBeforeSale: null,
+            };
           })(),
     emptyState:
       row.meetings === 0
