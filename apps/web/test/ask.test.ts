@@ -1,6 +1,10 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { VIEWERS } from "@observer/synthetic";
-import { ask, type AskContextInput } from "../src/lib/ai/agent";
+import { ask, namedAgents, routeQuestion, type AskContextInput } from "../src/lib/ai/agent";
+import { LIVE_QUESTIONS } from "../src/components/ask-iris/live-questions";
+import { rosterOf } from "./support/roster";
 import type { ModelGrant } from "../src/lib/ai/provider";
 import { TOOL_NAMES } from "../src/lib/ai/tools";
 import { resetEnvironmentCache } from "../src/lib/env";
@@ -26,6 +30,9 @@ beforeAll(() => {
   resetEnvironmentCache();
 });
 
+/** Northgate's presenters, read from the repository the gate reads them from. */
+const NORTHGATE_ROSTER = await rosterOf("alpha", "northgate");
+
 const CONTEXT: AskContextInput = {
   viewer: VIEWERS.developer,
   tenantSlug: "alpha",
@@ -33,7 +40,7 @@ const CONTEXT: AskContextInput = {
   projectLabel: "Northgate",
   periodLabel: "Quarter to date",
   period: "quarter_to_date",
-  agentIds: ["agt_monika", "agt_akhilesh", "agt_jan", "agt_lucia"],
+  roster: NORTHGATE_ROSTER,
   unitCode: null,
   meetingId: null,
   safetyIdentifier: "obs_test",
@@ -230,6 +237,7 @@ describe("the boundary holds", () => {
         "analyze_iris_assisted_sales",
         "analyze_unit_attention",
         "compare_agent_flows",
+        "compare_agent_outcomes",
         "compare_meeting_cohorts",
         "detect_showroom_behavior_changes",
         "explain_meeting_journey",
@@ -238,5 +246,112 @@ describe("the boundary holds", () => {
         "summarize_showroom_period",
       ].sort(),
     );
+  });
+});
+
+describe("the live questions reach their analyses without a model", () => {
+  const routes = (question: string) => routeQuestion(question, CONTEXT).map((call) => call.tool);
+
+  it("offers exactly four, each a different question", () => {
+    expect(LIVE_QUESTIONS).toHaveLength(4);
+    expect(new Set(LIVE_QUESTIONS).size).toBe(4);
+  });
+
+  it("splits progressed meetings from the rest", () => {
+    expect(routes(LIVE_QUESTIONS[0] as string)).toEqual(["compare_meeting_cohorts"]);
+  });
+
+  it("reads who progressed most, and how they presented, in one analysis", () => {
+    expect(routes(LIVE_QUESTIONS[1] as string)).toEqual(["compare_agent_outcomes"]);
+  });
+
+  it("reads where presentations lose buyers from the cohorts and the sections reached", () => {
+    expect(routes(LIVE_QUESTIONS[2] as string)).toEqual([
+      "compare_meeting_cohorts",
+      "analyze_feature_usage",
+    ]);
+  });
+
+  it("reads unit attention beside the sales that followed a showing", () => {
+    expect(routes(LIVE_QUESTIONS[3] as string)).toEqual([
+      "analyze_unit_attention",
+      "analyze_iris_assisted_sales",
+    ]);
+  });
+
+  it.each(LIVE_QUESTIONS)("answers from showroom evidence, with no causal claim: %s", async (q) => {
+    const outcome = await ask(q, CONTEXT, NO_KEY);
+    expect(outcome.refusal, `refused: ${outcome.refusal}`).toBeNull();
+    const answer = outcome.answer;
+    expect(answer).not.toBeNull();
+    if (answer === null) return;
+    expect(answer.findings.length).toBeGreaterThan(0);
+    expect(CAUSAL.test(answer.answer), answer.answer).toBe(false);
+    expect(CAUSAL.test(answer.interpretation), answer.interpretation).toBe(false);
+  });
+});
+
+describe("the router names presenters from the project's own roster", () => {
+  const ROSTER = [
+    { agentId: "agt_a", name: "Zsófia Bárány" },
+    { agentId: "agt_b", name: "Marek Dvořák" },
+    { agentId: "agt_c", name: "Lena Fischer" },
+  ];
+
+  it("matches a first name, with or without its accents, in the order asked", () => {
+    expect(namedAgents("Compare Lena and Zsofia", ROSTER)).toEqual(["agt_c", "agt_a"]);
+    expect(namedAgents("compare zsófia with marek", ROSTER)).toEqual(["agt_a", "agt_b"]);
+  });
+
+  it("matches a whole word only, never a name inside another word", () => {
+    expect(namedAgents("How did Magdalena present?", ROSTER)).toEqual([]);
+  });
+
+  it("names nobody who is not on the roster", () => {
+    expect(namedAgents("Compare Monika and Ján", ROSTER)).toEqual([]);
+  });
+
+  it("compares the two presenters a question names", () => {
+    const calls = routeQuestion("Compare Marek and Lena's presentations", {
+      ...CONTEXT,
+      roster: ROSTER,
+    });
+    expect(calls).toEqual([
+      { tool: "compare_agent_flows", args: { leftAgentId: "agt_b", rightAgentId: "agt_c" } },
+    ]);
+  });
+
+  it("falls back to the roster's order, never to an id written into the code", () => {
+    const calls = routeQuestion("Compare the agents' presentations", {
+      ...CONTEXT,
+      roster: ROSTER,
+    });
+    expect(calls).toEqual([
+      { tool: "compare_agent_flows", args: { leftAgentId: "agt_a", rightAgentId: "agt_b" } },
+    ]);
+  });
+
+  it("offers no comparison of presenters when the roster holds fewer than two", () => {
+    const calls = routeQuestion("What should this agent do differently?", {
+      ...CONTEXT,
+      roster: ROSTER.slice(0, 1),
+    });
+    expect(calls.map((c) => c.tool)).toEqual(["compare_meeting_cohorts"]);
+  });
+
+  it("reads a unit code whole, however the catalogue spells it", () => {
+    for (const [question, unitCode] of [
+      ["Why is interest in apartment A-402 changing?", "A-402"],
+      ["How much attention did it-a-12-07 draw?", "IT-A-12-07"],
+    ] as const) {
+      expect(routeQuestion(question, CONTEXT)).toEqual([
+        { tool: "analyze_unit_attention", args: { unitCode } },
+      ]);
+    }
+  });
+
+  it("names no project's presenter in the router itself", () => {
+    const source = readFileSync(resolve(import.meta.dirname, "../src/lib/ai/agent.ts"), "utf8");
+    expect(source).not.toMatch(/agt_monika|agt_akhilesh|monika\|/i);
   });
 });

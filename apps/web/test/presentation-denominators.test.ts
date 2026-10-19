@@ -72,20 +72,30 @@ describe("the page prints every denominator the read model carries", () => {
   });
 });
 
+/*
+ * Three tools read a presentation comparison: the two that draw one pair
+ * (agents, cohorts), and `compare_agent_outcomes`, which draws the comparison
+ * between the presenters whose recorded outcomes lie furthest apart. Each
+ * carries what the surface carries.
+ */
 describe("the Ask Observer tools answer what the surface answers", () => {
-  it("both comparison tools carry what was withheld", () => {
-    const sites = TOOLS.match(/\.\.\.c\.withheld/g) ?? [];
-    expect(sites.length, "a tool rates a behaviour the surface withholds").toBe(2);
+  it("every comparison tool carries what was withheld", () => {
+    const sites = TOOLS.match(/c\.withheld/g) ?? [];
+    expect(sites.length, "a tool rates a behaviour the surface withholds").toBe(3);
   });
 
-  it("both comparison tools carry the refusal", () => {
-    /* Once in the caveats and once in the draft, per tool. */
+  it("every comparison tool carries the refusal", () => {
+    /*
+     * Once in the caveats and once in the draft, per pair tool; the outcomes
+     * tool draws no difference under a refusal and states it in its draft.
+     */
     const sites = TOOLS.match(/c\.verdictRefusal (?:!==|===) null/g) ?? [];
-    expect(sites.length, "a tool answers a comparison the surface refuses").toBe(4);
+    expect(sites.length, "a tool answers a comparison the surface refuses").toBe(5);
+    expect(TOOLS).toContain("c?.verdictRefusal ?? flows.noComparison");
   });
 
-  it("both comparison tools say why there is none", () => {
-    const sites = TOOLS.match(/view\.noComparison/g) ?? [];
-    expect(sites.length).toBe(2);
+  it("every comparison tool says why there is none", () => {
+    const sites = TOOLS.match(/\.noComparison/g) ?? [];
+    expect(sites.length).toBe(3);
   });
 });

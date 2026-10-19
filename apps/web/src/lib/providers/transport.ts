@@ -146,8 +146,20 @@ async function openAiCompatible(
   const body: Record<string, unknown> = {
     model,
     messages: chatMessages(turn),
-    max_tokens: turn.maxOutputTokens,
+    /*
+     * `max_completion_tokens`, not `max_tokens`: the current OpenAI chat models
+     * refuse the older name outright, and on a reasoning model this ceiling
+     * covers its reasoning as well as its words.
+     */
+    max_completion_tokens: turn.maxOutputTokens,
   };
+
+  /*
+   * The effort the turn asked for, where the model takes one. Only the
+   * reasoning families accept the field; any other model refuses the request
+   * if it is sent, so it is sent only to those.
+   */
+  if (/^(o\d|gpt-5)/.test(model)) body["reasoning_effort"] = turn.reasoningEffort;
 
   if (turn.tools.length > 0) {
     body["tools"] = turn.tools.map((tool) => ({
@@ -226,6 +238,7 @@ export async function callModel(
   id: ModelId,
   apiKey: string,
   turn: ModelTurn,
+  apiIdentifier: string = modelEntry(id).apiIdentifier,
 ): Promise<TransportResult> {
   const entry = modelEntry(id);
   const provider = providerFor(entry.provider);
@@ -249,7 +262,7 @@ export async function callModel(
    */
   switch (provider.transport) {
     case "openai-compatible":
-      return openAiCompatible(provider.baseUrl, apiKey, entry.apiIdentifier, turn);
+      return openAiCompatible(provider.baseUrl, apiKey, apiIdentifier, turn);
   }
 }
 
@@ -267,8 +280,11 @@ export function modelFor(
   id: ModelId,
   apiKey: string,
   source: EnvSource = process.env,
+  /** The vendor's name when it is not the catalogue's — the demonstration key's model (ADR-0040). */
+  wireModel?: string,
 ): ObserverModel {
   const entry = modelEntry(id);
+  const apiIdentifier = wireModel ?? entry.apiIdentifier;
 
   /*
    * NO REQUEST LEAVES A HARNESS SERVER. EVER.
@@ -297,15 +313,16 @@ export function modelFor(
 
   return {
     id: entry.provider,
-    model: id,
+    /* The model that writes the words is the one an answer names. */
+    model: wireModel ?? id,
     live: true,
 
     async respond(turn) {
-      return result(await callModel(id, apiKey, turn));
+      return result(await callModel(id, apiKey, turn, apiIdentifier));
     },
 
     async *streamRespond(turn) {
-      const transport = await callModel(id, apiKey, turn);
+      const transport = await callModel(id, apiKey, turn, apiIdentifier);
       if (transport.text.length > 0) yield { type: "text_delta", delta: transport.text };
       yield { type: "done", result: result(transport) };
     },

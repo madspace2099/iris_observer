@@ -90,7 +90,7 @@ function admission(): GateModule.Admitted {
       projectLabel: "Northgate",
       periodLabel: "Quarter to date",
       period: "quarter_to_date",
-      agentIds: [],
+      roster: [],
       unitCode: null,
       meetingId: null,
       safetyIdentifier: "obs_test",

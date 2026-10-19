@@ -3,6 +3,8 @@ import { testStorePermitted } from "./credentials/test-store";
 import { z } from "zod";
 
 import { diagnoseServerSupabase } from "./supabase-env";
+import { onDeploymentPlatform } from "./deployment-markers";
+import { RECOMMENDED_DEFAULT, modelEntry } from "./models/catalogue";
 import { describePepper, pseudonymKeyId } from "@/lib/ai/identity";
 
 /**
@@ -167,6 +169,64 @@ export interface EnvironmentReport {
 }
 
 let cached: EnvironmentReport | null = null;
+
+/* --- the demonstration key (ADR-0040) ---------------------------------------- */
+
+/** What the demonstration key lets the stream route call. Never logged, never serialised. */
+export interface DemoModelAccess {
+  readonly apiKey: string;
+  /** The vendor's own name for the model, sent on the wire and named on the answer. */
+  readonly model: string;
+}
+
+/** Why a demonstration key that is set is not used, or null when it is. Names only. */
+function demoKeyRefusal(source: Readonly<Record<string, string | undefined>>): string | null {
+  if (source["OBSERVER_DEMO_ACCOUNTS"] !== "1") return "OBSERVER_DEMO_ACCOUNTS is not 1";
+  const environment = source["OBSERVER_ENVIRONMENT"] ?? "development";
+  if (environment !== "development" && source["OBSERVER_SYNTHETIC_HARNESS"] !== "1") {
+    return "OBSERVER_ENVIRONMENT is not development and OBSERVER_SYNTHETIC_HARNESS is not 1";
+  }
+  if (onDeploymentPlatform(source)) return "a deployment platform's marker is present";
+  return null;
+}
+
+/**
+ * THE OWNER'S KEY FOR A LOCAL RECORDING, AND NOWHERE ELSE.
+ *
+ * Keys belong to accounts and live in Supabase (ADR-0030), which a local
+ * demonstration does not have. `OBSERVER_DEMO_OPENAI_KEY` is the one exception,
+ * read here and nowhere else, and honoured only when all three hold:
+ *
+ *   - the synthetic account directory is on (`OBSERVER_DEMO_ACCOUNTS=1`);
+ *   - `OBSERVER_ENVIRONMENT` is development (unset reads as development, as the
+ *     schema above says), or the synthetic harness flag is set;
+ *   - no deployment platform's marker is present (`deployment-markers.ts`) —
+ *     which an `.env` file cannot remove, so copying these lines into a hosted
+ *     project yields a deployment that ignores the key.
+ *
+ * Absent, empty or refused, the answer is null and Ask IRIS answers exactly as
+ * it does without any key: the same tools, the same figures, the read models'
+ * own prose. The model name is configuration rather than a secret, defaults to
+ * the catalogue's recommended model and is checked for shape only.
+ */
+export function demoModelAccess(
+  source: Readonly<Record<string, string | undefined>> = process.env,
+): DemoModelAccess | null {
+  const apiKey = source["OBSERVER_DEMO_OPENAI_KEY"]?.trim() ?? "";
+  if (apiKey.length === 0 || demoKeyRefusal(source) !== null) return null;
+  const asked = source["OBSERVER_DEMO_OPENAI_MODEL"]?.trim() ?? "";
+  const model = ModelId.safeParse(asked).success
+    ? asked
+    : modelEntry(RECOMMENDED_DEFAULT).apiIdentifier;
+  return { apiKey, model };
+}
+
+/** The model the demonstration key answers with, for the screen. Never the key. */
+export function demoModelName(
+  source: Readonly<Record<string, string | undefined>> = process.env,
+): string | null {
+  return demoModelAccess(source)?.model ?? null;
+}
 
 /**
  * Validates each variable on its own.
@@ -369,6 +429,18 @@ export function environment(): EnvironmentReport {
   if (env.OBSERVER_AI_ENABLED && !credentialsReady) {
     problems.push(
       "OBSERVER_AI_ENABLED is on but this server cannot store account credentials — it needs both OBSERVER_CREDENTIAL_KEY (32 bytes of hex) and Supabase. Until both exist nobody can connect a key, and Ask Observer answers from the deterministic provider: the same tools and the same evidence, in plainer prose.",
+    );
+  }
+  /*
+   * The demonstration key, said by name and never by value (ADR-0040): whether
+   * it is in use and with which model, or why a key that is set is ignored.
+   */
+  if ((process.env["OBSERVER_DEMO_OPENAI_KEY"]?.trim() ?? "").length > 0) {
+    const demo = demoModelAccess();
+    problems.push(
+      demo === null
+        ? `OBSERVER_DEMO_OPENAI_KEY is set and ignored: ${demoKeyRefusal(process.env) ?? "it is unusable"}. It is honoured only on a local demonstration (ADR-0040).`
+        : `OBSERVER_DEMO_OPENAI_KEY is in use: Ask IRIS words typed questions with ${demo.model}, outside any account's budget. Local demonstration only (ADR-0040).`,
     );
   }
   if (env.OPENAI_STORE_RESPONSES) {

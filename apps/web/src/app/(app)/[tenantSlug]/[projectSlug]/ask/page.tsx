@@ -6,6 +6,7 @@ import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { currentAccount, requireViewer } from "@/lib/session";
 import { connectedProviders } from "@/lib/ai/admission";
+import { demoModelName, environment } from "@/lib/env";
 import { modelsForProviders } from "@/lib/models/catalogue";
 import { findAnswer } from "@/components/ask/questions";
 import {
@@ -14,10 +15,13 @@ import {
   AskHistoryPanel,
   AskOpeningList,
   AskThinkingPanel,
+  findAmbiguousComparison,
   parseAskScope,
   type AskScope,
   type AskScopeProject,
 } from "@/components/ask-iris/AskScreen";
+import { AskLiveAnswer } from "@/components/ask-iris/AskLiveAnswer";
+import { LIVE_QUESTIONS } from "@/components/ask-iris/live-questions";
 import {
   NotFoundError,
   NotPermittedError,
@@ -38,27 +42,22 @@ export const metadata: Metadata = { title: "Ask IRIS" };
  * `apps/web/src/components/ask-iris/` carries the structure. ADR-0035 records
  * what was translated and what was deliberately not copied.
  *
- * ## THE ANSWER PATH IS DETERMINISTIC, AND THE SCREEN SAYS SO IN WORDS
- *
- * This is the most important thing about the surface and it is a decision
- * rather than a limitation.
+ * ## TWO ANSWER PATHS, AND THE SCREEN SAYS WHICH ONE ANSWERED
  *
  * `repository.getAskSession` returns a real `AskSession`: for each question it
  * prepares, an `AskAnswer` whose prose, figures, evidence reference, caveat and
  * next questions were all composed by the read models from this project's own
- * facts. The same question over the same period returns the same figures, on
- * every machine, forever. **No model is called.** ADR-0030 makes a model
- * connection something an account brings and ADR-0033 records that no account
- * on this deployment holds one; `docs/PROJECT-STATE.md` records that the
- * configured key is refused with `401 invalid_api_key`. A prompt that looked
- * ready to be answered by a model would be this surface telling its first lie,
- * and its entire value is that it does not.
+ * facts. A computed opening, asked as written, is answered from it at once and
+ * deterministically — no model is called for it, and the note above it says so.
  *
- * The design draws a model picker, so the screen has one — and what it names is
- * what actually composed the answer. `useObserver` and `/api/ask/stream` exist
- * and are deliberately not wired here: they are the model path, they belong to
- * the intelligence milestone, and a surface that quietly used them would be
- * answering with something it cannot show the evidence for.
+ * Every other question in the current scope — a predefined live question, a
+ * question typed into the composer or the dock — goes to `/api/ask/stream`
+ * through `AskLiveAnswer` (the owner's decision for the recorded demonstration,
+ * ADR-0040). That route runs the same gate as before and the same read-only
+ * analysis tools; a language model words the result only where one is
+ * connected, and the answer names the model only when it actually wrote the
+ * words. With none connected, the answer is the read models' own prose and
+ * says "Read models", which is what the deterministic path has always said.
  *
  * ## WHY THE READ IS SUSPENDED RATHER THAN AWAITED
  *
@@ -154,6 +153,23 @@ export default async function AskPage({
   const connected = account === null ? [] : await connectedProviders(account.accountId);
   const models = modelsForProviders(connected).map((entry) => entry.label);
 
+  /*
+   * WHETHER A LANGUAGE MODEL MAY WORD A TYPED QUESTION, SAID BEFORE IT IS ASKED.
+   *
+   * Gate 1 puts the notice at the prompt box, in view before the first
+   * question. The demonstration key names its model (ADR-0040); an account's
+   * own connection is named by the answer it writes. Neither, and there is no
+   * notice to give: the answer is the read models' own.
+   */
+  const demoModel = demoModelName();
+  const modelNotice = !environment().ai.enabled
+    ? null
+    : demoModel !== null
+      ? `Typed questions are worded by ${demoModel}, a language model, from the figures Observer's read models compute. It writes no figure.`
+      : connected.length > 0
+        ? "Typed questions may be worded by the language model connected to this account, from the figures Observer's read models compute. It writes no figure."
+        : null;
+
   const scope = parseAskScope(first(search, "scope"), every(search, "with"));
   const otherProjects = await otherProjectsFor(viewer, tenant.id, project.id);
 
@@ -165,10 +181,11 @@ export default async function AskPage({
       projectLabel={project.name}
       question={question}
       historyOpen={historyOpen}
-      composerLabel="Read models"
+      composerLabel={demoModel ?? "Read models"}
       models={models}
       scope={scope}
       otherProjects={otherProjects}
+      modelNotice={modelNotice}
     >
       {demo === "thinking" ? (
         <AskThinkingPanel
@@ -220,6 +237,7 @@ export default async function AskPage({
             scope={scope}
             otherProjects={otherProjects}
             modelConnected={connected.length > 0}
+            modelNotice={modelNotice}
           />
         </Suspense>
       )}
@@ -248,7 +266,14 @@ async function Openings({
     { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
     null,
   );
-  return <AskOpeningList suggestions={session.suggestions} root={root} periodParam={periodParam} />;
+  return (
+    <AskOpeningList
+      suggestions={session.suggestions}
+      root={root}
+      periodParam={periodParam}
+      liveQuestions={LIVE_QUESTIONS}
+    />
+  );
 }
 
 async function Answer({
@@ -263,6 +288,7 @@ async function Answer({
   scope,
   otherProjects,
   modelConnected,
+  modelNotice,
 }: Read & {
   readonly question: string;
   readonly viewerName: string;
@@ -271,6 +297,7 @@ async function Answer({
   readonly scope: AskScope;
   readonly otherProjects: readonly AskScopeProject[];
   readonly modelConnected: boolean;
+  readonly modelNotice: string | null;
 }) {
   const session = await repository.getAskSession(
     { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
@@ -294,6 +321,45 @@ async function Answer({
    * questions that do have an answer.
    */
   const answer = scope.kind === "current" ? (findAnswer(session.answers, question) ?? null) : null;
+
+  /*
+   * NO PREPARED ANSWER, IN THE CURRENT SCOPE: THE ANALYSIS PIPELINE ANSWERS.
+   *
+   * Not a guess at a prepared answer — the tools run against this project and
+   * the answer carries its own figures, evidence and limits. A question that
+   * names another project, or a scope with no read model behind it, still gets
+   * the panel below, which says so rather than answering a narrower question.
+   */
+  if (
+    answer === null &&
+    scope.kind === "current" &&
+    findAmbiguousComparison(question, scope, projectSlug, otherProjects) === null
+  ) {
+    return (
+      <AskLiveAnswer
+        key={question}
+        question={question}
+        context={{
+          role: viewer.role,
+          tenantSlug,
+          projectSlug,
+          projectLabel: session.context.projectLabel,
+          period,
+          unitCode: null,
+          meetingId: null,
+          agentId: null,
+          agentName: null,
+          segment: null,
+        }}
+        root={root}
+        periodParam={periodParam}
+        viewerName={viewerName}
+        periodLabel={session.context.periodLabel}
+        modelNotice={modelNotice}
+        nextQuestions={LIVE_QUESTIONS}
+      />
+    );
+  }
 
   return (
     <AskConversationPanel

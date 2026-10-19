@@ -825,6 +825,15 @@ describe("the source cannot grow a client-side secret path", () => {
     const named = files.filter((f) => code(read(f)).includes("OPENAI_API_KEY")).map(rel);
     expect(named).toEqual(["/lib/env.ts"]);
     expect(read(join(src, "lib", "env.ts"))).toContain("no longer read");
+
+    /*
+     * The demonstration key (ADR-0040) is held to the same rule: one file
+     * reads it, and it is the one that decides whether this server is a local
+     * demonstration. Everything else asks `demoModelAccess`.
+     */
+    const demo = files.filter((f) => code(read(f)).includes("OBSERVER_DEMO_OPENAI_KEY")).map(rel);
+    expect(demo).toEqual(["/lib/env.ts"]);
+    expect(read(join(src, "lib", "env.ts"))).toContain("onDeploymentPlatform(source)");
   });
 
   it("builds no provider client without being handed a key", () => {

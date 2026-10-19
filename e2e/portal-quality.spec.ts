@@ -1,5 +1,6 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { passWelcome } from "./sign-in";
 
 /**
  * The two new surfaces, held to the same standard as the ones behind them.
@@ -18,6 +19,8 @@ async function signIn(page: Page): Promise<void> {
   await page.getByLabel("Work email address").fill(PETRA);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in with password" }).click();
+  /* The welcome stands between the sign-in and the projects; hand it over. */
+  await passWelcome(page);
   await page.waitForLoadState("networkidle");
 }
 

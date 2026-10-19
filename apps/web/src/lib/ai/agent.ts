@@ -146,8 +146,22 @@ export type FallbackReason =
   /** Prose validated and broke a product rule — a causal claim, or a citation that does not resolve. */
   | "output_guard";
 
+/** One presenter on this project's roster, as the repository returned it. */
+export interface RosterEntry {
+  readonly agentId: string;
+  readonly name: string;
+}
+
 export interface AskContextInput extends ToolContext {
-  readonly agentIds: readonly string[];
+  /**
+   * The presenters in this project and period, read through the port.
+   *
+   * Names travel with the ids so the router can match "compare Lena and Iva"
+   * against THIS project's people rather than against a list written into the
+   * code — which is what it did, for one synthetic project, until it was the
+   * only project the router could name anybody on.
+   */
+  readonly roster: readonly RosterEntry[];
   readonly unitCode: string | null;
   readonly meetingId: string | null;
   readonly projectLabel: string;
@@ -317,7 +331,7 @@ Write plainly. No headings, no bullet characters, no preamble.`;
 function contextBlock(context: AskContextInput): string {
   return `PROJECT: ${context.projectLabel} (${context.projectSlug})
 PERIOD: ${context.periodLabel}
-KNOWN AGENT IDS: ${context.agentIds.join(", ") || "none"}
+KNOWN AGENTS: ${context.roster.map((a) => `${a.agentId} (${a.name})`).join(", ") || "none"}
 SELECTED UNIT: ${context.unitCode ?? "none"}
 SELECTED MEETING: ${context.meetingId ?? "none"}
 NOTE: this deployment runs on deterministic synthetic demonstration data.`;
@@ -369,6 +383,48 @@ export function toolSpecs(): readonly ModelToolSpec[] {
 
 /* --- the deterministic router ---------------------------------------------------- */
 
+/** Lower case, accents folded: "Zsófia" and "zsofia" are one name to a reader. */
+function foldText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+}
+
+/**
+ * The presenters a question names, in the order it names them.
+ *
+ * A whole name, or a first name standing as a word of its own — "Lena", not the
+ * "lena" inside "Magdalena". An id typed out in full is a name too. Matched
+ * against the roster the repository returned for this project and period, so
+ * nobody outside it can be named and nothing about any one project is written
+ * here.
+ */
+export function namedAgents(question: string, roster: readonly RosterEntry[]): readonly string[] {
+  const q = foldText(question);
+  const at = (entry: RosterEntry): number => {
+    const full = foldText(entry.name);
+    const first = full.split(/\s+/)[0] ?? "";
+    const candidates = [entry.agentId.toLowerCase(), full, ...(first.length >= 3 ? [first] : [])];
+    const hits = candidates
+      .map((word) =>
+        new RegExp(`(^|[^\\p{L}\\p{N}_])${escapeRegExp(word)}(?![\\p{L}\\p{N}_])`, "u").exec(q),
+      )
+      .filter((m): m is RegExpExecArray => m !== null)
+      .map((m) => m.index);
+    return hits.length === 0 ? -1 : Math.min(...hits);
+  };
+  return roster
+    .map((entry) => ({ id: entry.agentId, at: at(entry) }))
+    .filter((hit) => hit.at >= 0)
+    .sort((a, b) => a.at - b.at)
+    .map((hit) => hit.id);
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Which analysis answers this, without asking a model.
  *
@@ -384,9 +440,22 @@ export function routeQuestion(
   tool: string;
   args: Record<string, unknown>;
 }[] {
-  const q = question.toLowerCase();
-  const [first = "agt_monika", second = "agt_akhilesh"] = context.agentIds;
-  const named = context.agentIds.filter((id) => q.includes(id.replace("agt_", "")));
+  const q = foldText(question);
+  const named = namedAgents(q, context.roster);
+  /*
+   * The two presenters a comparison is drawn between: the ones the question
+   * named, then the roster's own order. Fewer than two on the roster means
+   * there is nobody to compare, and the comparison is not offered at all
+   * rather than handed an id the tool would refuse.
+   */
+  const pair = [
+    ...named,
+    ...context.roster.map((a) => a.agentId).filter((id) => !named.includes(id)),
+  ].slice(0, 2);
+  const agentFlows =
+    pair.length === 2
+      ? [{ tool: "compare_agent_flows", args: { leftAgentId: pair[0], rightAgentId: pair[1] } }]
+      : [];
 
   /*
    * Order matters. These patterns overlap, and the specific reading has to be
@@ -396,12 +465,48 @@ export function routeQuestion(
    * first answers a different question from the one asked.
    */
   if (/should .*(change|do)|coach|improve|advice|do differently|next meeting|next week/.test(q)) {
+    return [...agentFlows, { tool: "compare_meeting_cohorts", args: {} }];
+  }
+  /*
+   * WHO PROGRESSED MOST, AND HOW THEY PRESENTED.
+   *
+   * Before every "progress" and "present" reading below: it names both, and
+   * either one alone would answer half of it — the cohorts without the people,
+   * or two presenters picked by roster order rather than by their outcomes.
+   */
+  if (
+    /(which|what|whose) (agent|presenter|sales ?person|salesperson)|best (agent|presenter)|agent'?s?\b.*\b(progress|convert|success|best|most)|(progress|convert|succeed)\w* (the )?most/.test(
+      q,
+    )
+  ) {
+    return [{ tool: "compare_agent_outcomes", args: {} }];
+  }
+  /*
+   * WHERE A PRESENTATION LOSES A BUYER.
+   *
+   * Nothing records a buyer leaving; what is measured is how the meetings
+   * that did not progress were presented against those that did, and which
+   * sections a presentation reaches at all. Both, in that order.
+   */
+  if (/\blos(e|es|ing|t)\b|drop(s|ped)? off|drop-off|abandon|\bstall/.test(q)) {
     return [
-      {
-        tool: "compare_agent_flows",
-        args: { leftAgentId: named[0] ?? first, rightAgentId: named[1] ?? second },
-      },
       { tool: "compare_meeting_cohorts", args: {} },
+      { tool: "analyze_feature_usage", args: {} },
+    ];
+  }
+  /*
+   * Units that draw attention, and whether they sold.
+   *
+   * Before the broad "convert" reading, which would answer the second half
+   * with the meeting cohorts and drop the units altogether.
+   */
+  if (
+    /\b(unit|apartment|flat|home)s?\b.*\b(attention|interest|draw|popular)/.test(q) &&
+    /convert|\bsell|\bsold|reserv|purchas/.test(q)
+  ) {
+    return [
+      { tool: "analyze_unit_attention", args: {} },
+      { tool: "analyze_iris_assisted_sales", args: {} },
     ];
   }
   /*
@@ -425,17 +530,17 @@ export function routeQuestion(
       : [{ tool: "prepare_meeting", args: { meetingId: context.meetingId } }];
   }
   if (
+    agentFlows.length > 0 &&
     /compare|versus| vs |difference|differ/.test(q) &&
-    /agent|monika|akhilesh|ján|jan|lucia|present/.test(q)
+    (/agent|present/.test(q) || named.length > 0)
   ) {
-    return [
-      {
-        tool: "compare_agent_flows",
-        args: { leftAgentId: named[0] ?? first, rightAgentId: named[1] ?? second },
-      },
-    ];
+    return agentFlows;
   }
-  if (/successful|progress|common|closed|convert|cohort|went further|offer/.test(q)) {
+  if (
+    /successful|progress|common|closed|convert|cohort|went further|offer|separate|distinguish/.test(
+      q,
+    )
+  ) {
     return [{ tool: "compare_meeting_cohorts", args: {} }];
   }
   if (/step by step|this meeting|develop|replay|journey/.test(q)) {
@@ -449,8 +554,12 @@ export function routeQuestion(
   if (/skip|skipped|never opened|coverage|section|feature/.test(q)) {
     return [{ tool: "analyze_feature_usage", args: {} }];
   }
-  if (/apartment|unit|a-\d|b-\d|c-\d|interest in|attention/.test(q)) {
-    const match = /\b([abc]-\d{3})\b/i.exec(question);
+  if (/apartment|unit|\b[a-z]{1,3}-\d|interest in|attention/.test(q)) {
+    /*
+     * A unit code as a catalogue spells it — `A-402`, `IT-A-12-07` — taken
+     * whole: letters, then hyphenated parts, at least one of them a number.
+     */
+    const match = /\b([a-z]{1,3}(?:-[a-z0-9]{1,4})*-\d{1,4}(?:-[a-z0-9]{1,4})*)\b/i.exec(question);
     return [
       {
         tool: "analyze_unit_attention",

@@ -43,6 +43,21 @@ const NORTHGATE_ONLY = [
 const REFUSAL = "That is not a question Observer can answer from this project’s read models today.";
 
 /*
+ * A QUESTION WITH NO PREPARED ANSWER IS NOW ANSWERED, NOT REFUSED (2026-10-19).
+ *
+ * The owner wired typed questions to the analysis pipeline for the recorded
+ * demonstration (ADR-0040): the read-only tools run against the project in
+ * view and the answer is composed from what they return. The property this
+ * file exists for is unchanged — no project speaks Northgate's scenario — and
+ * it is now asserted on that answer once it has settled. A unit code is the
+ * one marker that can be a project's own data rather than the scenario's:
+ * Northgate's catalogue holds A-402, and a tool listing Northgate's own most
+ * viewed units may name it. On Northgate, codes are therefore not markers.
+ */
+const SETTLED = '.ask-trace[data-settled="true"]';
+const UNIT_CODE = /^[A-Z]-\d{3}$/;
+
+/*
  * Northgate is on the list too since its own script was retired (R01-2, Máté
  * 2026-10-02): no project speaks the scenario, its own included.
  */
@@ -70,16 +85,20 @@ for (const { who, root, name } of ELSEWHERE) {
   });
 
   for (const question of NORTHGATE_ONLY) {
-    test(`${who} · ${root} · "${question}": refused by its rendered boundary, not answered in Northgate's words`, async ({
+    test(`${who} · ${root} · "${question}": answered from its own read models, not in Northgate's words`, async ({
       page,
     }) => {
       await signIn(page, who);
       await page.goto(`${root}/ask?q=${encodeURIComponent(question)}`);
       const main = page.locator("main");
-      await expect(main.getByText(REFUSAL)).toBeVisible();
+      await expect(main.locator(SETTLED)).toBeVisible({ timeout: 20_000 });
+      await expect(main.getByText(REFUSAL)).toHaveCount(0);
       /* The page echoes the question back; those are the reader's words, not the project's. */
       const served = (await main.innerText()).split(question).join(" ");
-      expect(await northgateWordsIn(served)).toEqual([]);
+      const words = await northgateWordsIn(served);
+      expect(
+        root === "/alpha/northgate" ? words.filter((w) => !UNIT_CODE.test(w)) : words,
+      ).toEqual([]);
     });
   }
 }
@@ -99,4 +118,6 @@ test("Monika Kováčová · /alpha/northgate: a computed question is still answe
   const main = page.locator("main");
   await expect(main.getByRole("link", { name: "Open the meetings" }).first()).toBeVisible();
   await expect(main.getByText(REFUSAL)).toHaveCount(0);
+  /* Answered from the prepared session, not sent through the analysis pipeline. */
+  await expect(main.locator(".ask-trace")).toHaveCount(0);
 });

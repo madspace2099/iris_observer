@@ -76,7 +76,31 @@ export async function signIn(page: Page, name: string): Promise<void> {
   await page.getByLabel("Work email address").fill(addressOf(name));
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in with password" }).click();
+  await passWelcome(page);
   await page.waitForURL((url) => /\/projects/.test(url.pathname) || PROJECT_OPENED.test(url.pathname));
+}
+
+/**
+ * HANDS THE WELCOME OVER AT ONCE, IF THE SIGN-IN LANDED ON IT.
+ *
+ * A password sign-in with no `returnTo` goes by way of `/welcome`, which hands
+ * the reader on by itself — after 400ms under reduced motion, after about four
+ * seconds otherwise. Every spec that is not about the welcome presses its Skip
+ * link, which is what a reader in a hurry does, so the front door still costs
+ * nothing per test. Skip is a real link to the same destination; if the
+ * welcome has already handed over by the time it is pressed, nothing is lost.
+ *
+ * Call it only after a credential that will be accepted: it waits for the
+ * sign-in page to be left.
+ */
+export async function passWelcome(page: Page): Promise<void> {
+  await page.waitForURL((url) => url.pathname !== "/sign-in");
+  if (new URL(page.url()).pathname !== "/welcome") return;
+  await page
+    .locator(".welcome-skip")
+    .click({ timeout: 5_000 })
+    .catch(() => undefined);
+  await page.waitForURL((url) => url.pathname !== "/welcome");
 }
 
 /**

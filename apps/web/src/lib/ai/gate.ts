@@ -309,7 +309,7 @@ export async function gate(rawBody: unknown, request: Request): Promise<GateResu
    * refused anything they may not see by the time this is assigned.
    */
   let tenantId: string;
-  let agentIds: readonly string[];
+  let roster: AskContextInput["roster"];
   try {
     const resolved = await repository.resolveProject(
       viewer,
@@ -331,7 +331,7 @@ export async function gate(rawBody: unknown, request: Request): Promise<GateResu
       period: body.data.period,
       language: DEFAULT_LANGUAGE,
     });
-    agentIds = agents.map((a) => a.agentId);
+    roster = agents.map((a) => ({ agentId: a.agentId, name: a.name }));
   } catch (error) {
     /*
      * Forbidden and absent are answered identically.
@@ -441,7 +441,7 @@ export async function gate(rawBody: unknown, request: Request): Promise<GateResu
       period: body.data.period,
       projectLabel,
       periodLabel,
-      agentIds,
+      roster,
       unitCode: body.data.unitCode,
       meetingId: body.data.meetingId,
       depth: body.data.depth,

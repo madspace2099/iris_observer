@@ -22,7 +22,7 @@ function jarWithLastProject(value: string | undefined) {
 
 // Imported after the mock is registered, so `landing.ts`'s own top-level
 // `import { cookies } from "next/headers"` binds to the mock.
-const { resolveLandingPath } = await import("../src/lib/landing");
+const { resolveLandingPath, welcomeDestination } = await import("../src/lib/landing");
 
 describe("resolveLandingPath", () => {
   beforeEach(() => {
@@ -85,5 +85,66 @@ describe("resolveLandingPath", () => {
     // the count has to keep counting across the tenant boundary, not reset at
     // it.
     await expect(resolveLandingPath(VIEWERS.agencyManager)).resolves.toBe("/projects");
+  });
+});
+
+/*
+ * `/welcome?to=…` carries a destination through the browser, so it is the
+ * open redirect's shape all over again. Kept only if it is an internal path
+ * this viewer may open; everything else is the landing the account would have
+ * had anyway — for Petra Novák, with three projects and none remembered, the
+ * picker.
+ */
+describe("welcomeDestination", () => {
+  beforeEach(() => {
+    cookies.mockReset();
+    jarWithLastProject(undefined);
+  });
+
+  it("keeps an internal project path the viewer holds", async () => {
+    await expect(welcomeDestination(VIEWERS.developer, "/alpha/northgate/ask")).resolves.toBe(
+      "/alpha/northgate/ask",
+    );
+    await expect(welcomeDestination(VIEWERS.developer, "/projects")).resolves.toBe("/projects");
+  });
+
+  it.each([
+    ["no value at all", undefined],
+    ["an empty value", ""],
+    ["an absolute URL", "https://example.invalid/steal"],
+    ["a protocol-relative URL", "//example.invalid/alpha/northgate/ask"],
+    ["a backslash host", "/\\example.invalid"],
+    ["an encoded protocol-relative URL", "%2F%2Fexample.invalid"],
+    ["a script URL", "javascript:alert(1)"],
+    ["a path carrying a query", "/alpha/northgate/ask?next=https://example.invalid"],
+    ["a path carrying a fragment", "/alpha/northgate/ask#https://example.invalid"],
+    ["a route that does not exist", "/not-a-route"],
+    ["the sign-in page", "/sign-in"],
+    ["the welcome itself", "/welcome"],
+  ])("replaces %s with the landing", async (_name, raw) => {
+    await expect(welcomeDestination(VIEWERS.developer, raw)).resolves.toBe("/projects");
+  });
+
+  it("replaces a project the viewer does not hold, however well formed", async () => {
+    await expect(welcomeDestination(VIEWERS.developer, "/beta/kingsford/ask")).resolves.toBe(
+      "/projects",
+    );
+  });
+
+  it("replaces a surface the viewer's role may not open", async () => {
+    await expect(welcomeDestination(VIEWERS.madspace, "/alpha/northgate/people")).resolves.toBe(
+      await resolveLandingPath(VIEWERS.madspace),
+    );
+  });
+
+  it("keeps the administration surface for an administrator only", async () => {
+    await expect(welcomeDestination(VIEWERS.madspace, "/madspace")).resolves.toBe("/madspace");
+    await expect(welcomeDestination(VIEWERS.developer, "/madspace")).resolves.toBe("/projects");
+  });
+
+  it("falls back to the single project an account holds", async () => {
+    await expect(
+      welcomeDestination(VIEWERS.salesAgentIster, "https://example.invalid"),
+    ).resolves.toBe("/alpha/ister-tower/ask");
   });
 });

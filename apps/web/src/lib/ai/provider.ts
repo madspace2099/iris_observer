@@ -638,6 +638,14 @@ export type ModelResolution =
 export interface ModelAccess {
   readonly model: ModelId;
   readonly apiKey: string;
+  /**
+   * The vendor's name for the model, when it is not the catalogue entry's own.
+   *
+   * Set only by the demonstration key (ADR-0040), whose model is configuration
+   * on the machine rather than a catalogue choice. The answer names this one,
+   * because it is the one that wrote the words.
+   */
+  readonly wireModel?: string;
 }
 
 /**
@@ -648,7 +656,7 @@ export interface ModelAccess {
  * once by the composition root keeps the dependency in one direction and makes
  * the seam something a reader can see rather than infer.
  */
-type ModelBuilder = (model: ModelId, apiKey: string) => ObserverModel;
+type ModelBuilder = (model: ModelId, apiKey: string, wireModel?: string) => ObserverModel;
 
 let buildModel: ModelBuilder | null = null;
 
@@ -720,7 +728,7 @@ export function resolveModel(grant: ModelGrant): ModelResolution {
      * comes from.
      */
     if (buildModel === null) throw new ModelConfigurationError("no model transport is installed");
-    const model = buildModel(access.model, access.apiKey);
+    const model = buildModel(access.model, access.apiKey, access.wireModel);
     return {
       ok: true,
       model,

@@ -176,6 +176,13 @@ test.describe("Ask IRIS against the delivered design", () => {
     await first.click();
 
     await expect(page.locator(".ask-log")).toBeVisible();
+    /*
+     * The first opening is a live question since 2026-10-19, answered through
+     * the analysis tools: the capture waits for its answer to settle.
+     */
+    await expect(page.locator('.ask-trace[data-settled="true"]')).toBeVisible({
+      timeout: 20_000,
+    });
     await assertNoOverflow(page, "ask answer at 1440");
     await shoot(page, "ASK-answer-1440");
   });

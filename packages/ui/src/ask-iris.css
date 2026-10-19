@@ -1,3 +1,10 @@
+/*
+ * Geist Mono, self-hosted from the pinned package, for the welcome's status
+ * lines (section 12) — the one place this sheet sets type in a monospace. It
+ * is only a set of `@font-face` rules; the files load when a line needs them.
+ */
+@import "@fontsource-variable/geist-mono";
+
 /**
  * ASK IRIS — the approved artefact, rebuilt. Namespace: `ask-`, scoped under `.ask-root`.
  *
@@ -2313,5 +2320,541 @@ a.ask-evidence-link:hover {
 @media print {
   .ask-dock {
     display: none !important;
+  }
+}
+
+/* ============================================================================
+ * 11. LIVE ANSWERS — a typed question, answered through the analysis tools.
+ *
+ * The openings it adds, the line that says a language model may word the
+ * answer, the trace of what actually ran, and the answer's own parts. Same
+ * hairlines, same type, same blue; nothing here is a new surface.
+ * ========================================================================= */
+
+/*
+ * More than five openings sit closer together, so the list still ends near
+ * the fold. The live ones lead and carry the accent in their mark — the one
+ * difference between a question answered on request and one prepared.
+ */
+.ask-openings[data-dense="true"] {
+  gap: 10px;
+  margin-top: min(72px, max(26px, calc(12vh - 60px)));
+}
+
+.ask-openings[data-dense="true"] .ask-opening {
+  height: 50px;
+}
+
+.ask-openings li[data-live="true"] .ask-opening-mark {
+  border-color: rgb(0 163 255 / 34%);
+  background: rgb(0 163 255 / 8%);
+  color: var(--ask-accent-soft);
+}
+
+.ask-hint-model {
+  margin-top: 4px;
+  color: rgb(170 196 232 / 86%);
+}
+
+/* What Observer did, in the order it did it. */
+.ask-trace {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0 6px;
+  padding: 0;
+  list-style: none;
+}
+
+.ask-trace-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: rgb(170 186 210 / 86%);
+  animation: ask-rise 320ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+.ask-trace-step[data-state="active"] {
+  color: var(--ask-ink-2);
+}
+
+.ask-trace[data-settled="true"] .ask-trace-step {
+  font-size: 12.5px;
+  color: rgb(150 166 192 / 80%);
+  animation: none;
+}
+
+.ask-trace-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgb(0 163 255 / 44%);
+  color: var(--ask-accent);
+}
+
+.ask-trace-mark svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* In progress: an open arc turning, and no tick until the server says it is done. */
+.ask-trace-step[data-state="active"] .ask-trace-mark {
+  border-color: rgb(0 163 255 / 20%);
+  border-top-color: var(--ask-accent);
+  animation: ask-turn 900ms linear infinite;
+}
+
+.ask-trace-step[data-state="active"] .ask-trace-mark svg {
+  display: none;
+}
+
+@keyframes ask-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* A model's words while they arrive: provisional, and drawn as such. */
+.ask-draft {
+  padding-left: 11px;
+  border-inline-start: 2px dashed rgb(0 163 255 / 40%);
+  opacity: 0.72;
+}
+
+.ask-live-answer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: ask-rise 420ms cubic-bezier(0.23, 1, 0.32, 1) backwards;
+}
+
+.ask-headline {
+  margin: 2px 0 0;
+  font-size: 16.5px;
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: var(--ask-ink);
+  text-wrap: balance;
+}
+
+.ask-interpretation {
+  font-size: 14px;
+  color: rgb(196 208 228 / 88%);
+}
+
+.ask-limits {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0 0 0 11px;
+  border-inline-start: 2px solid rgb(140 170 215 / 30%);
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ask-ink-4);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ask-trace-step,
+  .ask-live-answer {
+    animation: none !important;
+  }
+
+  .ask-trace-step[data-state="active"] .ask-trace-mark {
+    animation: none !important;
+    border-color: var(--ask-accent);
+  }
+}
+
+/* ============================================================================
+ * 12. THE WELCOME — the instrument powering up, between sign-in and Ask IRIS.
+ *
+ * About four and a half seconds, all of it CSS and SVG. Hairline rings draw
+ * themselves round the centre while a faint radial grid comes up behind them;
+ * a tick ring turns slowly one way and three accent arcs the other; the
+ * wordmark resolves in the middle. From 0.8s the status lines type in, in
+ * Geist Mono, each ticked when it is done — every word of them composed on the
+ * server from the project's own records. From 3.4s the instrument contracts
+ * up towards where the composer will stand and the lines fall away; the
+ * hand-over to Ask IRIS follows, and its own entrance plays.
+ *
+ * One accent, the brand blue, on the shell's graphite. No sound, no glitch, no
+ * scrolling hex, no particles. Reduced motion shows the finished frame at once.
+ * ========================================================================= */
+
+.welcome {
+  --welcome-ink: rgb(196 210 232 / 90%);
+  --welcome-line: rgb(150 185 240 / 42%);
+  --welcome-faint: rgb(120 160 225 / 9%);
+
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 60% 52% at 50% 40%, rgb(8 38 92 / 34%) 0%, rgb(2 5 13 / 0%) 70%),
+    var(--iris-ground, #02050d);
+  color: var(--welcome-ink);
+  font-family: var(--font-sans);
+}
+
+.welcome:focus {
+  outline: none;
+}
+
+.welcome-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(24px, 4.5vh, 44px);
+  animation: welcome-leave 520ms cubic-bezier(0.65, 0, 0.35, 1) 3.62s forwards;
+}
+
+.welcome-instrument {
+  position: relative;
+  width: min(46vh, 470px, 80vw);
+  aspect-ratio: 1;
+  animation: welcome-contract 860ms cubic-bezier(0.65, 0, 0.35, 1) 3.4s forwards;
+}
+
+.welcome-rings {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.welcome-rings * {
+  fill: none;
+}
+
+.welcome-grid {
+  stroke: var(--welcome-faint);
+  stroke-width: 1;
+  opacity: 0;
+  animation: welcome-fade-in 800ms ease-out 80ms forwards;
+}
+
+/* Drawn from twelve, by their own length: `pathLength` is 1. */
+.welcome-ring {
+  stroke: var(--welcome-line);
+  stroke-width: 1;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transform: rotate(-90deg);
+  animation: welcome-draw 1100ms cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.welcome-ring[data-ring="inner"] {
+  stroke: rgb(0 163 255 / 58%);
+  animation-delay: 240ms;
+  animation-duration: 900ms;
+}
+
+/* A tick every three degrees, a longer one every thirty. */
+.welcome-ticks {
+  stroke: rgb(150 185 240 / 34%);
+  stroke-width: 6;
+  stroke-dasharray: 0.3 2.7;
+  opacity: 0;
+  animation: welcome-fade-in 700ms ease-out 350ms forwards;
+}
+
+.welcome-ticks[data-major] {
+  stroke: rgb(0 163 255 / 62%);
+  stroke-width: 12;
+  stroke-dasharray: 0.8 29.2;
+}
+
+.welcome-turn[data-turn="slow"] {
+  animation: welcome-spin 90s linear infinite;
+}
+
+/* The one counter-rotation: three arcs of the brand blue, against the ticks. */
+.welcome-turn[data-turn="counter"] {
+  animation: welcome-spin-back 26s linear infinite;
+}
+
+.welcome-arc {
+  stroke: var(--iris-accent, #00a3ff);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 62 58;
+  opacity: 0;
+  animation: welcome-fade-in 600ms ease-out 520ms forwards;
+}
+
+.welcome-cardinals {
+  stroke: rgb(0 163 255 / 70%);
+  stroke-width: 1.4;
+  opacity: 0;
+  animation: welcome-fade-in 400ms ease-out 900ms forwards;
+}
+
+.welcome-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 27%;
+  height: auto;
+  opacity: 0;
+  filter: blur(6px);
+  transform: translate(-50%, -50%) scale(0.96);
+  animation: welcome-resolve 700ms cubic-bezier(0.23, 1, 0.32, 1) 500ms forwards;
+}
+
+/* --- the status lines ------------------------------------------------------ */
+
+.welcome-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(560px, calc(100vw - 32px));
+  min-height: calc(5 * 18px + 4 * 10px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: "Geist Mono Variable", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 18px;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.welcome-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  animation: welcome-fade-in 120ms linear var(--start) forwards;
+}
+
+/*
+ * The typing: the box widens a character at a time, and its right edge is the
+ * caret until the line is done. Monospace makes `1ch` one character exactly.
+ */
+.welcome-text {
+  display: inline-block;
+  width: 0;
+  max-width: calc(100% - 28px);
+  overflow: hidden;
+  box-shadow: inset -1px 0 0 var(--iris-accent, #00a3ff);
+  animation:
+    welcome-type var(--length) steps(var(--chars), end) var(--start) forwards,
+    welcome-caret-off 1ms linear var(--done) forwards;
+}
+
+.welcome-line:last-child .welcome-text {
+  color: #f4f7fc;
+}
+
+.welcome-check {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgb(0 163 255 / 26%);
+  color: var(--iris-accent, #00a3ff);
+  animation: welcome-check-on 200ms ease-out var(--done) forwards;
+}
+
+.welcome-check svg {
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 12;
+  stroke-dashoffset: 12;
+  animation: welcome-draw-tick 260ms ease-out var(--done) forwards;
+}
+
+/* --- the way out, before the timer ---------------------------------------- */
+
+.welcome-skip {
+  position: fixed;
+  right: 24px;
+  bottom: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  border: 1px solid rgb(140 165 205 / 18%);
+  font-size: 12.5px;
+  color: rgb(170 186 210 / 86%);
+  text-decoration: none;
+  transition:
+    border-color 160ms ease-out,
+    color 160ms ease-out;
+}
+
+.welcome-skip:hover {
+  border-color: rgb(168 194 238 / 34%);
+  color: #ffffff;
+}
+
+.welcome-skip:focus-visible {
+  outline: 2px solid var(--iris-accent, #00a3ff);
+  outline-offset: 2px;
+}
+
+.welcome-skip kbd {
+  font-family: "Geist Mono Variable", ui-monospace, monospace;
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid rgb(140 165 205 / 22%);
+  color: rgb(150 166 192 / 90%);
+}
+
+/* --- keyframes ------------------------------------------------------------- */
+
+@keyframes welcome-fade-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes welcome-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes welcome-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes welcome-spin-back {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+@keyframes welcome-resolve {
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes welcome-type {
+  to {
+    width: calc(var(--chars) * 1ch);
+  }
+}
+
+@keyframes welcome-caret-off {
+  to {
+    box-shadow: none;
+  }
+}
+
+@keyframes welcome-check-on {
+  to {
+    border-color: rgb(0 163 255 / 62%);
+    background: rgb(0 163 255 / 10%);
+  }
+}
+
+@keyframes welcome-draw-tick {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Up and in, towards where the composer will stand, and gone. */
+@keyframes welcome-contract {
+  to {
+    opacity: 0;
+    transform: translateY(-16vh) scale(0.36);
+  }
+}
+
+@keyframes welcome-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+/* A narrow column is shorter than a long line: the lines wrap and fade in. */
+@media (width <= 40rem) {
+  .welcome-line {
+    align-items: flex-start;
+    white-space: normal;
+  }
+
+  .welcome-text {
+    width: auto;
+    box-shadow: none;
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .welcome-stage,
+  .welcome-instrument,
+  .welcome-grid,
+  .welcome-ring,
+  .welcome-ticks,
+  .welcome-turn,
+  .welcome-arc,
+  .welcome-cardinals,
+  .welcome-mark,
+  .welcome-line,
+  .welcome-text,
+  .welcome-check,
+  .welcome-check svg {
+    animation: none !important;
+  }
+
+  .welcome-grid,
+  .welcome-ticks,
+  .welcome-arc,
+  .welcome-cardinals,
+  .welcome-line {
+    opacity: 1;
+  }
+
+  .welcome-ring,
+  .welcome-check svg {
+    stroke-dashoffset: 0;
+  }
+
+  .welcome-mark {
+    opacity: 1;
+    filter: none;
+    transform: translate(-50%, -50%);
+  }
+
+  .welcome-text {
+    width: auto;
+    box-shadow: none;
+  }
+
+  .welcome-check {
+    border-color: rgb(0 163 255 / 62%);
+    background: rgb(0 163 255 / 10%);
   }
 }
