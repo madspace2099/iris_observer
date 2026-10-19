@@ -339,6 +339,17 @@ describe("the router names presenters from the project's own roster", () => {
     expect(calls.map((c) => c.tool)).toEqual(["compare_meeting_cohorts"]);
   });
 
+  it("reads a unit code whole, however the catalogue spells it", () => {
+    for (const [question, unitCode] of [
+      ["Why is interest in apartment A-402 changing?", "A-402"],
+      ["How much attention did it-a-12-07 draw?", "IT-A-12-07"],
+    ] as const) {
+      expect(routeQuestion(question, CONTEXT)).toEqual([
+        { tool: "analyze_unit_attention", args: { unitCode } },
+      ]);
+    }
+  });
+
   it("names no project's presenter in the router itself", () => {
     const source = readFileSync(resolve(import.meta.dirname, "../src/lib/ai/agent.ts"), "utf8");
     expect(source).not.toMatch(/agt_monika|agt_akhilesh|monika\|/i);

@@ -555,7 +555,11 @@ export function routeQuestion(
     return [{ tool: "analyze_feature_usage", args: {} }];
   }
   if (/apartment|unit|\b[a-z]{1,3}-\d|interest in|attention/.test(q)) {
-    const match = /\b([a-z]{1,3}-\d{2,4})\b/i.exec(question);
+    /*
+     * A unit code as a catalogue spells it — `A-402`, `IT-A-12-07` — taken
+     * whole: letters, then hyphenated parts, at least one of them a number.
+     */
+    const match = /\b([a-z]{1,3}(?:-[a-z0-9]{1,4})*-\d{1,4}(?:-[a-z0-9]{1,4})*)\b/i.exec(question);
     return [
       {
         tool: "analyze_unit_attention",
