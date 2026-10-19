@@ -134,4 +134,4 @@ export const repository: ObserverRepository = entitled(
 import { useModelBuilder } from "@/lib/ai/provider";
 import { modelFor } from "@/lib/providers/transport";
 
-useModelBuilder(modelFor);
+useModelBuilder((model, apiKey, wireModel) => modelFor(model, apiKey, process.env, wireModel));

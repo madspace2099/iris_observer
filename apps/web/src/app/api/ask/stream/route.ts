@@ -10,6 +10,9 @@ import {
 } from "@/lib/ai/admission";
 import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
+import type { ModelGrant } from "@/lib/ai/provider";
+import { demoModelAccess } from "@/lib/env";
+import { RECOMMENDED_DEFAULT } from "@/lib/models/catalogue";
 import { publicOutcome, reportOutcome } from "../route";
 
 /**
@@ -86,25 +89,41 @@ export async function POST(request: Request) {
    * spent. A refusal still streams: the reader gets every measured figure the
    * tools produced, with the model stage skipped and the status saying why.
    */
-  const admission = await admitModelRequest(
-    admitted.accountId,
-    admitted.question,
-    admitted.context.depth,
-    parseOverride(admitted.modelOverride),
-  );
+  /*
+   * THE DEMONSTRATION KEY, WHEN THIS SERVER IS A LOCAL DEMONSTRATION (ADR-0040).
+   *
+   * `demoModelAccess` answers only where the synthetic directory is on, the
+   * environment is development or the harness, and no deployment marker is
+   * present. It belongs to no account and no budget, so neither the admission
+   * nor the ledger is consulted for it; without it, every line below runs as
+   * it always has.
+   */
+  const demo = demoModelAccess();
+  const admission =
+    demo === null
+      ? await admitModelRequest(
+          admitted.accountId,
+          admitted.question,
+          admitted.context.depth,
+          parseOverride(admitted.modelOverride),
+        )
+      : null;
 
   /* Non-refundable from here. See the same block in the POST route. */
   let dispatched = false;
-  if (admission.ok) {
+  if (admission?.ok === true) {
     dispatched = await dispatchAdmission(admission.reservation);
   }
-  const resolved = admission.ok && dispatched ? admission.access : null;
-  const access =
-    resolved !== null
-      ? resolved
-      : admission.ok
-        ? { blocked: "unavailable" as const }
-        : blockFor(admission.refusal);
+  const access: ModelGrant =
+    demo !== null
+      ? { model: RECOMMENDED_DEFAULT, apiKey: demo.apiKey, wireModel: demo.model }
+      : admission === null
+        ? { blocked: "unavailable" }
+        : admission.ok
+          ? dispatched
+            ? admission.access
+            : { blocked: "unavailable" }
+          : blockFor(admission.refusal);
 
   const deadline = AbortSignal.timeout(LIMITS.requestTimeoutMs * 2);
   const signal = AbortSignal.any([request.signal, deadline]);
@@ -147,7 +166,7 @@ export async function POST(request: Request) {
                * Marked settled so the catch below cannot release a reservation
                * that has already been paid.
                */
-              if (admission.ok) {
+              if (admission?.ok === true) {
                 /* Entitlement is durable; see the same block in the POST route. */
                 if (event.outcome.diagnostics.modelUnavailable) {
                   await recordModelUnavailable(admitted.accountId, admission.access.model);
@@ -174,7 +193,9 @@ export async function POST(request: Request) {
           }),
         );
         /* No answer, no charge. The reader asked and got nothing. */
-        if (admission.ok && !settled) await abandonAdmission(admission.reservation, dispatched);
+        if (admission?.ok === true && !settled) {
+          await abandonAdmission(admission.reservation, dispatched);
+        }
       } finally {
         controller.close();
       }

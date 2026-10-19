@@ -164,6 +164,13 @@ const HARNESS_ENV = {
    * key and an in-memory store.
    */
   OPENAI_API_KEY: "",
+  /*
+   * The demonstration key (ADR-0040), blanked for the same reason. Its three
+   * conditions all hold on the suite's server, and an empty value is also what
+   * stops `.env.local` supplying one: Next does not overwrite a variable the
+   * process already carries.
+   */
+  OBSERVER_DEMO_OPENAI_KEY: "",
 
   /*
    * THE CREDENTIAL HARNESS, WITH ALL FOUR OF ITS CONDITIONS.
