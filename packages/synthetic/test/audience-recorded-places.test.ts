@@ -27,8 +27,13 @@ import { buildAudience } from "../src/showroom/views3";
  * project — family places, 25 seconds, any unit, merely opened: 125 meetings.
  * Classified by SECTION, which the gate does not read: 47 on amenities only, 52
  * on both, 26 on Surroundings only, and 12 of those 26 held the Surroundings
- * kindergarten. The gate reads AVAILABILITY and has to keep 47 + 52 = 99. The
- * literals below are that measurement; nothing here recomputes them.
+ * kindergarten. The gate reads AVAILABILITY and has to keep 47 + 52 = 99.
+ *
+ * Shark Residence joined the world on 2026-10-19 and was measured the same way:
+ * 78 meetings, 32 on amenities only, 33 on both and 13 on Surroundings only.
+ * The gate keeps 32 + 33 = 65 of them, so the world keeps 99 + 65 = 164, and
+ * the Surroundings-only meetings it must drop are 26 + 13 = 39. The literals
+ * below are those measurements; nothing here recomputes them.
  */
 
 const FAMILY: AudienceCriteria = {
@@ -63,11 +68,11 @@ describe("the synthetic world, against the measurement", () => {
   );
   const sessionOf = new Map(all.map((s) => [s.meetingId, s]));
 
-  it("keeps the 99 meetings a recorded family place holds", () => {
-    expect(matches.length).toBe(99);
+  it("keeps the 164 meetings a recorded family place holds", () => {
+    expect(matches.length).toBe(164);
   });
 
-  it("keeps none of the 26 only Surroundings held — checked by section, which the gate does not read", () => {
+  it("keeps none of the 39 only Surroundings held — checked by section, which the gate does not read", () => {
     const surroundingsOnly = matches.filter(
       (m) =>
         !sessionOf
