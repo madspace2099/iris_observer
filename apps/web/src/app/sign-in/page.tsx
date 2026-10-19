@@ -33,9 +33,10 @@ export const metadata: Metadata = { title: "Sign in" };
  *
  * The composition is the MADSPACE Client Portal sign-in, transcribed from the
  * reference build: two equal columns, a 48px inset, the four-stage scrim, a
- * 360px form on the warm off-white, and the same nine-part anatomy — eyebrow,
- * heading, work email, company single sign-on, "or password", password,
- * password sign-in, invitation, protocol note.
+ * 360px form on the warm off-white. The reference's anatomy is all still here
+ * — eyebrow, heading, work email, password, password sign-in, company single
+ * sign-on, invitation, protocol note — reordered on 2026-10-19 so the password
+ * path leads and the rest sits quieter beneath it (see the form below).
  *
  * What is deliberately NOT transcribed is its client-side authentication. The
  * check happens in a server action; nothing about the credential reaches the
