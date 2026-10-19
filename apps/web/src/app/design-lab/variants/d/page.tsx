@@ -1,11 +1,4 @@
-/*
- * Variant D's stylesheet, imported by the route that uses it rather than by the
- * root layout beside A, B and C: this round may add files only under
- * `variants/d/`, and Next hoists CSS imported from a page exactly as it hoists
- * the layout's, so the sheet is just as global once the route has loaded.
- */
-import "@observer/ui/design-lab-d.css";
-
+/* Variant D's stylesheet is the root layout's since the product adopted it (ADR-0041). */
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 

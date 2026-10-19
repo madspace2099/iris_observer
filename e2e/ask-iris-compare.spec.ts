@@ -96,6 +96,13 @@ async function assertNoOverflow(page: Page, where: string): Promise<void> {
 }
 
 test.describe("Ask IRIS against the delivered design", () => {
+  /*
+   * The suite runs under reduced motion (playwright.config.ts) so no chart is
+   * captured half drawn. This file measures a moving light — its lap, its
+   * period, its heat — so it asks for motion back; Ask IRIS draws no chart.
+   */
+  test.use({ reducedMotion: "no-preference" });
+
   /* --- the reference --------------------------------------------------- */
 
   for (const width of [1440, 390] as const) {

@@ -7,11 +7,12 @@ import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, Method, SourceChips } from "@/showroom/parts";
-import { PairedRates, ParityScale, QuadrantMatrix } from "@/showroom/charts";
-import { BulletChart, JourneyFlow } from "@/showroom/charts2";
-import { FlowScroller } from "@/showroom/FlowScroller";
+import { PairedRates, ParityScale } from "@/showroom/charts";
+import { BulletChart } from "@/showroom/charts2";
+import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
+import { DrawIn } from "@/showroom/DrawIn";
 import { ExportReport } from "@/components/report";
-import { withPeriod } from "@/lib/period";
+import { withPeriod, withPeriodOnLinks } from "@/lib/period";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -71,6 +72,9 @@ export default async function ProjectPage({
     (s): s is (typeof view.segments)[number] & { readonly index: number } => s.index !== null,
   );
   const unindexed = view.segments.filter((s) => s.index === null);
+  /* The scatter's points and its off-chart rows open their segment in the reader's period. */
+  const scatter = withPeriodOnLinks(view.scatter, query.period);
+  const funnel = charts.journey.funnel;
   const unmet = view.demand.filter((d) => d.matches === 0);
   /*
    * The search register's two count heads, each built once: the column head
@@ -167,7 +171,7 @@ export default async function ProjectPage({
 
         {/* --- the plan, and where the project stands against it ---------- */}
 
-        <div>
+        <div className="d-card" key={`plan-${query.period}`}>
           <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             Sold against the plan
           </p>
@@ -218,7 +222,7 @@ export default async function ProjectPage({
           </div>
         ) : (
           <>
-            <div>
+            <div className="d-card" key={`parity-${query.period}`}>
               <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
                 Does attention match supply?
               </p>
@@ -250,29 +254,39 @@ export default async function ProjectPage({
             <hr className="iris-rule" />
 
             {/*
-             * THE ATTENTION × CONVERSION MATRIX, docs/02-views.md §4.2: "the single
-             * most actionable frame in the product". Each cell is a segment, not a
-             * unit, so it maps onto a marketing decision; a segment the read model
-             * would not place is listed under the frame with its reason.
+             * THE ATTENTION × CONVERSION FRAME, docs/02-views.md §4.2: "the single
+             * most actionable frame in the product", drawn as the scatter the
+             * owner chose from gallery D (ADR-0041). Each point is a segment, not
+             * a unit, so it maps onto a marketing decision: the key names the
+             * cell each falls in and that cell's instruction, and both the point
+             * and its key row open the segment. A segment the read model would
+             * not place is listed under the frame with its reason, never drawn.
              */}
-            <div>
+            <div className="d-card" key={`scatter-${query.period}`}>
               <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
                 Attention against conversion
               </p>
-              <QuadrantMatrix
-                locale={view.context.project.locale}
-                rows={indexed.map((s) => ({
-                  id: s.id,
-                  label: s.label,
-                  index: s.index,
-                  share: s.conversion.share,
-                  projectShare: s.conversion.projectShare,
-                  decided: s.conversion.decided,
-                  quadrant: s.conversion.quadrant,
-                  withheld: s.conversion.withheld,
-                  href: qs(s.id),
-                }))}
-              />
+              {scatter.points.length === 0 ? (
+                <p className="iris-meta">No segment is placed on this frame in this period.</p>
+              ) : (
+                <>
+                  <Sized
+                    xl={<Scatter data={scatter} size="xl" />}
+                    l={<Scatter data={scatter} size="l" />}
+                  />
+                  <ScatterKey data={scatter} />
+                </>
+              )}
+              {scatter.offChart.length === 0 ? null : (
+                <ul className="dld-withheld">
+                  {scatter.offChart.map((o) => (
+                    <li key={o.id}>
+                      {o.href === undefined ? o.label : <a href={o.href}>{o.label}</a>}: {o.display}
+                      , not placed. {o.reason}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <Method style={{ marginTop: ".75rem", maxWidth: "70ch" }}>{view.matrixNote}</Method>
               <SourceChips
                 sources={
@@ -306,8 +320,8 @@ export default async function ProjectPage({
         )}
 
         {segment === null ? null : (
-          <div className="iris-band">
-            <div>
+          <div className="iris-band" key={`segment-${segment.id}-${query.period}`}>
+            <div className="d-card">
               <p className="iris-kicker" style={{ marginBottom: ".375rem" }}>
                 What is interesting about {segment.label.toLowerCase()} units
               </p>
@@ -336,7 +350,7 @@ export default async function ProjectPage({
               </Method>
             </div>
 
-            <div className="iris-band-side">
+            <div className="iris-band-side d-card">
               <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
                 Where those buyers spent their time
               </p>
@@ -348,26 +362,28 @@ export default async function ProjectPage({
                * transition bars already use holds every name here; below the
                * width that column fits, the name wraps instead of clipping.
                */}
-              <div className="iris-bars" data-wide-labels="true">
-                {segment.attendedTo.map((a) => (
-                  <div className="iris-bar" key={a.label}>
-                    <span className="iris-bar-label" title={a.category}>
-                      {a.label}
-                    </span>
-                    <span
-                      className="iris-bar-track"
-                      style={
-                        {
-                          "--v": (a.share / (segment.attendedTo[0]?.share ?? 1)).toFixed(3),
-                        } as React.CSSProperties
-                      }
-                    >
-                      <i />
-                    </span>
-                    <span className="iris-bar-value">{a.shareDisplay}</span>
-                  </div>
-                ))}
-              </div>
+              <DrawIn kind="sweep">
+                <div className="iris-bars" data-wide-labels="true">
+                  {segment.attendedTo.map((a) => (
+                    <div className="iris-bar" key={a.label}>
+                      <span className="iris-bar-label" title={a.category}>
+                        {a.label}
+                      </span>
+                      <span
+                        className="iris-bar-track"
+                        style={
+                          {
+                            "--v": (a.share / (segment.attendedTo[0]?.share ?? 1)).toFixed(3),
+                          } as React.CSSProperties
+                        }
+                      >
+                        <i />
+                      </span>
+                      <span className="iris-bar-value">{a.shareDisplay}</span>
+                    </div>
+                  ))}
+                </div>
+              </DrawIn>
               <Method style={{ marginTop: ".625rem" }}>
                 Share of the time these meetings spent on any named place.
               </Method>
@@ -437,30 +453,32 @@ export default async function ProjectPage({
             )}
           </div>
 
-          <div className="iris-band-side">
+          <div className="iris-band-side d-card" key={`places-${query.period}`}>
             <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
               What the neighbourhood is doing
             </p>
-            <div className="iris-bars">
-              {view.placeCategories.slice(0, 7).map((c) => (
-                <div className="iris-bar" key={c.category}>
-                  <span className="iris-bar-label" title={c.label}>
-                    {c.label}
-                  </span>
-                  <span
-                    className="iris-bar-track"
-                    style={
-                      {
-                        "--v": (c.share / (view.placeCategories[0]?.share ?? 1)).toFixed(3),
-                      } as React.CSSProperties
-                    }
-                  >
-                    <i />
-                  </span>
-                  <span className="iris-bar-value">{c.shareDisplay}</span>
-                </div>
-              ))}
-            </div>
+            <DrawIn kind="sweep">
+              <div className="iris-bars">
+                {view.placeCategories.slice(0, 7).map((c) => (
+                  <div className="iris-bar" key={c.category}>
+                    <span className="iris-bar-label" title={c.label}>
+                      {c.label}
+                    </span>
+                    <span
+                      className="iris-bar-track"
+                      style={
+                        {
+                          "--v": (c.share / (view.placeCategories[0]?.share ?? 1)).toFixed(3),
+                        } as React.CSSProperties
+                      }
+                    >
+                      <i />
+                    </span>
+                    <span className="iris-bar-value">{c.shareDisplay}</span>
+                  </div>
+                ))}
+              </div>
+            </DrawIn>
             <Method style={{ marginTop: ".625rem" }}>
               Share of all time spent on named places, by what kind of place it is.
             </Method>
@@ -502,13 +520,19 @@ export default async function ProjectPage({
 
         {/* --- how far a presentation gets, and where it stops ------------ */}
 
-        <div>
+        {/*
+         * THE JOURNEY AS ONE NARROWING PATH (ADR-0041): the owner's choice
+         * from gallery D over the flow it replaces. The bands, their shares
+         * and the stages merged into the one above are the read model's.
+         */}
+        <div className="d-card" key={`journey-${query.period}`}>
           <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
             How far a presentation gets
           </p>
-          <FlowScroller label="How far a presentation gets">
-            <JourneyFlow stages={charts.journey.stages} links={charts.journey.links} />
-          </FlowScroller>
+          {funnel.steps.length === 0 ? null : <JourneyFunnel data={funnel} />}
+          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
+            {funnel.of}
+          </p>
           <Method style={{ marginTop: ".75rem" }}>{charts.journey.note}</Method>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>

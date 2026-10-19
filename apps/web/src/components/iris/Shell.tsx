@@ -11,6 +11,7 @@ import { ContextSwitcher, type SwitchOption } from "@/components/ContextSwitcher
 import { PeriodSwitcher } from "@/components/PeriodSwitcher";
 import { AGENT_REPORT_WORDS } from "@/components/report/words";
 import { SyntheticBadge } from "@/showroom/parts";
+import { ChartDefs } from "@/showroom/forms";
 import { dynamicRoute } from "@/lib/href";
 import { frameLanguage } from "@/lib/language";
 import { presetFrom, withPeriod } from "@/lib/period";
@@ -640,7 +641,14 @@ export function Shell({
     projects.find((option) => option.value === scope.projectSlug)?.label ?? scope.projectSlug;
 
   return (
-    <div className="irs-shell ox-root ox-graphite" data-variant={variant}>
+    <div className="irs-shell ox-root ox-graphite" data-variant={variant} data-charts="d">
+      {/*
+       * THE CHARTS' LOOK, AND ITS PAINT (ADR-0041). `data-charts="d"` scopes
+       * the Hyper kit's tokens and its chart rules to the product pages; the
+       * gradient, the dot matrix and the glow those rules name are declared
+       * once, here, in a hidden SVG of no size.
+       */}
+      <ChartDefs />
       <header className="irs-header">
         <Brand href={dynamicRoute(withPeriod(`${base}/${HOME_SEGMENT}`, period))} />
 

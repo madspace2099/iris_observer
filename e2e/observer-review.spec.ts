@@ -146,6 +146,8 @@ test.describe("Observer review set", () => {
    */
   test("transition capture", async ({ page }, info) => {
     test.skip(info.project.name !== "wide", "One viewport is enough.");
+    /* Frames of a motion: the suite's reduced-motion default would film a still. */
+    await page.emulateMedia({ reducedMotion: "no-preference" });
     await signInAs(page, "Petra Novák");
     const orb = page.locator(".obs-console-orb");
     await settle(page);

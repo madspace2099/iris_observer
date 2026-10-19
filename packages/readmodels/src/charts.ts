@@ -287,11 +287,36 @@ export interface JourneyLink {
   readonly count: number;
 }
 
+/** One band of the journey funnel: what reached the step, and its share of the first band. */
+export interface JourneyFunnelStep {
+  readonly id: string;
+  readonly label: string;
+  readonly count: number;
+  readonly countDisplay: string;
+  /** `count` over the first band's count, 0 to 1. */
+  readonly share: number;
+  readonly shareDisplay: string;
+}
+
+/**
+ * The journey drawn as one narrowing path. A stage nobody stopped before would
+ * add a band exactly as wide as the one above it, so it is named in `merged`
+ * rather than drawn. `steps` is empty when the period holds no meeting, and
+ * `of` then says so instead of stating the first band.
+ */
+export interface JourneyFunnel {
+  readonly steps: readonly JourneyFunnelStep[];
+  readonly merged: string | null;
+  /** What every share is out of, in words; or, with no step, why nothing is drawn. */
+  readonly of: string;
+}
+
 export interface JourneyFlowModel {
   readonly stages: readonly JourneyStage[];
   readonly links: readonly JourneyLink[];
   readonly droppedLabel: string;
   readonly note: string;
+  readonly funnel: JourneyFunnel;
 }
 
 /* --- the bundle each surface reads ---------------------------------------------- */

@@ -33,6 +33,7 @@ import type {
   SalesFlowView,
   SegmentConversion,
   SegmentInterest,
+  SegmentScatter,
   ShowroomFinding,
   ShowroomHome,
   ShowroomSignal,
@@ -63,6 +64,7 @@ import {
   type ProjectAddress,
   replayHref,
   agentDetailHref,
+  SEGMENT_QUADRANTS,
 } from "@observer/readmodels";
 import {
   UNSTATED_ROOMS_SEGMENT,
@@ -1308,6 +1310,17 @@ function buildSegment(
             ? "hidden_gem"
             : "dead_stock",
     withheld,
+    /*
+     * The line `QuadrantMatrix` printed, composed here: what the multiplier is
+     * a multiple of (its own supply, not the other segments), the project's
+     * rate the conversion is set against, and the set it stands on.
+     */
+    display:
+      index === null
+        ? null
+        : `${index.toFixed(2)}× attention for its share of stock · ${
+            conversionShare === null ? "—" : shareDisplay(conversionShare, locale)
+          } converted${projectShare === null ? "" : ` against ${shareDisplay(projectShare, locale)}`} · n = ${count(decidedMeetings.length, locale)}`,
   };
 
   /* How they examined these units, against how they examined everything else. */
@@ -1385,6 +1398,60 @@ function buildSegment(
         : topPlace === undefined
           ? `${spec.label} units are ${percent(stockShare, locale)} of the unsold stock and take ${percent(attentionShare, locale)} of the time spent looking at it.`
           : `${spec.label} units take ${percent(attentionShare, locale)} of looking time on ${percent(stockShare, locale)} of the unsold stock. The buyers who opened them spent longest on ${topPlace.label}, and ${percent(examinedHow[0]?.rate ?? 0, locale)} of the units they opened got a ${(examinedHow[0]?.label ?? "closer look").toLowerCase()}.`,
+  };
+}
+
+/**
+ * The attention × conversion frame as points (`SegmentScatter`). Every number
+ * here is the segment's own; this only places, orders and words them. A
+ * segment with an index and no quadrant goes under the chart with its reason;
+ * one with no index is already stated under the parity scale.
+ */
+function buildSegmentScatter(
+  segments: readonly SegmentInterest[],
+  projectHref: string,
+): SegmentScatter {
+  const href = (id: string) => `${projectHref}?${new URLSearchParams({ segment: id }).toString()}`;
+  const indexed = segments.flatMap((s) =>
+    s.index === null || s.conversion.display === null
+      ? []
+      : [{ segment: s, index: s.index, display: s.conversion.display }],
+  );
+  const points = indexed
+    .flatMap(({ segment: s, index, display }) =>
+      s.conversion.quadrant === null || s.conversion.share === null
+        ? []
+        : [
+            {
+              id: s.id,
+              label: s.label,
+              index,
+              share: s.conversion.share,
+              decided: s.conversion.decided,
+              quadrant: s.conversion.quadrant,
+              display,
+              href: href(s.id),
+            },
+          ],
+    )
+    .sort(
+      (a, b) =>
+        SEGMENT_QUADRANTS.indexOf(a.quadrant) - SEGMENT_QUADRANTS.indexOf(b.quadrant) ||
+        b.index - a.index,
+    );
+  return {
+    points,
+    projectShare: segments[0]?.conversion.projectShare ?? null,
+    indexMax: Math.max(2, Math.ceil(Math.max(0, ...indexed.map((s) => s.index)) * 2) / 2),
+    offChart: indexed
+      .filter(({ segment: s }) => !points.some((p) => p.id === s.id))
+      .map(({ segment: s, display }) => ({
+        id: s.id,
+        label: s.label,
+        display,
+        reason: s.conversion.withheld ?? "No conversion can be read for it.",
+        href: href(s.id),
+      })),
   };
 }
 
@@ -1580,6 +1647,7 @@ export function buildProjectView(
           locale,
         )} for the project. A segment is placed only with ${String(AGENT_MIN_SAMPLE)} or more decided meetings; the pattern is an association, never a cause.`
       : "No CRM is connected to this project, so no meeting carries an outcome and nothing can be placed on the conversion axis. Attention alone is on the scale above.",
+    scatter: buildSegmentScatter(segments, `${base}/project`),
     selectedSegment: selected,
     demand,
     places: places.slice(0, 18),

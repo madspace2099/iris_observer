@@ -1,5 +1,6 @@
 import { OUTCOME_LABELS, type MeetingOutcome } from "@observer/contracts";
 import type { OutcomeSlice } from "@observer/readmodels";
+import { DrawIn } from "./DrawIn";
 
 /**
  * Four shapes, because four different questions were being asked.
@@ -121,50 +122,52 @@ export function OutcomeRing({
   let cursor = 0;
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox={`0 0 ${size} ${size}`}
-      className={`iris-ring${measured ? " iris-ring-measured" : ""}`}
-      role="img"
-      aria-label={
-        label ?? `${total} meetings: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
-      }
-    >
-      <circle cx={c} cy={c} r={r} fill="none" stroke="var(--rule)" strokeWidth={stroke} />
-      {slices.map((s) => {
-        const from = cursor;
-        // A hairline gap so adjacent slices read as separate without a stroke
-        // colour that would compete with the data.
-        const to = cursor + s.share;
-        cursor = to;
-        if (s.share <= 0) return null;
-        return (
-          <path
-            key={s.outcome}
-            d={arc(c, c, r, from, Math.max(from + 0.004, to - 0.004))}
-            fill="none"
-            stroke={OUTCOME_TONE[s.outcome]}
-            strokeWidth={stroke}
-            strokeLinecap="butt"
-          >
-            <title>{`${s.label}: ${s.count} of ${total}`}</title>
-          </path>
-        );
-      })}
-      <text
-        x={c}
-        y={c - 2}
-        className="iris-ring-figure"
-        textAnchor="middle"
-        dominantBaseline="middle"
+    <DrawIn kind="turn">
+      <svg
+        width={size}
+        height={size}
+        viewBox={`0 0 ${size} ${size}`}
+        className={`iris-ring${measured ? " iris-ring-measured" : ""}`}
+        role="img"
+        aria-label={
+          label ?? `${total} meetings: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
+        }
       >
-        {total}
-      </text>
-      <text x={c} y={c + size * 0.14} className="iris-ring-caption" textAnchor="middle">
-        meetings
-      </text>
-    </svg>
+        <circle cx={c} cy={c} r={r} fill="none" stroke="var(--rule)" strokeWidth={stroke} />
+        {slices.map((s) => {
+          const from = cursor;
+          // A hairline gap so adjacent slices read as separate without a stroke
+          // colour that would compete with the data.
+          const to = cursor + s.share;
+          cursor = to;
+          if (s.share <= 0) return null;
+          return (
+            <path
+              key={s.outcome}
+              d={arc(c, c, r, from, Math.max(from + 0.004, to - 0.004))}
+              fill="none"
+              stroke={OUTCOME_TONE[s.outcome]}
+              strokeWidth={stroke}
+              strokeLinecap="butt"
+            >
+              <title>{`${s.label}: ${s.count} of ${total}`}</title>
+            </path>
+          );
+        })}
+        <text
+          x={c}
+          y={c - 2}
+          className="iris-ring-figure"
+          textAnchor="middle"
+          dominantBaseline="middle"
+        >
+          {total}
+        </text>
+        <text x={c} y={c + size * 0.14} className="iris-ring-caption" textAnchor="middle">
+          meetings
+        </text>
+      </svg>
+    </DrawIn>
   );
 }
 
@@ -214,20 +217,21 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
   ].filter((g) => g.length > 0);
 
   return (
-    <div className="iris-step-groups">
-      {pairs.map((group) => {
-        const peak = Math.max(1, ...group.map((p) => p.meetings));
-        return (
-          <div className="iris-steps" key={group.map((g) => g.id).join("-")}>
-            {group.map((p) => (
-              <div className="iris-step" key={p.id}>
-                <span
-                  className="iris-step-bar"
-                  {...(p.inPeriod
-                    ? { title: `${p.meetings} meetings · ${p.progressed} progressed` }
-                    : {})}
-                >
-                  {/*
+    <DrawIn kind="bloom">
+      <div className="iris-step-groups">
+        {pairs.map((group) => {
+          const peak = Math.max(1, ...group.map((p) => p.meetings));
+          return (
+            <div className="iris-steps" key={group.map((g) => g.id).join("-")}>
+              {group.map((p) => (
+                <div className="iris-step" key={p.id}>
+                  <span
+                    className="iris-step-bar"
+                    {...(p.inPeriod
+                      ? { title: `${p.meetings} meetings · ${p.progressed} progressed` }
+                      : {})}
+                  >
+                    {/*
                     `--w` alongside `height`: the desktop column reads its
                     fill from `height`, the narrow-width row reflow (below
                     30rem) reads the same proportion from `width: var(--w)`.
@@ -235,37 +239,38 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
                     own default and the whole visualization renders at zero
                     width — present in the DOM, invisible on screen.
                   */}
-                  <i
-                    style={
-                      {
-                        height: `${(p.meetings / peak) * 100}%`,
-                        "--w": `${(p.meetings / peak) * 100}%`,
-                      } as React.CSSProperties
-                    }
-                  />
-                  {/* Progressed sits inside the column: part of the same total,
+                    <i
+                      style={
+                        {
+                          height: `${(p.meetings / peak) * 100}%`,
+                          "--w": `${(p.meetings / peak) * 100}%`,
+                        } as React.CSSProperties
+                      }
+                    />
+                    {/* Progressed sits inside the column: part of the same total,
                       not a competing quantity beside it. */}
-                  <b
-                    style={
-                      {
-                        height: `${(p.progressed / peak) * 100}%`,
-                        "--w": `${(p.progressed / peak) * 100}%`,
-                      } as React.CSSProperties
-                    }
-                  />
-                </span>
-                {/* Outside the period: a dash and the reason, never a zero. */}
-                <span className="iris-step-figure">{p.inPeriod ? p.meetings : "—"}</span>
-                <span className="iris-step-label">{p.label}</span>
-                <span className="iris-step-meta">
-                  {p.inPeriod ? p.medianDurationDisplay : "Not in this period"}
-                </span>
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
+                    <b
+                      style={
+                        {
+                          height: `${(p.progressed / peak) * 100}%`,
+                          "--w": `${(p.progressed / peak) * 100}%`,
+                        } as React.CSSProperties
+                      }
+                    />
+                  </span>
+                  {/* Outside the period: a dash and the reason, never a zero. */}
+                  <span className="iris-step-figure">{p.inPeriod ? p.meetings : "—"}</span>
+                  <span className="iris-step-label">{p.label}</span>
+                  <span className="iris-step-meta">
+                    {p.inPeriod ? p.medianDurationDisplay : "Not in this period"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    </DrawIn>
   );
 }
 
@@ -301,39 +306,41 @@ export function PairedRates({
   of?: string;
 }) {
   return (
-    <div className="iris-paired">
-      <div className="iris-paired-head">
-        <span />
-        <span className="iris-paired-axis">
-          <em style={{ left: "0%" }}>0%</em>
-          <em style={{ left: "50%" }}>50%</em>
-          <em style={{ left: "100%" }}>100%</em>
-        </span>
-        <span className="iris-code">{leftLabel}</span>
-        <span className="iris-code">{rightLabel}</span>
+    <DrawIn kind="sweep">
+      <div className="iris-paired">
+        <div className="iris-paired-head">
+          <span />
+          <span className="iris-paired-axis">
+            <em style={{ left: "0%" }}>0%</em>
+            <em style={{ left: "50%" }}>50%</em>
+            <em style={{ left: "100%" }}>100%</em>
+          </span>
+          <span className="iris-code">{leftLabel}</span>
+          <span className="iris-code">{rightLabel}</span>
+        </div>
+        {of === undefined ? null : <p className="iris-paired-of">{of}</p>}
+        {rows.map((row) => {
+          const lo = Math.min(row.left, row.right);
+          const hi = Math.max(row.left, row.right);
+          return (
+            <div className="iris-paired-row" key={row.id}>
+              <span className="iris-paired-label" title={row.note ?? undefined}>
+                {row.label}
+              </span>
+              <span className="iris-paired-track">
+                <i style={{ left: `${lo * 100}%`, width: `${(hi - lo) * 100}%` }} />
+                <b data-side="left" style={{ left: `${row.left * 100}%` }} />
+                <b data-side="right" style={{ left: `${row.right * 100}%` }} />
+              </span>
+              <span className="iris-paired-value">{Math.round(row.left * 100)}%</span>
+              <span className="iris-paired-value" data-muted="true">
+                {Math.round(row.right * 100)}%
+              </span>
+            </div>
+          );
+        })}
       </div>
-      {of === undefined ? null : <p className="iris-paired-of">{of}</p>}
-      {rows.map((row) => {
-        const lo = Math.min(row.left, row.right);
-        const hi = Math.max(row.left, row.right);
-        return (
-          <div className="iris-paired-row" key={row.id}>
-            <span className="iris-paired-label" title={row.note ?? undefined}>
-              {row.label}
-            </span>
-            <span className="iris-paired-track">
-              <i style={{ left: `${lo * 100}%`, width: `${(hi - lo) * 100}%` }} />
-              <b data-side="left" style={{ left: `${row.left * 100}%` }} />
-              <b data-side="right" style={{ left: `${row.right * 100}%` }} />
-            </span>
-            <span className="iris-paired-value">{Math.round(row.left * 100)}%</span>
-            <span className="iris-paired-value" data-muted="true">
-              {Math.round(row.right * 100)}%
-            </span>
-          </div>
-        );
-      })}
-    </div>
+    </DrawIn>
   );
 }
 
@@ -346,122 +353,6 @@ export function PairedRates({
  * on, and by how far". A bar from zero answers neither; a marker on an axis
  * centred at parity answers both.
  */
-/**
- * THE ATTENTION × CONVERSION MATRIX — docs/02-views.md §4.2's frame, drawn.
- *
- * Four cells, each a marketing instruction, each holding the segments that
- * fall in it: high attention above parity, high conversion at or above the
- * project's own share. A segment without a quadrant is listed beneath the
- * frame with the read model's reason — below the minimum sample, or no CRM —
- * rather than forced into a cell. Nothing here computes a rate: the index,
- * the shares and the placement all arrive from the read model.
- */
-const QUADRANTS = [
-  { id: "hero", title: "Hero", instruction: "Sell more of this; lead the campaign with it." },
-  {
-    id: "mispriced",
-    title: "Mispriced or oversold",
-    instruction: "They look, they don't buy: check the price, check the promise.",
-  },
-  {
-    id: "hidden_gem",
-    title: "Hidden gem",
-    instruction: "Converts when seen; agents aren't showing it. Fixable today.",
-  },
-  {
-    id: "dead_stock",
-    title: "Dead stock",
-    instruction: "Neither seen nor sold: reposition, bundle, or discount.",
-  },
-] as const;
-
-export function QuadrantMatrix({
-  rows,
-  locale,
-}: {
-  rows: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly index: number;
-    readonly share: number | null;
-    readonly projectShare: number | null;
-    readonly decided: number;
-    readonly quadrant: (typeof QUADRANTS)[number]["id"] | null;
-    readonly withheld: string | null;
-    readonly href: string;
-  }[];
-  locale: string;
-}) {
-  const pct = new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 });
-  const placed = rows.filter((r) => r.quadrant !== null);
-  const withheld = rows.filter((r) => r.quadrant === null);
-
-  return (
-    <div className="iris-quad">
-      <p className="iris-code iris-quad-axis" aria-hidden="true">
-        ← lower conversion · higher conversion →
-      </p>
-      <div className="iris-quad-grid" role="list" aria-label="Segments by attention and conversion">
-        {QUADRANTS.map((q) => {
-          const inCell = placed.filter((r) => r.quadrant === q.id);
-          return (
-            <div className="iris-quad-cell" data-quadrant={q.id} key={q.id} role="listitem">
-              <p className="iris-quad-title">{q.title}</p>
-              <p className="iris-quad-instruction">{q.instruction}</p>
-              {inCell.length === 0 ? (
-                <p className="iris-quad-empty">No segment here.</p>
-              ) : (
-                <ul className="iris-quad-segments">
-                  {inCell.map((r) => (
-                    <li key={r.id}>
-                      <a href={r.href}>{r.label}</a>
-                      {/*
-                       * WHAT THE MULTIPLIER IS A MULTIPLE OF.
-                       *
-                       * The conversion half of this line already carries both
-                       * the thing it is measured against and its denominator —
-                       * "34% converted against 29% · n = 61". The attention
-                       * half carried neither, and it is the half that needs it
-                       * most: the index is a share of LOOKING TIME divided by a
-                       * share of STOCK, two different kinds of measure, and
-                       * "1.41× attention" on its own reads as a comparison with
-                       * other segments rather than with its own supply.
-                       *
-                       * The segment panel says it in full and the parity scale
-                       * says it per row. This was the third place and the only
-                       * one that did not.
-                       */}
-                      <span>
-                        {r.index.toFixed(2)}× attention for its share of stock ·{" "}
-                        {r.share === null ? "—" : pct.format(r.share)} converted
-                        {r.projectShare === null ? "" : ` against ${pct.format(r.projectShare)}`} ·
-                        n = {r.decided}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      <p className="iris-code iris-quad-axis" aria-hidden="true">
-        ↑ higher attention · lower attention ↓
-      </p>
-      {withheld.length === 0 ? null : (
-        <ul className="iris-quad-withheld">
-          {withheld.map((r) => (
-            <li key={r.id}>
-              <a href={r.href}>{r.label}</a>: {r.index.toFixed(2)}× attention for its share of
-              stock, not placed. {r.withheld}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 export function ParityScale({
   rows,
   max = 2,
@@ -477,38 +368,40 @@ export function ParityScale({
   const place = (v: number) => `${Math.min(100, Math.max(0, (v / max) * 100))}%`;
 
   return (
-    <div className="iris-parity">
-      {rows.map((row) => (
-        <div className="iris-parity-row" key={row.id}>
-          <span className="iris-parity-label">
-            {row.label}
-            {/*
-             * The two shares the index is a quotient of, printed under the
-             * label. This was the marker's `title`: a denominator that lives
-             * only in a tooltip on an empty element is not stated, and the
-             * repository's first-page rule is about the screen, not the DOM.
-             */}
-            <em className="iris-parity-note">{row.note}</em>
-          </span>
-          <span className="iris-parity-track">
-            <em style={{ left: place(1) }} />
-            <i
-              data-over={row.index >= 1 ? "true" : undefined}
-              style={{
-                left: place(Math.min(row.index, 1)),
-                width: place(Math.abs(row.index - 1)),
-              }}
-            />
-            <b style={{ left: place(row.index) }} />
-          </span>
-          <span className="iris-parity-value" data-over={row.index >= 1 ? "true" : undefined}>
-            {row.index.toFixed(2)}×
-          </span>
-        </div>
-      ))}
-      <p className="iris-code" style={{ textAlign: "center", color: "var(--ink-3)" }}>
-        1.00× is attention exactly matching supply
-      </p>
-    </div>
+    <DrawIn kind="sweep">
+      <div className="iris-parity">
+        {rows.map((row) => (
+          <div className="iris-parity-row" key={row.id}>
+            <span className="iris-parity-label">
+              {row.label}
+              {/*
+               * The two shares the index is a quotient of, printed under the
+               * label. This was the marker's `title`: a denominator that lives
+               * only in a tooltip on an empty element is not stated, and the
+               * repository's first-page rule is about the screen, not the DOM.
+               */}
+              <em className="iris-parity-note">{row.note}</em>
+            </span>
+            <span className="iris-parity-track">
+              <em style={{ left: place(1) }} />
+              <i
+                data-over={row.index >= 1 ? "true" : undefined}
+                style={{
+                  left: place(Math.min(row.index, 1)),
+                  width: place(Math.abs(row.index - 1)),
+                }}
+              />
+              <b style={{ left: place(row.index) }} />
+            </span>
+            <span className="iris-parity-value" data-over={row.index >= 1 ? "true" : undefined}>
+              {row.index.toFixed(2)}×
+            </span>
+          </div>
+        ))}
+        <p className="iris-code" style={{ textAlign: "center", color: "var(--ink-3)" }}>
+          1.00× is attention exactly matching supply
+        </p>
+      </div>
+    </DrawIn>
   );
 }

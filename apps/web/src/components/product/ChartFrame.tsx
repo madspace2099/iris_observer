@@ -56,10 +56,15 @@ export interface ChartLegendItem {
  * absent one: the charts that most need it are the ones whose author was in the
  * biggest hurry.
  *
- * ## Not a card
+ * ## A card, by the owner's choice (ADR-0041)
  *
- * `.ox-chart` is a plane with a hairline border and no elevation. There is
- * exactly one elevation in this system and it is on the dialog panel.
+ * `.ox-chart` was a plane with a hairline border and no elevation. On a
+ * product page it now wears the Hyper kit's black card (`.d-card`, in
+ * `design-lab-d.css`), the one exception CLAUDE.md's "nothing is a card"
+ * makes, for chart regions only. `ox-graphite` re-declares the dark token
+ * names inside it, so a frame that stands on a paper plate draws its chart
+ * on the card's dark ground rather than in paper ink. The plot is keyed on
+ * the period, so a chart draws itself in again when the reader changes it.
  */
 export function ChartFrame({
   title,
@@ -80,13 +85,15 @@ export function ChartFrame({
   readonly children: ReactNode;
 }) {
   return (
-    <div className="ox-chart">
+    <div className="ox-chart d-card ox-graphite">
       <div className="ox-chart-head">
         <h3 className="ox-chart-title">{title}</h3>
         <span className="ox-chart-period">{period}</span>
       </div>
 
-      <div className="ox-chart-plot">{children}</div>
+      <div className="ox-chart-plot" key={period}>
+        {children}
+      </div>
 
       <p className="ox-sr">{summary}</p>
 

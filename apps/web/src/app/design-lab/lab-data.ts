@@ -54,6 +54,7 @@ import type {
   Viewer,
 } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
+import { QUADRANT_NAME } from "@/showroom/forms";
 /* The rehearsal only: never a read of the project, so never through `repository`. See the bubble lens. */
 import { showroomPaceRehearsal } from "@observer/synthetic";
 
@@ -371,14 +372,6 @@ const D_PERIOD: PeriodPreset = "year_to_date";
 const D_WINDOW: KpiWindowId = "month";
 /** Beyond this many lines a parallel-coordinates plot stops being read; above it the gallery cuts, and says so. */
 const D_PARALLEL_MAX = 15;
-/** The attention × conversion frame's four cells, in `QuadrantMatrix`'s own words. */
-export const D_QUADRANT_NAME: Readonly<Record<string, string>> = {
-  hero: "Hero",
-  mispriced: "Mispriced or oversold",
-  hidden_gem: "Hidden gem",
-  dead_stock: "Dead stock",
-};
-
 export interface DFigure {
   readonly label: string;
   readonly value: string;
@@ -1281,7 +1274,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       summary: `${placed
         .map(
           (s) =>
-            `${s.label}: ${s.index.toFixed(2)}× the attention its share of stock would give it, and ${pct(s.conversion.share ?? 0)} of its ${n(s.conversion.decided)} decided meetings progressed: ${D_QUADRANT_NAME[s.conversion.quadrant ?? ""] ?? "no cell"}.`,
+            `${s.label}: ${s.index.toFixed(2)}× the attention its share of stock would give it, and ${pct(s.conversion.share ?? 0)} of its ${n(s.conversion.decided)} decided meetings progressed: ${QUADRANT_NAME[s.conversion.quadrant ?? ""] ?? "no cell"}.`,
         )
         .join(" ")}${offChart.length === 0 ? "" : ` ${offChartWords}`}`,
       figures: [

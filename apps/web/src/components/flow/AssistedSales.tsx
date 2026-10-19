@@ -34,7 +34,7 @@ export function AssistedSales({
   readonly canOpen: boolean;
 }) {
   return (
-    <div>
+    <div className="d-card">
       <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
         IRIS-assisted sales
       </h2>

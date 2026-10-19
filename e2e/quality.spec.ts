@@ -250,21 +250,22 @@ test.describe("the chart vocabulary", () => {
     }
   });
 
-  test("the journey flow lays its stages out across the page, not on top of each other", async ({
-    page,
-  }) => {
+  /*
+   * The journey is a funnel since ADR-0041, one band per stage stacked down
+   * the card. A band wider than the one above it would draw survivors that
+   * never existed, so the drawn widths are read off the page.
+   */
+  test("the journey funnel narrows band by band, and never widens", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/project");
-    const nodes = page.locator(".iris-flow-node");
-    await expect(nodes).toHaveCount(4);
+    const bands = page.locator(".dld-jf .dld-band i");
+    expect(await bands.count()).toBeGreaterThan(1);
 
-    const xs: number[] = [];
-    for (let i = 0; i < 4; i += 1) {
-      const box = await nodes.nth(i).boundingBox();
-      xs.push(box?.x ?? 0);
-    }
-    for (let i = 1; i < xs.length; i += 1) {
-      expect(xs[i]).toBeGreaterThan(xs[i - 1] as number);
+    const widths = await bands.evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().width),
+    );
+    for (let i = 1; i < widths.length; i += 1) {
+      expect(widths[i]).toBeLessThanOrEqual(widths[i - 1] as number);
     }
   });
 
