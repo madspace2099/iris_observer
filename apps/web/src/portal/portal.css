@@ -149,6 +149,7 @@
 .mp a:focus-visible,
 .mp button:focus-visible,
 .mp input:focus-visible,
+.mp summary:focus-visible,
 .mp [tabindex]:focus-visible {
   outline: 2px solid var(--link);
   outline-offset: 2px;
@@ -442,6 +443,87 @@
 .mp-demo code {
   color: var(--ink);
   font-size: var(--text-micro);
+}
+
+/*
+ * THE FORM IS THE FOCUS (decided 2026-10-19, for the recorded demonstration).
+ *
+ * The password path leads; single sign-on and invitations follow as one quiet
+ * row of links that still say, when pressed, that neither is connected. The
+ * demonstration notice is a closed disclosure whose summary states, in view,
+ * that the accounts are synthetic and not credentials for anything real — the
+ * list, the password and the protocol note are one press further in.
+ */
+.mp-fields > .mp-btn:not([data-weight]) {
+  margin-top: 6px;
+}
+
+.mp-alt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 22px;
+  margin-top: 2px;
+}
+
+.mp-alt .mp-btn[data-weight="link"] {
+  padding: 6px 0;
+  font-size: var(--text-caption);
+  color: var(--ink-4);
+}
+
+.mp-alt .mp-btn[data-weight="link"]:hover {
+  color: var(--ink);
+}
+
+details.mp-demo {
+  margin-top: 32px;
+  padding: 14px 0 0;
+  border: none;
+  border-top: 1px solid var(--border-track);
+  border-radius: 0;
+}
+
+details.mp-demo > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+  list-style: none;
+}
+
+details.mp-demo > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A plus that turns into a minus: the one sign that this line opens. */
+details.mp-demo > summary::before {
+  content: "+";
+  flex: none;
+  width: 10px;
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+details.mp-demo[open] > summary::before {
+  content: "\2212";
+}
+
+details.mp-demo > summary strong {
+  display: inline;
+  margin: 0;
+}
+
+.mp-demo-body {
+  padding: 10px 0 0 18px;
+}
+
+.mp-demo-body p {
+  margin: 0 0 8px;
+}
+
+.mp-demo-body ul {
+  margin: 0 0 10px;
+  padding-left: 18px;
 }
 
 /* =================================================================== projects */

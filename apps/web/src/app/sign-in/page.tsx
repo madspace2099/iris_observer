@@ -86,6 +86,9 @@ export default async function SignIn({
       ...SESSION_COOKIE_OPTIONS,
     });
 
+    /* A reader who was bounced here from a deep link is owed that link, at once. */
+    if (wanted !== null) redirect(dynamicRoute(wanted));
+
     /*
      * `resolveLandingPath` decides — the last project this account was in, the
      * one project it holds, or `/projects` when it genuinely holds several and
@@ -95,10 +98,14 @@ export default async function SignIn({
      * one made for them. True the first time an account signs in with several
      * held; not true of every sign-in after, and not true at all of an account
      * with exactly one — a picker holding one card is not offering a choice.
+     *
+     * The landing goes by way of the welcome, which states what the project
+     * holds and hands the reader on (`/welcome`). It carries the landing as
+     * `to`, and checks it again there: a value that came back through the
+     * browser is not trusted because this action wrote it.
      */
-    redirect(
-      dynamicRoute(wanted ?? (await resolveLandingPath(await viewerForAccount(result.account)))),
-    );
+    const landing = await resolveLandingPath(await viewerForAccount(result.account));
+    redirect(dynamicRoute(`/welcome?${new URLSearchParams({ to: landing }).toString()}`));
   }
 
   /**
@@ -171,24 +178,18 @@ export default async function SignIn({
               </div>
             )}
 
+            {/*
+              THE FORM IS THE FOCUS, AND THE PASSWORD PATH COMES FIRST.
+
+              Address, password, and the button that uses them, in that order —
+              so the first submit button in the form is the one Enter should
+              press, and no hidden default is needed in front of it. Single
+              sign-on and invitations follow as quieter links: still drawn,
+              still refusing in words (`notConnectedSso`, `notConnectedInvite`),
+              no longer standing between a reader and the password field.
+            */}
             <form action={signIn} className="mp-fields">
               {returnTo !== null && <input type="hidden" name="returnTo" value={returnTo} />}
-
-              {/*
-                THE DEFAULT SUBMIT, FIRST IN THE FORM AND INVISIBLE.
-
-                Pressing Enter in a field submits through the form s FIRST submit
-                button, not through its action. The first visible button here is
-                company single sign-on, so a reader who typed an address and a
-                password and pressed Enter was told that single sign-on is not
-                connected — which is true, and not what they asked for.
-
-                A hidden button carrying the form s own action puts the keyboard
-                back on the password path without moving anything on screen.
-              */}
-              <button type="submit" className="obs-sr" tabIndex={-1} aria-hidden="true">
-                Sign in with password
-              </button>
 
               <label className="mp-label" htmlFor="email">
                 Work email address
@@ -198,20 +199,13 @@ export default async function SignIn({
                   name="email"
                   type="email"
                   autoComplete="username"
+                  autoFocus
                   required
                   placeholder="you@company.example"
                   aria-invalid={error !== undefined}
                   {...(error === undefined ? {} : { "aria-describedby": "sign-in-error" })}
                 />
               </label>
-
-              <button type="submit" className="mp-btn" formAction={notConnectedSso} formNoValidate>
-                Continue with company single sign-on
-              </button>
-
-              <div className="mp-divider">
-                <span>or password</span>
-              </div>
 
               <label className="mp-label" htmlFor="password">
                 Password
@@ -227,39 +221,64 @@ export default async function SignIn({
                 />
               </label>
 
-              <button type="submit" className="mp-btn" data-weight="secondary">
+              <button type="submit" className="mp-btn">
                 Sign in with password
               </button>
 
-              <button
-                type="submit"
-                className="mp-btn"
-                data-weight="link"
-                formAction={notConnectedInvite}
-                formNoValidate
-              >
-                I have an invitation: set up my access →
-              </button>
-
-              <p className="mp-note">
-                SAML 2.0 and OAuth 2.0 / OIDC are the intended protocols. No identity provider is
-                connected to this build, so single sign-on and invitations are not yet available.
-              </p>
+              <div className="mp-alt">
+                <button
+                  type="submit"
+                  className="mp-btn"
+                  data-weight="link"
+                  formAction={notConnectedSso}
+                  formNoValidate
+                >
+                  Continue with company single sign-on
+                </button>
+                <button
+                  type="submit"
+                  className="mp-btn"
+                  data-weight="link"
+                  formAction={notConnectedInvite}
+                  formNoValidate
+                >
+                  I have an invitation
+                </button>
+              </div>
             </form>
 
             {enabled ? (
-              <div className="mp-demo">
-                <strong>Demonstration accounts</strong>
-                Synthetic data, and these are not credentials for anything real. Password{" "}
-                <code>{DEMO_PASSWORD}</code> for any of:
-                <ul style={{ margin: "8px 0 0", paddingLeft: "18px" }}>
-                  {directory.map((account) => (
-                    <li key={account.email}>
-                      <code>{account.email}</code> — {account.displayName}
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              /*
+               * ADR-0022, kept and made quiet: this is a demonstration sign-in
+               * over synthetic data, never production authentication. The
+               * summary says so in view, before anybody signs in; the accounts,
+               * the shared password and what is not connected sit one press
+               * further in.
+               */
+              <details className="mp-demo">
+                <summary>
+                  <strong>Demonstration accounts</strong> · synthetic data, not credentials for
+                  anything real
+                </summary>
+                <div className="mp-demo-body">
+                  <p>
+                    A demonstration sign-in, not production authentication. Password{" "}
+                    <code>{DEMO_PASSWORD}</code> for any of:
+                  </p>
+                  <ul>
+                    {directory.map((account) => (
+                      <li key={account.email}>
+                        <code>{account.email}</code> — {account.displayName}
+                      </li>
+                    ))}
+                  </ul>
+                  <p>
+                    No identity provider is connected to this build, so single sign-on and
+                    invitations are not yet available. SAML 2.0 and OAuth 2.0 / OIDC are the
+                    intended protocols.
+                  </p>
+                </div>
+              </details>
             ) : (
               <div className="mp-demo">
                 <strong>No accounts configured</strong>
