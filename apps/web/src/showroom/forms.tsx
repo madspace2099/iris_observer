@@ -281,8 +281,9 @@ export function ScatterKey({ data }: { readonly data: ScatterData }) {
         const inCell = numbered.filter((p) => p.quadrant === q.id);
         return inCell.length === 0 ? null : (
           <section key={q.id} className="dld-scatter-cell" data-quadrant={q.id}>
-            <h4>{q.title}</h4>
-            <p>{q.instruction}</p>
+            {/* Not a heading: the cards it sits in title themselves with a kicker, and an h4 under the page's h1 would skip two levels. */}
+            <p className="dld-scatter-name">{q.title}</p>
+            <p className="dld-scatter-instruction">{q.instruction}</p>
             <ol>
               {inCell.map((p) => (
                 <li key={p.id}>
