@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { passWelcome } from "./sign-in";
 
 /**
  * THE FROZEN SIGN-IN SURFACE.
@@ -97,12 +98,19 @@ test.describe("sign-in, as frozen", () => {
      * on the screen because the anatomy is the reference's, and says plainly
      * that neither works yet — an action that silently does nothing is worse
      * than one that explains itself.
+     *
+     * Since 2026-10-19 the form leads and the notice is a disclosure: both
+     * links stay in view, and the sentence saying no identity provider is
+     * connected is one press into the demonstration notice.
      */
-    const body = await page.evaluate(() => document.body.innerText);
-    expect(body).toMatch(/no identity provider is connected/i);
     await expect(
       page.getByRole("button", { name: "Continue with company single sign-on" }),
     ).toBeVisible();
+    await expect(page.getByRole("button", { name: /invitation/i })).toBeVisible();
+    await page.locator("details.mp-demo > summary").click();
+    const body = await page.evaluate(() => document.body.innerText);
+    expect(body).toMatch(/no identity provider is connected/i);
+    expect(body).toMatch(/not production authentication/i);
   });
 
   test("can be driven from the keyboard, with the focus always visible", async ({ page }) => {
@@ -137,22 +145,21 @@ test.describe("sign-in, as frozen", () => {
     await page.goto("/sign-in");
 
     /*
-     * Enter in a text field submits through the form's FIRST submit button, and
-     * the first visible one here is company single sign-on — so a reader who
-     * typed a password and pressed Enter used to be told single sign-on is not
-     * connected. A hidden default submit puts the keyboard back on the password
-     * path, and this is what holds it there.
+     * Enter in a text field submits through the form's FIRST submit button. It
+     * used to be company single sign-on, so a reader who typed a password and
+     * pressed Enter was told single sign-on is not connected, until a hidden
+     * default submit was put in front of it. The password button now comes
+     * first in the form itself, and this is what holds it there.
      *
-     * Note the tab order, which is the reference's and is left alone: from the
-     * email field the next stop is the single sign-on button, not the password.
-     * That is the composition saying single sign-on is the primary path. The
-     * fields are therefore addressed by their labels rather than by tabbing,
-     * and what is under test is the Enter key, not the tab order.
+     * The welcome stands between the sign-in and the projects; it is handed
+     * over at once rather than waited out (`passWelcome`), and the landing it
+     * hands on to is what is asserted.
      */
     await page.getByLabel("Work email address").fill("petra.novak@alpha-estates.example");
     await page.getByLabel("Password").fill("observer-demo");
     await page.getByLabel("Password").press("Enter");
-    await page.waitForURL(/projects/);
+    await passWelcome(page);
+    await page.waitForURL((url) => url.pathname === "/projects");
 
     expect(new URL(page.url()).pathname).toBe("/projects");
 

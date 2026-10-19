@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { switcherButton } from "./switcher";
 import { gateRefusal } from "./secrets";
+import { passWelcome } from "./sign-in";
 
 /**
  * ACCOUNT → PROJECTS → OBSERVER, THROUGH THE VISIBLE USER INTERFACE.
@@ -409,9 +410,13 @@ test.describe("returnTo goes back inside, or nowhere", () => {
        * the assertions below fire on whatever it actually was, so a regression
        * to example.invalid fails with the attacker's hostname in the message.
        *
-       * The assertions are untouched: hostname and pathname, both exact.
+       * The assertions are untouched: hostname and pathname, both exact. The
+       * welcome a refused destination now lands on is handed over first; its
+       * own `to` is checked again on the server, and where it hands on to is
+       * what is asserted.
        */
       await page.waitForURL((u) => new URL(u).pathname !== "/sign-in");
+      if (new URL(page.url()).hostname === "localhost") await passWelcome(page);
 
       const url = new URL(page.url());
       expect(url.hostname, name).toBe("localhost");
