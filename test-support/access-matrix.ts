@@ -358,6 +358,8 @@ export const MATRIX_VIEWER_KEYS = [
   "salesAgentIster",
   "salesAgentDual",
   "madspace",
+  "developerShark",
+  "managerShark",
 ] as const;
 export type MatrixViewerKey = (typeof MATRIX_VIEWER_KEYS)[number];
 

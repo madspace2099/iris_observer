@@ -270,6 +270,89 @@ export const SYNTHETIC_AGENTS: readonly SyntheticAgent[] = [
     outcomeBias: 0.01,
     meetingShare: 0.1,
   },
+  /*
+   * SHARK RESIDENCE'S TEAM — five people, five ways of telling the story.
+   *
+   * Each is a tendency, not a script: every one of them has meetings with and
+   * without Compare, with and without the shortlist, and the noisy outcome
+   * model gives each of them exceptions both ways. The shares keep all five
+   * above `AGENT_MIN_SAMPLE` in the current quarter.
+   */
+  {
+    // The storyteller: the neighbourhood early, Compare, back to the shortlist.
+    id: "agt_sharklena01",
+    name: "Lena Fischer",
+    organisationName: "Shark Sales",
+    surroundingsEarly: 0.8,
+    amenitiesSkip: 0.05,
+    compareUse: 0.74,
+    returnToShortlist: 0.68,
+    coverageBias: 0.82,
+    homeDwell: 0.7,
+    unitsShownMean: 4.7,
+    outcomeBias: 0.05,
+    meetingShare: 0.25,
+  },
+  {
+    // The closer: few sections, many units, Compare and the shortlist.
+    id: "agt_sharkmarek01",
+    name: "Marek Dvořák",
+    organisationName: "Shark Sales",
+    surroundingsEarly: 0.3,
+    amenitiesSkip: 0.24,
+    compareUse: 0.82,
+    returnToShortlist: 0.62,
+    coverageBias: 0.32,
+    homeDwell: 0.8,
+    unitsShownMean: 5.6,
+    outcomeBias: 0.03,
+    meetingShare: 0.22,
+  },
+  {
+    // The tour guide: a long opening on Home, Surroundings late, little Compare.
+    id: "agt_sharkzsofia01",
+    name: "Zsófia Bárány",
+    organisationName: "Shark Sales",
+    surroundingsEarly: 0.16,
+    amenitiesSkip: 0.08,
+    compareUse: 0.2,
+    returnToShortlist: 0.26,
+    coverageBias: 0.78,
+    homeDwell: 2.2,
+    unitsShownMean: 3.3,
+    outcomeBias: -0.02,
+    meetingShare: 0.2,
+  },
+  {
+    // The rusher: thin coverage, Amenities skipped, few units, rarely back.
+    id: "agt_sharkoliver01",
+    name: "Oliver Grant",
+    organisationName: "Shark Sales",
+    surroundingsEarly: 0.28,
+    amenitiesSkip: 0.52,
+    compareUse: 0.14,
+    returnToShortlist: 0.1,
+    coverageBias: 0.22,
+    homeDwell: 1.0,
+    unitsShownMean: 2.4,
+    outcomeBias: -0.04,
+    meetingShare: 0.18,
+  },
+  {
+    // The newcomer: balanced on every habit, and a smaller share of the diary.
+    id: "agt_sharkiva01",
+    name: "Iva Horváth",
+    organisationName: "Shark Sales",
+    surroundingsEarly: 0.48,
+    amenitiesSkip: 0.17,
+    compareUse: 0.42,
+    returnToShortlist: 0.38,
+    coverageBias: 0.55,
+    homeDwell: 1.2,
+    unitsShownMean: 3.8,
+    outcomeBias: 0.0,
+    meetingShare: 0.15,
+  },
 ];
 
 export function agentById(id: string): SyntheticAgent | undefined {
@@ -484,7 +567,73 @@ export interface ProjectDataset {
    * can be shown at all.
    */
   readonly webirisShare: number;
+  /** How behaviour weighs on the outcome here. Absent: `DEFAULT_OUTCOME_MODEL`. */
+  readonly outcomeModel?: OutcomeModel;
 }
+
+/**
+ * The weights `chooseOutcome` scores a meeting with.
+ *
+ * The first six terms are the ones every project has always been scored on,
+ * and `DEFAULT_OUTCOME_MODEL` holds their original constants, so a project
+ * without a model of its own draws exactly the outcomes it always drew. The
+ * four after them read behaviour the session already carries — they consume no
+ * random draw — and are zero by default.
+ */
+export interface OutcomeModel {
+  readonly base: number;
+  /** Weight on how ready the buyer already was: the term Observer cannot see. */
+  readonly readiness: number;
+  readonly coverage: number;
+  readonly surroundingsEarly: number;
+  readonly compared: number;
+  readonly returned: number;
+  readonly agentBias: number;
+  /** Width of the noise term. */
+  readonly noise: number;
+  readonly shortlist: number;
+  readonly fourPlusUnits: number;
+  /** Negative: Amenities never opened. */
+  readonly amenitiesSkipped: number;
+  /** Negative: over a minute on Home. */
+  readonly longOpening: number;
+}
+
+export const DEFAULT_OUTCOME_MODEL: OutcomeModel = {
+  base: 0.02,
+  readiness: 0.44,
+  coverage: 0.09,
+  surroundingsEarly: 0.04,
+  compared: 0.04,
+  returned: 0.03,
+  agentBias: 0.3,
+  noise: 0.34,
+  shortlist: 0,
+  fourPlusUnits: 0,
+  amenitiesSkipped: 0,
+  longOpening: 0,
+};
+
+/*
+ * SHARK RESIDENCE'S MODEL: the buyer's readiness weighs less and behaviour
+ * more, so the presentations that progressed and the ones that did not look
+ * different in this sample. The noise and the readiness term still outweigh any
+ * single behaviour, so thorough meetings still stall and thin ones still close.
+ */
+const SHARK_OUTCOME_MODEL: OutcomeModel = {
+  base: 0.09,
+  readiness: 0.24,
+  coverage: 0.06,
+  surroundingsEarly: 0.05,
+  compared: 0.07,
+  returned: 0.07,
+  agentBias: 0.3,
+  noise: 0.24,
+  shortlist: 0.08,
+  fourPlusUnits: 0.05,
+  amenitiesSkipped: -0.08,
+  longOpening: -0.08,
+};
 
 export const PROJECT_DATASETS: readonly ProjectDataset[] = [
   {
@@ -573,6 +722,35 @@ export const PROJECT_DATASETS: readonly ProjectDataset[] = [
     // IRIS. Enough to be a real share of the project rather than a rounding
     // error, and not so much that the showroom stops being the primary surface.
     webirisShare: 0.28,
+  },
+  /*
+   * SHARK RESIDENCE — the demonstration project. Listed last, so every dataset
+   * above draws exactly what it drew before this one existed.
+   *
+   * Three windows like ISTER TOWER's, a steeper climb, and an outcome model of
+   * its own (`SHARK_OUTCOME_MODEL`) under which the five presenters' habits
+   * show up in what their meetings came to.
+   */
+  {
+    projectId: "prj_sharkres001",
+    code: "sr",
+    seed: 0x5a4c,
+    agentIds: [
+      "agt_sharklena01",
+      "agt_sharkmarek01",
+      "agt_sharkzsofia01",
+      "agt_sharkoliver01",
+      "agt_sharkiva01",
+    ],
+    periods: [
+      { phase: "earlier", from: "2026-01-12", to: "2026-03-31", meetings: 45 },
+      { phase: "previous", from: "2026-04-01", to: "2026-06-30", meetings: 80 },
+      { phase: "current", from: "2026-07-01", to: "2026-08-24", meetings: 150 },
+    ],
+    crmConnected: true,
+    legacyImports: 0,
+    webirisShare: 0.15,
+    outcomeModel: SHARK_OUTCOME_MODEL,
   },
 ];
 
@@ -950,7 +1128,17 @@ function buildEnvironment(
 function chooseOutcome(
   r: () => number,
   agent: SyntheticAgent,
-  signals: { coverage: number; surroundingsEarly: boolean; compared: boolean; returned: boolean },
+  signals: {
+    coverage: number;
+    surroundingsEarly: boolean;
+    compared: boolean;
+    returned: boolean;
+    shortlist: boolean;
+    fourPlusUnits: boolean;
+    amenitiesSkipped: boolean;
+    longOpening: boolean;
+  },
+  model: OutcomeModel,
 ): MeetingOutcome {
   /*
    * Calibrated so the mix looks like a showroom rather than a sales fantasy:
@@ -972,14 +1160,23 @@ function chooseOutcome(
    */
   const buyerReadiness = r();
 
-  let score = 0.02;
-  score += buyerReadiness * 0.44;
-  score += signals.coverage * 0.09;
-  if (signals.surroundingsEarly) score += 0.04;
-  if (signals.compared) score += 0.04;
-  if (signals.returned) score += 0.03;
-  score += agent.outcomeBias * 0.3;
-  score += (r() - 0.5) * 0.34;
+  /*
+   * The same additions in the same order as before the model existed, so the
+   * default model reproduces every existing project's scores bit for bit. The
+   * four later terms add exactly zero there, and read no random draw anywhere.
+   */
+  let score = model.base;
+  score += buyerReadiness * model.readiness;
+  score += signals.coverage * model.coverage;
+  if (signals.surroundingsEarly) score += model.surroundingsEarly;
+  if (signals.compared) score += model.compared;
+  if (signals.returned) score += model.returned;
+  score += agent.outcomeBias * model.agentBias;
+  score += (r() - 0.5) * model.noise;
+  if (signals.shortlist) score += model.shortlist;
+  if (signals.fourPlusUnits) score += model.fourPlusUnits;
+  if (signals.amenitiesSkipped) score += model.amenitiesSkipped;
+  if (signals.longOpening) score += model.longOpening;
 
   // Some meetings simply never get an outcome recorded. That is a real state,
   // and it is drawn independently of behaviour — a thorough presentation is no
@@ -1032,12 +1229,24 @@ function sessionAt(
    * would be fiction presented as measurement.
    */
   const outcome = dataset.crmConnected
-    ? chooseOutcome(r, agent, {
-        coverage,
-        surroundingsEarly,
-        compared: usedCompare,
-        returned,
-      })
+    ? chooseOutcome(
+        r,
+        agent,
+        {
+          coverage,
+          surroundingsEarly,
+          compared: usedCompare,
+          returned,
+          // Read off what was already drawn; none of these takes a draw.
+          shortlist: order.includes("shortlist"),
+          fourPlusUnits: units.length >= 4,
+          amenitiesSkipped: !order.includes("amenities"),
+          longOpening: steps.some(
+            (s) => s.sectionId === "home" && s.dwellSeconds !== null && s.dwellSeconds > 60,
+          ),
+        },
+        dataset.outcomeModel ?? DEFAULT_OUTCOME_MODEL,
+      )
     : "skipped";
 
   // Roughly a third of meetings are with a contact Observer already knows.

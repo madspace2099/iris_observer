@@ -30,6 +30,8 @@ export const ACCOUNTS: Readonly<Record<string, string>> = Object.freeze({
   "Akhilesh Undev": "akhilesh.undev@meridian-sales.example",
   "Martin Kováč": "martin.kovac@meridian-sales.example",
   "MADSPACE Operations": "operations@madspace.example",
+  "Clara Weiss": "clara.weiss@shark-developments.example",
+  "Daniel Hart": "daniel.hart@shark-sales.example",
 });
 
 export function addressOf(name: string): string {

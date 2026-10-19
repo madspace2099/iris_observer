@@ -436,9 +436,13 @@ const STAGE_LAG_DAYS: Readonly<Partial<Record<DealStage, number>>> = {
  * The scenarios the demonstration CRM covers, by slug: the healthy project
  * with a CRM (`docs/08-scenarios.md` §3). Riverside declares none, Kingsford
  * is three weeks old, and ISTER TOWER is the control plane's twin whose deals
- * come from its own connector or from nobody.
+ * come from its own connector or from nobody. Shark Residence is the
+ * demonstration project, and its CRM is the demonstration CRM.
  */
-export const DEMONSTRATION_CRM_SLUGS: ReadonlySet<string> = new Set(["northgate"]);
+export const DEMONSTRATION_CRM_SLUGS: ReadonlySet<string> = new Set([
+  "northgate",
+  "shark-residence",
+]);
 
 export function syntheticDeals(
   sessions: readonly ShowroomSession[],

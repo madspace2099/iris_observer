@@ -120,6 +120,29 @@ export const BUILDINGS: Readonly<Record<string, BuildingSpec>> = {
       "K-301": { rooms: 2, areaSqm: 54, price: 312_000, status: "available", orientation: "SE" },
     },
   },
+  /*
+   * Shark Residence: a south block and a harbour block, ten floors, three
+   * apartments per level. The rule gives two- and three-room plans; the pins
+   * add compact studios low down and four-room plans at the top, so the stock
+   * has four room segments rather than two. Block letters S and H on purpose:
+   * the code-keyed maps in this file name A, B, C, K, R and W units.
+   */
+  prj_sharkres001: {
+    floors: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    blocks: ["S", "H"],
+    perBlock: 3,
+    orientation: { S: "S", H: "SW" },
+    soldPressure: 0.32,
+    pinned: {
+      "S-101": { rooms: 1, areaSqm: 38, status: "sold" },
+      "H-101": { rooms: 1, areaSqm: 36, status: "available" },
+      "S-203": { rooms: 1, areaSqm: 41, status: "reserved" },
+      "H-303": { rooms: 1, areaSqm: 40, status: "available" },
+      "S-902": { rooms: 4, areaSqm: 116, status: "available" },
+      "S-1002": { rooms: 4, areaSqm: 124, status: "reserved" },
+      "H-1002": { rooms: 4, areaSqm: 118, status: "available" },
+    },
+  },
 };
 
 /** A small deterministic hash, so every derived figure is reproducible. */
