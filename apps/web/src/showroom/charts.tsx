@@ -169,8 +169,8 @@ export function OutcomeKey({ slices }: { slices: readonly OutcomeSlice[] }) {
     <ul className="iris-ring-key">
       {slices.map((s) => (
         <li key={s.outcome}>
-          {/* Coloured by `charts.css`, the same rules as the outcome rows' key. */}
-          <i data-outcome={s.outcome} />
+          {/* Coloured by `charts.css`'s `.iris-outcome-mark`, as the outcome rows are. */}
+          <i className="iris-outcome-mark" data-outcome={s.outcome} />
           {s.label}
           <b>{s.count}</b>
         </li>

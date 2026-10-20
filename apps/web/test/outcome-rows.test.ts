@@ -91,13 +91,15 @@ describe("Sales Flow's outcome rows", () => {
     expect(rowOf("Team")).not.toContain('data-outcome="reservation"');
     expect(rowOf("Zsófia Bárány")).not.toContain('data-outcome="reservation"');
     expect(rowOf("Zsófia Bárány")).not.toContain('data-outcome="not_interested"');
-    expect(rowOf("Zsófia Bárány").match(/class="iris-orow-part"/g)).toHaveLength(3);
+    expect(rowOf("Zsófia Bárány").match(/class="iris-orow-part iris-outcome-mark"/g)).toHaveLength(
+      3,
+    );
   });
 
   it("run the parts in ladder order, the unrecorded last", () => {
-    const order = [...rowOf("Team").matchAll(/class="iris-orow-part" data-outcome="(\w+)"/g)].map(
-      (m) => m[1],
-    );
+    const order = [
+      ...rowOf("Team").matchAll(/class="iris-orow-part iris-outcome-mark" data-outcome="(\w+)"/g),
+    ].map((m) => m[1]);
     expect(order).toEqual(["purchase", "interested", "not_interested", "skipped"]);
   });
 
@@ -110,10 +112,7 @@ describe("Sales Flow's outcome rows", () => {
       join(dirname(fileURLToPath(import.meta.url)), "../../../packages/ui/src/charts.css"),
       "utf8",
     );
-    const rule =
-      /:is\(\.iris-orows, \.iris-ring-key\) \[data-outcome="skipped"\] \{([^}]*)\}/.exec(
-        css,
-      )?.[1] ?? "";
+    const rule = /\.iris-outcome-mark\[data-outcome="skipped"\] \{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(rule).toContain("repeating-linear-gradient");
     expect(rule).toContain("transparent");
   });
@@ -136,7 +135,7 @@ describe("Sales Flow's outcome rows", () => {
       { outcome: "skipped", label: "Outcome not recorded", count: 2, share: 0.5 },
     ] as const;
     const key = renderToStaticMarkup(createElement(OutcomeKey, { slices }));
-    expect(key).toContain('<i data-outcome="skipped"></i>');
+    expect(key).toContain('<i class="iris-outcome-mark" data-outcome="skipped"></i>');
     expect(key).not.toContain("style=");
     const ring = renderToStaticMarkup(createElement(OutcomeRing, { slices, total: 4 }));
     expect(ring).toMatch(/stroke="var\(--outcome-unrecorded\)"[^>]*stroke-dasharray="2 2"/);

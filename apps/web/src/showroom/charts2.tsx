@@ -386,7 +386,7 @@ export function OutcomeRows({
         <ul className="iris-orows-key" aria-label="Outcomes, with the count for the whole period">
           {keys.map((k) => (
             <li key={k.id}>
-              <i data-outcome={k.id} aria-hidden="true" />
+              <i className="iris-outcome-mark" data-outcome={k.id} aria-hidden="true" />
               {k.label}
               {keyCounts[k.id] === undefined ? null : <b>{keyCounts[k.id]}</b>}
             </li>
@@ -423,7 +423,7 @@ export function OutcomeRows({
                   {drawn.map((k) => (
                     <span
                       key={k.id}
-                      className="iris-orow-part"
+                      className="iris-orow-part iris-outcome-mark"
                       data-outcome={k.id}
                       style={{ flexGrow: row.parts[k.id] }}
                       title={`${row.label} · ${k.label}: ${row.parts[k.id]} of ${row.total}`}

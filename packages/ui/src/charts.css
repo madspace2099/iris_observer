@@ -282,7 +282,9 @@
 
 /*
  * The outcome palette (`--outcome-*`, iris.css), shared with the ring and its
- * key so one colour names one outcome on the whole page. A part's count is
+ * key so one colour names one outcome on the whole page: `.iris-outcome-mark`
+ * is any mark coloured by its `data-outcome`, a part here or a swatch in
+ * either key. A part's count is
  * the card's black on its fill, 5.2:1 or more on every one; neighbours are
  * close in luminance, so a 2px gap of the card parts every two. The
  * unrecorded outcome is a hatch, never a solid that reads as an outcome. No
@@ -294,25 +296,25 @@
   gap: 1.25rem;
 }
 
-:is(.iris-orows, .iris-ring-key) [data-outcome="purchase"] {
+.iris-outcome-mark[data-outcome="purchase"] {
   background: var(--outcome-purchase);
 }
-:is(.iris-orows, .iris-ring-key) [data-outcome="reservation"] {
+.iris-outcome-mark[data-outcome="reservation"] {
   background: var(--outcome-reservation);
 }
-:is(.iris-orows, .iris-ring-key) [data-outcome="interested"] {
+.iris-outcome-mark[data-outcome="interested"] {
   background: var(--outcome-interested);
 }
-:is(.iris-orows, .iris-ring-key) [data-outcome="follow_up_needed"] {
+.iris-outcome-mark[data-outcome="follow_up_needed"] {
   background: var(--outcome-follow-up);
 }
-:is(.iris-orows, .iris-ring-key) [data-outcome="presentation_only"] {
+.iris-outcome-mark[data-outcome="presentation_only"] {
   background: var(--outcome-presentation-only);
 }
-:is(.iris-orows, .iris-ring-key) [data-outcome="not_interested"] {
+.iris-outcome-mark[data-outcome="not_interested"] {
   background: var(--outcome-not-interested);
 }
-:is(.iris-orows, .iris-ring-key) [data-outcome="skipped"] {
+.iris-outcome-mark[data-outcome="skipped"] {
   background: repeating-linear-gradient(
     135deg,
     var(--outcome-unrecorded) 0 2px,
