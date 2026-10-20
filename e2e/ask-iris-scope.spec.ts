@@ -21,6 +21,13 @@ import { signInAs } from "./sign-in";
 const OUT = process.env["OBSERVER_SCOPE_SHOTS"] ?? "_review/ask-scope";
 
 const ISTER = "/alpha/ister-tower/ask";
+/*
+ * The scope menu is a client island. A radio pressed while the page is still
+ * hydrating loses the press (seen once the Ask page carried the live-answer
+ * client code, 2026-10-19), so every visit waits for the network to settle
+ * before it touches the menu.
+ */
+const HYDRATED = { waitUntil: "networkidle" } as const;
 
 async function assertNoOverflow(page: Page, where: string): Promise<void> {
   const overflow = await page.evaluate(
@@ -38,7 +45,7 @@ test.describe("Ask IRIS scope control", () => {
     // compare against, so the tab must not exist rather than open onto an
     // empty checklist.
     await signInAs(page, "Martin Kováč");
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
     await expect(page.locator(".ask-page").getByPlaceholder("Ask IRIS…")).toBeVisible();
     await expect(page.locator(".ask-scope-tab").filter({ hasText: "Compare" })).toHaveCount(0);
   });
@@ -46,7 +53,7 @@ test.describe("Ask IRIS scope control", () => {
   test("Compare lists only the projects this account actually holds", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "checked once");
     await signInAs(page, "Petra Novák", "ISTER TOWER");
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
 
     const scopeTrigger = page.locator(".ask-scope-wrap summary");
     await scopeTrigger.click();
@@ -66,7 +73,7 @@ test.describe("Ask IRIS scope control", () => {
     test.skip(test.info().project.name !== "desktop", "checked once");
     await signInAs(page, "Petra Novák", "ISTER TOWER");
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
 
     const trigger = page.locator(".ask-scope-wrap summary");
     await trigger.focus();
@@ -93,7 +100,7 @@ test.describe("Ask IRIS scope control", () => {
 
     for (const width of [1440, 390] as const) {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
-      await page.goto(ISTER);
+      await page.goto(ISTER, HYDRATED);
       await page.locator(".ask-scope-wrap summary").click();
       await page.getByRole("radio", { name: "Compare" }).check({ force: true });
       await expect(page.locator(".ask-scope-check").first()).toBeVisible();
@@ -110,7 +117,7 @@ test.describe("Ask IRIS scope control", () => {
 
     await page.setViewportSize({ width: 1440, height: 900 });
 
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
     await expect(page.locator(".ask-page").getByPlaceholder("Ask IRIS…")).toBeVisible();
     await page.screenshot({ path: `${OUT}/scope-current-1440.png` });
 
@@ -135,7 +142,7 @@ test.describe("Ask IRIS scope control", () => {
     await page.screenshot({ path: `${OUT}/scope-compare-two-selected-1440.png` });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
     await expect(page.locator(".ask-page").getByPlaceholder("Ask IRIS…")).toBeVisible();
     await page.screenshot({ path: `${OUT}/scope-current-390.png` });
 
@@ -163,19 +170,19 @@ test.describe("Ask IRIS scope control", () => {
     await signInAs(page, "Petra Novák", "ISTER TOWER");
 
     await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
     await page.locator(".ask-model-wrap summary").click();
     await expect(page.locator(".ask-model-wrap .ask-model-option").first()).toBeVisible();
     await page.screenshot({ path: `${OUT}/model-picker-open-1440.png` });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
     await page.locator(".ask-model-wrap summary").click();
     await expect(page.locator(".ask-model-wrap .ask-model-option").first()).toBeVisible();
     await page.waitForTimeout(200);
     await page.screenshot({ path: `${OUT}/model-picker-open-390.png` });
 
-    await page.goto(ISTER);
+    await page.goto(ISTER, HYDRATED);
     await page.locator(".ask-scope-wrap summary").click();
     await page.getByRole("radio", { name: "Compare" }).check({ force: true });
     await expect(page.locator(".ask-scope-check").first()).toBeVisible();

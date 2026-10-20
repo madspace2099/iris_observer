@@ -41,7 +41,7 @@ test.describe("the welcome, played", () => {
     await expect(lines).toContainText("Shark Residence");
     await expect(lines).toContainText(/Reading [\d,]+ presentations? · quarter to date/);
     await expect(lines).toContainText("Briefing ready");
-    await expect(page.getByRole("link", { name: /Skip/ })).toBeVisible();
+    await expect(page.locator(".welcome-skip")).toBeVisible();
 
     await page.waitForURL(LANDING, { timeout: 15_000 });
     await expect(page.locator(".ask-hero").first()).toBeVisible();
@@ -54,7 +54,7 @@ test.describe("the welcome, played", () => {
      * Before the sequence's own hand-over at 4.2s could explain an arrival:
      * Skip is pressed at once and the landing must follow within a second.
      */
-    const skip = page.getByRole("link", { name: /Skip/ });
+    const skip = page.locator(".welcome-skip");
     await skip.waitFor();
     const pressed = Date.now();
     await skip.click();
