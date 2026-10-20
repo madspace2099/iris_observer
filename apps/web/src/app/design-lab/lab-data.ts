@@ -43,6 +43,8 @@ import type {
   ActivityMatrix,
   KpiFigure,
   KpiWindowId,
+  LensMeeting,
+  MeetingLens,
   OutcomeComposition,
   OutcomeSlice,
   TrendSeries,
@@ -551,50 +553,17 @@ export interface DOutcomeFunnelsCard {
   readonly facts: DFacts;
 }
 
-/** One rehearsal meeting the bubble rule sizes, as compact as the lens needs it. */
-export interface DLensMeeting {
-  /** The agent, as an index into `agents`: it picks the colour. */
-  readonly a: number;
-  /** The day, as an index into `days`. */
-  readonly d: number;
-  /** The outcome, as an index into `outcomes`: it picks the size. */
-  readonly o: number;
-  /** The start on the project's clock, "14:05". */
-  readonly t: string;
-  /** The apartments shortlisted, by code. */
-  readonly u: readonly string[];
-}
-
-/** The bubble lens: six months of a rehearsal at showroom pace, day by day. */
-export interface DBubbleLens {
-  /** In the gallery's colour order: the i-th agent wears `--d-series-(i+1)` on every card. */
-  readonly agents: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly short: string;
-  }[];
-  /** The outcomes the rule sizes, largest first: the size at full scale, and how many the rehearsal holds. */
-  readonly outcomes: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly diameter: number;
-    readonly count: number;
-  }[];
-  /** The six months, a day an entry, the last of them today. */
-  readonly days: readonly {
-    readonly label: string;
-    readonly weekday: string;
-    readonly date: number;
-  }[];
-  /** Where each month starts among the days, how many of its days they hold, and how long it is. */
-  readonly months: readonly {
-    readonly label: string;
-    readonly long: string;
-    readonly first: number;
-    readonly held: number;
-    readonly length: number;
-  }[];
-  readonly meetings: readonly DLensMeeting[];
+/**
+ * The bubble lens: six months of a rehearsal at showroom pace, day by day, in
+ * the product lens's own shape (`MeetingLens`). A rehearsal meeting opens
+ * nothing, so every `href` is null; its six whole months start on a first, so
+ * no month has a lead. The agents are in seat order, the radar's, so a sphere
+ * wears the colour its agent wears on every card.
+ */
+export interface DBubbleLens extends Pick<
+  MeetingLens,
+  "agents" | "outcomes" | "days" | "months" | "meetings" | "stripLabel"
+> {
   /** The source line the card prints. */
   readonly reads: string;
   readonly facts: DFacts;
@@ -1500,10 +1469,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   });
   const lensDayCount = Math.round((periodLastDay - lensFrom) / DAY_MS) + 1;
 
-  /* The gallery's colour order — the radar's, then anyone it withheld — so an agent wears one colour on every card. */
-  const colourOrder = [...drawn.map((p) => p.id), ...byWorkload.map((r) => r.agentId)].filter(
-    (id, i, all) => all.indexOf(id) === i,
-  );
+  /* Seat order, the radar's, as the product's lens has it: an agent wears one colour on every card. */
+  const colourOrder = radar.profiles.map((p) => p.id);
   same(
     "the rehearsal's agents",
     [...new Set(rehearsal.map((s) => s.agentId))].sort().join(),
@@ -1522,7 +1489,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const lensOutcomes = Object.entries(D_BUBBLE_DIAMETER)
     .sort((a, b) => b[1] - a[1])
     .map(([id, diameter]) => ({
-      id,
+      id: id as MeetingOutcome,
       label: labelOf(id as MeetingOutcome),
       diameter,
       count: lensCount(id),
@@ -1552,8 +1519,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     const d = new Date(lensFrom + i * DAY_MS);
     return { label: dates.format(d), weekday: weekdayName.format(d), date: d.getUTCDate() };
   });
-  const lensMonths: { label: string; long: string; first: number; held: number; length: number }[] =
-    [];
+  const lensMonths: MeetingLens["months"][number][] = [];
   for (let i = 0; i < lensDayCount;) {
     const d = new Date(lensFrom + i * DAY_MS);
     const length = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
@@ -1564,6 +1530,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       first: i,
       held,
       length,
+      /* The six months start on a first: no month begins before the lens does. */
+      lead: 0,
     });
     i += held;
   }
@@ -1571,16 +1539,19 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   const lensDayOf = (s: ShowroomSession) =>
     Math.round((calendar(new Date(s.startedAt)).day - lensFrom) / DAY_MS);
   const sized = rehearsal.filter((s) => D_BUBBLE_DIAMETER[s.outcome] !== undefined);
-  const lensMeetings: DLensMeeting[] = sized.map((s) => {
+  const lensMeetings: LensMeeting[] = sized.map((s) => {
     const d = lensDayOf(s);
     if (d < 0 || d >= lensDayCount)
       refuse(`a rehearsal meeting inside the six months, not ${s.startedAt}`);
     return {
+      id: s.meetingId,
       a: seatOf.get(s.agentId) ?? refuse(`the seat of the agent "${s.agentId}"`),
       d,
       o: sizeOf.get(s.outcome) ?? refuse(`the size of the "${s.outcome}" outcome`),
       t: clock.format(new Date(s.startedAt)),
       u: s.units.filter((u) => u.favourited).map((u) => u.unitCode),
+      /* Rehearsed, never held: there is no meeting to open. */
+      href: null,
     };
   });
   const unrecordedRehearsed = rehearsal.filter((s) => outcomeIsUnknown(s.outcome)).length;
@@ -1615,6 +1586,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     days: lensDays,
     months: lensMonths,
     meetings: lensMeetings,
+    stripLabel: "The six months, a column per day: move the lens",
     reads: `showroomPaceRehearsal · ${paceWords} per agent · ${projectName} · ${lensSpan}`,
     facts: {
       lead: `A rehearsal at showroom pace, on one canvas: ${meetings(rehearsal.length)} in six months, ${n(lensMeetings.length)} of them drawn, each agent in a colour of their own and each outcome in a size of its own. The largest bubbles, the ${n(nearestSize.count)} that ended "${nearestSize.label}", are the nearest a purchase.`,

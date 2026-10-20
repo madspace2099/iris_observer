@@ -95,7 +95,7 @@ test("R05-1 · Sales Flow names the blocks that read the period and the ones tha
     "The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period.",
   );
   expect(text).toContain(
-    "These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
+    "These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
   );
 });
 

@@ -394,6 +394,88 @@ export interface JourneyFlowModel {
   readonly funnel: JourneyFunnel;
 }
 
+/* --- every meeting by who presented it and how it ended ------------------------ */
+
+/** A row of words that may open somewhere: the reading beside a chart. */
+export interface TextRow {
+  readonly id: string;
+  readonly label: string;
+  readonly value: string;
+  readonly href: string | null;
+}
+
+/** One meeting the bubble rule sizes, as compact as the lens draws it. */
+export interface LensMeeting {
+  readonly id: string;
+  /** Who presented it: an index into `MeetingLens.agents`, which picks the colour. */
+  readonly a: number;
+  /** The project's calendar day it started on: an index into `MeetingLens.days`. */
+  readonly d: number;
+  /** How it ended: an index into `MeetingLens.outcomes`, which picks the size. */
+  readonly o: number;
+  /** The start on the project's clock, "14:05". */
+  readonly t: string;
+  /** The apartments shortlisted, by code. */
+  readonly u: readonly string[];
+  /** Its replay; the page withholds it from a reader the replay does not admit. */
+  readonly href: string | null;
+}
+
+/**
+ * The bubble lens over the period's recorded meetings: one bubble per meeting
+ * the rule sizes, in the colour of the agent who presented it and the size of
+ * the outcome recorded at its end, a column per day of the period.
+ */
+export interface MeetingLens {
+  /** Seat order, the radar's: the i-th agent wears `--d-series-(i % 6 + 1)` on every chart. */
+  readonly agents: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly short: string;
+  }[];
+  /** The outcomes the rule sizes, largest first: the size at full scale, and how many the period holds. */
+  readonly outcomes: readonly {
+    readonly id: MeetingOutcome;
+    readonly label: string;
+    readonly diameter: number;
+    readonly count: number;
+  }[];
+  /** Every calendar day of the period in the project's zone, the last of them today. */
+  readonly days: readonly {
+    readonly label: string;
+    readonly weekday: string;
+    readonly date: number;
+  }[];
+  /**
+   * Each month the days touch: where it starts among them, how many of its
+   * days the period holds, how long it is, and how many of its days fall
+   * before the period starts.
+   */
+  readonly months: readonly {
+    readonly label: string;
+    readonly long: string;
+    readonly first: number;
+    readonly held: number;
+    readonly length: number;
+    readonly lead: number;
+  }[];
+  readonly meetings: readonly LensMeeting[];
+  /** Every meeting in the period, drawn or not. */
+  readonly total: number;
+  readonly notDrawn: {
+    readonly purchase: number;
+    readonly presentationOnly: number;
+    readonly unrecorded: number;
+  };
+  /** The latest meetings that ended at the largest size, at most three. */
+  readonly nearest: readonly TextRow[];
+  readonly lead: string;
+  readonly note: string;
+  readonly summary: string;
+  /** What the strip under the lens is, for a screen reader. */
+  readonly stripLabel: string;
+}
+
 /* --- the bundle each surface reads ---------------------------------------------- */
 
 export interface FlowCharts {
@@ -405,6 +487,8 @@ export interface FlowCharts {
   readonly funnel: BehaviourFunnel;
   readonly rankedAgents: readonly RankedRow[];
   readonly longestMeetings: readonly RankedRow[];
+  /** Which meetings are nearest a purchase, and whose. */
+  readonly lens: MeetingLens;
   readonly evidence: EvidenceRef;
 }
 

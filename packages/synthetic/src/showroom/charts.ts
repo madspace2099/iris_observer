@@ -25,6 +25,7 @@ import type {
   KpiGroup,
   KpiPanel,
   KpiWindowId,
+  MeetingLens,
   OutcomeComposition,
   ProjectCharts,
   RankedRow,
@@ -45,6 +46,7 @@ import {
 import { catalogueFor } from "../pulse";
 import {
   count,
+  clockLabel,
   dayLabel,
   evidenceRef,
   monthLabel,
@@ -1522,6 +1524,144 @@ function journeyFunnel(
 
 /* --- the bundles ------------------------------------------------------------------- */
 
+/* --- every meeting by who presented it and how it ended --------------------------- */
+
+/**
+ * The bubble rule, as the owner gave it: one bubble per meeting, its size the
+ * outcome recorded at its end — the further up the ladder, the larger. A
+ * purchase is a deal already closed, so it is not drawn; the rule gives
+ * "presentation only" and an unrecorded outcome no size, so they are counted
+ * beside the lens rather than drawn.
+ */
+const LENS_DIAMETER: readonly (readonly [MeetingOutcome, number])[] = [
+  ["reservation", 100],
+  ["interested", 70],
+  ["follow_up_needed", 50],
+  ["not_interested", 25],
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * The period's recorded meetings for the bubble lens. The agents are the
+ * radar's seats, so a bubble wears the colour its presenter wears on every
+ * chart; the days are every calendar day of the period in the project's own
+ * zone; a month the period starts inside says how many of its days come
+ * before it (`lead`), so the lens can shade them rather than stretch the rest.
+ */
+export function buildMeetingLens(
+  context: ViewContext,
+  sessions: readonly ShowroomSession[],
+  span: { readonly from: number; readonly to: number },
+): MeetingLens {
+  const locale = context.project.locale;
+  const timeZone = context.project.timeZone;
+  const at = addressOf(context);
+  const n = (k: number) => count(k, locale);
+
+  const agents = presentersIn(sessions, context.language)
+    .filter((p) => sessions.some((s) => s.agentId === p.id))
+    .map((p) => ({ id: p.id, label: p.name, short: p.name.split(" ")[0] ?? p.name }));
+  const seatOf = new Map(agents.map((a, i) => [a.id, i]));
+  const outcomes = LENS_DIAMETER.map(([id, diameter]) => ({
+    id,
+    label: OUTCOME_LABELS[id],
+    diameter,
+    count: sessions.filter((s) => s.outcome === id).length,
+  }));
+  const sizeOf = new Map(outcomes.map((o, i) => [o.id as string, i]));
+
+  /* Calendar days as UTC midnights of the project's own dates: a day is a date, whatever the clock. */
+  const dateOf = (instant: number | string) => {
+    const p = zoneParts(instant, timeZone);
+    return Date.UTC(p.year, p.month - 1, p.day);
+  };
+  const first = dateOf(span.from);
+  const lastDay = dateOf(Math.max(span.from, span.to - 1));
+  const dayCount = Math.round((lastDay - first) / DAY_MS) + 1;
+  const weekday = new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" });
+  const days = Array.from({ length: dayCount }, (_, i) => {
+    const d = new Date(first + i * DAY_MS);
+    return { label: dayLabel(d, locale, "UTC"), weekday: weekday.format(d), date: d.getUTCDate() };
+  });
+
+  const monthShort = new Intl.DateTimeFormat(locale, { month: "short", timeZone: "UTC" });
+  const monthLong = new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+  const months: MeetingLens["months"][number][] = [];
+  for (let i = 0; i < dayCount;) {
+    const d = new Date(first + i * DAY_MS);
+    const length = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+    const held = Math.min(length - d.getUTCDate() + 1, dayCount - i);
+    months.push({
+      label: monthShort.format(d),
+      long: monthLong.format(d),
+      first: i,
+      held,
+      length,
+      lead: d.getUTCDate() - 1,
+    });
+    i += held;
+  }
+
+  const sized = sessions.filter((s) => sizeOf.has(s.outcome));
+  const meetings = sized.map((s) => ({
+    id: s.meetingId,
+    a: seatOf.get(s.agentId) ?? 0,
+    d: Math.round((dateOf(s.startedAt) - first) / DAY_MS),
+    o: sizeOf.get(s.outcome) ?? 0,
+    t: clockLabel(s.startedAt, "en-GB", timeZone),
+    u: s.units.filter((u) => u.favourited).map((u) => u.unitCode),
+    href: replayHref(at, s.meetingId),
+  }));
+
+  const notDrawn = {
+    purchase: sessions.filter((s) => s.outcome === "purchase").length,
+    presentationOnly: sessions.filter((s) => s.outcome === "presentation_only").length,
+    unrecorded: sessions.filter((s) => outcomeIsUnknown(s.outcome)).length,
+  };
+  const [largest] = outcomes;
+  const nearest = sized
+    .filter((s) => s.outcome === largest?.id)
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt))
+    .slice(0, 3)
+    .map((s) => {
+      const shortlisted = s.units.filter((u) => u.favourited).map((u) => u.unitCode);
+      return {
+        id: s.meetingId,
+        label: `${dayLabel(s.startedAt, locale, timeZone)} · ${agents[seatOf.get(s.agentId) ?? 0]?.label ?? ""}`,
+        value:
+          shortlisted.length === 0
+            ? "none shortlisted"
+            : `${shortlisted[0] ?? ""}${shortlisted.length > 1 ? ` +${n(shortlisted.length - 1)}` : ""}`,
+        href: replayHref(at, s.meetingId),
+      };
+    });
+
+  const period = context.period.label.toLowerCase();
+  const notDrawnWords = `Not drawn: ${n(notDrawn.purchase)} that ended "${OUTCOME_LABELS.purchase}", a deal already closed; ${n(notDrawn.presentationOnly)} "${OUTCOME_LABELS.presentation_only}" and ${n(notDrawn.unrecorded)} with no outcome recorded, which the rule gives no size.`;
+  return {
+    agents,
+    outcomes,
+    days,
+    months,
+    meetings,
+    total: sessions.length,
+    notDrawn,
+    nearest,
+    lead:
+      largest === undefined
+        ? notDrawnWords
+        : `${n(sessions.length)} meetings, ${period}, ${n(meetings.length)} of them drawn: one bubble each, in the colour of the agent who presented it and the size of the outcome recorded at its end. The largest, the ${n(largest.count)} that ended "${largest.label}", are the nearest a purchase. ${notDrawnWords}`,
+    note: "The sizes follow the order of the outcome ladder; they are not a computed likelihood. The outcome is the one the agent recorded in the room, not the CRM's stage. A week of one agent is not a sample: how each agent's meetings end, at its sample size, is further down this page.",
+    summary: `${n(sessions.length)} meetings, ${period}: ${n(meetings.length)} drawn as bubbles, ${AND.format(outcomes.map((o) => `${o.label} ${n(o.count)}`))}. By agent: ${AND.format(agents.map((a, i) => `${a.label} ${n(meetings.filter((m) => m.a === i).length)}`))}. ${notDrawnWords}`,
+    stripLabel: "The period, a column per day: move the lens",
+  };
+}
+
 export function buildFlowCharts(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -1560,6 +1700,7 @@ export function buildFlowCharts(
       timeZone,
       context.language,
     ),
+    lens: buildMeetingLens(context, sessions, monthSpan),
     evidence: evidenceRef("flow-charts", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }

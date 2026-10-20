@@ -1131,6 +1131,42 @@
   }
 }
 
+/* --- the bubble lens's reading: the nearest meetings, latest first ------------- */
+
+.iris-lens-nearest {
+  margin: 1rem 0 0.75rem;
+}
+
+.iris-lens-nearest h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.iris-lens-nearest ol {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.iris-lens-nearest li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  font-size: 0.8125rem;
+  color: var(--ink);
+}
+
+.iris-lens-nearest em {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-style: normal;
+  color: var(--ink-2);
+}
+
 /*
  * What each spoke means, stated rather than abbreviated.
  *

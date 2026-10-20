@@ -27,7 +27,7 @@ import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-dat
 import { DCard } from "./card";
 import { DDefs } from "./defs";
 import { Dumbbell, OutcomeFunnels, PunchCard } from "./forms";
-import { BubbleLens } from "./bubble-lens";
+import { BubbleLens } from "@/showroom/BubbleLens";
 
 /**
  * VARIANT D. THE HYPER KIT'S TREATMENT, ON THE PRODUCT'S OWN CHARTS.

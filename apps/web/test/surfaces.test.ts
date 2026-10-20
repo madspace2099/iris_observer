@@ -240,9 +240,11 @@ describe("no component reads fixtures directly", () => {
   it("imports the synthetic package only from the composition root", () => {
     // ADR-0007. A component that imports fixtures cannot be repointed at the
     // database later, and the demo and the product start to diverge.
+    /* `src/showroom` too: the bubble lens came from the lab, which may draw a rehearsal; the product never does. */
     const offenders = sourceFiles
       .concat(walk(resolve(import.meta.dirname, "../src/components")))
       .concat(walk(resolve(import.meta.dirname, "../src/lib")))
+      .concat(walk(resolve(import.meta.dirname, "../src/showroom")))
       .filter((file) => executable(readFileSync(file, "utf8")).includes("@observer/synthetic"))
       .map((file) => file.slice(resolve(import.meta.dirname, "..").length).replace(/\\/g, "/"));
 

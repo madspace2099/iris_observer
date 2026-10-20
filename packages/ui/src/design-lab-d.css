@@ -1888,32 +1888,39 @@
   outline-offset: 2px;
 }
 
-/* The lens. Nothing in it or in the strip is text to select: a drag across them moves the lens. */
+/*
+ * The lens. Nothing in it or in the strip is text to select: a drag across them
+ * moves the lens. Each is drawn at the lens's own measured width, so it fills
+ * it at 1:1.
+ */
 .dld-lens-canvas,
 .dld-lens-strip {
+  display: block;
+  width: 100%;
+  height: auto;
   -webkit-user-select: none;
   user-select: none;
 }
 
 .dld-lens-canvas text {
   font-family: var(--d-font-numeric);
-  font-size: 11px;
+  font-size: 12px;
   fill: var(--d-ink-4);
 }
 
-.dld-root .dld-lens-canvas .dld-lens-day {
+:is(.dld-root, [data-charts="d"]) .dld-lens-canvas .dld-lens-day {
   text-anchor: middle;
 }
 
-.dld-root .dld-lens-canvas .dld-lens-day tspan:first-child {
+:is(.dld-root, [data-charts="d"]) .dld-lens-canvas .dld-lens-day tspan:first-child {
   fill: var(--d-ink-3);
 }
 
-.dld-root .dld-lens-column {
+:is(.dld-root, [data-charts="d"]) .dld-lens-column {
   stroke: var(--d-guide);
 }
 
-.dld-root .dld-lens-floor {
+:is(.dld-root, [data-charts="d"]) .dld-lens-floor {
   stroke: var(--d-grid);
 }
 
@@ -1921,9 +1928,9 @@
   fill: rgb(255 255 255 / 0.025);
 }
 
-.dld-root .dld-lens-canvas .dld-lens-future text {
+:is(.dld-root, [data-charts="d"]) .dld-lens-canvas .dld-lens-future text {
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-anchor: middle;
@@ -1937,7 +1944,7 @@
     opacity 220ms linear;
 }
 
-.dld-root .dld-lens-ring {
+:is(.dld-root, [data-charts="d"]) .dld-lens-ring {
   fill: none;
   stroke: var(--d-ink);
   stroke-width: 1.5;
@@ -1967,23 +1974,23 @@
   cursor: grabbing;
 }
 
-.dld-root .dld-lens-shade {
+:is(.dld-root, [data-charts="d"]) .dld-lens-shade {
   fill: rgb(0 0 0 / 0.6);
 }
 
-.dld-root .dld-lens-window {
+:is(.dld-root, [data-charts="d"]) .dld-lens-window {
   fill: rgb(255 255 255 / 0.05);
   stroke: var(--d-ink);
   stroke-width: 1;
 }
 
-.dld-root .dld-lens-month line {
+:is(.dld-root, [data-charts="d"]) .dld-lens-month line {
   stroke: var(--d-ink-4);
 }
 
-.dld-root .dld-lens-month text {
+:is(.dld-root, [data-charts="d"]) .dld-lens-month text {
   font-family: var(--d-font-numeric);
-  font-size: 11px;
+  font-size: 12px;
   fill: var(--d-ink-3);
 }
 
@@ -2005,8 +2012,16 @@
   color: var(--d-ink-3);
 }
 
+/* Held, the tip carries a link to the meeting, so it takes the pointer. */
 .dld-lens-tip[data-held="true"] {
   border-color: rgb(255 255 255 / 0.45);
+  pointer-events: auto;
+}
+
+.dld-lens-tip a {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--d-ink);
 }
 
 .dld-lens-tip p {
@@ -2030,20 +2045,27 @@
   border-radius: 50%;
 }
 
+/* Under 34rem the lens offers seven days only, and the component leaves the span toggle out itself. */
 @container (width < 34rem) {
-  .dld-lens-span {
-    display: none;
-  }
-
   .dld-lens-rail {
     border-radius: 18px;
+  }
+}
+
+/* On paper the lens is its record: the controls, the keys, the strip and a tip have nothing to do there. */
+@media print {
+  .dld-lens-rail,
+  .dld-lens-keys,
+  .dld-lens-strip,
+  .dld-lens-tip {
+    display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .dld-lens-bubble,
   .dld-lens-key,
-  .dld-root .dld-lens-ring {
+  :is(.dld-root, [data-charts="d"]) .dld-lens-ring {
     transition: none;
   }
 }

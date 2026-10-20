@@ -7,14 +7,16 @@ import { DrawIn } from "./DrawIn";
  *
  * The journey as one narrowing path, and the attention × conversion frame as a
  * scatter: the two forms the owner chose for the Project page from gallery D,
- * where they were drawn first. They draw; they never count. Every figure
- * arrives composed — the product's from `ProjectCharts.journey.funnel` and
- * `ProjectView.scatter`, the lab's from `lab-data.ts` — and what happens here
- * is geometry: a share to a length, an index to a position.
+ * where they were drawn first; and since 2026-10-20 the gallery's parallel
+ * coordinates (Coaching) and its radial day (Sales Flow). They draw; they
+ * never count. Every figure arrives composed — the product's from the read
+ * models, the lab's from `lab-data.ts` — and what happens here is geometry: a
+ * share to a length, an index to a position, an hour to an angle.
  *
  * Also here, once: the paint servers the D sheet names (`url(#dld-line)`,
- * `#dld-dots`, `#dld-glow`), which the project shell renders a single time so
- * every chart on every product page can reach them.
+ * `#dld-dots`, `#dld-glow`, `#dld-lift`, `#dld-sphere-*`), which the project
+ * shell renders a single time so every chart on every product page can reach
+ * them.
  */
 
 /* --- the attention × conversion frame's four cells -------------------------- */
@@ -47,13 +49,93 @@ export const QUADRANT_NAME: Readonly<Record<string, string>> = Object.fromEntrie
   QUADRANTS.map((q) => [q.id, q.title]),
 );
 
+/* --- the bubble lens's spheres ----------------------------------------------- */
+
+/*
+ * THE SPHERE, TINTED: ONE PER AGENT COLOUR, AND ONE GREY.
+ *
+ * The kit's sphere, as its export draws its Reservation sphere (node
+ * 657:18806): a deep base, a highlight up and to the right, a glow beneath and
+ * two inner shadows — the colour's own light pooling low, and a white rim at
+ * the top. The lens paints it in each agent's colour, and in grey for the key
+ * to its sizes, which belong to no agent. The filter's numbers are the
+ * export's, for the radius it drew; the lens places a sphere with `<use>` and
+ * scales it to its bubble, so the whole sphere keeps its look at any size.
+ */
+export const D_TINT_RADIUS = 32;
+/** The radius the kit's export drew its Reservation sphere at; the filter's numbers below are for it. */
+const KIT_RADIUS = 33.978;
+const TINT_SCALE = D_TINT_RADIUS / KIT_RADIUS;
+const TINTS: readonly { readonly id: string; readonly colour: string }[] = [
+  ...[1, 2, 3, 4, 5, 6].map((i) => ({ id: `agent-${i}`, colour: `var(--d-series-${i})` })),
+  { id: "neutral", colour: "#a4a4b4" },
+];
+
+function TintSphere({ id, colour }: { readonly id: string; readonly colour: string }) {
+  const key = `dld-sphere-${id}`;
+  const k = TINT_SCALE;
+  return (
+    <>
+      <radialGradient id={`${key}-shine`} cx="0.704" cy="0.312" r="1.0281">
+        <stop offset="0" style={{ stopColor: `color-mix(in oklab, ${colour} 62%, white)` }} />
+        <stop
+          offset="1"
+          style={{ stopColor: `color-mix(in oklab, ${colour} 35%, black)`, stopOpacity: 0 }}
+        />
+      </radialGradient>
+      <filter
+        id={`${key}-fx`}
+        x="-1.5"
+        y="-1.5"
+        width="4"
+        height="4"
+        colorInterpolationFilters="sRGB"
+      >
+        <feOffset in="SourceAlpha" dy={1.955 * k} />
+        <feGaussianBlur stdDeviation={19.55 * k} result="spread" />
+        <feFlood style={{ floodColor: colour, floodOpacity: 0.42 }} />
+        <feComposite in2="spread" operator="in" result="glow" />
+        <feMerge result="shape">
+          <feMergeNode in="glow" />
+          <feMergeNode in="SourceGraphic" />
+        </feMerge>
+        <feOffset in="SourceAlpha" dx={4.889 * k} dy={7.822 * k} />
+        <feGaussianBlur stdDeviation={4.889 * k} />
+        <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="poolEdge" />
+        <feFlood
+          style={{ floodColor: `color-mix(in oklab, ${colour} 70%, white)`, floodOpacity: 0.5 }}
+        />
+        <feComposite in2="poolEdge" operator="in" result="pool" />
+        <feMerge result="pooled">
+          <feMergeNode in="shape" />
+          <feMergeNode in="pool" />
+        </feMerge>
+        <feOffset in="SourceAlpha" dy={0.978 * k} />
+        <feGaussianBlur stdDeviation={2.444 * k} />
+        <feComposite in2="SourceAlpha" operator="arithmetic" k2="-1" k3="1" result="rimEdge" />
+        <feFlood floodColor="#ffffff" floodOpacity="0.58" />
+        <feComposite in2="rimEdge" operator="in" result="rim" />
+        <feMerge>
+          <feMergeNode in="pooled" />
+          <feMergeNode in="rim" />
+        </feMerge>
+      </filter>
+      <g id={key} filter={`url(#${key}-fx)`}>
+        <circle r={D_TINT_RADIUS} style={{ fill: `color-mix(in oklab, ${colour} 55%, black)` }} />
+        <circle r={D_TINT_RADIUS} fill={`url(#${key}-shine)`} />
+      </g>
+    </>
+  );
+}
+
 /* --- the paint servers ------------------------------------------------------ */
 
 /**
- * Three of the kit's treatments cannot be written as a CSS colour: a gradient
- * along a stroke, the dot-matrix area, and a glow that follows a mark's own
- * shape. SVG reaches a paint server anywhere in the document, so they are
- * declared once and every rule names them with `url(#…)`.
+ * Several of the kit's treatments cannot be written as a CSS colour: a
+ * gradient along a stroke, the dot-matrix area, a glow that follows a mark's
+ * own shape, the parallel lines' black lift, and the lens's spheres. SVG
+ * reaches a paint server anywhere in the document, so they are declared once
+ * and every rule names them with `url(#…)`.
  *
  * The glow is the kit's six stacked shadows in the mark's own colour, as three
  * blurs of `SourceGraphic`, so one filter serves every series. Its region is
@@ -115,6 +197,11 @@ export function ChartPaint() {
       >
         <feDropShadow dx="0" dy="2" stdDeviation="1" floodColor="#000000" floodOpacity="0.85" />
       </filter>
+
+      {/* The bubble lens's spheres, one per agent colour and one grey. */}
+      {TINTS.map((tint) => (
+        <TintSphere key={tint.id} {...tint} />
+      ))}
     </>
   );
 }

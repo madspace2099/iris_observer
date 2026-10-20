@@ -28,6 +28,7 @@ import {
 import { Funnel, Heatmap, KpiCard, OutcomeRows, RankedBars, TrendLine } from "@/showroom/charts2";
 import { DrawIn } from "@/showroom/DrawIn";
 import { RadialHistogram, Sized } from "@/showroom/forms";
+import { BubbleLens } from "@/showroom/BubbleLens";
 
 export const metadata: Metadata = { title: "Sales Flow" };
 
@@ -555,6 +556,77 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
+        {/*
+         * EVERY MEETING BY WHO PRESENTED IT AND HOW IT ENDED (gallery D's
+         * bubble lens, ported 2026-10-20).
+         *
+         * The period's recorded meetings, never the lab's rehearsal: one bubble
+         * per meeting the rule sizes, in its presenter's seat colour, at the
+         * size of the outcome recorded at its end. A bubble opens its meeting
+         * only for a reader the replay admits. Keyed on the period, so the lens
+         * starts again at the period's last days.
+         */}
+        <div className="d-card" key={`lens-${query.period}`}>
+          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+            Which meetings are nearest a purchase, and whose
+          </h2>
+          <p className="iris-meta iris-meta-measured" style={{ marginBottom: ".875rem" }}>
+            {charts.lens.lead}
+          </p>
+          {charts.lens.meetings.length === 0 ? null : (
+            <DrawIn kind="bloom">
+              <BubbleLens
+                initialSpan="month"
+                data={{
+                  ...charts.lens,
+                  meetings: charts.lens.meetings.map((m) => ({
+                    ...m,
+                    href:
+                      canOpenMeeting && m.href !== null ? withPeriod(m.href, query.period) : null,
+                  })),
+                }}
+              />
+            </DrawIn>
+          )}
+          <p className="ox-sr">{charts.lens.summary}</p>
+          {charts.lens.nearest.length === 0 ? null : (
+            <div className="iris-lens-nearest">
+              <h3>The nearest, latest first</h3>
+              <ol>
+                {charts.lens.nearest.map((row) => (
+                  <li key={row.id}>
+                    {canOpenMeeting && row.href !== null ? (
+                      <Link href={dynamicRoute(withPeriod(row.href, query.period))}>
+                        {row.label}
+                      </Link>
+                    ) : (
+                      <span>{row.label}</span>
+                    )}
+                    <em>{row.value}</em>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+          <Link
+            className="iris-action"
+            href={dynamicRoute(
+              withPeriod(
+                `/${tenantSlug}/${projectSlug}/meetings?outcome=reservation`,
+                query.period,
+              ),
+            )}
+          >
+            Every reservation in the register
+          </Link>
+          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+            {charts.lens.note}
+          </p>
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
+        </div>
+
+        <hr className="iris-rule iris-section-rule" />
+
         {/* --- volume over time, and its composition ---------------------- */}
 
         <div className="iris-band" key={`trend-${query.period}`}>
@@ -754,7 +826,7 @@ export default async function FlowPage({
              * R05-a those three stand right under the cards. A new section is
              * added to one list or the other, not claimed by either.
              */
-            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
+            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
           ]}
           title="How to read this"
         />
