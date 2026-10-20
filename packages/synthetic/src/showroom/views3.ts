@@ -1115,47 +1115,45 @@ export function buildSalesFlow(
    */
   const stillRunning =
     new Date(context.period.to).getTime() >= today.getTime() - 24 * 60 * 60 * 1000;
-  let verdict: string;
-  if (stillRunning) {
-    if (
-      week === undefined ||
-      lastWeek === undefined ||
-      month === undefined ||
-      lastMonth === undefined
-    ) {
-      verdict = sentence(context.language, VIEWS3_PERIOD_MEETINGS, {
-        count: count(sessions.length, locale),
-        n: sessions.length,
-      });
-    } else {
-      const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
-      const [now, before] = weekIsReadable ? [week, lastWeek] : [month, lastMonth];
-      /*
-       * A pair the period does not hold whole is not a comparison. Last month
-       * lies before the last 28 days began, and read from this slice it was
-       * empty: "there's no earlier comparable period yet", printed above a
-       * baseline of 28 recorded days. The period against its own baseline, as
-       * a closed period is read below, is the comparison it does hold.
-       */
-      verdict =
-        now.inPeriod && before.inPeriod
-          ? verdictFrom(now, before, locale, context.language)
-          : verdictFrom(
-              summarizePeriod(sessions, context.period.label),
-              summarizePeriod(previous, context.period.baselineLabel),
-              locale,
-              context.language,
-            );
-    }
-  } else {
-    verdict = verdictFrom(
-      summarizePeriod(sessions, context.period.label),
-      summarizePeriod(previous, context.period.baselineLabel),
-      locale,
-      context.language,
-    );
+  const wholePeriod = (): readonly [PeriodSummary, PeriodSummary] => [
+    summarizePeriod(sessions, context.period.label),
+    summarizePeriod(previous, context.period.baselineLabel),
+  ];
+  let compared: readonly [PeriodSummary, PeriodSummary] | null = null;
+  if (!stillRunning) {
+    compared = wholePeriod();
+  } else if (
+    week !== undefined &&
+    lastWeek !== undefined &&
+    month !== undefined &&
+    lastMonth !== undefined
+  ) {
+    const weekIsReadable = week.meetings + lastWeek.meetings >= 8;
+    const [now, before] = weekIsReadable ? [week, lastWeek] : [month, lastMonth];
+    /*
+     * A pair the period does not hold whole is not a comparison. Last month
+     * lies before the last 28 days began, and read from this slice it was
+     * empty: "there's no earlier comparable period yet", printed above a
+     * baseline of 28 recorded days. The period against its own baseline, as
+     * a closed period is read, is the comparison it does hold.
+     */
+    compared = now.inPeriod && before.inPeriod ? [now, before] : wholePeriod();
   }
-  verdict = nothingReceivedYet(context) ?? verdict;
+  const verdict =
+    nothingReceivedYet(context) ??
+    (compared === null
+      ? sentence(context.language, VIEWS3_PERIOD_MEETINGS, {
+          count: count(sessions.length, locale),
+          n: sessions.length,
+        })
+      : verdictFrom(compared[0], compared[1], locale, context.language));
+  /*
+   * The meetings the verdict was read from: both sides of the comparison it
+   * states (66 this month and 65 last are 131), not the period's own count,
+   * which on a running period is a figure the sentence never uses.
+   */
+  const verdictMeetings =
+    compared === null ? sessions.length : compared[0].meetings + compared[1].meetings;
 
   /*
    * Only a code the catalogue holds gets a link; a CRM can name a unit the
@@ -1177,6 +1175,7 @@ export function buildSalesFlow(
     team: progressedFigure(sessions, locale, context.language),
     findings,
     meetingCount: sessions.length,
+    verdictMeetings,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),
     ladder: buildDealLadder(deals, locale, context.project.timeZone, unitHref, context.language),
     assisted: buildAssistedSales(

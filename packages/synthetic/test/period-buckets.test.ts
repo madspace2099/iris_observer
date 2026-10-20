@@ -257,3 +257,24 @@ describe("a window the period cuts across", () => {
     expect(flow.verdict).toMatch(/^Too early to call: 3 meetings since wednesday/);
   });
 });
+
+/*
+ * The spoken verdict's label says IRIS "read from N meetings" (ADR-0048). On a
+ * running period the sentence compares two recency buckets, so N is those two,
+ * not the period's own count: "66 this month against 65 last" read from 131.
+ */
+describe("the meetings Sales Flow's verdict was read from", () => {
+  it.each(["last_28_days", "quarter_to_date", "last_quarter"] as const)(
+    "are the two sides it compares, on %s",
+    async (period) => {
+      const flow = await syntheticRepository.getSalesFlow(query(period));
+      /* With no baseline the sentence states one side ("no earlier comparable period yet"). */
+      const [, now = "", before = "0"] =
+        /([\d,]+) meetings?(?: [^,]*? against ([\d,]+) )?/.exec(flow.verdict) ?? [];
+      expect(now, flow.verdict).not.toBe("");
+      expect(flow.verdictMeetings).toBe(
+        Number(now.replaceAll(",", "")) + Number(before.replaceAll(",", "")),
+      );
+    },
+  );
+});

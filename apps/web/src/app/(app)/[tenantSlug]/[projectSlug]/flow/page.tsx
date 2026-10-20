@@ -154,7 +154,7 @@ export default async function FlowPage({
         <p className="iris-kicker iris-kicker-measured">Sales flow · {view.context.period.label}</p>
         <SpokenVerdict
           sentence={view.verdict}
-          meetings={view.meetingCount}
+          meetings={view.verdictMeetings}
           locale={view.context.project.locale}
           replay={`${query.period}-${kpiWindow}`}
         />

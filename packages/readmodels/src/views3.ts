@@ -218,6 +218,12 @@ export interface SalesFlowView {
   readonly team: ProgressedFigure;
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;
+  /**
+   * The meetings `verdict` was read from: both sides of the comparison it
+   * states, or the period's own meetings where it states none. On a running
+   * period that is two recency buckets, not `meetingCount` (ADR-0048).
+   */
+  readonly verdictMeetings: number;
   readonly evidence: EvidenceRef;
   /**
    * The deal ladder, which is the CRM's (ADR-0021). Drawn from the deals a
