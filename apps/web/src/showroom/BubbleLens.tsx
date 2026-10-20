@@ -11,7 +11,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
-import type { LensMeeting, MeetingLens } from "@observer/readmodels";
+import { seatSeries, type LensMeeting, type MeetingLens } from "@observer/readmodels";
 
 import { dynamicRoute } from "@/lib/href";
 import { D_TINT_RADIUS } from "./forms";
@@ -187,14 +187,14 @@ function f(v: number): string {
 /** An agent's colour: the seat colour the read model gives them on every chart. */
 // ponytail: colours wrap after six agents, as `RadarProfile.tone` does; widen both if a project seats more.
 function tone(a: number): string {
-  return `var(--d-series-${(a % 6) + 1})`;
+  return `var(--d-series-${seatSeries(a)})`;
 }
 
 /** An agent's sphere, at a radius. */
 function AgentSphere({ a, r }: { readonly a: number; readonly r: number }) {
   return (
     <use
-      href={`#dld-sphere-agent-${(a % 6) + 1}`}
+      href={`#dld-sphere-agent-${seatSeries(a)}`}
       transform={`scale(${(r / D_TINT_RADIUS).toFixed(4)})`}
     />
   );
@@ -603,10 +603,14 @@ export function BubbleLens({
             y1={frame.strip}
             y2={frame.strip + 6}
           />
-          {/* A month the strip holds a day or two of has no room for its name. */}
-          {m.held * dayW < 28 ? null : (
+          {/*
+           * A month the strip holds a day or two of has no room for a name. On a
+           * phone a whole month can be under 28px: its initial, so the strip
+           * still says where the lens is.
+           */}
+          {m.held * dayW < 12 ? null : (
             <text x={f(m.first * dayW + 4)} y={frame.strip + 17}>
-              {m.label}
+              {m.held * dayW < 28 ? m.label.slice(0, 1) : m.label}
             </text>
           )}
         </g>

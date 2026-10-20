@@ -196,16 +196,30 @@ export interface CoachingReading {
 
 /* --- one agent across several dimensions -------------------------------------- */
 
+/*
+ * Which of the kit's six agent hues (`--d-series-1` to `-6`) each seat wears.
+ * The kit's own order put two cyans, 3 and 5, both in any five-agent chart; this
+ * order keeps them apart until a sixth seat, so any five seats are the five most
+ * distinct hues (OKLab, about 0.16 apart at the closest pair against 0.10).
+ */
+const SEAT_SERIES = [1, 2, 4, 6, 5, 3] as const;
+
+/** The `--d-series-*` number a seat wears; seats wrap after six. */
+export function seatSeries(seat: number): number {
+  return SEAT_SERIES[seat % SEAT_SERIES.length] ?? 1;
+}
+
 export interface RadarProfile {
   readonly id: string;
   readonly label: string;
   /**
-   * The agent's identity colour, by seat order: the same person wears the same
-   * colour on every chart that draws people, in every period they present.
-   * Never a status colour.
+   * The agent's identity colour, by seat order (`seatSeries`): within a
+   * period, the same person wears the same colour on every chart that draws
+   * people. Across periods it can move: the seat counts only those who
+   * presented in the period. Never a status colour.
    */
   readonly tone: string;
-  /** Normalised 0–1 against the strongest agent on each axis. */
+  /** Normalised 0–1 against the strongest presenter in the period on each axis, drawn or not. */
   readonly values: readonly number[];
   /**
    * `meetings < AGENT_MIN_SAMPLE`. A shape scaled against the strongest
@@ -427,7 +441,7 @@ export interface LensMeeting {
  * the outcome recorded at its end, a column per day of the period.
  */
 export interface MeetingLens {
-  /** Seat order, the radar's: the i-th agent wears `--d-series-(i % 6 + 1)` on every chart. */
+  /** Seat order, the radar's: the i-th agent wears `--d-series-${seatSeries(i)}` on every chart. */
   readonly agents: readonly {
     readonly id: string;
     readonly label: string;

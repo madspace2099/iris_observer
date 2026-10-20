@@ -174,9 +174,11 @@ radars as missing from the product. They are adopted, each over recorded data th
 Four decisions come with them:
 
 - **Seat-order identity colours, in the read model.** `RadarProfile.tone`, `FeatureUsageProfile.tone`
-  and the lens's agents give each presenter `--d-series-(seat % 6 + 1)` in the order `presentersIn`
-  returns them, never by the period's workload, so a person wears one colour on every chart. The
-  four-step ramp this replaces gave the fifth agent the first one's colour.
+  and the lens's agents give each presenter `--d-series-${seatSeries(seat)}` in the order
+  `presentersIn` returns them, never by the period's workload, so a person wears one colour on every
+  chart in a period. The four-step ramp this replaces gave the fifth agent the first one's colour.
+  `seatSeries` takes the kit's hues as 1, 2, 4, 6, 5, 3, not in the kit's order: the kit's 3 and 5
+  are near-identical cyans, and in that order Shark's five agents wore both.
 - **Two decorations are not ported**: the parallel plot's pink haze and the basic radar's blurred
   colour field. Both are glowing blobs, which the doctrine refuses (SKILL.md §5), and the brief was
   the kit executed with restraint. The field stays in the lab (`.dld-root` only); restoring either

@@ -42,6 +42,7 @@ import {
   replayHref,
   agentDetailHref,
   summariseSaleCycles,
+  seatSeries,
 } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
 import {
@@ -600,10 +601,18 @@ interface ReadingAxis {
   readonly measure: (mine: readonly ShowroomSession[]) => number;
   /** "25% of 26 meetings reached Compare": `n` is the count already in words. */
   readonly say: (value: number, n: string, locale: string) => string;
-  /** The same figure once the sentence has said what it counts: "76% of 33", "5 across 33 meetings". */
-  readonly brief: (value: number, n: number, locale: string) => string;
-  /** The habit as a yes or no per meeting, worded to follow "Meetings that"; null for a typical count. */
-  readonly split: { readonly test: (s: ShowroomSession) => boolean; readonly did: string } | null;
+  /**
+   * The same figure once the sentence has said what it counts: "76% of 33",
+   * "5 across 33 meetings". `n` is the count already formatted, or several
+   * joined ("33 and 40") where agents tie.
+   */
+  readonly brief: (value: number, n: string, locale: string) => string;
+  /**
+   * The habit as a yes or no per meeting, worded to follow "Meetings that",
+   * and only where it is one of the cohort comparison's own behaviours.
+   * Otherwise why no outcome is set beside it, worded to follow the label.
+   */
+  readonly split: { readonly test: (s: ShowroomSession) => boolean; readonly did: string } | string;
 }
 
 /** A median as the reader sees it: whole where it is whole, one decimal where two middles split. */
@@ -612,16 +621,24 @@ function typical(value: number, locale: string): string {
 }
 
 /** A split taken from the cohort comparison's own named behaviour, so the two can never test different things. */
-function behaviour(id: string, did: string): NonNullable<ReadingAxis["split"]> {
+function behaviour(id: string, did: string): Exclude<ReadingAxis["split"], string> {
   const test = behaviourTest(id);
   if (test === undefined) throw new Error(`The cohort comparison has no behaviour "${id}".`);
   return { test, did };
 }
 
 /** A share's brief form, "76% of 33"; every set it is said of clears the floor, so it is never one meeting. */
-function shareOf(value: number, n: number, locale: string): string {
-  return `${percent(value, locale)} of ${count(n, locale)}`;
+function shareOf(value: number, n: string, locale: string): string {
+  return `${percent(value, locale)} of ${n}`;
 }
+
+/** A typical figure's brief form, "5 across 33 meetings". */
+function across(value: string, n: string): string {
+  return `${value} across ${n} meetings`;
+}
+
+/** Why a median axis has no outcome beside it. */
+const TYPICAL = "is a typical figure per meeting, not something a meeting did or did not do";
 
 /*
  * The six measures, each over a set of meetings, in words for a reader who has
@@ -644,8 +661,8 @@ const RADAR_AXES: readonly (ReadingAxis & { readonly note: string })[] = [
       ),
     say: (v, n, locale) =>
       `a typical meeting reached ${percent(v, locale)} of the main parts, across ${n}`,
-    brief: (v, n, locale) => `${percent(v, locale)} across ${count(n, locale)} meetings`,
-    split: null,
+    brief: (v, n, locale) => across(percent(v, locale), n),
+    split: TYPICAL,
   },
   {
     id: "depth",
@@ -653,8 +670,8 @@ const RADAR_AXES: readonly (ReadingAxis & { readonly note: string })[] = [
     note: "How many steps a typical meeting took through the presentation.",
     measure: (mine) => median(mine.map((s) => s.steps.length)),
     say: (v, n, locale) => `a typical meeting took ${typical(v, locale)} steps, across ${n}`,
-    brief: (v, n, locale) => `${typical(v, locale)} across ${count(n, locale)} meetings`,
-    split: null,
+    brief: (v, n, locale) => across(typical(v, locale), n),
+    split: TYPICAL,
   },
   {
     id: "units",
@@ -662,7 +679,7 @@ const RADAR_AXES: readonly (ReadingAxis & { readonly note: string })[] = [
     note: "How many apartments a typical meeting opened.",
     measure: (mine) => median(mine.map((s) => s.units.length)),
     say: (v, n, locale) => `a typical meeting opened ${typical(v, locale)} apartments, across ${n}`,
-    brief: (v, n, locale) => `${typical(v, locale)} across ${count(n, locale)} meetings`,
+    brief: (v, n, locale) => across(typical(v, locale), n),
     split: behaviour("four_plus_units", "opened four or more apartments"),
   },
   {
@@ -692,8 +709,8 @@ const RADAR_AXES: readonly (ReadingAxis & { readonly note: string })[] = [
     measure: (mine) => median(mine.map((s) => s.places.length)),
     say: (v, n, locale) =>
       `a typical meeting stopped at ${typical(v, locale)} named places, across ${n}`,
-    brief: (v, n, locale) => `${typical(v, locale)} across ${count(n, locale)} meetings`,
-    split: null,
+    brief: (v, n, locale) => across(typical(v, locale), n),
+    split: TYPICAL,
   },
 ];
 
@@ -711,7 +728,7 @@ const AND = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" })
  */
 // ponytail: colours wrap after six agents, and an agent with no meeting in the period shifts the colours of everyone after them; key the colour on the roster seat if a project grows past six presenters.
 function seatTone(seat: number): string {
-  return `var(--d-series-${(seat % 6) + 1})`;
+  return `var(--d-series-${seatSeries(seat)})`;
 }
 
 /*
@@ -727,8 +744,9 @@ function seatTone(seat: number): string {
  *   - each drawn agent's most distinctive habit: the measure on which they
  *     stand furthest from everyone else's meetings in the period;
  *   - what meetings with that habit came to across the whole project: the
- *     cohort comparison's split (`outcomeSplit`), at both sample sizes, and
- *     only where each side clears the floor.
+ *     cohort comparison's split (`outcomeSplit`), at both sample sizes, only
+ *     for a habit that is one of its behaviours, and only where each side,
+ *     and each of its own cohorts, clears the floor.
  *
  * The floor holds throughout: nobody under it is described, the rest of the
  * team is not a comparison under it either, and the closing line is the
@@ -759,22 +777,40 @@ function readAgents(
     });
   const at = (values: readonly number[], i: number) => values[i] ?? 0;
 
+  /*
+   * Everyone at an end, not the first of them in seat order: medians are whole
+   * numbers, so ties are common. "Monika Kováčová and Martin Kováč, 8 across 60
+   * and 81 meetings"; the plural word is the last count's, "26 and 30 meetings".
+   */
+  type Drawn = (typeof drawn)[number];
+  const names = (group: readonly Drawn[]) => AND.format(group.map((p) => p.name));
+  const counts = (group: readonly Drawn[]) =>
+    AND.format(group.map((p) => count(p.mine.length, locale)));
+  const countsInWords = (group: readonly Drawn[]) =>
+    AND.format(
+      group.map((p, k) =>
+        k === group.length - 1 ? n(p.mine.length) : count(p.mine.length, locale),
+      ),
+    );
   const differences =
     drawn.length < 2
       ? []
       : axes
           .map((axis, i) => {
-            const lo = drawn.reduce((a, b) => (at(b.values, i) < at(a.values, i) ? b : a));
-            const hi = drawn.reduce((a, b) => (at(b.values, i) > at(a.values, i) ? b : a));
-            return { axis, i, lo, hi, spread: (at(hi.values, i) - at(lo.values, i)) / unit(i) };
+            const values = drawn.map((p) => at(p.values, i));
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const lo = drawn.filter((p) => at(p.values, i) === min);
+            const hi = drawn.filter((p) => at(p.values, i) === max);
+            return { axis, min, max, lo, hi, spread: (max - min) / unit(i) };
           })
           .filter((d) => d.spread > 0)
           /* A stable sort: a tie keeps the chart's own axis order. */
           .sort((a, b) => b.spread - a.spread)
           .slice(0, 3)
-          .map(({ axis, i, lo, hi }) => ({
+          .map(({ axis, min, max, lo, hi }) => ({
             id: axis.id,
-            text: `${axis.label}: ${lo.name}, ${axis.say(at(lo.values, i), n(lo.mine.length), locale)}; ${hi.name}, ${axis.brief(at(hi.values, i), hi.mine.length, locale)}.`,
+            text: `${axis.label}: ${names(lo)}, ${axis.say(min, countsInWords(lo), locale)}; ${names(hi)}, ${axis.brief(max, counts(hi), locale)}.`,
           }));
 
   const chosen: ReadingAxis[] = [];
@@ -800,16 +836,13 @@ function readAgents(
     if (!chosen.includes(axis)) chosen.push(axis);
     return {
       ...who,
-      text: `${p.name} differs most from the rest of the team on ${axis.label}: ${axis.say(at(p.values, furthest), n(p.mine.length), locale)}; the rest of the team, ${axis.brief(at(team, furthest), rest.length, locale)}.`,
+      text: `${p.name} differs most from the rest of the team on ${axis.label}: ${axis.say(at(p.values, furthest), n(p.mine.length), locale)}; the rest of the team, ${axis.brief(at(team, furthest), count(rest.length, locale), locale)}.`,
     };
   });
 
   const outcomes = chosen.map((axis) => {
-    if (axis.split === null) {
-      return {
-        id: axis.id,
-        text: `${axis.label} is a typical count per meeting, not something a meeting did or did not do, so no outcome is set beside it.`,
-      };
+    if (typeof axis.split === "string") {
+      return { id: axis.id, text: `${axis.label} ${axis.split}, so no outcome is set beside it.` };
     }
     const split = outcomeSplit(sessions, axis.split.test);
     const yes = split.with;
@@ -820,6 +853,19 @@ function readAgents(
         text: `Meetings that ${axis.split.did}, and those that did not, are not set beside their outcomes: ${count(yes.meetings, locale)} and ${count(no.meetings, locale)} have an outcome recorded, and each side needs ${floor}.`,
       };
     }
+    /*
+     * Presentation DNA reads the same meetings the other way round, split by
+     * outcome, and keeps the floor on its two cohorts: where it refuses, this
+     * refuses too, so the link beside it never opens on a refusal.
+     */
+    const progressed = yes.progressed + no.progressed;
+    const didNot = yes.meetings + no.meetings - progressed;
+    if (progressed < AGENT_MIN_SAMPLE || didNot < AGENT_MIN_SAMPLE) {
+      return {
+        id: axis.id,
+        text: `Meetings that ${axis.split.did} are not set beside their outcomes: of ${count(progressed + didNot, locale)} with an outcome recorded, ${count(progressed, locale)} progressed further and ${count(didNot, locale)} did not, and each needs ${floor}.`,
+      };
+    }
     return {
       id: axis.id,
       text: `Meetings that ${axis.split.did} progressed further in ${percent(share(yes.progressed, yes.meetings), locale)} of ${count(yes.meetings, locale)} with an outcome recorded; those that did not, ${percent(share(no.progressed, no.meetings), locale)} of ${count(no.meetings, locale)}.`,
@@ -827,6 +873,8 @@ function readAgents(
   });
 
   const [only] = drawn;
+  /* The rest of the team stands as a comparison only at the floor; the habit line says so where it does not. */
+  const othersStand = only !== undefined && sessions.length - only.mine.length >= AGENT_MIN_SAMPLE;
   return {
     differences,
     habits,
@@ -835,7 +883,7 @@ function readAgents(
       drawn.length === 0
         ? `No agent reached ${floor} meetings in this period, so nothing is compared between agents.`
         : drawn.length === 1 && only !== undefined
-          ? `Only ${only.name} reached ${floor} meetings in this period, so no two agents are set side by side; their habit is read against everyone else's meetings instead.`
+          ? `Only ${only.name} reached ${floor} meetings in this period, so no two agents are set side by side${othersStand ? "; their habit is read against everyone else's meetings instead." : "."}`
           : null,
     caveat: ASSOCIATION_DISCLAIMER,
   };
@@ -897,7 +945,7 @@ export function buildAgentCharts(
       note: r.belowMinimum ? suppressionNoteFor(r.meetings, locale, "sentence", language) : null,
       reading: r.belowMinimum
         ? null
-        : `${label}: ${AND.format(RADAR_AXES.map((axis, a) => `${axis.label} ${percent(values[a] ?? 0, locale)}`))} of the strongest on each.`,
+        : `${label}: ${AND.format(RADAR_AXES.map((axis, a) => `${axis.label} ${percent(values[a] ?? 0, locale)}`))} of the strongest presenter in the period on each, drawn or not.`,
     };
   });
   const notDrawn = profiles.filter((p) => p.belowMinimum).map((p) => p.label);
@@ -1129,7 +1177,13 @@ export function buildFeatureUsage(
             share(mine.filter(used).length, mine.length),
           say: (v: number, n: string, locale: string) => `${percent(v, locale)} of ${n} ${did}`,
           brief: shareOf,
-          split: { test: used, did },
+          /*
+           * None of these is one of the cohort comparison's behaviours (its
+           * Compare is a section reached, its Shortlist a section opened), so
+           * no outcome is computed for them here that Presentation DNA does not
+           * show.
+           */
+          split: "is not one of the behaviours Presentation DNA compares",
         };
       }),
       measured.map(() => 1),
@@ -1658,7 +1712,13 @@ export function buildMeetingLens(
         ? "No meeting in this period, so no bubble is drawn."
         : largest === undefined || meetings.length === 0
           ? `${n(sessions.length)} meetings, ${period}, and none ended in an outcome the rule sizes, so no bubble is drawn. ${notDrawnWords}`
-          : `${n(sessions.length)} meetings, ${period}, ${n(meetings.length)} of them drawn: one bubble each, in the colour of the agent who presented it and the size of the outcome recorded at its end. The largest, the ${n(largest.count)} that ended "${largest.label}", are the nearest a purchase. ${notDrawnWords}`,
+          : `${n(sessions.length)} meetings, ${period}, ${n(meetings.length)} of them drawn: one bubble each, in the colour of the agent who presented it and the size of the outcome recorded at its end. ${
+              largest.count === 0
+                ? `None ended "${largest.label}", the largest size and the nearest a purchase.`
+                : largest.count === 1
+                  ? `The largest, the one that ended "${largest.label}", is the nearest a purchase.`
+                  : `The largest, the ${n(largest.count)} that ended "${largest.label}", are the nearest a purchase.`
+            } ${notDrawnWords}`,
     note: "The sizes follow the order of the outcome ladder; they are not a computed likelihood. The outcome is the one the agent recorded in the room, not the CRM's stage. A week of one agent is not a sample: how each agent's meetings end, at its sample size, is further down this page.",
     summary: `${n(sessions.length)} meetings, ${period}: ${n(meetings.length)} drawn as bubbles, ${AND.format(outcomes.map((o) => `${o.label} ${n(o.count)}`))}. By agent: ${AND.format(agents.map((a, i) => `${a.label} ${n(meetings.filter((m) => m.a === i).length)}`))}. ${notDrawnWords}`,
     stripLabel: "The period, a column per day: move the lens",

@@ -41,6 +41,24 @@ function dimmed(tone: string): string {
   return `color-mix(in oklab, ${tone} 22%, transparent)`;
 }
 
+/**
+ * The agents drawn, the lifted one last so it lies on top, the rest faded.
+ * A hidden agent cannot be lifted: pointing at their entry, or the press that
+ * just hid them, would otherwise fade every shape and lift none.
+ */
+export function shownPeople(
+  people: readonly CoachingPerson[],
+  hidden: ReadonlySet<string>,
+  lifted: string | null,
+): { readonly lift: string | null; readonly shown: readonly CoachingPerson[] } {
+  const lift = lifted !== null && !hidden.has(lifted) ? lifted : null;
+  const shown = people
+    .filter((p) => !hidden.has(p.id))
+    .sort((a, b) => Number(a.id === lift) - Number(b.id === lift))
+    .map((p) => ({ ...p, tone: lift === null || lift === p.id ? p.tone : dimmed(p.tone) }));
+  return { lift, shown };
+}
+
 export function CoachingChart({
   lens,
   radarAxes,
@@ -64,11 +82,7 @@ export function CoachingChart({
       return next;
     });
 
-  /* The lifted one is drawn last, so it lies on top of the others. */
-  const shown = people
-    .filter((p) => !hidden.has(p.id))
-    .sort((a, b) => Number(a.id === lifted) - Number(b.id === lifted))
-    .map((p) => ({ ...p, tone: lifted === null || lifted === p.id ? p.tone : dimmed(p.tone) }));
+  const { lift, shown } = shownPeople(people, hidden, lifted);
 
   const radar = (size: number) => (
     <Radar
@@ -94,7 +108,7 @@ export function CoachingChart({
           <li
             key={p.id}
             data-hidden={hidden.has(p.id) ? "true" : undefined}
-            data-lifted={lifted === p.id ? "true" : undefined}
+            data-lifted={lift === p.id ? "true" : undefined}
             onMouseEnter={() => setLifted(p.id)}
             onMouseLeave={() => setLifted(null)}
             onFocus={() => setLifted(p.id)}

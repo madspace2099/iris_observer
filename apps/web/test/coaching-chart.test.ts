@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CoachingChart, type CoachingPerson } from "@/showroom/CoachingChart";
+import { CoachingChart, shownPeople, type CoachingPerson } from "@/showroom/CoachingChart";
 
 /**
  * COACHING'S ONE CHART: EVERY DRAWN AGENT IN IT, AND A KEY THAT WORKS.
@@ -54,5 +54,23 @@ describe("CoachingChart", () => {
 
   it("wears each agent's own colour on their mark", () => {
     expect(html("radar")).toContain("--tone:var(--d-series-2)");
+  });
+});
+
+describe("lifting an agent from the key", () => {
+  it("draws the lifted agent last, at full strength, and fades the rest", () => {
+    const { lift, shown } = shownPeople(PEOPLE, new Set(), "a");
+    expect(lift).toBe("a");
+    expect(shown.map((p) => [p.id, p.tone])).toEqual([
+      ["b", "color-mix(in oklab, var(--d-series-2) 22%, transparent)"],
+      ["a", "var(--d-series-1)"],
+    ]);
+  });
+
+  it("fades nobody when the agent pointed at is hidden", () => {
+    /* The press that hides an agent leaves the pointer on their entry: every shape faded before. */
+    const { lift, shown } = shownPeople(PEOPLE, new Set(["a"]), "a");
+    expect(lift).toBeNull();
+    expect(shown.map((p) => p.tone)).toEqual(["var(--d-series-2)"]);
   });
 });

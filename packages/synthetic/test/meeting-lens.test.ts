@@ -125,6 +125,17 @@ describe("a lens with nothing to draw says so", () => {
     const { lens } = await repo.getFlowCharts({ ...KINGSFORD, period: "last_quarter" }, "month");
     expect(lens.lead).toBe("No meeting in this period, so no bubble is drawn.");
   });
+
+  it("speaks of one Reservation in the singular", async () => {
+    /* Northgate's last quarter holds one: the lead read "the 1 that ended …, are the nearest". */
+    const { lens } = await repo.getFlowCharts(
+      { ...KINGSFORD, tenantSlug: "alpha", projectSlug: "northgate", period: "last_quarter" },
+      "month",
+    );
+    expect(lens.lead).toContain(
+      'The largest, the one that ended "Reservation", is the nearest a purchase.',
+    );
+  });
 });
 
 describe("the months the lens steps through", () => {

@@ -366,6 +366,8 @@ function Coaching({
   const drawn = usage.profiles.filter((p) => !p.belowMinimum);
   const undrawn = usage.profiles.filter((p) => p.belowMinimum);
   const reading = lens === "parallel" ? usage.reading : charts.radar.reading;
+  /* A habit that states a difference always brings its outcome line, so these two cover every one. */
+  const said = reading.differences.length + reading.outcomes.length > 0;
   const counted = (n: number) => `${n} ${n === 1 ? "meeting" : "meetings"}`;
   const lensHref = (to: "radar" | "parallel") =>
     withPeriod(`${root}/agents?view=coaching${to === "parallel" ? "&lens=parallel" : ""}`, period);
@@ -438,7 +440,7 @@ function Coaching({
 
           <p className="iris-meta">
             {lens === "radar"
-              ? "Each spoke is scaled against the strongest agent on that spoke, so the shapes are comparable to each other and not to an absolute. A wider shape is a different way of presenting, not a better one."
+              ? "Each spoke is scaled against the strongest presenter in the period on that spoke, drawn or not, so the shapes are comparable to each other and not to an absolute. A wider shape is a different way of presenting, not a better one."
               : "The share of their meetings that used each part at least once; an axis the build cannot answer is dashed, and no line crosses it. A different way of presenting, not a better one."}
           </p>
           <AxisNotes
@@ -493,13 +495,14 @@ function Coaching({
               </ul>
             </>
           )}
-          <p className="iris-coach-caveat">{reading.caveat}</p>
-          {mayCompareCohorts ? (
+          {/* The disclaimer and the cohorts are about stated differences: with none stated, neither stands. */}
+          {said ? <p className="iris-coach-caveat">{reading.caveat}</p> : null}
+          {said && mayCompareCohorts ? (
             <Link
               className="iris-action"
               href={dynamicRoute(withPeriod(`${root}/presentation?mode=cohorts`, period))}
             >
-              Compare the cohorts in Presentation DNA →
+              The same meetings split by outcome, in Presentation DNA →
             </Link>
           ) : null}
         </aside>

@@ -1040,6 +1040,17 @@
   width: 100%;
 }
 
+/*
+ * The small radar is drawn for a phone's card; past 24rem it would only grow
+ * its 12px names and 2.5px outlines (to 1.9x by 34rem, where the next drawing
+ * takes over). It stops there and stands centred.
+ */
+.iris-coach-plot .dld-size[data-size="l"] .iris-radar svg {
+  display: block;
+  max-width: 24rem;
+  margin-inline: auto;
+}
+
 /* The large radar's top and bottom names stand past its box: room for them, and no clipping. */
 .iris-coach-plot .iris-radar {
   padding-block: 1.5rem;

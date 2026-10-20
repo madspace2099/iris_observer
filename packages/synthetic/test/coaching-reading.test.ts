@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import type { ShowroomSession } from "@observer/contracts";
+import type { ShowroomSession, ShowroomStep } from "@observer/contracts";
 import {
   DEFAULT_LANGUAGE,
   type CoachingReading,
@@ -87,11 +87,17 @@ describe("Shark Residence, quarter to date", () => {
     expect(compare?.leftDisplay).toBe(`${Math.round((48 / progressed) * 100)}%`);
   });
 
-  it("refuses an outcome comparison where a side is under the floor, and says so", async () => {
+  it("sets no outcome beside a showroom part the cohort comparison does not read", async () => {
+    /*
+     * "Shared an apartment" and "stopped on a named place" are not Presentation
+     * DNA behaviours, so a figure for them here would be one the link beside it
+     * cannot show.
+     */
     const { featureUsage } = await repo.getAgentCharts(SHARK);
     expect(featureUsage.reading.outcomes.find((o) => o.id === "locating")?.text).toBe(
-      `Meetings that stopped on a named place in Amenities, and those that did not, are not set beside their outcomes: 113 and 18 have an outcome recorded, and each side needs ${AGENT_MIN_SAMPLE}.`,
+      "Locating is not one of the behaviours Presentation DNA compares, so no outcome is set beside it.",
     );
+    expect(featureUsage.reading.outcomes.map((o) => o.text).join(" ")).not.toMatch(/progressed/);
   });
 
   it("never names a cause or ranks a person, in either lens", async () => {
@@ -113,6 +119,7 @@ describe("Shark Residence, the last 28 days: one agent over the floor", () => {
     const { radar } = await repo.getAgentCharts({ ...SHARK, period: "last_28_days" });
     expect(radar.reading.differences).toEqual([]);
     expect(radar.reading.note).toContain("Only Marek Dvořák reached 20 meetings");
+    expect(radar.reading.note).toContain("read against everyone else's meetings instead");
     expect(radar.reading.habits.map((h) => h.name)).toEqual(["Marek Dvořák"]);
   });
 });
@@ -154,6 +161,73 @@ describe("the floor, on hand-built meetings", () => {
     const reading = read([...many(AGENT_MIN_SAMPLE, "agt_monika"), ...many(5, "agt_akhilesh")]);
     expect(reading.habits[0]?.text).toContain("everyone else held 5 meetings, under 20");
     expect(reading.outcomes).toEqual([]);
+    /* Nor does the note promise the comparison the habit line then refuses. */
+    expect(reading.note).not.toContain("read against everyone else");
+  });
+
+  /* Meetings whose steps are these sections, in order; the rest of the session as above. */
+  const walked = (
+    n: number,
+    agentId: string,
+    sections: readonly ShowroomStep["sectionId"][],
+    outcome: (i: number) => ShowroomSession["outcome"] = (i) =>
+      i % 2 === 0 ? "interested" : "not_interested",
+  ) =>
+    many(n, agentId).map((s, i) => ({
+      ...s,
+      outcome: outcome(i),
+      steps: sections.map((sectionId, k) => ({
+        ordinal: k + 1,
+        sectionId,
+        itemId: null,
+        itemLabel: null,
+        enteredAt: null,
+        dwellSeconds: 30,
+        isReturn: false,
+        availability: "legacy_available" as const,
+      })),
+    }));
+
+  it("names every agent tied at an end, not the first of them in seat order", () => {
+    const reading = read([
+      ...walked(AGENT_MIN_SAMPLE, "agt_monika", ["home", "home"]),
+      ...walked(AGENT_MIN_SAMPLE, "agt_akhilesh", ["home", "home", "home", "home"]),
+      ...walked(AGENT_MIN_SAMPLE, "agt_martin", ["home", "home", "home", "home"]),
+    ]);
+    /* The habits are in seat order, as the reading names a tie. */
+    const few = reading.habits.find((h) => h.agentId === "agt_monika")?.name;
+    const [tiedA, tiedB] = reading.habits
+      .filter((h) => h.agentId !== "agt_monika")
+      .map((h) => h.name);
+    expect(reading.differences.map((d) => d.text)).toEqual([
+      `Depth: ${few}, a typical meeting took 2 steps, across 20 meetings; ${tiedA} and ${tiedB}, 4 across 20 and 20 meetings.`,
+    ]);
+  });
+
+  it("refuses an outcome comparison where a side is under the floor, and says so", () => {
+    /* Ten of the meetings that reached Compare have no outcome recorded: 15 stand on that side. */
+    const reading = read([
+      ...walked(25, "agt_monika", ["home", "compare"], (i) => (i < 10 ? "skipped" : "interested")),
+      ...walked(25, "agt_akhilesh", ["home", "home"]),
+    ]);
+    expect(reading.outcomes.find((o) => o.id === "compare")?.text).toBe(
+      `Meetings that reached Compare, and those that did not, are not set beside their outcomes: 15 and 25 have an outcome recorded, and each side needs ${AGENT_MIN_SAMPLE}.`,
+    );
+  });
+
+  it("refuses it too where Presentation DNA's own cohorts are under the floor", () => {
+    /* Both sides clear 20, but only 10 of the 60 progressed: the cohorts view refuses them. */
+    const reading = read([
+      ...walked(30, "agt_monika", ["home", "compare"], (i) =>
+        i < 5 ? "interested" : "not_interested",
+      ),
+      ...walked(30, "agt_akhilesh", ["home", "home"], (i) =>
+        i < 5 ? "interested" : "not_interested",
+      ),
+    ]);
+    expect(reading.outcomes.find((o) => o.id === "compare")?.text).toBe(
+      `Meetings that reached Compare are not set beside their outcomes: of 60 with an outcome recorded, 10 progressed further and 50 did not, and each needs ${AGENT_MIN_SAMPLE}.`,
+    );
   });
 
   it("names an agent sitting at the team's own figure, rather than inventing a habit", () => {

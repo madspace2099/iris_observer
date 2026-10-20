@@ -500,24 +500,30 @@ export default async function FlowPage({
               )}
             </div>
             <div className="iris-band-side">
-              <p className="iris-meta iris-meta-measured">
-                {charts.activity.day.total} meetings, {view.context.period.label.toLowerCase()}, by
-                the hour each started, in the project&rsquo;s own time zone (
-                {view.context.project.timeZone}).
-              </p>
-              {charts.activity.day.busiest === null ? null : (
-                <p className="iris-meta iris-meta-measured">
-                  Busiest: {charts.activity.day.busiest.display},{" "}
-                  {charts.activity.day.busiest.count} of {charts.activity.day.total}
-                  {charts.activity.day.busiest.hours > 1 ? " each" : ""}.
-                </p>
+              {/* With no meeting the dial says so; these would count nothing. */}
+              {charts.activity.day.total === 0 ? null : (
+                <>
+                  <p className="iris-meta iris-meta-measured">
+                    {charts.activity.day.total}{" "}
+                    {charts.activity.day.total === 1 ? "meeting" : "meetings"},{" "}
+                    {view.context.period.label.toLowerCase()}, by the hour each started, in the
+                    project&rsquo;s own time zone ({view.context.project.timeZone}).
+                  </p>
+                  {charts.activity.day.busiest === null ? null : (
+                    <p className="iris-meta iris-meta-measured">
+                      Busiest: {charts.activity.day.busiest.display},{" "}
+                      {charts.activity.day.busiest.count} of {charts.activity.day.total}
+                      {charts.activity.day.busiest.hours > 1 ? " each" : ""}.
+                    </p>
+                  )}
+                  <p className="iris-meta iris-meta-measured">
+                    {charts.activity.day.outsideGrid === 0
+                      ? "Every one started inside the weekday grid's hours below."
+                      : `${charts.activity.day.outsideGrid} started outside 09:00–19:00 and are counted only here.`}{" "}
+                    A count of when meetings start, not a judgement of which hour sells.
+                  </p>
+                </>
               )}
-              <p className="iris-meta iris-meta-measured">
-                {charts.activity.day.outsideGrid === 0
-                  ? "Every one started inside the weekday grid's hours below."
-                  : `${charts.activity.day.outsideGrid} started outside 09:00–19:00 and are counted only here.`}{" "}
-                A count of when meetings start, not a judgement of which hour sells.
-              </p>
               <Link
                 className="iris-action"
                 href={dynamicRoute(

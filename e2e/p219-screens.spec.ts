@@ -60,8 +60,8 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
   page,
 }) => {
   const main = await open(page, `${ROOT}/agents?period=last_quarter`);
-  await expect(page.locator("main .iris-radars")).toHaveCount(0);
-  expect(main).not.toContain("Each spoke is scaled against the strongest agent");
+  await expect(page.locator("main .iris-coach")).toHaveCount(0);
+  expect(main).not.toContain("Each spoke is scaled against the strongest presenter");
   expect(main).toMatch(/presentations given/i);
 
   const tabs = page.getByRole("tablist", { name: "Sales Agents" });
@@ -79,7 +79,7 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
   await expect(page.locator("main .iris-coach .iris-coach-key li").first()).toBeVisible();
   await expect(page.getByRole("heading", { name: "IRIS reading" })).toBeVisible();
   const coaching = await page.locator("main").innerText();
-  expect(coaching).toContain("Each spoke is scaled against the strongest agent");
+  expect(coaching).toContain("Each spoke is scaled against the strongest presenter");
   /* The plan's second clause for R12-7: a bigger shape is not better (FEJEZET1). */
   expect(coaching).toContain("A wider shape is a different way of presenting, not a better one.");
   expect(coaching, "nothing else moved to the tab").not.toMatch(/presentations given/i);

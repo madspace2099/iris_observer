@@ -67,13 +67,16 @@ describe("Shark Residence's presenters", () => {
 
 describe("Shark Residence's agent colours", () => {
   it("give each of the five presenters their own seat colour, in seat order", async () => {
-    /* The old four-step ramp gave Iva, fifth, Lena's colour: a reverted ramp fails here. */
+    /*
+     * The old four-step ramp gave Iva, fifth, Lena's colour; the kit's own order
+     * gave Oliver and Iva its two near-identical cyans, 3 and 5. Either fails here.
+     */
     const charts = await repo.getAgentCharts(SHARK);
     expect(charts.radar.profiles.map((p) => p.tone)).toEqual([
       "var(--d-series-1)",
       "var(--d-series-2)",
-      "var(--d-series-3)",
       "var(--d-series-4)",
+      "var(--d-series-6)",
       "var(--d-series-5)",
     ]);
   });
