@@ -59,8 +59,10 @@ own background and `.ox-select` used the translucent `--ox-panel` lift.
 3. **The section checkboxes and the language chips apply to all three formats**, because all three
    take the one address the dialog composes.
 4. **`ReportGeneration.state` is `available`.** Its statement says how the document is produced, in
-   each scope and language; its milestone names what is still not built. The chip reads "Available now"
-   for every format and the "scheduled for M4" footer is gone.
+   each scope and language, and denies only a server-rendered PDF (the CSV is written by a server);
+   its milestone names what is still not built. The dialog prints neither: the chip reads "Available
+   now" for every format, the footer's one sentence per format says what the button does, and the
+   milestone plan lives here and in the roadmap rather than on camera.
 
 ## What stays M4
 
