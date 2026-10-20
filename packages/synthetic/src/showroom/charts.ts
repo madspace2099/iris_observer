@@ -915,7 +915,7 @@ export function buildComposition(
           parts: Object.fromEntries(
             order.map((o) => [o, xs.filter((s) => s.outcome === o).length]),
           ),
-          figure: progressedFigure(xs, locale, language, false),
+          figure: progressedFigure(xs, locale, language),
         };
       }),
     keys: order.map((o) => ({ id: o, label: OUTCOME_LABELS[o], colour: OUTCOME_COLOURS[o] })),

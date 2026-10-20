@@ -255,7 +255,7 @@ export interface StackedColumn {
   readonly label: string;
   readonly total: number;
   readonly parts: Readonly<Record<string, number>>;
-  /** The month's own progressed share of its recorded meetings, in words; no agent floor. */
+  /** The month's own progressed share of its recorded meetings, in words, under the same floor. */
   readonly figure: ProgressedFigure;
 }
 

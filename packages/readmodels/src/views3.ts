@@ -150,11 +150,12 @@ export interface ProgressedFigure {
   readonly meetingsDisplay: string;
   /**
    * "81% progressed · 29 of 36 recorded". With no outcome recorded it says so
-   * rather than print a rate of nothing; for a presenter below
-   * `AGENT_MIN_SAMPLE` it states how far short and no rate.
+   * rather than print a rate of nothing; below `AGENT_MIN_SAMPLE` recorded
+   * meetings (the set the rate stands on, not the meetings held) it states how
+   * far short and no rate, for a presenter, the team and a month alike.
    */
   readonly display: string;
-  /** True where `display` withholds a presenter's rate under the floor. */
+  /** True where `display` withholds the rate: fewer than `AGENT_MIN_SAMPLE` recorded. */
   readonly belowMinimum: boolean;
 }
 
@@ -213,7 +214,7 @@ export interface SalesFlowView {
   readonly periods: readonly FlowPeriod[];
   readonly outcomes: readonly OutcomeSlice[];
   readonly rings: readonly AgentOutcomeRing[];
-  /** The team's own row beside the rings: every meeting of the period, no floor. */
+  /** The team's own row beside the rings: every meeting of the period, under the same floor. */
   readonly team: ProgressedFigure;
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;

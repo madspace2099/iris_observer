@@ -9,7 +9,8 @@ import { viewContext } from "./view-context";
  *
  * Sales Flow's outcome rows state, beside each bar, the progressed share of
  * the recorded meetings with that denominator: for a presenter, the team and a
- * month. Every expected string is written out by hand from the sessions below,
+ * month. Below `AGENT_MIN_SAMPLE` recorded meetings, the set the rate stands
+ * on, a row states the shortfall instead. Every expected string is written out by hand from the sessions below,
  * never built by the code under test.
  */
 
@@ -55,7 +56,9 @@ const AUGUST = "2026-08-11T10:00:00.000Z";
 /*
  * Monika, 25 held: 7 purchase, 3 reservation, 6 interested (16 progressed),
  * 4 presentation only, 2 not interested (22 recorded), 3 never recorded.
- * Akhilesh, 8 held, all in August: 12 short of the 20 a presenter's rate needs.
+ * Akhilesh, 8 held, all in August: 12 short of the 20 recorded a rate needs.
+ * Iva, 21 held, past 20, but 3 never recorded: 6 purchase and 12 not
+ * interested are 18 recorded, 2 short of the 20.
  */
 const MONIKA = [
   ...many(7, "agt_monika", "purchase", JULY),
@@ -69,11 +72,16 @@ const AKHILESH = [
   ...many(2, "agt_akhilesh", "follow_up_needed", AUGUST),
   ...many(6, "agt_akhilesh", "not_interested", AUGUST),
 ];
+const IVA = [
+  ...many(6, "agt_iva", "purchase", AUGUST),
+  ...many(12, "agt_iva", "not_interested", AUGUST),
+  ...many(3, "agt_iva", "skipped", AUGUST),
+];
 
 const CONTEXT = viewContext({ project: { id: PROJECT_ID, locale: "en-GB" } });
 const flow = buildSalesFlow(
   CONTEXT,
-  [...MONIKA, ...AKHILESH],
+  [...MONIKA, ...AKHILESH, ...IVA],
   new Date("2026-08-24T12:00:00.000Z"),
   [],
 );
@@ -91,18 +99,26 @@ describe("a presenter's outcome row", () => {
   it("states how far short it is below the floor, and no rate", () => {
     expect(ring("agt_akhilesh")?.figure).toEqual({
       meetingsDisplay: "8 meetings",
-      display: "No rate yet: 12 short of the 20 meetings needed",
+      display: "No rate yet: 12 short of the 20 recorded meetings needed",
+      belowMinimum: true,
+    });
+  });
+
+  it("counts the floor on the recorded meetings, not the meetings held", () => {
+    expect(ring("agt_iva")?.figure).toEqual({
+      meetingsDisplay: "21 meetings",
+      display: "No rate yet: 2 short of the 20 recorded meetings needed",
       belowMinimum: true,
     });
   });
 });
 
 describe("the team's outcome row", () => {
-  it("states every meeting of the period, with no floor", () => {
-    // 33 held; 22 + 8 = 30 recorded; 16 + 2 = 18 progressed.
+  it("states every meeting of the period", () => {
+    // 25 + 8 + 21 = 54 held; 22 + 8 + 18 = 48 recorded; 16 + 2 + 6 = 24 progressed.
     expect(flow.team).toEqual({
-      meetingsDisplay: "33 meetings",
-      display: "60% progressed · 18 of 30 recorded",
+      meetingsDisplay: "54 meetings",
+      display: "50% progressed · 24 of 48 recorded",
       belowMinimum: false,
     });
   });
@@ -115,16 +131,13 @@ describe("a month's outcome row", () => {
     "Europe/Bratislava",
   ).columns;
 
-  it("states each month's own rate over its own recorded meetings", () => {
-    // July: 10 held, all recorded, all progressed. August: 23 held, 20 recorded, 8 progressed.
+  it("states each month's own rate over its own recorded meetings, from 20 recorded", () => {
+    // July: 10 held, all recorded, 10 short. August: 23 held, 20 recorded, 8 progressed.
     expect(columns.map((c) => [c.label, c.figure.meetingsDisplay, c.figure.display])).toEqual([
-      ["Jul", "10 meetings", "100% progressed · 10 of 10 recorded"],
+      ["Jul", "10 meetings", "No rate yet: 10 short of the 20 recorded meetings needed"],
       ["Aug", "23 meetings", "40% progressed · 8 of 20 recorded"],
       ["Sept", "2 meetings", "No outcome recorded, so no rate"],
     ]);
-  });
-
-  it("holds a month to no presenter floor", () => {
-    expect(columns.every((c) => !c.figure.belowMinimum)).toBe(true);
+    expect(columns.map((c) => c.figure.belowMinimum)).toEqual([true, false, true]);
   });
 });
