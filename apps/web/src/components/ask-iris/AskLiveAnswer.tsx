@@ -143,7 +143,7 @@ export function AskLiveAnswer({
         <span>
           {settled && answer !== null
             ? live
-              ? `Worded by ${author}, a language model, from figures Observer's read models computed for ${context.projectLabel}, ${periodLabel.toLowerCase()}. Every number in it was matched to a number the read models returned before it was shown.`
+              ? `Worded by ${author}, a language model, from figures Observer's read models computed for ${context.projectLabel}, ${periodLabel.toLowerCase()}. Each figure it gives in digits was matched to one the read models returned before it was shown.`
               : `Composed by Observer's read models for ${context.projectLabel}, ${periodLabel.toLowerCase()}. No language model wrote any of this.`
             : (modelNotice ??
               "Answered by Observer's analysis tools from this project's read models. No language model is connected here, so the wording is the read models' own.")}

@@ -1533,8 +1533,8 @@ Answer the question using only the figures above. Cite bundle ids in every findi
  * Whether every number in a model's answer is one it was given.
  *
  * The system prompt asks the model to state only the tools' figures; this is
- * what makes the answer's byline true ("every number in it was matched to one
- * the read models returned"). `given` is the tools' output and the server's own
+ * what makes the answer's byline true ("each figure it gives in digits was
+ * matched to one the read models returned"). `given` is the tools' output and the server's own
  * labels, never the question. A number found in none of it was computed,
  * invented or taken from the reader's premise, and the deterministic
  * composition is shown instead.
