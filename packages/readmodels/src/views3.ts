@@ -346,6 +346,8 @@ export interface SegmentScatter {
   readonly projectShare: number | null;
   /** The attention axis runs from nought to here: at least 2, else the largest index rounded up to a half. */
   readonly indexMax: number;
+  /** What each axis measures, short enough to be drawn along it. */
+  readonly axes: { readonly attention: string; readonly conversion: string };
   readonly offChart: readonly {
     readonly id: string;
     readonly label: string;

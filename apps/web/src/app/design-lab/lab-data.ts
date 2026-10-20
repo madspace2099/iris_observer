@@ -613,6 +613,8 @@ export interface DScatterCard {
   readonly offChart: string;
   readonly projectShare: number | null;
   readonly projectShareDisplay: string | null;
+  /** What each axis measures: the read model's words (`SegmentScatter.axes`). */
+  readonly axes: { readonly attention: string; readonly conversion: string };
   /** The attention axis runs from nought to here: at least 2.00×, else the largest index, rounded up to a half. */
   readonly indexMax: number;
   readonly facts: DFacts;
@@ -1268,6 +1270,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     offChart: offChartWords,
     projectShare,
     projectShareDisplay: projectShare === null ? null : pct(projectShare),
+    axes: projectView.scatter.axes,
     indexMax: Math.max(2, Math.ceil(Math.max(0, ...indexed.map((s) => s.index)) * 2) / 2),
     facts: {
       note: `${projectView.matrixNote} A decided meeting is one that opened a unit of the segment and recorded an outcome. The upright line is parity, 1.00×; the level line is the project's share.`,

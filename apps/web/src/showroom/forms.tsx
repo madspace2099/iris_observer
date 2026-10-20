@@ -124,13 +124,30 @@ export function ChartDefs() {
  * the second is not the first shrunk: an SVG scaled from 752 to 327 units
  * would print its 12px labels at five. Both are rendered, and a container
  * query on the card shows the one its width can hold.
+ *
+ * A product chart also passes `m`, a middle drawing for a card between the
+ * two (a tablet, a band's main column), which the XL would scale under the
+ * 12px floor and the Large would leave half empty.
  */
-export function Sized({ xl, l }: { readonly xl: ReactNode; readonly l: ReactNode }) {
+export function Sized({
+  xl,
+  m,
+  l,
+}: {
+  readonly xl: ReactNode;
+  readonly m?: ReactNode;
+  readonly l: ReactNode;
+}) {
   return (
     <>
       <div className="dld-size" data-size="xl">
         {xl}
       </div>
+      {m === undefined ? null : (
+        <div className="dld-size" data-size="m">
+          {m}
+        </div>
+      )}
       <div className="dld-size" data-size="l">
         {l}
       </div>
@@ -157,29 +174,89 @@ export interface ScatterData {
   }[];
   readonly projectShare: number | null;
   readonly indexMax: number;
+  /** What each axis measures, in words, from the read model. */
+  readonly axes: { readonly attention: string; readonly conversion: string };
 }
 
-export function Scatter({ data, size }: { readonly data: ScatterData; readonly size: "xl" | "l" }) {
-  const width = size === "xl" ? 752 : 327;
-  const height = size === "xl" ? 290 : 244;
-  const pad = { top: 12, right: 12, bottom: 30, left: 44 };
+/*
+ * Three drawings, each shown only where it renders at 1:1 or larger (the CSS
+ * switches at 45rem and 34rem), so no label is scaled under 12px. The Large
+ * one fits a 390px phone's 252px card; its type is set a point up for the 8%
+ * a 360px phone still scales it down by.
+ */
+const SCATTER_SIZE = {
+  xl: { width: 720, height: 308 },
+  m: { width: 544, height: 300 },
+  l: { width: 240, height: 300 },
+} as const;
+
+/* The cells' names on the plot: short enough for a cell, with the key's full title below. */
+const ON_PLOT: Readonly<Record<string, string>> = {
+  hero: "Hero",
+  mispriced: "Mispriced",
+  hidden_gem: "Hidden gem",
+  dead_stock: "Dead stock",
+};
+
+export function Scatter({
+  data,
+  size,
+}: {
+  readonly data: ScatterData;
+  readonly size: keyof typeof SCATTER_SIZE;
+}) {
+  const { width, height } = SCATTER_SIZE[size];
+  const pad = { top: 12, right: 12, bottom: 48, left: 60 };
   const plotW = width - pad.left - pad.right;
   const plotH = height - pad.top - pad.bottom;
   const x = (index: number) => pad.left + (Math.min(index, data.indexMax) / data.indexMax) * plotW;
   const y = (share: number) => pad.top + (1 - share) * plotH;
   const xTicks = Array.from({ length: Math.round(data.indexMax / 0.5) + 1 }, (_, i) => i * 0.5);
 
+  /*
+   * Each cell's name sits in its own cell, against the parity line, at the
+   * cell's outer edge: right of x = 1 for high attention, left of it for low.
+   * A left cell narrower than its name (a large index stretches the axis)
+   * leaves the name to the key rather than spill into the next cell; the
+   * width is the name's length at the largest size it is set in (13px,
+   * about 0.6em a letter).
+   */
+  const parity = x(1);
+  const leftRoom = parity - pad.left - 6;
+  const name = (id: string, side: "left" | "right", row: "top" | "bottom") => {
+    const text = ON_PLOT[id] ?? "";
+    if (side === "left" && text.length * 13 * 0.6 > leftRoom) return null;
+    return (
+      <text
+        x={f(side === "right" ? parity + 6 : parity - 6)}
+        y={row === "top" ? pad.top + 14 : pad.top + plotH - 6}
+        textAnchor={side === "right" ? "start" : "end"}
+        className="dld-quadrant"
+      >
+        {text}
+      </text>
+    );
+  };
+
   return (
     <DrawIn kind="bloom">
+      {/*
+       * The drawing is a picture of the key below it, so assistive technology
+       * reads the sentence instead, and the key's links are the route for a
+       * keyboard and a screen reader. The points stay links for a pointer, out
+       * of the tab order; inside an image (`role="img"`) they were interactive
+       * content where none may be (axe: nested-interactive).
+       */}
+      <p className="ox-sr">{`Segments by attention index and conversion: ${data.points
+        .map((p) => `${p.label} ${p.display}`)
+        .join("; ")}`}</p>
       <svg
         className="dld-scatter"
         viewBox={`0 0 ${width} ${height}`}
         width={width}
         height={height}
-        role="img"
-        aria-label={`Segments by attention index and conversion: ${data.points
-          .map((p) => `${p.label} ${p.display}`)
-          .join("; ")}`}
+        aria-hidden="true"
+        focusable="false"
       >
         {[0, 0.25, 0.5, 0.75, 1].map((t) => (
           <g key={t}>
@@ -202,11 +279,36 @@ export function Scatter({ data, size }: { readonly data: ScatterData; readonly s
           </g>
         ))}
         {xTicks.map((t) => (
-          <text key={t} x={f(x(t))} y={height - 8} textAnchor="middle" className="dld-axis-label">
+          <text
+            key={t}
+            x={f(x(t))}
+            y={pad.top + plotH + 20}
+            textAnchor="middle"
+            className="dld-axis-label"
+          >
             {size === "l" && t % 1 !== 0 ? "" : `${t.toFixed(t % 1 === 0 ? 0 : 1)}×`}
           </text>
         ))}
-        <line className="dld-parity" x1={f(x(1))} x2={f(x(1))} y1={pad.top} y2={pad.top + plotH} />
+        <text x={f(width / 2)} y={height - 6} textAnchor="middle" className="dld-axis-title">
+          {data.axes.attention}
+        </text>
+        <text
+          x={10}
+          y={f(pad.top + plotH / 2)}
+          transform={`rotate(-90 10 ${f(pad.top + plotH / 2)})`}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          className="dld-axis-title"
+        >
+          {data.axes.conversion}
+        </text>
+        <line
+          className="dld-parity"
+          x1={f(parity)}
+          x2={f(parity)}
+          y1={pad.top}
+          y2={pad.top + plotH}
+        />
         {data.projectShare === null ? null : (
           <line
             className="dld-parity"
@@ -216,27 +318,14 @@ export function Scatter({ data, size }: { readonly data: ScatterData; readonly s
             y2={f(y(data.projectShare))}
           />
         )}
-        <text x={width - pad.right} y={pad.top + 12} textAnchor="end" className="dld-quadrant">
-          {QUADRANT_NAME.hero}
-        </text>
-        <text x={pad.left + 6} y={pad.top + 12} className="dld-quadrant">
-          {QUADRANT_NAME.hidden_gem}
-        </text>
-        <text
-          x={width - pad.right}
-          y={pad.top + plotH - 6}
-          textAnchor="end"
-          className="dld-quadrant"
-        >
-          {QUADRANT_NAME.mispriced}
-        </text>
-        <text x={pad.left + 6} y={pad.top + plotH - 6} className="dld-quadrant">
-          {QUADRANT_NAME.dead_stock}
-        </text>
+        {name("hero", "right", "top")}
+        {name("hidden_gem", "left", "top")}
+        {name("mispriced", "right", "bottom")}
+        {name("dead_stock", "left", "bottom")}
         {data.points.map((p, i) => {
           const mark = (
             <g className="dld-scatter-point" data-quadrant={p.quadrant}>
-              <circle cx={f(x(p.index))} cy={f(y(p.share))} r={size === "xl" ? 6 : 5}>
+              <circle cx={f(x(p.index))} cy={f(y(p.share))} r={size === "l" ? 5 : 6}>
                 <title>{`${p.label}: ${p.display}`}</title>
               </circle>
               <text
@@ -249,11 +338,7 @@ export function Scatter({ data, size }: { readonly data: ScatterData; readonly s
               </text>
             </g>
           );
-          /*
-           * A pointer opens the segment from its point. The image is one named
-           * picture to a screen reader, so the point is out of the tab order
-           * and the key below is the route for a keyboard and a screen reader.
-           */
+          /* A pointer opens the segment from its point; the key below is the keyboard's route. */
           return p.href === undefined ? (
             <g key={p.id}>{mark}</g>
           ) : (
@@ -271,7 +356,7 @@ export function Scatter({ data, size }: { readonly data: ScatterData; readonly s
  * The scatter's key: each point's number, its segment and its reading, under
  * the name of the cell it falls in and that cell's instruction — the action
  * the frame exists for. A cell with no segment is not listed: the plot names
- * all four in its corners.
+ * the cells against its parity lines.
  */
 export function ScatterKey({ data }: { readonly data: ScatterData }) {
   const numbered = data.points.map((p, i) => ({ ...p, n: i + 1 }));

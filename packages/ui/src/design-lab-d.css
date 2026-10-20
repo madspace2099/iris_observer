@@ -620,6 +620,35 @@
   }
 }
 
+/*
+ * A third, middle drawing where a chart passes one: a card below the XL's own
+ * 720px would scale it under 1:1, so the middle one takes over there and is
+ * drawn to the card's width, between 1:1 and 1.3:1.
+ */
+.dld-size[data-size="m"] {
+  display: none;
+}
+
+.dld-size[data-size="m"] svg {
+  width: 100%;
+}
+
+@container (width < 45rem) {
+  .dld-size[data-size="xl"]:has(~ .dld-size[data-size="m"]) {
+    display: none;
+  }
+
+  .dld-size[data-size="m"] {
+    display: block;
+  }
+}
+
+@container (width < 34rem) {
+  .dld-size[data-size="m"] {
+    display: none;
+  }
+}
+
 .dld-centred {
   display: grid;
   justify-items: center;
@@ -1182,6 +1211,14 @@
   font-family: var(--d-font-numeric);
   font-size: 12px;
   fill: var(--d-ink);
+}
+
+/* What an axis measures, along it: the read model's words, quieter than its ticks. */
+:is(.dld-root, [data-charts="d"]) .dld-axis-title {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  fill: var(--d-ink-3);
 }
 
 .dld-root .dld-row-label {
@@ -2783,12 +2820,14 @@
 /* --- the scatter, on a product card -------------------------------------------------- */
 
 /*
- * The XL drawing is 752 units and a tablet card draws it at about 700px, so the
- * marks' type is set a point up: at that scale it still renders at 12.
+ * The XL and the middle drawing are never shown below 1:1 (`Sized`). The Large
+ * one is 240 units, and a 360px phone's card is 222px: its type is set a point
+ * up, so at that scale it still renders at 12.
  */
-[data-charts="d"] .d-card .dld-axis-label,
-[data-charts="d"] .d-card .dld-point-label,
-[data-charts="d"] .d-card .dld-quadrant {
+[data-charts="d"]
+  .d-card
+  .dld-size[data-size="l"]
+  :is(.dld-axis-label, .dld-axis-title, .dld-point-label, .dld-quadrant) {
   font-size: 13px;
 }
 

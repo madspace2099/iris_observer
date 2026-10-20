@@ -272,6 +272,7 @@ export default async function ProjectPage({
                 <>
                   <Sized
                     xl={<Scatter data={scatter} size="xl" />}
+                    m={<Scatter data={scatter} size="m" />}
                     l={<Scatter data={scatter} size="l" />}
                   />
                   <ScatterKey data={scatter} />

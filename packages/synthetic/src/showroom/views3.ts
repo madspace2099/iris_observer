@@ -1443,6 +1443,11 @@ function buildSegmentScatter(
     points,
     projectShare: segments[0]?.conversion.projectShare ?? null,
     indexMax: Math.max(2, Math.ceil(Math.max(0, ...indexed.map((s) => s.index)) * 2) / 2),
+    /* The words each point's own line uses: "1.45× attention for its share of stock · 37% converted". */
+    axes: {
+      attention: "Attention for its share of stock",
+      conversion: "Decided meetings that progressed",
+    },
     offChart: indexed
       .filter(({ segment: s }) => !points.some((p) => p.id === s.id))
       .map(({ segment: s, display }) => ({

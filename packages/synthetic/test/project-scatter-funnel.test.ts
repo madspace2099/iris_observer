@@ -196,6 +196,16 @@ describe("the attention × conversion scatter", () => {
     }
   });
 
+  it("names what each axis measures, in the words each point's line uses", () => {
+    expect(view.scatter.axes).toEqual({
+      attention: "Attention for its share of stock",
+      conversion: "Decided meetings that progressed",
+    });
+    for (const p of view.scatter.points) {
+      expect(p.display.toLowerCase()).toContain(view.scatter.axes.attention.toLowerCase());
+    }
+  });
+
   it("keeps every point inside its axis", () => {
     for (const p of view.scatter.points) expect(p.index).toBeLessThanOrEqual(view.scatter.indexMax);
   });

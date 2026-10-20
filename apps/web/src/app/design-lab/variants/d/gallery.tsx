@@ -394,6 +394,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
           >
             <Sized
               xl={<Scatter data={data.scatter} size="xl" />}
+              m={<Scatter data={data.scatter} size="m" />}
               l={<Scatter data={data.scatter} size="l" />}
             />
             <ScatterKey data={data.scatter} />
