@@ -5230,13 +5230,13 @@ single holds per flat, the catalogue agreeing with the CRM and the four scatter 
 
 **Decided by Máté on 2026-10-19 and built:**
 
-| Decision                                                                                     | Where                                    |
-| -------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| Charts wear the design-lab D "Hyper kit" look, with motion; the Project page's sankey → funnel, quadrant lists → scatter | ADR-0041                                 |
-| "Everything must have a dark background, not white" — paper exists only in print             | ADR-0042 (supersedes ADR-0034 in part)   |
-| A company admin is asked for the company's OpenAI key after sign-in; one admin per company, the rest members | ADR-0043 (amends ADR-0030, ADR-0040)     |
-| MADSPACE adds a project the way Akhilesh designed it (Client & Engine Onboarding, four steps) | ADR-0044                                 |
-| Ask IRIS answers in the question's language when a model answers; screens stay English; the report prints in EN/SK/HU | agent.ts SYSTEM, ADR-0040                |
+| Decision                                                                                                                 | Where                                  |
+| ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| Charts wear the design-lab D "Hyper kit" look, with motion; the Project page's sankey → funnel, quadrant lists → scatter | ADR-0041                               |
+| "Everything must have a dark background, not white" — paper exists only in print                                         | ADR-0042 (supersedes ADR-0034 in part) |
+| A company admin is asked for the company's OpenAI key after sign-in; one admin per company, the rest members             | ADR-0043 (amends ADR-0030, ADR-0040)   |
+| MADSPACE adds a project the way Akhilesh designed it (Client & Engine Onboarding, four steps)                            | ADR-0044                               |
+| Ask IRIS answers in the question's language when a model answers; screens stay English; the report prints in EN/SK/HU    | agent.ts SYSTEM, ADR-0040              |
 
 **Keys on the demo.** The company key lives in the server's memory only (lost on restart, the popup
 then asks again). Alternatively `OBSERVER_DEMO_OPENAI_KEY=<key>` (and optionally
@@ -5274,3 +5274,28 @@ English, Slovak and Hungarian.
 **Next recommended action.** Máté records. Before recording: `pnpm build`, then `node
 scripts/demo-start.mjs` (or the `observer-demo` launch entry); sign in as Clara Weiss and add the
 OpenAI key in the dialog, or put `OBSERVER_DEMO_OPENAI_KEY` in `apps/web/.env.local` before starting.
+
+## 2026-10-20 — The verdict is said by IRIS (ADR-0048)
+
+Máté, on `/shark/shark-residence/flow?period=year_to_date&window=all`: the verdict sentence "is very
+inconspicuous … yet this should be the main message", and asked for a type animation and a motion
+icon "as if JARVIS were saying it". Built as `SpokenVerdict`
+(`apps/web/src/components/iris/SpokenVerdict.tsx`, styles in `packages/ui/src/iris.css` after
+`.iris-section`), the `<h1>` on Sales Flow, Sales Agents and Project:
+
+- the headline at `clamp(1.5rem, …, 2.25rem)`, Manrope 600, 42ch, balanced (pretty on a phone);
+- every character server-written, shown at its own delay (20ms, the whole sentence ≤ 2.4s), the
+  caret each character's `::after`; keyed on the period (and Flow's summary window), so it replays;
+- one accessible name (`aria-label`, characters `aria-hidden`), the heading's text the sentence once;
+- a 56px IRIS instrument (44px on a phone, above the sentence) from the welcome's rings: it speaks
+  while typing (arc, ping, level bars) and settles to a breathing ring;
+- the label "IRIS · read from N meetings", N the view's own `meetingCount` — no "AI", no model;
+- reduced motion and print: the finished frame.
+
+**Verified.** `apps/web/test/spoken-verdict.test.ts` (7). Headless Chrome screenshots of the rendered
+component on the product stylesheets at 1440 mid-typing and finished, at 390, and under reduced
+motion — no dev server was run, so **the three pages themselves were not looked at**.
+
+**Next recommended action.** Máté looks at Sales Flow, Sales Agents and Project on the demo build
+(`pnpm build`, `node scripts/demo-start.mjs`) at 1440 and 390, period switched once, before
+recording.
