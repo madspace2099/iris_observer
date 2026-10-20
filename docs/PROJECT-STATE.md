@@ -5436,7 +5436,10 @@ CRM derives each deal from a meeting), 8 of 19 within 72 hours, median 9 showing
 
 **Verified.** Typecheck clean; lint clean on every changed file; unit tests
 `iris-led-sales` (16), `catalogue-availability-witness`, `settings-crm` (7), `credentials` (new CRM
-guard), `surfaces`, `reference-parity`, `surface-authorisation`. Both pages rendered to static HTML
+guard), `surfaces`, `reference-parity`, `surface-authorisation`. The full unit suite (after
+`pnpm release:wrappers`): 261 files, 4928 passed, 1 skipped, 1 failed — `no-secret-recipes`, which
+needs a web build to scan the browser bundle; `scripts/secret-audit.mjs` itself reports the working
+tree, the staged diff and the branch history clean. Both pages rendered to static HTML
 on the product stylesheets and looked at in headless Chrome at 1440 and at 390 (inside a 390px
 frame): no sideways overflow, the figures four across and one column, the table stacked into records
 on a phone, the disclosure open over the figures. No dev server, build or Playwright was run:
