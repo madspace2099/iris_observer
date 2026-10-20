@@ -539,10 +539,12 @@ export function Funnel({
           const previous = steps[i - 1]?.count ?? step.count;
           const lost = previous - step.count;
           return (
+            /*
+             * The name before its count: a screen reader hears the step first,
+             * and a phone, which stands the name above the bar, paints it in
+             * the order it is read. The grid places the bar first on a wide card.
+             */
             <div className="iris-funnel-step" key={step.id}>
-              <span className="iris-funnel-bar" style={{ width: `${(step.count / first) * 100}%` }}>
-                <b>{step.count}</b>
-              </span>
               <span className="iris-funnel-label">
                 {step.label}
                 {step.note === null ? null : (
@@ -553,6 +555,9 @@ export function Funnel({
                       : ` · ${step.comparisonNote} elsewhere`}
                   </em>
                 )}
+              </span>
+              <span className="iris-funnel-bar" style={{ width: `${(step.count / first) * 100}%` }}>
+                <b>{step.count}</b>
               </span>
               <span className="iris-funnel-drop">
                 {i === 0

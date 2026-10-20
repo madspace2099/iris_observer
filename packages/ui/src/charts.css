@@ -455,30 +455,38 @@
   max-width: 52rem;
 }
 
+/* The label comes first in the DOM (read before its count); a wide card draws the bar first. */
 .iris-funnel-step {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 16rem 4rem;
+  grid-template-areas: "bar label drop";
   align-items: center;
   gap: 1rem;
 }
 
+/*
+ * The bar is its share and nothing more: a minimum width drew a step of 0 and
+ * a step of 2 as the same 40px bar. The count sits at the bar's end, and where
+ * the bar is too short to hold it, starts at the bar's start and runs past it.
+ */
 .iris-funnel-bar {
+  grid-area: bar;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   height: 2rem;
-  padding-right: 0.5rem;
   border-radius: 2px;
   background: color-mix(in oklab, var(--accent) 45%, #080b0f);
-  min-width: 2.5rem;
 }
 
 .iris-funnel-bar b {
+  flex: none;
+  margin: 0 0.5rem 0 auto;
   font-family: var(--mono);
   font-size: 0.8125rem;
 }
 
 .iris-funnel-label {
+  grid-area: label;
   display: grid;
   gap: 0.125rem;
   font-size: 0.8125rem;
@@ -491,6 +499,7 @@
 }
 
 .iris-funnel-drop {
+  grid-area: drop;
   font-family: var(--mono);
   font-size: 0.75rem;
   color: var(--loss);
@@ -711,18 +720,6 @@
     grid-template-columns: minmax(0, 1fr) 3rem;
     grid-template-areas: "label label" "bar drop";
     row-gap: 0.25rem;
-  }
-
-  .iris-funnel-label {
-    grid-area: label;
-  }
-
-  .iris-funnel-bar {
-    grid-area: bar;
-  }
-
-  .iris-funnel-drop {
-    grid-area: drop;
   }
 }
 
