@@ -5289,10 +5289,18 @@ icon "as if JARVIS were saying it". Built as `SpokenVerdict`
 - one accessible name (`aria-label`, characters `aria-hidden`), the heading's text the sentence once;
 - a 56px IRIS instrument (44px on a phone, above the sentence) from the welcome's rings: it speaks
   while typing (arc, ping, level bars) and settles to a breathing ring;
-- the label "IRIS · read from N meetings", N the view's own `meetingCount` — no "AI", no model;
+- the label "IRIS · read from N meetings", N the meetings the sentence was read from — on Sales
+  Flow the new `SalesFlowView.verdictMeetings` (both sides of its comparison: 66 + 65 = 131, not
+  the year's count), elsewhere `meetingCount`; "IRIS" alone at zero; no "AI", no model;
 - reduced motion and print: the finished frame.
 
-**Verified.** `apps/web/test/spoken-verdict.test.ts` (7). Headless Chrome screenshots of the rendered
+**Review round.** Two reviewers' findings, confirmed and fixed: the Flow label printed the period's
+count, not the verdict's sample; the label came after the `<h1>` in the DOM though painted above
+it; the caret, as each character's `::after`, was drawn at about a fifth of its strength inside an
+80ms fade (characters now appear whole, `1ms steps(1, end)`); the tick ring's dashes were a
+quarter of a pixel (now 36 ticks, about 1px); "read from 0 meetings" on an empty project.
+
+**Verified.** `apps/web/test/spoken-verdict.test.ts` (10), `period-buckets.test.ts`. Headless Chrome screenshots of the rendered
 component on the product stylesheets at 1440 mid-typing and finished, at 390, and under reduced
 motion — no dev server was run, so **the three pages themselves were not looked at**.
 
