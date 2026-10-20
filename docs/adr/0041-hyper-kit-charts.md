@@ -140,3 +140,50 @@ blue, Presentation only and Not interested both brown).
   read the D ramp, not these tokens, and are unchanged. No glow.
 - **What stays.** `StackedBars` and the `.iris-stacks` rules remain for the design-lab gallery alone;
   the product card's own stacked-column rules are gone.
+
+**2026-10-20, four more of the gallery's forms, and Coaching as one chart.** Preparing the Shark
+Residence recording, the owner named the gallery's bubble lens, parallel coordinates, radial day and
+radars as missing from the product. They are adopted, each over recorded data through the port:
+
+- **The radial day** on Sales Flow, above the weekday grid: `ActivityMatrix.day`, counted in the
+  grid's own pass, all twenty-four hours, every day together. Only the busiest hour glows: on Shark
+  every hour clears the gallery's half of the peak, so a glow there marked every bar and meant
+  nothing.
+- **The bubble lens** on Sales Flow: `FlowCharts.lens`, the period's recorded meetings, never the
+  lab's rehearsal (the lab keeps it, in the product's shape). It is drawn at the card's own measured
+  width, one lens and one strip, months only where a month's columns hold a bubble; a month the
+  period starts inside is shaded for its days before the period (`lead`).
+- **The radars and the parallel plot** on Coaching, and the basic radar on the agent page. On
+  Coaching the owner overruled the small multiples in his own words (2026-10-20, translated): "Fine,
+  but the user learns nothing from this, they only see charts in front of them. The system should be
+  able to evaluate what it sees between the individual sales agents. On this page I would use one
+  single big chart, which could be almost full-screen size, and all the agents would be inside one
+  chart." (Original: „jó de ebből nem tanul a user semmit csak lát maga előtt diagramokat. Ki kellene
+  tudnia értékelnie a rendszernek azt hogy mit lát az egyes sales ügynökök között. Itt ezen az
+  oldalon én egyetlen nagy diagramot használnék ami szinte az egész full screen nagyságú lehetne és
+  eg diagramon belül lenne az összes agent.") So Coaching is one region the width of the page: every
+  agent at or above the floor in one chart, through one of two lenses kept on the address
+  (`&lens=parallel`), a key that lifts, hides and opens each agent, the agents under the floor named
+  beside it, and **IRIS's reading** beside the chart — composed in the read model
+  (`CoachingReading`), never in the component: where the drawn agents differ most, each one's most
+  distinctive habit against everyone else's meetings, and what meetings with that habit came to
+  across the project, split as the cohort comparison splits them, at both sample sizes, only where
+  each side clears the floor. It describes and associates; it never names a cause or ranks a person,
+  and it closes on the comparison's own disclaimer.
+
+Four decisions come with them:
+
+- **Seat-order identity colours, in the read model.** `RadarProfile.tone`, `FeatureUsageProfile.tone`
+  and the lens's agents give each presenter `--d-series-(seat % 6 + 1)` in the order `presentersIn`
+  returns them, never by the period's workload, so a person wears one colour on every chart. The
+  four-step ramp this replaces gave the fifth agent the first one's colour.
+- **Two decorations are not ported**: the parallel plot's pink haze and the basic radar's blurred
+  colour field. Both are glowing blobs, which the doctrine refuses (SKILL.md §5), and the brief was
+  the kit executed with restraint. The field stays in the lab (`.dld-root` only); restoring either
+  on the product is one line.
+- **The kit's magenta and violet stay.** `--d-series-4: #ff00dd` and `--d-funnel: #8338ec` conflict
+  with SKILL.md §5's "no purple"; they are the owner's kit, chosen clear of the verdict colours, and
+  nothing new in purple is added. A known conflict, resolved by his decision.
+- **No text under 12px** in the ported forms: their rules read under `:is(.dld-root,
+[data-charts="d"])`, the axis names stand on end where ten do not fit across, and
+  `apps/web/test/chart-paint.test.ts` holds both.

@@ -5337,3 +5337,66 @@ below 1200px.
 **Next recommended action.** Build and start the demo, sign in as MADSPACE Operations, look at the
 four screens above at both widths, then run `madspace-screenshots` and `m10-acceptance` (both edited
 for the new structure).
+
+## 2026-10-20 — Gallery D's four missing forms, and Coaching as one chart with IRIS's reading
+
+Built in a worktree off `779b314` (the stream "gallery port"), not pushed; the orchestrator merges.
+Máté, preparing the recording, named the gallery's bubble lens, parallel coordinates, radial day and
+radars as missing from the product, then overruled Coaching's small multiples: one large chart with
+every agent in it, and the system saying what it sees between them. ADR-0041's amendment of
+2026-10-20 records both, with his words.
+
+**What landed, one commit each:**
+
+| Commit                                                | Where                                                                                                                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Radar: seat colours, readings, the agent page's shape | `RadarProfile.tone` by seat (`--d-series-1..6`), `reading`, `AgentRadar.summary`; `/agents/[agentId]` draws the basic radar, the note below the floor |
+| Parallel coordinates                                  | `Parallel` and `AxisNotes` in `@/showroom/forms`; `FeatureUsageProfile.tone`, `FeatureUsage.summary`; no haze; `#dld-lift` in the shell's paint       |
+| Coaching: one chart and IRIS's reading                | `/agents?view=coaching[&lens=parallel]`; `CoachingChart` (key: lift, hide, open); `CoachingReading` on the radar and feature use, from `readAgents`   |
+| Sales Flow: the day, hour by hour                     | `ActivityMatrix.day`; `RadialHistogram` in `@/showroom/forms`; glow at the peak only                                                                  |
+| Sales Flow: the bubble lens                           | `FlowCharts.lens` (`buildMeetingLens`); `@/showroom/BubbleLens`, drawn at its own width; the spheres in the shell's paint                             |
+
+**IRIS's reading on Coaching** (QTD on Shark): "Compare: Oliver Grant, 19% of 26 meetings reached
+Compare; Marek Dvořák, 76% of 33." — then each agent's most distinctive habit against everyone else's
+meetings, then what meetings with that habit came to across the project ("Meetings that reached
+Compare progressed further in 72% of 67 with an outcome recorded; those that did not, 38% of 64."),
+split as Presentation DNA's cohorts split them (`outcomeSplit` in `project.ts`, beside `BEHAVIOURS`),
+withheld where a side is under 20. The radar's Compare, Returns and Units take the cohort
+comparison's own behaviours; Coverage, Depth and Places are typical counts and say no outcome is set
+beside them. With one agent over the floor (last 28 days: Marek; last quarter: Lena) nothing is set
+side by side and the one habit is read against everyone else's meetings.
+
+**Open owner decisions, defaulted so nothing waited:**
+
+- The bubble rule is the one given: purchase, presentation only and unrecorded are not drawn; the lead
+  counts them.
+- The radar is scaled against every presenter in the period, drawn or not, and the notes say so.
+- The kit's magenta (`--d-series-4`) and violet funnel stay, against SKILL.md §5 (ADR-0041 amendment).
+- Units' outcome line uses the cohort comparison's "four or more apartments", not the radar's median.
+
+**Gap, logged rather than built:** start-hour activity, feature usage and the Coaching reading are
+not declared in the metric registry (`packages/metrics`); they were undeclared before this work too.
+
+**Verified.** Typecheck clean; eslint clean on every changed file; vitest on the web, synthetic and
+ui suites green after each commit (153 files at the last); the full unit suite once at the end (see
+the stream's report for the count and the environmental cases). New suites:
+`coaching-reading`, `meeting-lens`, `activity-day` (synthetic), `coaching-chart`, `parallel-form`,
+`radial-form`, `chart-paint` (web). The e2e specs that read the small multiples were edited, not run:
+`p219-screens.spec.ts` K5 (the key and the "IRIS reading" heading), `quality.spec.ts` (the count in
+the chart's key or the not-drawn list), `p221-meres.spec.ts` (the Gaps sentence names the day and the
+lens).
+
+**Screenshots nobody has looked at yet (non-negotiable 11):** no dev server or Playwright ran in this
+stream. Before the recording, look at:
+
+- `/shark/shark-residence/agents?view=coaching` at 1440 and 390, quarter to date and last 28 days, on
+  both lenses: the radar at about 600px beside the reading, the key's lift and hide, the not-drawn list;
+- `/shark/shark-residence/flow` at 1440 and 390, quarter to date: the dial, and the lens on Month and on
+  7 days; `?period=last_28_days` at 1440 for July's lead shade;
+- `/shark/shark-residence/agents/agt_sharklena01` (the basic radar) and
+  `/agents/agt_sharkiva01?period=last_28_days` (the note in place of the shape);
+- the empty states on ISTER TOWER and Kingsford.
+
+**Next recommended action.** Run the edited e2e specs (`p219-screens`, `quality`, `p221-meres`,
+`a11y-contract`, `period-travels`, `layout-integrity`, `dark-surfaces`), take the screenshots above and
+look at them, then cherry-pick the stream onto `feature/observer-shark-demo`.
