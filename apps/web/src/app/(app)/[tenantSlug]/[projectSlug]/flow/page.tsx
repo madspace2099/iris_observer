@@ -112,6 +112,8 @@ export default async function FlowPage({
   // The team's own counts: its row, and both outcome keys. The key never sums
   // the rows, because the team row is an aggregate of the presenters beside it.
   const teamParts = outcomeParts(view.outcomes);
+  // A period with no meeting: one sentence, not a key of noughts over empty bars.
+  const noOutcomes = `${view.context.period.label} holds no meeting, so there is no outcome to draw.`;
 
   const base = `/${tenantSlug}/${projectSlug}/flow`;
   const windowHref = (id: KpiWindowId) => {
@@ -466,16 +468,23 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               What those meetings became
             </h2>
-            <OutcomeRows
-              label="What those meetings became, month by month"
-              rows={charts.composition.columns}
-              keys={charts.composition.keys}
-              keyCounts={teamParts}
-            />
-            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-              Each month is its own whole. Its figure is the share of the month&rsquo;s recorded
-              meetings that reached a follow-up or better.
-            </p>
+            {view.meetingCount === 0 ? (
+              <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
+            ) : (
+              <>
+                <OutcomeRows
+                  label="What those meetings became, month by month"
+                  rows={charts.composition.columns}
+                  keys={charts.composition.keys}
+                  keyCounts={teamParts}
+                />
+                <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                  Each month is its own whole. Its figure is the share of the month&rsquo;s recorded
+                  meetings that reached a follow-up or better; below {AGENT_MIN_SAMPLE} recorded it
+                  states no rate.
+                </p>
+              </>
+            )}
           </div>
         </div>
 
@@ -485,23 +494,27 @@ export default async function FlowPage({
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: "1.25rem" }}>
             How each agent&rsquo;s meetings end
           </h2>
-          <OutcomeRows
-            label="How each agent’s meetings end, the team first"
-            lead={{
-              label: "Team",
-              total: view.meetingCount,
-              parts: teamParts,
-              figure: view.team,
-            }}
-            rows={view.rings.map((ring) => ({
-              label: ring.name,
-              total: ring.meetings,
-              parts: outcomeParts(ring.slices),
-              figure: ring.figure,
-            }))}
-            keys={OUTCOME_KEYS}
-            keyCounts={teamParts}
-          />
+          {view.meetingCount === 0 ? (
+            <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
+          ) : (
+            <OutcomeRows
+              label="How each agent’s meetings end, the team first"
+              lead={{
+                label: "Team",
+                total: view.meetingCount,
+                parts: teamParts,
+                figure: view.team,
+              }}
+              rows={view.rings.map((ring) => ({
+                label: ring.name,
+                total: ring.meetings,
+                parts: outcomeParts(ring.slices),
+                figure: ring.figure,
+              }))}
+              keys={OUTCOME_KEYS}
+              keyCounts={teamParts}
+            />
+          )}
           <div className="iris-changes" style={{ marginTop: "1rem" }}>
             {view.rings.map((ring) => (
               <article className="iris-change" key={ring.agentId}>
@@ -525,7 +538,7 @@ export default async function FlowPage({
             share in one row compares with the same share in any other, presenter to presenter and
             against the team. The hatched part is meetings with no outcome recorded; every rate
             stands on the recorded ones only. Presenters keep the roster&rsquo;s order, not a
-            ranking, and below {AGENT_MIN_SAMPLE} meetings a presenter&rsquo;s row states no rate.
+            ranking, and a row with fewer than {AGENT_MIN_SAMPLE} recorded meetings states no rate.
           </p>
           {/*
             Named where it contributed. A project with no CRM connected has no

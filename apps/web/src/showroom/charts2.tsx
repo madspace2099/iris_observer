@@ -408,12 +408,17 @@ export function OutcomeRows({
                   <span className="iris-orow-name">{row.label}</span>
                   <span className="iris-orow-total">{row.figure.meetingsDisplay}</span>
                 </span>
+                {/* A row with no part is no image: the item's own name already says so. */}
                 <span
                   className="iris-orow-bar"
-                  role="img"
-                  aria-label={drawn
-                    .map((k) => `${k.label}: ${row.parts[k.id]} of ${row.total}`)
-                    .join(", ")}
+                  {...(drawn.length === 0
+                    ? { "aria-hidden": true }
+                    : {
+                        role: "img",
+                        "aria-label": drawn
+                          .map((k) => `${k.label}: ${row.parts[k.id]} of ${row.total}`)
+                          .join(", "),
+                      })}
                 >
                   {drawn.map((k) => (
                     <span

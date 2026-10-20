@@ -39,7 +39,7 @@ const LENA = {
   ...row("Lena Fischer", { purchase: 8, interested: 3, not_interested: 2, skipped: 2 }, "x"),
   figure: {
     meetingsDisplay: "15 meetings",
-    display: "No rate yet: 5 short of the 20 meetings needed",
+    display: "No rate yet: 5 short of the 20 recorded meetings needed",
     belowMinimum: true,
   },
 };
@@ -65,7 +65,7 @@ describe("Sales Flow's outcome rows", () => {
   it("print each row's figure as the read model wrote it", () => {
     expect(html).toContain("team figure from the read model");
     expect(html).toContain("Zsófia&#x27;s figure from the read model");
-    expect(html).toContain("No rate yet: 5 short of the 20 meetings needed");
+    expect(html).toContain("No rate yet: 5 short of the 20 recorded meetings needed");
     expect(html).not.toMatch(/\d+(\.\d+)?%/);
   });
 
@@ -74,7 +74,7 @@ describe("Sales Flow's outcome rows", () => {
       'aria-label="Team: Team meetings in words, team figure from the read model"',
     );
     expect(rows).toContain(
-      'aria-label="Lena Fischer: 15 meetings, No rate yet: 5 short of the 20 meetings needed"',
+      'aria-label="Lena Fischer: 15 meetings, No rate yet: 5 short of the 20 recorded meetings needed"',
     );
   });
 
@@ -113,6 +113,25 @@ describe("Sales Flow's outcome rows", () => {
     const rule = /\.iris-orows \[data-outcome="skipped"\] \{([^}]*)\}/.exec(css)?.[1] ?? "";
     expect(rule).toContain("repeating-linear-gradient");
     expect(rule).toContain("transparent");
+  });
+
+  it("name each bar that draws a part as one image, and give an empty bar none", () => {
+    expect(rowOf("Team")).toContain(
+      'role="img" aria-label="Purchase: 9 of 18, Interested: 4 of 18, Not interested: 2 of 18, Outcome not recorded: 3 of 18"',
+    );
+    // A period with no meeting: an image with an empty name fails axe's role-img-alt.
+    const empty = renderToStaticMarkup(
+      createElement(OutcomeRows, {
+        label: "How each agent's meetings end",
+        lead: row("Team", { purchase: 0, skipped: 0 }, "No outcome recorded, so no rate"),
+        rows: [],
+        keys: OUTCOME_KEYS,
+        keyCounts: {},
+      }),
+    );
+    expect(empty).not.toContain('role="img"');
+    expect(empty).not.toContain('aria-label=""');
+    expect(empty).toContain('<span class="iris-orow-bar" aria-hidden="true"></span>');
   });
 
   it("state the key's counts as given, never a sum of the rows", () => {
