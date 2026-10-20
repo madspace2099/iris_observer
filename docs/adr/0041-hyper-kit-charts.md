@@ -92,3 +92,40 @@ executed with restraint.
 so inside a `.d-card` its `.ox-funnel` panel gives up its edge, tint and radius: one card, not a box
 in a box. Its fill and its rows' hairlines are not touched. The glow left on two outcome marks, the
 "progressed" part of the period steps and the units sold against the plan, is gone.
+
+**2026-10-20, outcome rows.** Recording the Shark Residence demo, the owner looked at Sales Flow's two
+stacked-column charts and said, in Hungarian: _"Nem tetszenek ezek a diagramok itt nagyon rosszul
+olvasható!!! Ezeket cseréld ki egy másfélére."_ (I don't like these charts, they are very hard to
+read; replace them with a different kind.) His screenshots showed why: columns a few pixels wide, a
+one-meeting part a 3px sliver, two names wrapping under their columns, each presenter's column short
+beside the team's 150, and a key whose colours came in pairs (Interested and Follow-up needed both
+blue, Presentation only and Not interested both brown).
+
+- **What replaced what.** "What those meetings became" and "How each agent's meetings end" are drawn
+  by `OutcomeRows` (`apps/web/src/showroom/charts2.tsx`), no longer by `StackedBars`. One horizontal
+  row per group: the team first, set apart by a hairline, then each presenter in the read model's
+  order, never sorted on a figure; the months in time order. Each row is its own whole, so a share
+  compares row to row. Parts run in ladder order, the unrecorded outcome last as a hatch; a part with
+  no meeting is not drawn; a part carries its count inside where it is 26px or wider and a title
+  ("Lena Fischer · Purchase: 7 of 39") always. Beside each bar stands the read model's
+  `ProgressedFigure`, "81% progressed · 29 of 36 recorded", written for a presenter
+  (`AgentOutcomeRing.figure`), the team (`SalesFlowView.team`) and a month (`StackedColumn.figure`);
+  below `AGENT_MIN_SAMPLE` a presenter's row keeps its bar and states how far short it is instead of
+  a rate. One key, its counts the team's own. A card narrower than 36rem puts the name above the bar
+  and the figure under it. Each row is a list item named with its group, its meetings and its figure;
+  the bar is one image to assistive technology and no part is a focus stop.
+- **Motion.** A new `DrawIn` kind, `grow`: the bars clip in from the left, row by row 70ms apart,
+  inside the 1500ms the entry already allows. Names, figures and key stand from the first frame;
+  reduced motion and print get the final frame.
+- **Colour.** The rows carry their own palette, scoped to `.iris-orows` in `charts.css`;
+  `OUTCOME_TONE` and the `--outcome-*` tokens are unchanged, so the rings and the period steps read
+  as before. WCAG non-text contrast on the D card (`#000`): purchase `#8cf5a8` 15.7:1, reservation
+  `#3fd3a0` 11.0:1, interested `#22a6b8` 7.2:1, follow-up needed `#3f7fd0` 5.2:1 (green to teal to
+  blue for the four that progressed), presentation only `#9a9aa5` 7.5:1 (neutral grey), not
+  interested `#c4744c` 6.0:1 (a terracotta, neither the watch amber `#d9a441` nor the loss red
+  `#e07a72`), the unrecorded hatch's stripe `#6e6e78` 4.2:1. Neighbours stand only 1.3 to 1.5:1
+  apart, so a 2px gap of the card separates every two parts. A count inside a part is the card's
+  black, 5.2:1 or more on every fill; on the hatch it stands on a black patch in the card's ink. No
+  glow.
+- **What stays.** `StackedBars` and the `.iris-stacks` rules remain for the design-lab gallery alone;
+  the product card's own stacked-column rules are gone.
