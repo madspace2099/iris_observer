@@ -160,11 +160,13 @@ describe("the agent summary, as printed", async () => {
       words.projectsNote,
       words.appendixCaption,
     ];
+    /* Every caption is the sr-only class layout-integrity knows, so none is drawn or reads as clipped. */
+    expect(html).not.toMatch(/<caption(?! class="ox-sr")/);
     for (const note of moved) {
       expect(notes, note.slice(0, 60)).toContain(`<p class="ox-notes-text">${esc(note)}</p>`);
       /* A table keeps the sentence as its caption, its accessible name; nothing else does. */
       expect(
-        body.replaceAll(`<caption>${esc(note)}</caption>`, ""),
+        body.replaceAll(`<caption class="ox-sr">${esc(note)}</caption>`, ""),
         note.slice(0, 60),
       ).not.toContain(esc(note));
     }
@@ -241,7 +243,9 @@ describe("the project report, as printed", async () => {
       REPORT_WORDS.en.agentsCaption,
     ]) {
       expect(notes).toContain(`<p class="ox-notes-text">${esc(note)}</p>`);
-      expect(body.replaceAll(`<caption>${esc(note)}</caption>`, "")).not.toContain(esc(note));
+      expect(body.replaceAll(`<caption class="ox-sr">${esc(note)}</caption>`, "")).not.toContain(
+        esc(note),
+      );
     }
   });
 

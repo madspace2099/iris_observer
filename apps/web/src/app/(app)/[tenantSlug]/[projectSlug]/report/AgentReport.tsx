@@ -252,6 +252,7 @@ export async function AgentReport({
 
     "agent-presentation": (
       <DataTable
+        captionHidden
         caption={words.presentationCaption(
           view.name,
           view.belowMinimum,
@@ -301,6 +302,7 @@ export async function AgentReport({
     "agent-buyers": (
       <>
         <DataTable
+          captionHidden
           caption={words.buyersCaption(
             view.name,
             view.belowMinimum,
@@ -339,6 +341,7 @@ export async function AgentReport({
             label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
           />
           <DataTable
+            captionHidden
             caption={words.outcomeCaption(
               view.name,
               view.belowMinimum,
@@ -377,6 +380,7 @@ export async function AgentReport({
 
     "agent-units": (
       <DataTable
+        captionHidden
         caption={words.unitsCaption(view.name, periodLabel)}
         columns={unitColumns}
         rows={unitRows}
@@ -425,6 +429,7 @@ export async function AgentReport({
     "agent-meetings": (
       <>
         <MeetingRegister
+          captionHidden
           rows={view.recentMeetings}
           period={period}
           canOpen={maySeeSurface(viewer.role, "[meetingId]")}
@@ -439,6 +444,7 @@ export async function AgentReport({
 
     "evidence-appendix": (
       <DataTable
+        captionHidden
         caption={words.appendixCaption}
         columns={[
           { key: "section", label: reportWords.appendixColumns[0] },

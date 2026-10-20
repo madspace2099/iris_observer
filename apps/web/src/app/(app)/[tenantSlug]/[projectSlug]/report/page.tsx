@@ -217,6 +217,7 @@ async function ProjectReport({
     "presentation-coverage":
       agents.teamSections.length === 0 ? null : (
         <DataTable
+          captionHidden
           caption={coverageCaption}
           columns={[
             { key: "section", label: words.coverageColumns[0] },
@@ -241,6 +242,7 @@ async function ProjectReport({
       ),
     "unit-demand": (
       <DataTable
+        captionHidden
         caption={words.unitDemandCaption}
         columns={[
           { key: "segment", label: words.unitDemandColumns[0] },
@@ -266,6 +268,7 @@ async function ProjectReport({
     ),
     "sales-agents": (
       <DataTable
+        captionHidden
         caption={words.agentsCaption}
         columns={[
           { key: "agent", label: words.agentsColumns[0] },
@@ -316,6 +319,7 @@ async function ProjectReport({
             label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
           />
           <DataTable
+            captionHidden
             caption={words.outcomesCaption}
             columns={[
               { key: "outcome", label: words.outcomesColumns[0] },
@@ -361,6 +365,7 @@ async function ProjectReport({
     "meeting-summary":
       meetings.rows.length === 0 ? null : (
         <DataTable
+          captionHidden
           caption={words.meetingsCaption}
           columns={[
             { key: "meeting", label: words.meetingsColumns[0] },
@@ -382,6 +387,7 @@ async function ProjectReport({
       ),
     "evidence-appendix": (
       <DataTable
+        captionHidden
         caption={words.appendixCaption}
         columns={[
           { key: "section", label: words.appendixColumns[0] },
@@ -603,6 +609,7 @@ async function MeetingReport({
     ),
     "evidence-appendix": (
       <DataTable
+        captionHidden
         caption={words.sessionCaption}
         columns={[
           { key: "section", label: words.appendixColumns[0] },

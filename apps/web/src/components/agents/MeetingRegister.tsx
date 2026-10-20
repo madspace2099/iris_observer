@@ -129,6 +129,7 @@ export function MeetingRegister({
   canOpen,
   emptyNote,
   language,
+  captionHidden = false,
 }: {
   readonly rows: readonly MeetingRow[];
   readonly period: PeriodPreset;
@@ -138,6 +139,8 @@ export function MeetingRegister({
   readonly emptyNote: string;
   /** The words' language: English on the screens, the reader's choice on a printed report. */
   readonly language: Language;
+  /** The printed report names the table but prints its sentence in its notes (`DataTable`). */
+  readonly captionHidden?: boolean;
 }) {
   const words = REGISTER_WORDS[language];
   const FOLLOW_UP_SHORT = words.followUp;
@@ -219,6 +222,7 @@ export function MeetingRegister({
   return (
     <DataTable
       caption={canOpen ? caption : `${caption} ${words.notOpenable}`}
+      captionHidden={captionHidden}
       columns={columns}
       rows={data}
       codeColumn="meeting"

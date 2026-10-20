@@ -90,6 +90,7 @@ export function DataTable({
   period,
   empty = null,
   preferences = null,
+  captionHidden = false,
 }: {
   /**
    * What this table lists, in a sentence. Required: a register with no caption
@@ -117,6 +118,11 @@ export function DataTable({
    * — the printed report never passes it.
    */
   readonly preferences?: { readonly id: string } | null;
+  /**
+   * The caption stays the table's accessible name but is not drawn: the
+   * report prints its sentence once, in "How to read this report" (ADR-0050).
+   */
+  readonly captionHidden?: boolean;
 }) {
   if (rows.length === 0 && empty !== null) {
     return <Empty title={empty.title} note={empty.note} />;
@@ -136,7 +142,7 @@ export function DataTable({
       )}
       <div className="ox-table-scroll">
         <table className="ox-table">
-          <caption>{caption}</caption>
+          <caption className={captionHidden ? "ox-sr" : undefined}>{caption}</caption>
 
           <thead>
             <tr>
