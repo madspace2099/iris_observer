@@ -41,7 +41,7 @@ import { createSourceAction, type CreateSourceState } from "@/lib/madspace/creat
  */
 
 /** The four the schema accepts, ordered as an installation's life runs. */
-const ENVIRONMENT_CHOICES = [
+export const ENVIRONMENT_CHOICES = [
   {
     value: "development",
     name: "Development",

@@ -205,6 +205,35 @@ export async function issueActivationCodeAction(sourceId: string): Promise<
   };
 }
 
+/**
+ * Whether the code issued at `issuedAt` has been exchanged yet. Read only.
+ *
+ * The onboarding wizard asks every four seconds while its code is live. There
+ * is no read for an activation code's row, so the answer is the one
+ * `ActivationCodeDialog` already derives: exchanging a code is the only thing
+ * that mints a credential, so a credential created at or after the issuance is
+ * that code having been used. ACTIVATED, never "connected": a heartbeat is a
+ * separate fact (`control-plane.ts`).
+ */
+export async function activationClaimedAction(
+  sourceId: string,
+  issuedAt: string,
+): Promise<{ readonly ok: true; readonly activated: boolean } | Refused> {
+  const held = await operator();
+  if (!held.ok) return held;
+  if (unusable(sourceId)) return refuse("That is not a source identifier.");
+  const since = typeof issuedAt === "string" ? Date.parse(issuedAt) : Number.NaN;
+  if (!Number.isFinite(since)) return refuse("That is not an issuing instant.");
+
+  const status = await held.admin.credentialStatus({
+    account: CONTROL_PLANE_ACCOUNT,
+    source: sourceId,
+  });
+  if (!status.ok) return refuse(sentenceFor(status.refusal, "Reading the activation"));
+  const created = status.value === null ? Number.NaN : Date.parse(status.value.created_at);
+  return { ok: true, activated: Number.isFinite(created) && created >= since };
+}
+
 /* --- 2. the lifecycle ---------------------------------------------------------------- */
 
 /**

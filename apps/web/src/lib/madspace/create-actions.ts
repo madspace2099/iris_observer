@@ -4,18 +4,33 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 
 import { ENVIRONMENTS } from "@observer/contracts/ue5";
-import type { AdminRefusal, ObserverAdmin } from "@observer/sources";
+import {
+  PROJECT_SLUG,
+  PepperMisconfiguredError,
+  RESERVED_TENANT_SLUGS,
+  TENANT_SLUG,
+  assertPeppersUsable,
+  isCurrency,
+  isLocale,
+  isTimeZone,
+  projectDirectoryAdmin,
+  type AdminRefusal,
+  type ObserverAdmin,
+} from "@observer/sources";
 
-import { slugFrom } from "@/lib/madspace/slug";
+import { forgetDirectoryMemo } from "@/lib/directory/live";
+import { isSyntheticTenantSlug } from "@/lib/repository";
 import { currentViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
+import { observerDepsAsync } from "@/lib/sources/deps";
 
 /**
- * REGISTERING A PROJECT AND REGISTERING A SOURCE.
+ * ONBOARDING A CLIENT AND REGISTERING A SOURCE.
  *
- * The only two writes on this surface that bring a row into existence, and the
- * only two places an operator's typing reaches `ObserverAdmin`. Everything else
- * under `/madspace` reads.
+ * The writes on this surface that bring a project or a source into existence,
+ * and the places an operator's typing reaches `ObserverAdmin` for them: the
+ * onboarding wizard's one press, and a further source under an existing
+ * project.
  *
  * ## Every refusal is translated before it is shown
  *
@@ -55,12 +70,6 @@ import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane
  * text field did wrong, and pinning it to one would send the operator to edit a
  * value that was fine.
  */
-export interface CreateProjectState {
-  readonly problem: string | null;
-  readonly field: "name" | null;
-  readonly name: string;
-}
-
 export interface CreateSourceState {
   readonly problem: string | null;
   readonly field: "label" | "environment" | null;
@@ -146,44 +155,11 @@ async function estate(): Promise<Estate> {
   return { ok: true, admin: plane.admin };
 }
 
-/* --- the slug, derived rather than asked for ---------------------------------------- */
-/*
- * `ObserverAdmin.createProject` takes a slug, and the operator is not asked for
- * one here: `slugFrom` builds it from the name. It becomes the project's address
- * only when the project is completed on its Customer dashboard screen, where it
- * is shown, can still be changed, and is then fixed.
- */
-
 /* --- translating a refusal ----------------------------------------------------------- */
 
 /** The sentence shown when a code arrives that this screen cannot produce. */
 const UNEXPECTED =
   "The control plane refused this, and for a reason this screen does not know how to explain. Nothing was created. Try again, and tell MADSPACE support what you were registering if it happens twice.";
-
-function projectRefusal(refusal: AdminRefusal): { field: "name" | null; problem: string } {
-  if (refusal.code === "invalid_input") {
-    if (refusal.field === "name") {
-      return {
-        field: "name",
-        problem:
-          "That name cannot be used. Give the project a name of at least one visible character and no more than two hundred.",
-      };
-    }
-    if (refusal.field === "slug") {
-      return {
-        field: "name",
-        problem:
-          "That name has no letters or digits in it, so no short name could be built from it. Include at least one.",
-      };
-    }
-    return {
-      field: null,
-      problem:
-        "This deployment is not configured to administer an estate, so nothing was created. That is a configuration problem rather than something you typed.",
-    };
-  }
-  return { field: null, problem: UNEXPECTED };
-}
 
 function sourceRefusal(refusal: AdminRefusal): {
   field: "label" | "environment" | null;
@@ -226,87 +202,234 @@ function sourceRefusal(refusal: AdminRefusal): {
   return { field: null, problem: UNEXPECTED };
 }
 
-/* --- 1. create a project -------------------------------------------------------------- */
+/* --- 1. onboard a client: developer, project, source and code in one write ------------ */
 
 /**
- * Register a project, then open it.
+ * What the onboarding wizard sends: the four steps' fields, as typed.
  *
- * The slug collision is checked BEFORE the write and caught again after it, and
- * both halves are needed. `createProject` documents that a slug already taken
- * within the account raises a unique-violation rather than returning a refusal
- * — deliberately, because interpreting a driver's error code there would mean
- * one branch for PGlite and another for PostgREST. That leaves the readable
- * message to be produced here, and the pre-check is what produces it in the
- * ordinary case: the operator sees a sentence beside the name field instead of
- * an unhandled exception page. The `catch` covers the narrow race where two
- * operators submit the same name between the read and the insert.
+ * Plain strings rather than a form, because the wizard holds them across four
+ * panels and posts once. Every one is validated here again: the wizard is not
+ * a gate, and this is an HTTP endpoint.
  */
-export async function createProjectAction(
-  _previous: CreateProjectState,
-  form: FormData,
-): Promise<CreateProjectState> {
-  const name = text(form, "name");
-  const refuse = (problem: string, field: "name" | null = null): CreateProjectState => ({
-    problem,
-    field,
-    name,
-  });
+export interface OnboardInput {
+  /** Step 1.1. The developer's address segment, lowercased: `/client-482/...`. */
+  readonly client: string;
+  /** Step 1.2. */
+  readonly projectName: string;
+  /** Step 1.2, the "Domain": the project's address segment, fixed once created. */
+  readonly projectSlug: string;
+  readonly currency: string;
+  readonly locale: string;
+  readonly timeZone: string;
+  /** Step 1.3. */
+  readonly sourceLabel: string;
+  readonly environment: string;
+}
 
-  if (name.length === 0) {
-    return refuse("Give the project a name before creating it.", "name");
-  }
-  if (name.length > 200) {
+/** The step whose field a refusal belongs to: 1 client, 2 project, 3 source. */
+type OnboardStep = 1 | 2 | 3;
+
+const PROJECT_TAKEN =
+  "A project with that domain is already registered here. Choose another domain.";
+
+/**
+ * Onboard a client in one press: developer, project, settings, source, code.
+ *
+ * Akhilesh's "Client & Engine Onboarding" (ADR-0044), on the services the four
+ * separate screens already use. NOTHING is written until every field has
+ * passed, the operator is authorised, the control plane is open and both
+ * peppers would mint a code: a refusal at the last step must not leave a
+ * project behind it that the next attempt then collides with.
+ *
+ * The developer is REUSED when one already holds the client ID, so a second
+ * project for the same client is the same wizard. The project's domain is
+ * checked against the estate before `createProject`, which raises rather than
+ * refuses on a collision (see `admin.ts`); the `catch` covers the race.
+ *
+ * The activation code's plaintext leaves this function once, in the returned
+ * object, exactly as `issueActivationCodeAction` returns it, and nothing here
+ * logs it.
+ */
+export async function onboardAction(input: OnboardInput): Promise<
+  | {
+      readonly ok: true;
+      readonly code: string;
+      readonly issuedAt: string;
+      readonly expiresAt: string;
+      readonly projectId: string;
+      readonly sourceId: string;
+      readonly tenantSlug: string;
+      readonly projectSlug: string;
+    }
+  | { readonly ok: false; readonly problem: string; readonly step: OnboardStep }
+> {
+  const refuse = (problem: string, step: OnboardStep) => ({ ok: false as const, problem, step });
+  const field = (key: keyof OnboardInput): string => {
+    const value = (input as Partial<Record<keyof OnboardInput, unknown>> | null)?.[key];
+    return typeof value === "string" ? value.trim() : "";
+  };
+
+  const client = field("client").toLowerCase();
+  const projectName = field("projectName");
+  const projectSlug = field("projectSlug");
+  const currency = field("currency").toUpperCase();
+  const locale = field("locale");
+  const timeZone = field("timeZone");
+  const sourceLabel = field("sourceLabel");
+  const environment = field("environment");
+
+  /* --- every field, before anything is read or written --- */
+  if (client.length === 0) return refuse("Give the client an ID before continuing.", 1);
+  if (!TENANT_SLUG.test(client)) {
     return refuse(
-      "That name is longer than two hundred characters. Shorten it to something the estate is actually known by.",
-      "name",
+      "A client ID is lowercase letters, digits and hyphens, at most sixty four characters, and starts and ends with a letter or a digit.",
+      1,
+    );
+  }
+  if (RESERVED_TENANT_SLUGS.includes(client)) {
+    return refuse("That client ID is an address this application uses itself. Choose another.", 1);
+  }
+  if (isSyntheticTenantSlug(client)) {
+    return refuse("A demonstration developer already lives at that client ID. Choose another.", 1);
+  }
+  if (projectName.length === 0) return refuse("Give the project a name.", 2);
+  if (projectName.length > 200) {
+    return refuse("That project name is longer than two hundred characters.", 2);
+  }
+  if (!PROJECT_SLUG.test(projectSlug)) {
+    return refuse(
+      "A domain is lowercase letters, digits and hyphens, and starts and ends with a letter or a digit.",
+      2,
+    );
+  }
+  if (!isCurrency(currency)) return refuse("Choose the currency the project's prices are in.", 2);
+  if (!isLocale(locale)) {
+    return refuse("That is not a locale this server can format with. Use a form such as sk-SK.", 2);
+  }
+  if (!isTimeZone(timeZone)) {
+    return refuse("That is not a time zone. Use a form such as Europe/Bratislava.", 2);
+  }
+  if (sourceLabel.length === 0) return refuse("Give the machine a source name.", 3);
+  if (sourceLabel.length > 200) {
+    return refuse("That source name is longer than two hundred characters.", 3);
+  }
+  if (!(ENVIRONMENTS as readonly string[]).includes(environment)) {
+    return refuse(
+      "Choose the environment this machine runs in. It cannot be changed from the installation afterwards.",
+      3,
     );
   }
 
+  /* --- who is asking, and whether there is anywhere to write --- */
   const opened = await estate();
-  if (!("ok" in opened)) return refuse(opened.problem);
-
-  const slug = slugFrom(name);
-
-  const existing = await opened.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
-  if (existing.ok && slug !== null && existing.value.some((row) => row.slug === slug)) {
-    return refuse(
-      "A project with a very similar name is already registered here. Choose a name that differs by more than spacing or punctuation.",
-      "name",
-    );
+  if (!("ok" in opened)) return refuse(opened.problem, 3);
+  const deps = await observerDepsAsync();
+  if (deps === null) {
+    return refuse("This deployment has no control plane configured. Nothing was created.", 3);
   }
+  const directory = projectDirectoryAdmin(deps);
 
-  let created;
-  try {
-    created = await opened.admin.createProject({
-      account: CONTROL_PLANE_ACCOUNT,
-      name,
-      slug,
-    });
-  } catch {
-    /*
-     * The unique violation, arriving as an exception because the service layer
-     * declines to interpret driver error codes. Nothing about the caught value
-     * is shown: a Postgres error message quotes the row it rejected, which on
-     * this path is the operator's own typing plus an identifier.
-     */
-    return refuse(
-      "A project with a very similar name is already registered here. Choose a name that differs by more than spacing or punctuation.",
-      "name",
-    );
-  }
-
-  if (!created.ok) {
-    const translated = projectRefusal(created.refusal);
-    return refuse(translated.problem, translated.field);
-  }
-
-  revalidatePath(OPERATIONS_SURFACE, "layout");
   /*
-   * Straight into the project that was just made, rather than back to the list.
-   * The next thing an operator does after creating a project is register a
-   * source in it, and that button is on the project screen.
+   * The peppers, before the first write. Without them the code cannot be
+   * minted, and finding that out after the project exists would leave a
+   * project the next attempt collides with. The message names a variable and
+   * a problem, never a value.
    */
-  redirect(`/madspace/projects/${created.value}`);
+  try {
+    assertPeppersUsable(process.env);
+  } catch (error: unknown) {
+    if (!(error instanceof PepperMisconfiguredError)) throw error;
+    return refuse(
+      `${error.message}. No activation code can be issued until both peppers hold at least 32 bytes of random material, so nothing was created.`,
+      3,
+    );
+  }
+
+  /* --- reads: the developer to reuse, and the domain to keep free --- */
+  const tenants = await directory.tenants({ account: CONTROL_PLANE_ACCOUNT });
+  const projects = await opened.admin.projectsForAccount({ account: CONTROL_PLANE_ACCOUNT });
+  if (!tenants.ok || !projects.ok) return refuse(UNEXPECTED, 3);
+  if (projects.value.some((row) => row.slug === projectSlug)) return refuse(PROJECT_TAKEN, 2);
+
+  /* --- writes, in dependency order --- */
+  let tenantId = tenants.value.find((row) => row.slug === client)?.tenant_id ?? null;
+  if (tenantId === null) {
+    try {
+      const created = await directory.createTenant({
+        account: CONTROL_PLANE_ACCOUNT,
+        name: client,
+        slug: client,
+      });
+      if (!created.ok) return refuse(UNEXPECTED, 1);
+      tenantId = created.value;
+    } catch {
+      /* Unique across the system: another estate holds the address, or the race. */
+      return refuse("That client ID is already taken. Choose another.", 1);
+    }
+  }
+
+  let projectId: string;
+  try {
+    const created = await opened.admin.createProject({
+      account: CONTROL_PLANE_ACCOUNT,
+      name: projectName,
+      slug: projectSlug,
+    });
+    if (!created.ok) return refuse(UNEXPECTED, 2);
+    projectId = created.value;
+  } catch {
+    /* The unique violation of the narrow race. Nothing of the driver's message is shown. */
+    return refuse(PROJECT_TAKEN, 2);
+  }
+
+  /*
+   * From here a refusal leaves a registered project behind, so the sentence
+   * says where to finish it rather than pretending nothing happened.
+   */
+  const unfinished = `The project ${projectName} was registered, but this step was refused. Open it from Projects to finish it there.`;
+
+  const settled = await directory.setProjectSettings({
+    account: CONTROL_PLANE_ACCOUNT,
+    project: projectId,
+    tenant: tenantId,
+    slug: projectSlug,
+    currency,
+    locale,
+    timeZone,
+  });
+  if (!settled.ok) return refuse(unfinished, 2);
+
+  const source = await opened.admin.createSource({
+    account: CONTROL_PLANE_ACCOUNT,
+    project: projectId,
+    type: REGISTRABLE_SOURCE_TYPE,
+    environment: environment as (typeof ENVIRONMENTS)[number],
+    label: sourceLabel,
+  });
+  if (!source.ok) return refuse(unfinished, 3);
+
+  const issuedAt = new Date().toISOString();
+  const issued = await opened.admin.issueActivationCode({
+    account: CONTROL_PLANE_ACCOUNT,
+    source: source.value,
+    purpose: "activation",
+  });
+  if (!issued.ok) return refuse(unfinished, 3);
+
+  forgetDirectoryMemo();
+  revalidatePath(OPERATIONS_SURFACE, "layout");
+
+  /* The plaintext's one journey, read straight out of the receipt. */
+  return {
+    ok: true,
+    code: issued.value.plaintext,
+    issuedAt,
+    expiresAt: issued.value.expiresAt,
+    projectId,
+    sourceId: source.value,
+    tenantSlug: client,
+    projectSlug,
+  };
 }
 
 /* --- 2. create a source ----------------------------------------------------------------- */
