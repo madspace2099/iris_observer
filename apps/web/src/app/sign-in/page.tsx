@@ -263,8 +263,8 @@ export default async function SignIn({
                 </summary>
                 <div className="mp-demo-body">
                   <p>
-                    A demonstration sign-in, not production authentication. Password{" "}
-                    <code>{DEMO_PASSWORD}</code> for any of:
+                    Every demonstration account signs in with the password{" "}
+                    <code>{DEMO_PASSWORD}</code>:
                   </p>
                   <ul>
                     {directory.map((account) => (

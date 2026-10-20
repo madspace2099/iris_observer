@@ -110,7 +110,8 @@ test.describe("sign-in, as frozen", () => {
     await page.locator("details.mp-demo > summary").click();
     const body = await page.evaluate(() => document.body.innerText);
     expect(body).toMatch(/no identity provider is connected/i);
-    expect(body).toMatch(/not production authentication/i);
+    // Never "not production authentication": quality.spec.ts and CLAUDE.md rule 9 forbid describing it as authentication at all.
+    expect(body).toMatch(/every demonstration account signs in with the password/i);
   });
 
   test("can be driven from the keyboard, with the focus always visible", async ({ page }) => {
