@@ -113,7 +113,8 @@ a gaming HUD · a science-fiction film screen · a marketing landing page.
   tabular numerals, tracking, line length and editorial composition — never by swapping the font. A
   self-hosted monospace may carry unit codes, timestamps and evidence references.
 - **Colour** is graphite black, warm off-white, IRIS blue `#00A3FF`, restrained semantics. No purple
-  gradients, aurora, neon outlines, multicolour accents or glowing blobs.
+  gradients, aurora, neon outlines, multicolour accents or glowing blobs. **Every on-screen surface
+  is dark**; a light ground exists only in print (the owner, 2026-10-19, ADR-0042).
 - **Composition** favours continuous information planes, asymmetric but disciplined grids,
   architectural alignment, hairlines, controlled density. **Not every piece of information is a card.**
 - **Motion** communicates period change, filtering, selection, cross-highlighting, drill-down and
