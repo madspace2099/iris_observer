@@ -11,7 +11,8 @@ import {
 import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
 import type { ModelGrant } from "@/lib/ai/provider";
-import { demoModelAccess } from "@/lib/env";
+import { companyModelAccess } from "@/lib/credentials/company-keys";
+import { demoModelAccess, loopbackHost } from "@/lib/env";
 import { RECOMMENDED_DEFAULT } from "@/lib/models/catalogue";
 import { publicOutcome, reportOutcome } from "../route";
 
@@ -90,15 +91,24 @@ export async function POST(request: Request) {
    * tools produced, with the model stage skipped and the status saying why.
    */
   /*
-   * THE DEMONSTRATION KEY, WHEN THIS SERVER IS A LOCAL DEMONSTRATION (ADR-0040).
+   * THE DEMONSTRATION KEYS, WHEN THIS SERVER IS A LOCAL DEMONSTRATION.
    *
-   * `demoModelAccess` answers only where the synthetic directory is on, the
-   * environment is development or the harness, and no deployment marker is
-   * present. It belongs to no account and no budget, so neither the admission
-   * nor the ledger is consulted for it; without it, every line below runs as
-   * it always has.
+   * The company's key first, for any member of the signed-in account's company
+   * (ADR-0043), then the owner's `OBSERVER_DEMO_OPENAI_KEY` (ADR-0040). Both
+   * answer only where the synthetic directory is on, the environment is
+   * development or the harness, and no deployment marker is present; and both
+   * are spent only on a request addressed to the loopback, read from the
+   * request's own `Host` header: the positive local signal ADR-0043 adds to
+   * ADR-0040's list of deployment markers. The account id is the gate's, from
+   * the signed session, never the body's.
+   *
+   * Neither belongs to an account's budget, so neither the admission nor the
+   * ledger is consulted for them; without them, every line below runs as it
+   * always has.
    */
-  const demo = demoModelAccess();
+  const demo = loopbackHost(request.headers.get("host"))
+    ? (companyModelAccess(admitted.accountId) ?? demoModelAccess())
+    : null;
   const admission =
     demo === null
       ? await admitModelRequest(

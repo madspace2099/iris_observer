@@ -473,7 +473,7 @@ export function environment(): EnvironmentReport {
     problems.push(
       demo === null
         ? `OBSERVER_DEMO_OPENAI_KEY is set and ignored: ${demoKeyRefusal(process.env) ?? "it is unusable"}. It is honoured only on a local demonstration (ADR-0040).`
-        : `OBSERVER_DEMO_OPENAI_KEY is in use: Ask IRIS words typed questions with ${demo.model}, outside any account's budget. Local demonstration only (ADR-0040).`,
+        : `OBSERVER_DEMO_OPENAI_KEY is in use: Ask IRIS words typed questions with ${demo.model}, outside any account's budget, on requests addressed to localhost only. Local demonstration only (ADR-0040, ADR-0043).`,
     );
   }
   if (env.OPENAI_STORE_RESPONSES) {

@@ -75,6 +75,10 @@ const { demoModelAccess, demoModelName, environment, resetEnvironmentCache } =
 const { gate } = await import("../src/lib/ai/gate");
 const { admitModelRequest } = await import("../src/lib/ai/admission");
 const { POST } = await import("../src/app/api/ask/stream/route");
+const { accountById } = await import("../src/lib/accounts");
+const { resetCompanyKeys, setCompanyKey } = await import("../src/lib/credentials/company-keys");
+
+const COMPANY_KEY = "sk-observer-test-company-1111111";
 
 describe("the demonstration key's three conditions", () => {
   it("is honoured with the directory on, in development, on no platform", () => {
@@ -187,11 +191,15 @@ describe("the stream route", () => {
     };
   }
 
-  async function ask(): Promise<string> {
+  /*
+   * `Host` is set on the request, as a browser sets it: the route reads it
+   * from there and from nothing the body carries.
+   */
+  async function ask(host = "localhost:3400"): Promise<string> {
     const response = await POST(
-      new Request("https://observer.test/api/ask/stream", {
+      new Request("http://observer.test/api/ask/stream", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: { "content-type": "application/json", host },
         body: "{}",
       }),
     );
@@ -208,6 +216,7 @@ describe("the stream route", () => {
 
   afterEach(() => {
     process.env = { ...saved };
+    resetCompanyKeys();
   });
 
   it("hands the agent the demonstration key and asks no account's budget", async () => {
@@ -226,5 +235,56 @@ describe("the stream route", () => {
     await ask();
     expect(admitModelRequest).toHaveBeenCalledTimes(1);
     expect(seen.grants).toEqual([{ blocked: "no_connection" }]);
+  });
+
+  /* ADR-0043: the positive local signal, on top of ADR-0040's markers. */
+  it("spends no demonstration key on a request addressed to a name", async () => {
+    Object.assign(process.env, LOCAL);
+    for (const host of ["observer.example", "observer.example:3400", "10.0.0.5:3400"]) {
+      seen.grants.length = 0;
+      vi.mocked(admitModelRequest).mockClear();
+      await ask(host);
+      expect(admitModelRequest, host).toHaveBeenCalledTimes(1);
+      expect(seen.grants, host).toEqual([{ blocked: "no_connection" }]);
+    }
+  });
+
+  it("answers a member with the company's key, before the owner's, and asks no budget", async () => {
+    Object.assign(process.env, LOCAL, { OBSERVER_DEMO_COMPANY_KEYS: "1" });
+    const clara = accountById("acct_clara");
+    if (clara === null) throw new Error("no Clara");
+    expect(await setCompanyKey(clara, COMPANY_KEY, async () => ({ ok: true }))).toEqual({
+      ok: true,
+    });
+    vi.mocked(gate).mockResolvedValue({ ...admitted(), accountId: "acct_nora" });
+
+    const body = await ask("127.0.0.1:3400");
+    expect(admitModelRequest).not.toHaveBeenCalled();
+    expect(seen.grants).toEqual([
+      {
+        model: RECOMMENDED_DEFAULT,
+        apiKey: COMPANY_KEY,
+        wireModel: modelEntry(RECOMMENDED_DEFAULT).apiIdentifier,
+      },
+    ]);
+    expect(body).not.toContain(COMPANY_KEY);
+    expect(body).not.toContain(KEY);
+  });
+
+  it("gives another company's member the owner's key, never this company's", async () => {
+    Object.assign(process.env, LOCAL, { OBSERVER_DEMO_COMPANY_KEYS: "1" });
+    const clara = accountById("acct_clara");
+    if (clara === null) throw new Error("no Clara");
+    await setCompanyKey(clara, COMPANY_KEY, async () => ({ ok: true }));
+    vi.mocked(gate).mockResolvedValue({ ...admitted(), accountId: "acct_monika" });
+
+    await ask();
+    expect(seen.grants).toEqual([
+      {
+        model: RECOMMENDED_DEFAULT,
+        apiKey: KEY,
+        wireModel: modelEntry(RECOMMENDED_DEFAULT).apiIdentifier,
+      },
+    ]);
   });
 });
