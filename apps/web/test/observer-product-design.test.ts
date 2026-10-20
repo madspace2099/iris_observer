@@ -134,15 +134,31 @@ function token(selector: string, name: string): string {
 const GRAPHITE = ".ox-graphite";
 const PAPER = ".ox-paper";
 
+/** A token as a reader sees it: an `rgb(r g b / a%)` lift composited on what is beneath. */
+function paint(value: string, back: Rgb): Rgb {
+  const alpha = /rgb\(([^/]+)\/\s*([\d.]+)%\)/.exec(value);
+  return alpha === null
+    ? hex(value)
+    : over(
+        (alpha[1] ?? "").trim().split(/\s+/).map(Number) as unknown as Rgb,
+        Number(alpha[2] ?? "100") / 100,
+        back,
+      );
+}
+
 /*
  * The two grounds a reader actually reads against.
  *
- * `--iris-ground` (#02050d) is the shell's page colour from `iris-shell.css`,
- * and the graphite panel is a 5% lift standing on it. On paper the panel is
- * opaque white and the plate beneath it is the warm page colour; the plate is
- * the tighter of the two, so it is what the floor is measured against.
+ * `--iris-ground` is the shell's page colour, read from `iris-shell.css`, and
+ * the graphite panel is the sheet's own `--ox-panel` lift standing on it. Both
+ * come from the sheets, so a light value written into either fails here. On
+ * paper the panel is opaque white and the plate beneath it is the warm page
+ * colour; the plate is the tighter of the two, so it is what the floor is
+ * measured against.
  */
-const GRAPHITE_PANEL = over([140, 165, 205], 0.05, hex("#02050d"));
+const SHELL = executable(readFileSync(join(UI, "iris-shell.css"), "utf8"));
+const IRIS_GROUND = hex(/--iris-ground:\s*([^;]+);/.exec(SHELL)?.[1] ?? "");
+const graphitePanel = (): Rgb => paint(token(GRAPHITE, "--ox-panel"), IRIS_GROUND);
 const PAPER_PANEL = hex("#ffffff");
 const PAPER_PLATE = hex("#f5f4f1");
 
@@ -178,6 +194,7 @@ describe("the Hybrid Executive token system", () => {
 
   it("keeps every ink above 4.5:1 on the ground it is used on", () => {
     const measured: Record<string, number> = {};
+    const panel = graphitePanel();
 
     for (const name of ["--ox-ink", "--ox-ink-2", "--ox-ink-3", "--ox-ink-4"]) {
       /*
@@ -185,27 +202,18 @@ describe("the Hybrid Executive token system", () => {
        * rather than as its own hex, because the shell's own text ramp is
        * expressed that way and a second literal would drift from it.
        */
-      const raw = token(GRAPHITE, name);
-      const alpha = /rgb\(([^/]+)\/\s*([\d.]+)%\)/.exec(raw);
-      const colour: Rgb =
-        alpha === null
-          ? hex(raw)
-          : over(
-              (alpha[1] ?? "").trim().split(/\s+/).map(Number) as unknown as Rgb,
-              Number(alpha[2] ?? "100") / 100,
-              GRAPHITE_PANEL,
-            );
-      measured[`screen ${name}`] = contrast(colour, GRAPHITE_PANEL);
+      measured[`screen ${name}`] = contrast(paint(token(GRAPHITE, name), panel), panel);
       measured[`print ${name}`] = contrast(hex(token(PAPER, name)), PAPER_PLATE);
     }
 
     for (const name of ["--ox-good", "--ox-watch", "--ox-human", "--ox-poor"]) {
-      measured[`screen ${name}`] = contrast(hex(token(GRAPHITE, name)), GRAPHITE_PANEL);
+      measured[`screen ${name}`] = contrast(hex(token(GRAPHITE, name)), panel);
       measured[`print ${name}`] = contrast(hex(token(PAPER, name)), PAPER_PANEL);
     }
 
+    /* `!(>=)` so a value the parser cannot read (NaN) fails rather than passes. */
     const failing = Object.entries(measured)
-      .filter(([, ratio]) => ratio < 4.5)
+      .filter(([, ratio]) => !(ratio >= 4.5))
       .map(([what, ratio]) => `${what} measures ${ratio.toFixed(2)}:1`);
 
     expect(failing, failing.join("\n")).toEqual([]);
@@ -270,12 +278,16 @@ describe("the Hybrid Executive token system", () => {
 
     /*
      * A plate is painted with `--ox-page`, which on graphite is `transparent`:
-     * the shell's own near-black shows through. And the lightest graphite
-     * ground, the panel lift composited on that near-black, is still dark.
+     * the shell's own near-black shows through. Every graphite fill a plate's
+     * children paint, composited on that near-black as read from the sheets,
+     * is still dark; a light value in either sheet fails here.
      */
     expect(block(".ox-plate")).toContain("background: var(--ox-page)");
     expect(token(GRAPHITE, "--ox-page")).toBe("transparent");
-    expect(luminance(GRAPHITE_PANEL)).toBeLessThan(0.02);
+    expect(luminance(IRIS_GROUND), "the shell ground").toBeLessThan(0.02);
+    for (const name of ["--ox-panel", "--ox-panel-2", "--ox-inset-fill"]) {
+      expect(luminance(paint(token(GRAPHITE, name), IRIS_GROUND)), name).toBeLessThan(0.02);
+    }
   });
 
   it("prints the whole report on paper, the shell around it included", () => {

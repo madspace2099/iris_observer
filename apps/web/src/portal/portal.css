@@ -372,9 +372,16 @@
   font-size: var(--text-body);
   font-weight: 500;
   cursor: pointer;
-  border: 1px solid var(--ink);
-  background: var(--ink);
-  color: var(--surface-page);
+  /* The product's primary, `.ox-btn[data-weight="primary"]`: a light ink fill
+   * would be the one near-white slab on the graphite (ADR-0042). */
+  border: 1px solid var(--iris-accent);
+  background: var(--iris-accent);
+  color: #04121c;
+}
+
+.mp-btn:hover {
+  border-color: var(--iris-accent-strong);
+  background: var(--iris-accent-strong);
 }
 
 .mp-btn[data-weight="secondary"] {

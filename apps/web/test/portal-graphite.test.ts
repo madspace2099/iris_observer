@@ -69,7 +69,8 @@ describe("the portal surfaces on screen", () => {
     ]) {
       for (const [where, ground] of Object.entries(grounds)) {
         const ratio = contrast(hex(token(name)), ground);
-        if (ratio < 4.5) failing.push(`${name} on the ${where} measures ${ratio.toFixed(2)}:1`);
+        /* Written so a value `hex()` cannot read (NaN) fails rather than passes. */
+        if (!(ratio >= 4.5)) failing.push(`${name} on the ${where} measures ${ratio.toFixed(2)}:1`);
       }
     }
     expect(failing, failing.join("\n")).toEqual([]);
@@ -84,5 +85,32 @@ describe("the portal surfaces on screen", () => {
     );
     expect(skip).toContain("background: var(--ink)");
     expect(skip).toContain("color: var(--surface-page)");
+  });
+
+  it("fills the primary button with the brand accent, as the product does", () => {
+    const at = CODE.indexOf(".mp-btn {");
+    const button = CODE.slice(at, CODE.indexOf("}", at));
+    expect(button).toContain("background: var(--iris-accent)");
+    expect(button).toContain("color: #04121c");
+    expect(contrast(hex("#04121c"), hex("#00a3ff"))).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("the global error page", () => {
+  /*
+   * Without `app/global-error.tsx` an error no nearer boundary catches reaches
+   * Next's built-in page, white on a light-mode system. It renders its own
+   * document, so it must bring the ground with it.
+   */
+  const PAGE = readFileSync(
+    join(dirname(fileURLToPath(import.meta.url)), "..", "src", "app", "global-error.tsx"),
+    "utf8",
+  );
+
+  it("draws its own document on the portal's graphite", () => {
+    expect(PAGE).toContain("<html");
+    expect(PAGE).toContain('className="mp"');
+    expect(PAGE).toContain('import "@observer/ui/components.css"');
+    expect(PAGE).toContain('import "@/portal/portal.css"');
   });
 });
