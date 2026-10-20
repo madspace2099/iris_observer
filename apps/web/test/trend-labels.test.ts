@@ -43,7 +43,7 @@ describe("the trend line's x labels", () => {
    * One 720-unit drawing on a 252px phone card printed its 12px ticks at four.
    * The phone's drawing is 240 units and labels at most four weeks, which fit.
    */
-  it("labels at most four weeks on the phone's drawing, and sets its note under it", () => {
+  it("labels at most four weeks on the phone's drawing, and sets its note under it with the week it marks", () => {
     const html = renderToStaticMarkup(
       createElement(TrendLine, {
         points,
@@ -55,7 +55,9 @@ describe("the trend line's x labels", () => {
     expect(phone).toContain('viewBox="0 0 240 150"');
     expect(xLabels(phone)[0]?.length).toBeLessThanOrEqual(4);
     expect(phone).not.toContain('class="iris-trend-note"');
-    expect(phone).toContain('<p class="iris-trend-caption">±7 against the week before</p>');
+    expect(phone).toContain(
+      '<p class="iris-trend-caption">27 Jul · ±7 against the week before</p>',
+    );
   });
 });
 

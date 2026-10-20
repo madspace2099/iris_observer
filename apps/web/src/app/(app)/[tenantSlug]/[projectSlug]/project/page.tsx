@@ -535,7 +535,14 @@ export default async function ProjectPage({
             {funnel.of}
           </p>
           <Method style={{ marginTop: ".75rem" }}>{charts.journey.note}</Method>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
+          {/* "Progressed" is drawn only from outcomes a CRM recorded. */}
+          <SourceChips
+            sources={
+              view.context.project.connectedSources.includes("crm")
+                ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
+                : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
+            }
+          />
         </div>
 
         <hr className="iris-rule" />

@@ -153,10 +153,15 @@ const TREND_SIZE = {
 
 export function TrendLine(props: TrendProps) {
   if (props.points.length < 2) return null;
+  /*
+   * The phone's drawing labels one week in four, so the dashed mark can stand
+   * at a week with no label: the caption names the marked week itself.
+   */
+  const marked = props.annotation == null ? undefined : props.points[props.annotation.index];
   const note =
-    props.annotation == null || props.points[props.annotation.index] === undefined
+    props.annotation == null || marked === undefined
       ? null
-      : props.annotation.text;
+      : `${marked.label} · ${props.annotation.text}`;
   return (
     <DrawIn kind="sweep">
       <Sized
