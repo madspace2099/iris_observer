@@ -82,6 +82,11 @@
   font-size: 0.75rem;
 }
 
+/* Under a bordered strip of changes, the chips keep a gap rather than touch it. */
+.iris-changes + .iris-srcs {
+  margin-top: 0.75rem;
+}
+
 /* The synthetic-data banner. Never subtle: the reader must not mistake it. */
 .iris-synthetic {
   display: inline-flex;
@@ -1293,51 +1298,47 @@
 /* --- a title that explains itself (InfoTip) --------------------------------- */
 
 /*
- * A card's title and the `i` beside it, on one line. The title's own margin
- * moves to this row, so a card reads exactly as it did with the bare heading.
+ * A card's title and the `i` after its last word. The title runs inline, so
+ * one that wraps on a phone carries the `i` on its last line instead of
+ * pushing it to the card's edge between two lines. The row's own line-height
+ * is zero, so the title's sets its height and the title's margin moves here:
+ * a card reads exactly as it did with the bare heading.
  */
 .iris-titled {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
+  line-height: 0;
 }
 
 .iris-titled > .iris-kicker {
-  min-width: 0;
+  display: inline;
 }
 
 /*
- * A 16px ring in a 24px target. The negative block margin keeps the target
- * from growing the line it sits on: a 16px kicker row stays 16px tall.
+ * `Measure`'s 16px mark (`.iris-measure-dot`) in a 24px target. The negative
+ * block margin keeps the target from growing the line it sits on: a 16px
+ * kicker row stays 16px tall.
  */
 .iris-info {
-  flex: none;
   display: inline-grid;
   place-items: center;
   width: 1.5rem;
   height: 1.5rem;
-  margin-block: -0.25rem;
+  margin: -0.25rem 0 -0.25rem 0.25rem;
   padding: 0;
   border: 0;
   border-radius: 999px;
   background: none;
-  color: var(--ink-3);
+  vertical-align: middle;
   cursor: pointer;
 }
 
-.iris-info svg {
-  width: 1rem;
-  height: 1rem;
-  fill: currentColor;
-  stroke: currentColor;
-}
-
-.iris-info:hover {
+.iris-info:hover .iris-measure-dot {
+  border-color: var(--accent);
   color: var(--accent);
 }
 
 /* Its own rule: a browser without `:popover-open` drops only this one. */
-.iris-info:has(+ .iris-info-panel:popover-open) {
+.iris-info:has(+ .iris-info-panel:popover-open) .iris-measure-dot {
+  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -1358,6 +1359,9 @@
   box-sizing: content-box;
   width: max-content;
   max-width: min(34ch, calc(100vw - 4rem));
+  /* A long note on a short window scrolls inside the panel, never off it. */
+  max-height: calc(100dvh - 4rem);
+  overflow-y: auto;
   padding: 0.75rem 0.875rem;
   border: 1px solid var(--ox-line-panel, var(--rule-firm));
   border-radius: 8px;
@@ -1390,6 +1394,9 @@
       flip-inline,
       flip-block,
       flip-block flip-inline;
+    /* The side of the button with more room, and no taller than that room. */
+    position-try-order: most-block-size;
+    max-height: calc(100% - 2.5rem);
   }
 }
 
@@ -1401,6 +1408,7 @@
     width: auto;
     max-width: none;
     margin: 0;
+    max-height: 70dvh;
     padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
     border-radius: 12px 12px 0 0;
     font-size: 0.875rem;

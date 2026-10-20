@@ -31,6 +31,12 @@ describe("InfoTip", () => {
     expect(html.match(/id="info-deal-ladder"/g)).toHaveLength(1);
   });
 
+  it("wears Measure's mark, so a card that carries both shows one `i`", () => {
+    expect(html).toMatch(
+      /<button[^>]*><span class="iris-measure-dot" aria-hidden="true">i<\/span>/,
+    );
+  });
+
   it("carries the whole explanation in the server's HTML", () => {
     expect(html).toContain("A rung counts the deals at that stage or further along.");
   });

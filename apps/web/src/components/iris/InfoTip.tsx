@@ -55,12 +55,10 @@ export function InfoTip({
           if (event.relatedTarget !== null) document.getElementById(panel)?.hidePopover();
         }}
       >
-        {/* Drawn, not typed: one glyph, always the same size and centred. */}
-        <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-          <circle cx="8" cy="8" r="7" fill="none" strokeWidth="1.25" />
-          <circle cx="8" cy="4.6" r="0.95" stroke="none" />
-          <path d="M8 7.1v4.6" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-        </svg>
+        {/* `Measure`'s own mark, so a card that carries both shows one `i`. */}
+        <span className="iris-measure-dot" aria-hidden="true">
+          i
+        </span>
       </button>
       <div
         id={panel}
