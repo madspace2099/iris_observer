@@ -2812,10 +2812,27 @@ a.ask-evidence-link:hover {
   }
 }
 
-/* Held under the company key dialog (ADR-0043): the finished frame stays. */
+/*
+ * Held under the company key dialog (ADR-0043): the finished frame stays. Once
+ * the dialog is up (it is portalled into the body after hydration) the frame
+ * dims and stops turning, so the dialog's translucent panel reads against a
+ * quiet ground rather than a bright, moving instrument.
+ */
 .welcome[data-hold] .welcome-stage,
 .welcome[data-hold] .welcome-instrument {
   animation: none;
+}
+
+.welcome[data-hold] .welcome-stage {
+  transition: opacity 240ms ease-out;
+}
+
+body:has(.ox-dialog) .welcome[data-hold] .welcome-stage {
+  opacity: 0.14;
+}
+
+body:has(.ox-dialog) .welcome[data-hold] .welcome-turn {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2833,14 +2850,6 @@ a.ask-evidence-link:hover {
   .welcome-check,
   .welcome-check svg {
     animation: none !important;
-  }
-
-  /*
-   * The finished frame is held long enough to read, then fades: opacity only,
-   * and in step with `HAND_OVER_REDUCED_MS` in `WelcomeSequence.tsx`.
-   */
-  .welcome:not([data-hold]) .welcome-stage {
-    animation: welcome-leave 300ms linear 1.2s forwards !important;
   }
 
   .welcome-grid,

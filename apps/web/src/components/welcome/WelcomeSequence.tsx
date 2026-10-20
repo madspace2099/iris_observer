@@ -18,9 +18,10 @@ import { dynamicRoute } from "@/lib/href";
  *
  * Every line is a sentence the server composed from the repository
  * (`lib/welcome.ts`); nothing here invents a figure. Under reduced motion the
- * lines stand complete from the first frame, long enough to be read, and fade
- * out before the hand-over: a 400ms frame was a full-screen flash, not a
- * welcome. The Skip link is a real link to the same destination, so it works
+ * lines stand complete from the first frame and stay until the destination
+ * replaces them, about a second and a half: a 400ms frame was a full-screen
+ * flash, not a welcome, and a fade timed from the first paint finished before
+ * the hand-over and left an empty frame. The Skip link is a real link to the same destination, so it works
  * before this script has even loaded.
  *
  * `hold` keeps the reader here: no timer and no Enter or Escape, because a
@@ -30,7 +31,7 @@ import { dynamicRoute } from "@/lib/href";
 
 /** When the hand-over happens, after the rings have begun to contract. */
 const HAND_OVER_MS = 4200;
-/** The finished frame, held; `ask-iris.css` fades it out over its last 300ms. */
+/** The finished frame, held until the destination replaces it. */
 const HAND_OVER_REDUCED_MS = 1500;
 
 /** The typing schedule: lines start half a second apart from 0.8s. */
@@ -123,7 +124,7 @@ export function WelcomeSequence({
           <img className="welcome-mark" src="/brand/iris-wordmark.svg" alt="" />
         </div>
 
-        <ol className="welcome-lines" aria-label="Starting Ask IRIS">
+        <ol className="welcome-lines" aria-label="Status">
           {lines.map((line, index) => {
             const start = FIRST_LINE_S + index * LINE_GAP_S;
             const length = Math.min(0.55, Math.max(0.22, line.length * SECONDS_PER_CHARACTER));
