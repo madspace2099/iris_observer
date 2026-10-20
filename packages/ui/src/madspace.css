@@ -3719,45 +3719,130 @@ button.mad-quiet {
  * THE ONBOARDING WIZARD (ADR-0044)
  *
  * Akhilesh's "Client & Engine Onboarding" modal, as the page's main panel:
- * centred at his 620px, on this surface's graphite tokens. IRIS blue, solid,
- * marks the step in hand and nothing else: inside the portal the accent is a
- * status colour, so a chosen pill, the code and the hint are drawn in ink, as
- * `.mad-stated` is. The good state marks a step done. His gradients, glows and
- * pulsing dots are not ported. The panel carries no shadow, as it does not
- * float: it is the page.
+ * centred at his 620px, on this surface's graphite tokens. The owner asked for
+ * his look, closely (2026-10-20), so it is ported detail by detail: the header's
+ * icon badge, the stepper joined by lines, a tile beside every step's intro,
+ * the activation card under a 3px rule, the dashed well with the code large and
+ * spaced, a Copy Code button that leads, the countdown pill with its pulse, the
+ * two-column summary, the blue hint, the recent codes under a toggle.
+ *
+ * In IRIS blue where he had blue to purple: a solid accent, or a gentle blue to
+ * blue gradient on the badge and the two buttons that act. No purple and no
+ * glow; the panel carries no shadow, as it does not float: it is the page.
+ *
+ * Icons are masks over `currentColor` (feather's shapes, as his were), drawn
+ * here so the component draws no shapes of its own.
  * ========================================================================= */
 
 .mad-wizard {
+  --wizard-blue: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--iris-accent) 72%, #fff),
+    var(--iris-accent)
+  );
+  --wizard-on-blue: #04121c;
+  --wizard-blue-soft: color-mix(in srgb, var(--iris-accent) 12%, transparent);
+
   width: 100%;
   max-width: 38.75rem;
   margin: var(--rhythm-major) auto;
   border: 1px solid var(--border-panel);
-  border-radius: var(--portal-radius);
+  border-radius: 16px;
   background: var(--surface-card);
   color: var(--ink-2);
   overflow: hidden;
 }
+
+/* --- icons --------------------------------------------------------------- */
+
+.mad-wizard-icon {
+  display: inline-block;
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  background-color: currentColor;
+  -webkit-mask: var(--wizard-icon) center / contain no-repeat;
+  mask: var(--wizard-icon) center / contain no-repeat;
+}
+
+.mad-wizard-icon[data-icon="user-plus"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='8.5' cy='7' r='4'/%3E%3Cpath d='M20 8v6M23 11h-6'/%3E%3C/svg%3E");
+}
+
+.mad-wizard-icon[data-icon="users"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E");
+}
+
+.mad-wizard-icon[data-icon="folder"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z'/%3E%3C/svg%3E");
+}
+
+.mad-wizard-icon[data-icon="database"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cellipse cx='12' cy='5' rx='9' ry='3'/%3E%3Cpath d='M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5'/%3E%3C/svg%3E");
+}
+
+.mad-wizard-icon[data-icon="key"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.78 7.78 5.5 5.5 0 0 1 7.78-7.78zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4'/%3E%3C/svg%3E");
+}
+
+.mad-wizard-icon[data-icon="copy"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='13' height='13' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");
+}
+
+.mad-wizard-icon[data-icon="info"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4M12 8h.01'/%3E%3C/svg%3E");
+}
+
+.mad-wizard-icon[data-icon="chevron"] {
+  --wizard-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* --- the header: badge, title, subtitle, close ----------------------------- */
 
 .mad-wizard-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--rhythm-inner);
-  padding: var(--rhythm-section);
+  padding: var(--rhythm-section) 1.5rem;
   border-bottom: 1px solid var(--border-hairline);
+}
+
+.mad-wizard-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  min-width: 0;
+}
+
+.mad-wizard-badge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 10px;
+  background: var(--wizard-blue);
+  color: var(--wizard-on-blue);
+}
+
+.mad-wizard-badge .mad-wizard-icon {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .mad-wizard-title {
   margin: 0;
   font-size: var(--text-value);
   line-height: 1.25;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: var(--track-heading-3);
   color: var(--ink);
 }
 
 .mad-wizard-sub {
-  margin: var(--space-1) 0 0;
+  margin: 0.125rem 0 0;
   font-size: var(--text-caption);
   line-height: 1.45;
   color: var(--ink-3);
@@ -3784,38 +3869,49 @@ button.mad-quiet {
   color: var(--ink);
 }
 
-/* --- the stepper: a track per step, so it wraps to two rows on a phone --- */
+/* --- the stepper: four steps joined by lines, his row ---------------------- */
 
 .mad-wizard-steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));
-  gap: var(--rhythm-inner);
+  display: flex;
+  align-items: center;
   margin: 0;
-  padding: var(--rhythm-inner) var(--rhythm-section);
+  padding: 0.875rem 1.5rem;
   list-style: none;
   background: var(--surface-inset);
   border-bottom: 1px solid var(--border-hairline);
 }
 
 .mad-wizard-step {
-  padding-top: var(--rhythm-tight);
-  border-top: 2px solid var(--border-line);
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-width: 0;
 }
 
-.mad-wizard-step[data-state="active"] {
-  border-top-color: var(--iris-accent);
+.mad-wizard-step:last-child {
+  flex: none;
 }
 
-.mad-wizard-step[data-state="done"] {
-  border-top-color: var(--state-good-mark);
+.mad-wizard-step:not(:last-child)::after {
+  content: "";
+  flex: 1 1 auto;
+  min-width: var(--rhythm-tight);
+  height: 2px;
+  margin: 0 var(--rhythm-tight);
+  border-radius: 1px;
+  background: var(--border-line);
+}
+
+.mad-wizard-step[data-state="done"]::after {
+  background: var(--state-good-mark);
 }
 
 .mad-wizard-step > span,
 .mad-wizard-step > button {
   display: flex;
+  flex: none;
   align-items: center;
   gap: var(--rhythm-tight);
-  width: 100%;
   margin: 0;
   padding: 0;
   border: 0;
@@ -3842,7 +3938,7 @@ button.mad-quiet {
   width: 1.75rem;
   height: 1.75rem;
   border: 1px solid var(--border-field);
-  border-radius: var(--radius-sm);
+  border-radius: 7px;
   background: var(--surface-card);
   color: var(--ink-3);
   font-family: var(--mad-font-mono);
@@ -3853,7 +3949,7 @@ button.mad-quiet {
 .mad-wizard-step[data-state="active"] .mad-wizard-num {
   border-color: var(--iris-accent);
   background: var(--iris-accent);
-  color: var(--text-inverse);
+  color: var(--wizard-on-blue);
 }
 
 .mad-wizard-step[data-state="done"] .mad-wizard-num {
@@ -3873,6 +3969,7 @@ button.mad-quiet {
   font-weight: 700;
   line-height: 1.3;
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .mad-wizard-step[data-state="todo"] .mad-wizard-step-title {
@@ -3883,12 +3980,42 @@ button.mad-quiet {
   font-size: var(--text-micro);
   line-height: 1.35;
   color: var(--ink-4);
+  white-space: nowrap;
+}
+
+/* His phone rule: the numbers carry the row, the words stay for a reader. */
+@media (max-width: 40rem) {
+  .mad-wizard-step-sub {
+    display: none;
+  }
+}
+
+@media (max-width: 34rem) {
+  .mad-wizard-steps {
+    padding: 0.75rem var(--rhythm-section);
+  }
+
+  .mad-wizard-meta {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 /* --- the panels ---------------------------------------------------------- */
 
 .mad-wizard-body {
-  padding: var(--rhythm-section);
+  padding: 1.5rem;
+}
+
+@media (max-width: 30rem) {
+  .mad-wizard-head,
+  .mad-wizard-body {
+    padding-inline: var(--rhythm-section);
+  }
 }
 
 .mad-wizard-body > .mad-form-problem {
@@ -3902,8 +4029,29 @@ button.mad-quiet {
 }
 
 .mad-wizard-intro {
-  padding-bottom: var(--rhythm-inner);
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  margin-bottom: 1.375rem;
+  padding-bottom: 0.875rem;
   border-bottom: 1px solid var(--border-hairline);
+}
+
+.mad-wizard-tile {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--wizard-blue-soft);
+  color: var(--iris-accent);
+}
+
+.mad-wizard-tile[data-tone="good"] {
+  background: var(--state-good-tint);
+  color: var(--state-good);
 }
 
 .mad-wizard-intro h2 {
@@ -3915,7 +4063,7 @@ button.mad-quiet {
 }
 
 .mad-wizard-intro p {
-  margin: var(--space-1) 0 0;
+  margin: 0.125rem 0 0;
   font-size: var(--text-caption);
   line-height: 1.5;
   color: var(--ink-3);
@@ -3940,8 +4088,15 @@ button.mad-quiet {
   min-width: 0;
 }
 
+/* His Generate ID: a quiet button whose word is in the accent. */
 .mad-wizard-inline > .mad-action {
   min-height: 3rem;
+  color: var(--iris-accent);
+}
+
+.mad-wizard-inline > .mad-action:hover:not(:disabled) {
+  border-color: var(--iris-accent);
+  background: var(--wizard-blue-soft);
 }
 
 .mad-wizard-row {
@@ -3954,17 +4109,16 @@ button.mad-quiet {
 .mad-wizard-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--rhythm-tight);
+  gap: 0.375rem;
 }
 
 .mad-wizard-pill {
   display: inline-flex;
   align-items: center;
-  gap: var(--rhythm-tight);
   min-height: 2.25rem;
   padding: 0 var(--space-3);
   border: 1px solid var(--border-field);
-  border-radius: var(--radius-sm);
+  border-radius: 6px;
   background: var(--surface-inset);
   color: var(--ink-3);
   font-family: inherit;
@@ -3974,28 +4128,36 @@ button.mad-quiet {
 }
 
 .mad-wizard-pill:hover {
-  border-color: var(--border-hover);
+  border-color: var(--iris-accent);
   color: var(--ink);
 }
 
-.mad-wizard-pill[aria-pressed="true"],
-.mad-wizard-pill:has(input:checked) {
-  border-color: var(--ink);
-  background: var(--surface-tint);
-  color: var(--ink);
+.mad-wizard-pill[aria-pressed="true"] {
+  border-color: var(--iris-accent);
+  background: var(--wizard-blue-soft);
+  color: var(--iris-accent);
 }
 
-.mad-wizard-pill input {
-  margin: 0;
-  accent-color: var(--ink);
-}
+/* --- 1.4: the activation card ---------------------------------------------- */
 
-/* --- the code: on the panel's plane, the code's own well the one box ---- */
-
-.mad-wizard-code {
+.mad-wizard-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--rhythm-inner);
+  gap: 0.875rem;
+  padding: var(--rhythm-section);
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.mad-wizard-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 3px;
+  background: var(--wizard-blue);
 }
 
 .mad-wizard-code-head {
@@ -4010,14 +4172,17 @@ button.mad-quiet {
   font-family: var(--mad-font-mono);
   font-size: var(--text-micro);
   font-weight: 700;
-  letter-spacing: var(--track-micro);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
 
 .mad-wizard-countdown {
-  padding: 0.1875rem 0.625rem;
-  border: 1px solid color-mix(in srgb, var(--state-good-mark) 45%, transparent);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--state-good-mark) 40%, transparent);
   border-radius: var(--portal-round);
   background: var(--state-good-tint);
   color: var(--state-good);
@@ -4039,52 +4204,297 @@ button.mad-quiet {
   color: var(--state-late);
 }
 
-.mad-wizard-code-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--rhythm-inner);
+/* His pulse: the clock is running. Still once it is not, and for reduced motion. */
+.mad-wizard-pulse {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--portal-round);
+  background: currentColor;
+  animation: mad-wizard-pulse 1.5s ease-in-out infinite;
 }
 
-.mad-wizard-code-row > .mad-action {
-  min-height: 3rem;
-  min-width: 6rem;
+.mad-wizard-countdown[data-state="expired"] .mad-wizard-pulse {
+  animation: none;
 }
 
-/* One column on a phone: the settings row, and the code above its Copy. */
-@media (max-width: 30rem) {
-  .mad-wizard-row,
-  .mad-wizard-code-row {
-    grid-template-columns: minmax(0, 1fr);
+@keyframes mad-wizard-pulse {
+  50% {
+    transform: scale(1.3);
+    opacity: 0.55;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mad-wizard-pulse {
+    animation: none;
+  }
+}
+
+.mad-wizard-code-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* The code: large, centred, spaced, in his dashed well; one click selects it. */
+.mad-wizard-code {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0.875rem 1.125rem;
+  border: 1.5px dashed var(--border-dashed);
+  border-radius: 10px;
+  background: var(--surface-card);
+  color: var(--iris-accent);
+  font-family: var(--mad-font-mono);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: 0.12em;
+  text-align: center;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* The real code on a hosted plane: seventy characters, broken anywhere. */
+.mad-wizard-code[data-shape="long"] {
+  font-size: var(--text-caption);
+  letter-spacing: 0.02em;
+  text-align: left;
+  word-break: break-all;
+}
+
+.mad-wizard-copy {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--rhythm-tight);
+  min-height: 3.25rem;
+  padding: 0 1.25rem;
+  border: 0;
+  border-radius: 10px;
+  background: var(--wizard-blue);
+  color: var(--wizard-on-blue);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mad-wizard-copy:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.mad-wizard-copy[data-copied] {
+  background: var(--state-good-mark);
+}
+
+.mad-wizard-copy:disabled {
+  border: 1px solid var(--border-panel);
+  background: var(--surface-inset);
+  color: var(--mark-disabled);
+  cursor: default;
+}
+
+/* The copy announcement takes no row of the card until it has something to say. */
+.mad-wizard-card > .mad-copy-said:empty {
+  position: absolute;
+}
+
+.mad-wizard-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rhythm-tight);
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--border-hairline);
 }
 
 .mad-wizard-status {
   margin: 0;
 }
 
+.mad-wizard-expiry {
+  font-size: var(--text-micro);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.mad-wizard-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0;
+}
+
+.mad-wizard-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.mad-wizard-summary dt {
+  font-size: var(--text-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+}
+
+.mad-wizard-summary dd {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+/* --- 1.4: the next step, in his blue box ------------------------------------ */
+
 .mad-wizard-hint {
-  padding: var(--rhythm-inner) var(--space-4);
-  border-left: 2px solid var(--ink);
-  background: var(--surface-tint);
+  padding: 0.875rem 1.125rem;
+  border: 1px solid color-mix(in srgb, var(--iris-accent) 28%, transparent);
+  border-radius: 10px;
+  background: var(--wizard-blue-soft);
   font-size: var(--text-caption);
-  line-height: 1.55;
+  line-height: 1.5;
   color: var(--ink-2);
 }
 
-.mad-wizard-hint strong {
-  color: var(--ink);
+.mad-wizard-hint p {
+  margin: 0.375rem 0 0;
+  overflow-wrap: anywhere;
 }
 
-.mad-wizard-hint p {
-  margin: var(--space-1) 0 0;
-  overflow-wrap: anywhere;
+.mad-wizard-hint .mad-wizard-hint-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+  color: var(--iris-accent);
+}
+
+.mad-wizard-hint-head .mad-wizard-icon {
+  width: 1rem;
+  height: 1rem;
 }
 
 .mad-wizard-links {
   display: flex;
   flex-wrap: wrap;
   gap: var(--rhythm-tight) var(--rhythm-section);
+}
+
+/* --- his recent codes, under a toggle ---------------------------------------- */
+
+.mad-wizard-recent {
+  margin-top: var(--rhythm-section);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-hairline);
+}
+
+.mad-wizard-recent-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 2.25rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mad-wizard-recent-toggle:hover {
+  color: var(--iris-accent);
+}
+
+.mad-wizard-recent-toggle[aria-expanded="true"] .mad-wizard-icon {
+  transform: rotate(180deg);
+}
+
+.mad-wizard-recent-list ul {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-tight);
+  max-height: 16rem;
+  margin: 0.65rem 0 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.mad-wizard-recent-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rhythm-tight) var(--rhythm-inner);
+  padding: 0.55rem 0.85rem;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+}
+
+.mad-wizard-recent-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.mad-wizard-recent-code {
+  font-family: var(--mad-font-mono);
+  font-size: var(--text-body);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--iris-accent);
+}
+
+.mad-wizard-recent-meta {
+  font-size: var(--text-micro);
+  color: var(--ink-4);
+  overflow-wrap: anywhere;
+}
+
+.mad-wizard-recent-side {
+  display: flex;
+  align-items: center;
+  gap: var(--rhythm-tight);
+}
+
+.mad-wizard-recent-empty {
+  margin: 0.65rem 0 0;
+  padding: 0.75rem;
+  font-size: var(--text-caption);
+  text-align: center;
+  color: var(--ink-4);
+}
+
+/*
+ * One column on a phone: the settings row and the summary. The code goes above
+ * its Copy sooner, at 36rem, where the spaced code and the button stop fitting
+ * side by side.
+ */
+@media (max-width: 36rem) {
+  .mad-wizard-code-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 30rem) {
+  .mad-wizard-row,
+  .mad-wizard-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 /* --- the footer ------------------------------------------------------------ */
@@ -4094,7 +4504,7 @@ button.mad-quiet {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: var(--rhythm-tight);
-  padding: var(--space-4) var(--rhythm-section);
+  padding: var(--space-4) 1.5rem;
   border-top: 1px solid var(--border-hairline);
 }
 
@@ -4114,15 +4524,16 @@ button.mad-quiet {
 
 .mad-portal .mad-wizard-foot .mad-button[data-emphasis="primary"]:not([aria-disabled="true"]) {
   border-color: var(--iris-accent);
-  background: var(--iris-accent);
-  color: #04121c;
+  background: var(--wizard-blue);
+  color: var(--wizard-on-blue);
+  font-weight: 700;
 }
 
 .mad-portal
   .mad-wizard-foot
   .mad-button[data-emphasis="primary"]:not([aria-disabled="true"]):hover {
   border-color: var(--iris-accent-strong);
-  background: var(--iris-accent-strong);
+  filter: brightness(1.08);
 }
 
 /* Busy swaps the fill as well as the label, as `.mad-action[aria-disabled]` does. */
