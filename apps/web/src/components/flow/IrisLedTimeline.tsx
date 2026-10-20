@@ -63,6 +63,18 @@ export function IrisLedTimeline({
   readonly canOpen: boolean;
 }) {
   const { axis } = view;
+  /*
+   * The stretched scale crowds its far end ("6 months" beside "3 months"). A
+   * tick nearer than a sixth of the track to the last one kept, reading from
+   * the change leftwards, steps aside on a narrow track (`iris-led.css`); the
+   * leftmost label starts at its tick rather than straddling the track's edge.
+   */
+  let kept = Number.POSITIVE_INFINITY;
+  const ticks = axis.ticks.map((tick) => {
+    const crowded = kept - tick.position < 1 / 6;
+    if (!crowded) kept = tick.position;
+    return { ...tick, crowded, edge: tick.position < 0.08 };
+  });
   return (
     <figure className="ir-led-figure">
       <ol className="ir-led-rows" aria-label="Sales shown in IRIS before their status changed">
@@ -149,8 +161,13 @@ export function IrisLedTimeline({
       <div className="ir-led-row ir-led-axis-row" aria-hidden="true">
         <span />
         <div className="ir-led-axis">
-          {axis.ticks.map((tick) => (
-            <span key={tick.label} style={{ left: at(tick.position) }}>
+          {ticks.map((tick) => (
+            <span
+              key={tick.label}
+              style={{ left: at(tick.position) }}
+              data-crowded={tick.crowded ? "true" : undefined}
+              data-edge={tick.edge ? "start" : undefined}
+            >
               {tick.label}
             </span>
           ))}

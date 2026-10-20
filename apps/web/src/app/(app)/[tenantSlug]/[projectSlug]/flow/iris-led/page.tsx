@@ -58,7 +58,7 @@ export default async function IrisLedPage({
     <div className="iris-one">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker iris-kicker-measured">
-          <Link href={link(`${root}/flow`)}>Sales flow</Link> · IRIS-led sales ·{" "}
+          <Link href={link(`${root}/flow`)}>Sales Flow</Link> · IRIS-led sales ·{" "}
           {view.context.period.label}
         </p>
         <SpokenVerdict
@@ -99,13 +99,18 @@ export default async function IrisLedPage({
           </div>
         ) : (
           <>
-            {view.figures.length === 0 ? null : (
+            {view.figures.length === 0 ? (
+              /* Nothing to count: what could not be placed is the page's first word, not its last. */
+              view.unplacedNote === null ? null : (
+                <p className="iris-lede">{view.unplacedNote}</p>
+              )
+            ) : (
               <div className="d-card">
                 <h2
                   className="iris-kicker iris-kicker-measured"
                   style={{ marginBottom: ".875rem" }}
                 >
-                  {view.context.period.label}, every figure over its denominator
+                  {view.context.period.label}: the sales against their showings
                 </h2>
                 <div className="iris-kpis ir-led-figures">
                   {view.figures.map((figure) => (
@@ -119,6 +124,18 @@ export default async function IrisLedPage({
                     />
                   ))}
                 </div>
+                {/* Beside the figures, never under the last card: what they leave out, and the card's other frame. */}
+                {[view.unplacedNote, view.frameNote].map((note) =>
+                  note === null ? null : (
+                    <p
+                      key={note}
+                      className="iris-meta iris-meta-measured"
+                      style={{ marginTop: ".75rem" }}
+                    >
+                      {note}
+                    </p>
+                  ),
+                )}
               </div>
             )}
 
@@ -257,11 +274,6 @@ export default async function IrisLedPage({
                 Where these sales were read
               </h2>
               <p className="iris-meta iris-meta-measured">{view.source.note}</p>
-              {view.unplacedNote === null ? null : (
-                <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
-                  {view.unplacedNote}
-                </p>
-              )}
               <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
               <p style={{ marginTop: ".75rem" }}>
                 <Link

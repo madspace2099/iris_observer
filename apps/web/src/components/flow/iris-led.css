@@ -319,6 +319,7 @@ a.ir-led-dot:focus-visible {
 
 .ir-led-axis {
   position: relative;
+  container-type: inline-size;
   height: 1.5rem;
   margin-right: 0.5rem;
   font-size: var(--ox-micro);
@@ -336,6 +337,18 @@ a.ir-led-dot:focus-visible {
 .ir-led-axis span:first-child {
   transform: translateX(-100%);
   color: var(--iris-accent, #00a3ff);
+}
+
+/* The far left label starts at its tick, so it never hangs past the track. */
+.ir-led-axis span[data-edge="start"] {
+  transform: none;
+}
+
+/* A sixth of a 30rem track is about 80 px, wider than any label; below that, a crowded tick steps aside. */
+@container (width < 30rem) {
+  .ir-led-axis span[data-crowded] {
+    display: none;
+  }
 }
 
 @media (width < 48rem) {
