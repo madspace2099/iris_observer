@@ -152,6 +152,293 @@
   margin: 0;
 }
 
+/*
+ * THE SPOKEN VERDICT — the page's main finding, said by IRIS (ADR-0048).
+ *
+ * `SpokenVerdict.tsx` writes one span per character with its index in `--i`,
+ * and the block's own `--sv-step` and `--sv-total`. Each character is laid out
+ * from the first paint and shown at its own delay, so nothing below moves; its
+ * `::after` is the caret for exactly that step, and the last one blinks three
+ * times and fades. The mark is the welcome's instrument at 52px (§12 of
+ * `ask-iris.css`): hairline rings, a tick ring, one arc of the brand blue. It
+ * speaks while the sentence types — the arc turns, a ring pings, five level
+ * bars swing — and settles to a slow breathing ring. Transform and opacity
+ * only. Reduced motion and print show the finished frame.
+ */
+.iris-spoken {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-areas:
+    "mark by"
+    "mark line";
+  column-gap: 1.125rem;
+  row-gap: 0.5rem;
+  align-items: start;
+}
+
+.iris-spoken-line {
+  grid-area: line;
+  max-width: 42ch;
+  font-size: clamp(1.5rem, 0.95rem + 1.75vw, 2.25rem);
+  line-height: 1.18;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
+}
+
+.iris-spoken-by {
+  grid-area: by;
+  align-self: end;
+  margin: 0;
+  font-family: "Geist Mono Variable", var(--mono);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.iris-spoken-name {
+  color: var(--accent);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.iris-spoken-ch {
+  position: relative;
+  animation: iris-spoken-type 80ms ease-out calc(var(--i) * var(--sv-step)) backwards;
+}
+
+.iris-spoken-ch::after {
+  content: "";
+  position: absolute;
+  top: 0.12em;
+  bottom: 0.08em;
+  right: -0.07em;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0;
+  pointer-events: none;
+  animation: iris-spoken-caret var(--sv-step) linear calc(var(--i) * var(--sv-step));
+}
+
+.iris-spoken-ch:last-child::after {
+  animation:
+    iris-spoken-caret var(--sv-step) linear calc(var(--i) * var(--sv-step)),
+    iris-spoken-rest 2200ms linear var(--sv-total) forwards;
+}
+
+/* --- the mark -------------------------------------------------------------- */
+
+.iris-spoken-mark {
+  grid-area: mark;
+  display: block;
+  width: 52px;
+  height: 52px;
+  overflow: visible;
+}
+
+.iris-spoken-mark * {
+  fill: none;
+}
+
+.iris-spoken-mark .iris-spoken-field {
+  fill: rgb(8 38 92 / 34%);
+}
+
+.iris-spoken-ring {
+  stroke: rgb(150 185 240 / 34%);
+  stroke-width: 1;
+}
+
+/* A tick every six degrees. */
+.iris-spoken-ticks {
+  stroke: rgb(150 185 240 / 30%);
+  stroke-width: 2.5;
+  stroke-dasharray: 0.6 5.4;
+}
+
+.iris-spoken-inner {
+  stroke: rgb(0 163 255 / 58%);
+  stroke-width: 1;
+}
+
+/* The arc turns while IRIS speaks and rests, dimmed, where it stopped. */
+.iris-spoken-scan {
+  opacity: 0.45;
+  animation:
+    iris-spoken-spin 1100ms linear var(--sv-turns),
+    iris-spoken-settle 500ms ease-out var(--sv-total) both;
+}
+
+.iris-spoken-scan circle {
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-dasharray: 64 296;
+}
+
+.iris-spoken-ping {
+  stroke: var(--accent);
+  stroke-width: 1;
+  opacity: 0;
+  animation: iris-spoken-ping 900ms cubic-bezier(0.2, 0.6, 0.3, 1) var(--sv-pings);
+}
+
+.iris-spoken-voice {
+  opacity: 0;
+  animation: iris-spoken-settle 400ms ease-out var(--sv-total) both;
+}
+
+.iris-spoken-mark .iris-spoken-level {
+  fill: var(--accent);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: iris-spoken-level 380ms ease-in-out calc(var(--b) * -110ms) var(--sv-levels) alternate;
+}
+
+.iris-spoken-idle {
+  animation: iris-spoken-wake 600ms ease-out var(--sv-total) both;
+}
+
+.iris-spoken-breath {
+  stroke: var(--accent);
+  stroke-width: 1.2;
+  opacity: 0.6;
+  animation: iris-spoken-breathe 4800ms ease-in-out var(--sv-total) infinite;
+}
+
+.iris-spoken-mark .iris-spoken-core {
+  fill: var(--accent);
+}
+
+@media (max-width: 40rem) {
+  .iris-spoken {
+    grid-template-columns: 44px minmax(0, 1fr);
+    grid-template-areas:
+      "mark by"
+      "line line";
+    row-gap: 0.75rem;
+    align-items: center;
+  }
+
+  .iris-spoken-mark {
+    width: 44px;
+    height: 44px;
+  }
+
+  .iris-spoken-by {
+    align-self: center;
+  }
+}
+
+/* The finished frame: the whole sentence, no caret, the mark at rest. */
+@media (prefers-reduced-motion: reduce), print {
+  .iris-spoken-ch,
+  .iris-spoken-ch::after,
+  .iris-spoken-ch:last-child::after,
+  .iris-spoken-scan,
+  .iris-spoken-ping,
+  .iris-spoken-voice,
+  .iris-spoken-mark .iris-spoken-level,
+  .iris-spoken-idle,
+  .iris-spoken-breath {
+    animation: none;
+  }
+}
+
+@keyframes iris-spoken-type {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes iris-spoken-caret {
+  from,
+  to {
+    opacity: 1;
+  }
+}
+
+/* Three blinks, then gone. */
+@keyframes iris-spoken-rest {
+  0%,
+  18% {
+    opacity: 1;
+  }
+  19%,
+  34% {
+    opacity: 0;
+  }
+  35%,
+  52% {
+    opacity: 1;
+  }
+  53%,
+  68% {
+    opacity: 0;
+  }
+  69%,
+  84% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes iris-spoken-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* From full strength to the element's own resting opacity. */
+@keyframes iris-spoken-settle {
+  from {
+    opacity: 1;
+  }
+}
+
+@keyframes iris-spoken-wake {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes iris-spoken-ping {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+
+@keyframes iris-spoken-level {
+  from {
+    transform: scaleY(0.25);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes iris-spoken-breathe {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.84);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.08);
+  }
+}
+
 .iris-body {
   font-size: 0.9375rem;
   line-height: 1.375rem;
