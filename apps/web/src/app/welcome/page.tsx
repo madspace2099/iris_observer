@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { companyKeyState } from "@/lib/credentials/company-keys";
 import { ALL_FAILURES, describeFailure, type ConnectionFailure } from "@/lib/credentials/failure";
+import { demoKeysSpendable } from "@/lib/env";
 import { welcomeDestination } from "@/lib/landing";
 import { requireAccount, requireViewer } from "@/lib/session";
 import { welcomeFacts, welcomeLines } from "@/lib/welcome";
@@ -23,9 +25,12 @@ export const metadata: Metadata = { title: "Welcome" };
  *
  * On a local demonstration with company keys (ADR-0043), a company's admin
  * whose company has no key yet is asked for one first, in a dialog over the
- * held sequence. `?key=<failure>` is the last attempt's outcome, said in the
- * dialog; `?key=skip` plays the sequence without asking, for a recording that
- * wants the welcome alone.
+ * held sequence, and only where this request could spend it
+ * (`demoKeysSpendable`: the language model on, addressed to the loopback); a
+ * key asked for on any other address would be probed, paid for and never used.
+ * `?key=<failure>` is the last attempt's outcome, said in the dialog;
+ * `?key=skip` plays the sequence without asking, for a recording that wants the
+ * welcome alone.
  *
  * Signed out, there is nothing to welcome: `requireViewer` sends the reader to
  * the sign-in, like every other screen.
@@ -53,7 +58,11 @@ export default async function Welcome({
   const key = first("key");
   const company = companyKeyState(account);
   const asking =
-    company !== null && company.role === "admin" && company.key === null && key !== "skip"
+    company !== null &&
+    company.role === "admin" &&
+    company.key === null &&
+    key !== "skip" &&
+    demoKeysSpendable((await headers()).get("host"))
       ? company
       : null;
   const failure = ALL_FAILURES.includes(key as ConnectionFailure)

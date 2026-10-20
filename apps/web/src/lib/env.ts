@@ -254,6 +254,16 @@ export function loopbackHost(host: string | null): boolean {
   return name === "localhost" || name === "127.0.0.1" || name === "[::1]";
 }
 
+/**
+ * Whether a demonstration key, the company's or the owner's, would be spent on
+ * a request with this `Host`: addressed to the loopback (the stream route's
+ * condition) and with the language model on (the provider's). A screen that
+ * asks for a company key, or says members ask with it, asks this first.
+ */
+export function demoKeysSpendable(host: string | null): boolean {
+  return environment().ai.enabled && loopbackHost(host);
+}
+
 /** The model the demonstration key answers with, for the screen. Never the key. */
 export function demoModelName(
   source: Readonly<Record<string, string | undefined>> = process.env,

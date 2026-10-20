@@ -20,6 +20,7 @@ const TO = "/shark/shark-residence/ask";
 
 const state = vi.hoisted(() => ({
   accountId: "acct_clara",
+  host: "localhost:3400",
   probe: { ok: true } as ProbeResult,
 }));
 
@@ -38,6 +39,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("next/headers", () => ({
   cookies: async () => ({ get: () => undefined }),
+  headers: async () => new Headers({ host: state.host }),
 }));
 
 vi.mock("../src/lib/session", async () => {
@@ -70,11 +72,13 @@ const { companyKeyState, resetCompanyKeys, setCompanyKey } =
 const { accountById } = await import("../src/lib/accounts");
 const { describeFailure } = await import("../src/lib/credentials/failure");
 const { DEPLOYMENT_MARKERS } = await import("../src/lib/deployment-markers");
+const { resetEnvironmentCache } = await import("../src/lib/env");
 
 const saved = { ...process.env };
 
 beforeEach(() => {
   state.accountId = "acct_clara";
+  state.host = "localhost:3400";
   state.probe = { ok: true };
   for (const marker of DEPLOYMENT_MARKERS) delete process.env[marker];
   delete process.env["OBSERVER_ENVIRONMENT"];
@@ -84,6 +88,7 @@ beforeEach(() => {
 
 afterEach(() => {
   process.env = { ...saved };
+  resetEnvironmentCache();
   resetCompanyKeys();
 });
 
@@ -127,6 +132,20 @@ describe("who is asked for the key", () => {
     process.env["VERCEL"] = "1";
     expect(await welcome()).not.toContain("Connect Ask IRIS");
   });
+
+  /* A key asked for here would be probed and paid for, and the stream route would never spend it. */
+  it("asks nobody on a request the stream route would not spend a key for", async () => {
+    for (const host of ["192.168.1.20:3400", "observer.example"]) {
+      state.host = host;
+      expect(await welcome(), host).not.toContain("Connect Ask IRIS");
+    }
+    state.host = "127.0.0.1:3400";
+    expect(await welcome()).toContain("Connect Ask IRIS");
+
+    process.env["OBSERVER_AI_ENABLED"] = "false";
+    resetEnvironmentCache();
+    expect(await welcome()).not.toContain("Connect Ask IRIS");
+  });
 });
 
 describe("the dialog", () => {
@@ -140,6 +159,7 @@ describe("the dialog", () => {
     expect(field).not.toContain("value=");
     expect(html).toMatch(new RegExp(`<a[^>]*href="${TO}"[^>]*>Skip for now</a>`));
     expect(html).toContain("Save key");
+    expect(html).toContain("typed questions and the first 4 openings");
   });
 
   it("says why the last attempt failed, in the failure vocabulary", async () => {

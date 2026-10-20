@@ -1,9 +1,10 @@
 "use client";
 
-import { useId } from "react";
+import { useActionState, useId } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import { MODEL_WORDED } from "@/components/ask-iris/live-questions";
 import { Dialog } from "@/components/product/Dialog";
 import { dynamicRoute } from "@/lib/href";
 
@@ -23,6 +24,10 @@ import { dynamicRoute } from "@/lib/href";
  * the same, so a reader can always go on without a key. The welcome behind
  * holds still meanwhile (`WelcomeSequence`'s `hold`): Enter in this field
  * submits this form and nothing else.
+ *
+ * While the key is checked (one request to OpenAI, up to a few seconds) Save
+ * says so and is disabled, so a second press sends no second probe. The
+ * pending flag is React's; the key is not.
  */
 export function CompanyKeyDialog({
   to,
@@ -43,6 +48,10 @@ export function CompanyKeyDialog({
   const noteId = `${ids}-note`;
   const formId = `${ids}-form`;
   const fieldId = `${ids}-key`;
+  const [, submit, checking] = useActionState(async (_: null, form: FormData) => {
+    await action(form);
+    return null;
+  }, null);
 
   return (
     <Dialog
@@ -60,9 +69,9 @@ export function CompanyKeyDialog({
       <div className="ox-dialog-body">
         <p className="ox-section-note" id={noteId}>
           The key is kept in this server&rsquo;s memory for {company} until the server restarts.
-          Every member of {company} asks with it, and it is never shown again. With it, typed
-          questions are answered in words a language model writes from the figures Observer&rsquo;s
-          read models compute; the model writes no figure.
+          Every member of {company} asks with it, and it is never shown again. With it,{" "}
+          {MODEL_WORDED} in Ask IRIS are worded by a language model from the figures
+          Observer&rsquo;s read models compute; the model writes no figure.
         </p>
 
         {failure === null ? null : (
@@ -72,7 +81,7 @@ export function CompanyKeyDialog({
           </div>
         )}
 
-        <form id={formId} action={action}>
+        <form id={formId} action={submit}>
           <input type="hidden" name="to" value={to} />
           <label className="ox-field" htmlFor={fieldId}>
             <span className="ox-field-label">OpenAI API key for {company}</span>
@@ -97,8 +106,15 @@ export function CompanyKeyDialog({
         <Link className="ox-btn" data-weight="quiet" href={dynamicRoute(to)} replace>
           Skip for now
         </Link>
-        <button type="submit" form={formId} className="ox-btn" data-weight="primary">
-          Save key
+        <button
+          type="submit"
+          form={formId}
+          className="ox-btn"
+          data-weight="primary"
+          disabled={checking}
+          aria-busy={checking}
+        >
+          {checking ? "Checking the key…" : "Save key"}
         </button>
       </div>
     </Dialog>

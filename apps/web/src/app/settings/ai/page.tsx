@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 
@@ -13,6 +13,8 @@ import { companyOf } from "@/lib/accounts";
 import { companyKeyState, type CompanyKeyState } from "@/lib/credentials/company-keys";
 import { connectionFor, type ConnectionMetadata } from "@/lib/credentials/service";
 import { ALL_FAILURES, describeFailure, type ConnectionFailure } from "@/lib/credentials/failure";
+import { demoKeysSpendable } from "@/lib/env";
+import { MODEL_WORDED } from "@/components/ask-iris/live-questions";
 import {
   CATALOGUE_VERSION,
   ESTIMATE_CAVEAT,
@@ -148,8 +150,13 @@ export default async function AiSettings({
    * local recording. Where it is open and this server has no credential store,
    * the account's own budget, model and keys could only say "storage
    * unavailable", so they are left out and the lede says why in one line.
+   *
+   * The key is managed only where this request could spend it
+   * (`demoKeysSpendable`), as the welcome asks for it only there: on any other
+   * address the panel says where it is spent and offers no form.
    */
   const company = companyKeyState(account);
+  const spendable = demoKeysSpendable((await headers()).get("host"));
   const companyOnly = company !== null && unavailable;
   const standing = companyOf(account);
   const standingLine =
@@ -299,6 +306,7 @@ export default async function AiSettings({
           {company === null ? null : (
             <CompanyKeyPanel
               state={company}
+              spendable={spendable}
               replacing={replacing === "company"}
               confirming={confirming === "company"}
               origin={origin.from}
@@ -519,7 +527,7 @@ const DONE: Readonly<Record<string, string>> = Object.freeze({
   company_connected:
     "Company key saved. Every member of your company asks with it until this server restarts.",
   company_removed:
-    "Company key removed. Ask IRIS answers from the read models until a key is added again.",
+    "Company key removed. Members of your company ask without it until a key is added again.",
 });
 
 /**
@@ -544,11 +552,14 @@ function here(origin: string, query: string): string {
  */
 function CompanyKeyPanel({
   state,
+  spendable,
   replacing,
   confirming,
   origin,
 }: {
   state: CompanyKeyState;
+  /** Whether this request could spend the key; elsewhere the panel only reports it. */
+  spendable: boolean;
   replacing: boolean;
   confirming: boolean;
   origin: string;
@@ -566,14 +577,21 @@ function CompanyKeyPanel({
 
       <p className="ox-section-note">
         One OpenAI key for everyone at {state.company}, kept in this server&rsquo;s memory until it
-        restarts and never shown again. With it, typed questions in Ask IRIS are worded by a
-        language model from the figures Observer&rsquo;s read models compute; it writes no figure.
+        restarts and never shown again. With it, {MODEL_WORDED} in Ask IRIS are worded by a language
+        model from the figures Observer&rsquo;s read models compute; it writes no figure.
       </p>
+
+      {spendable ? null : (
+        <p className="os-note">
+          This request cannot spend it: this server spends the company key only on requests to
+          localhost while its language model is on. Manage it from there.
+        </p>
+      )}
 
       <div className="os-provider">
         <div className="os-provider-head">
           <h3 className="os-provider-name">OpenAI</h3>
-          {key !== null && !replacing ? (
+          {key !== null ? (
             <span className="os-provider-state">
               <span className="os-dot" aria-hidden="true" />
               Connected · <span className="os-mask">••••{key.lastFour}</span>
@@ -602,9 +620,9 @@ function CompanyKeyPanel({
         {!admin ? (
           <p className="os-note">
             Managed by {state.adminName}, the company&rsquo;s admin.
-            {key === null ? " No key has been added yet; answers come from the read models." : ""}
+            {key === null ? " No key has been added yet." : ""}
           </p>
-        ) : key !== null && !replacing ? (
+        ) : !spendable ? null : key !== null && !replacing ? (
           <>
             <div className="ox-btn-row">
               <Link className="ox-btn" href={dynamicRoute(here(origin, "mode=replace&p=company"))}>
@@ -621,8 +639,7 @@ function CompanyKeyPanel({
               <div className="os-confirm" role="group" aria-labelledby="c-company">
                 <strong id="c-company">Remove the company key?</strong>
                 <p>
-                  Every member of {state.company} stops asking with it, and Ask IRIS answers from
-                  the read models until a key is added again.
+                  Every member of {state.company} stops asking with it until a key is added again.
                 </p>
                 <div className="ox-btn-row">
                   <form action={removeCompanyKey}>
