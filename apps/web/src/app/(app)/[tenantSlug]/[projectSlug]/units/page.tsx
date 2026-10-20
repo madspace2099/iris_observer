@@ -8,6 +8,7 @@ import { FindingList, PageHead, StackPlan, Synthetic, Unavailable } from "@/comp
 import {
   DemandAttention,
   UNIT_CHECKS,
+  UnitPatterns,
   UnitRegister,
   readRegisterQuery,
   type RegisterSearch,
@@ -57,13 +58,14 @@ export const metadata: Metadata = { title: "Units" };
  * on this page is counting the rows it is about to draw, which is what a filter
  * needs to be honest about what it left out.
  *
- * ## Three read models, and no join between them
+ * ## Four read models, and no join between them
  *
- * `getUnitAttention`, `getProjectPulse` and `getAttention` each answer for the
- * same project and the same period, and nothing here reads a value out of one
- * and into another. The stacking plan draws the pulse's own units, the register
- * draws the attention projection's own rows, and the alert band draws the
- * attention view's own states. Reading three surfaces is not joining them
+ * `getUnitAttention`, `getProjectPulse`, `getAttention` and
+ * `getUnitAttentionPatterns` each answer for the same project and the same
+ * period, and nothing here reads a value out of one and into another. The
+ * stacking plan draws the pulse's own units, the register draws the attention
+ * projection's own rows, the alert band draws the attention view's own states,
+ * and the patterns panel draws its own sentences. Reading three surfaces is not joining them
  * (ADR-0012); the line is whether a number on screen came out of one call or
  * out of two, and none of these did.
  *
@@ -91,7 +93,7 @@ export default async function UnitsPage({
   const period = presetFrom(search.period);
   const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
 
-  const [view, pulse, attention] = await Promise.all([
+  const [view, pulse, attention, patterns] = await Promise.all([
     /*
      * `null` rather than the marked unit.
      *
@@ -103,6 +105,7 @@ export default async function UnitsPage({
     repository.getUnitAttention(query, null),
     repository.getProjectPulse(query),
     repository.getAttention(query),
+    repository.getUnitAttentionPatterns(query),
   ]);
 
   /*
@@ -216,6 +219,17 @@ export default async function UnitsPage({
             />
           )}
         </section>
+
+        {/*
+         * What the most-opened flats share (ADR-0050): a conclusion, so above
+         * the seam beside the building it reads. No catalogue, no comparison:
+         * the band above already says so once.
+         */}
+        {pulse.totals.units === 0 ? null : (
+          <section className="ox-plane" aria-label="What the most-opened flats share">
+            <UnitPatterns view={patterns} period={period} />
+          </section>
+        )}
 
         <DemandAttention
           language={view.context.language}
