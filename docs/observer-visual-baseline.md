@@ -150,6 +150,17 @@ Tables, registers, text plates and the printed report are not part of it. Every
 page it touches needs a fresh screenshot before it is accepted as the new
 baseline.
 
+### Every surface dark on screen, under explicit approval (ADR-0042)
+
+2026-10-19. Not a defect fix. The owner, naming the agent page: "Everything in
+the system must have a dark background, not white." Under the fourth reason in
+_The rule_ below, the warm-paper plates ADR-0034 put under every measured region
+(`.ox-plate.ox-paper`) and the light sign-in and 404 (`portal.css`) now stand on
+the Observer graphite. Paper survives in print only: a printed plate, and the
+whole printed report with the period band above it, read dark ink on white.
+Every plate-bearing page, the sign-in and the 404 need a fresh screenshot before
+they are accepted as the new baseline.
+
 ## Ask Observer
 
 ### Answer anatomy
@@ -239,6 +250,12 @@ Four deliberate departures from the reference, all of them repairs:
 
 The hero remains one value: `<LoginHero image="url('/portal/observer.jpg')" />`
 replaces the photograph, and the caption travels with it from the caller.
+
+**The ground, since 2026-10-19 (ADR-0042, explicit approval).** The owner asked
+for every on-screen surface to be dark ("Everything in the system must have a
+dark background, not white"). The form column, the 404 and every product plate
+that stood on warm paper now stand on the Observer graphite; the paper values
+apply in print only, where the report still prints dark ink on white.
 
 ### The projects page — `PENDING USER ACCEPTANCE`
 

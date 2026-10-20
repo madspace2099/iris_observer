@@ -4,6 +4,9 @@
 **Extends:** ADR-0033 (the approved shell), ADR-0020 (Manrope and `#00A3FF`)
 **Narrows:** `docs/20-madspace-admin-design-system.md` §0, and the line in
 `docs/PROJECT-STATE.md` reading "Observer stays dark; the boundary is one class"
+**Superseded in part by ADR-0042** (2026-10-19): the paper ground no longer applies on screen. The
+owner asked for every on-screen surface to be dark; `.ox-paper` keeps its token names and the values
+below, declared under `@media print` only.
 
 ## Context
 
