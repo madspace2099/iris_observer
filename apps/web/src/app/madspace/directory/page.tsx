@@ -1,248 +1,167 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Kicker, StateMessage } from "@observer/ui";
-import { projectDirectoryAdmin, type TenantRow } from "@observer/sources";
+import { Kicker } from "@observer/ui";
 
-import { directoryView } from "@/lib/accounts";
 import { requireViewer } from "@/lib/session";
-import { CONTROL_PLANE_ACCOUNT } from "@/lib/sources/control-plane";
-import { observerDepsAsync } from "@/lib/sources/deps";
+import { dynamicRoute } from "@/lib/href";
+import {
+  KIND_WORD,
+  companyDirectory,
+  companySummary,
+  directorySentence,
+  type Company,
+} from "@/lib/madspace/companies";
 import { DeveloperForm } from "@/components/madspace/DirectoryForms";
 import { TableWrap } from "@/components/madspace/TableWrap";
 
 export const metadata: Metadata = { title: "Directory" };
 
-/** "1 agency", "2 agencies": the count and its noun, never the noun alone. */
-const plural = (n: number, one: string, other: string) => `${String(n)} ${n === 1 ? one : other}`;
-
 /**
- * THE DIRECTORY — tenants, agencies and people, as the demonstration knows them.
+ * THE DIRECTORY: COMPANIES FIRST, EACH OPENING ONTO ITS PEOPLE (ADR-0047).
  *
- * M9 names tenants, users and agencies among what MADSPACE administers, and
- * the control plane holds none of them: it has projects and installations,
- * and an account becomes a viewer through the demonstration directory in
- * `lib/accounts.ts`. This screen reads that directory and nothing else, and
- * says so where a reader would otherwise take it for a table in a database.
- *
- * What it can honestly show is the shape M9 describes — who the tenants are,
- * which agency sells for which developer on which project, and which person
- * holds which role — because the demonstration was built to exhibit exactly
- * those arrangements (an agency across two developers, an agent on two
- * projects for one). What it cannot do is create, invite, suspend or edit any
- * of them: there is no store to write to, so no control pretends to.
- * Those actions arrive with the user and agency tables, and this page is the
- * list they will fill.
- *
- * Developers are the exception since `docs/21-self-served-projects.md`: the
- * control plane holds them now, so the first plane below is a real table with a
- * real form, and it says which of the two kinds of developer a row is.
+ * One list of companies (the developers, the sales agencies and MADSPACE),
+ * each a native `<details>` so a keyboard and a screen reader open it the way
+ * they open any disclosure. Inside: its people, a developer's projects, an
+ * agency's clients. The control plane's "register a developer" form sits
+ * behind Add company rather than leading the page. The people come from the
+ * demonstration directory the sign-in offers, and the page says so once.
  */
 export default async function DirectoryPage() {
   const viewer = await requireViewer();
   /* A layout is not a security boundary; the page checks for itself. */
   if (viewer.role !== "madspace_admin") redirect("/");
 
-  const directory = directoryView();
-  const registered = await registeredDevelopers();
+  const directory = await companyDirectory(viewer);
 
   return (
     <>
       <header className="mad-head">
         <div className="mad-head-text">
-          <Kicker>MADSPACE operations</Kicker>
+          <Kicker>MADSPACE administration</Kicker>
           <h1 className="mad-title">Directory</h1>
-          <p className="mad-lede">
-            {plural(directory.tenants.length, "tenant", "tenants")},{" "}
-            {plural(directory.agencies.length, "agency", "agencies")} and{" "}
-            {plural(directory.people.length, "person", "people")}, as the demonstration directory
-            holds them, and{" "}
-            {registered === null
-              ? "no control plane to hold a registered developer"
-              : plural(registered.length, "developer", "developers")}{" "}
-            registered here.
-          </p>
+          <p className="mad-lede">{directorySentence(directory)}</p>
         </div>
       </header>
 
-      <section className="mad-plane" aria-labelledby="developers-heading">
-        <div className="obs-section-head">
-          <h2 id="developers-heading">Developers registered here</h2>
-          <p className="obs-section-note">
-            Held by the control plane. A project is attached to one on its Customer dashboard
-            screen, and that fixes the project&rsquo;s address.
-          </p>
-        </div>
-        {registered === null ? (
-          <StateMessage
-            title="No control plane on this deployment"
-            detail="A developer is kept by the control plane, so there is nowhere to register one here."
-          />
-        ) : (
-          <>
-            {registered.length === 0 ? (
-              <StateMessage title="No developer registered yet" />
-            ) : (
-              <TableWrap labelledBy="developers-heading">
-                <table className="mad-table">
-                  <thead>
-                    <tr>
-                      <th scope="col">Developer</th>
-                      <th scope="col">Address</th>
-                      <th scope="col">Projects</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {registered.map((developer) => (
-                      <tr key={developer.tenant_id}>
-                        <th scope="row">{developer.name}</th>
-                        <td>
-                          <span className="mad-code">/{developer.slug}</span>
-                        </td>
-                        <td>{String(Number(developer.project_count))}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </TableWrap>
-            )}
+      <details className="mad-fold mad-add">
+        <summary className="mad-button" data-emphasis="secondary">
+          Add company
+        </summary>
+        {directory.canAdd ? (
+          <div className="mad-add-body">
+            <p className="mad-note">
+              A developer is the kind of company the control plane can hold today. Its address fixes
+              every link to its projects.
+            </p>
             <DeveloperForm />
-          </>
+          </div>
+        ) : (
+          <p className="mad-note">
+            No control plane on this deployment, so there is nowhere to keep a new company.
+          </p>
         )}
-      </section>
+      </details>
 
-      <StateMessage
-        title="Demonstration directory"
-        detail="The tenants, agencies and people below come from the synthetic world the sign-in offers, not from the control plane. Inviting and suspending people arrive with the tables that will hold them."
-      />
-
-      <section className="mad-plane" aria-labelledby="tenants-heading">
-        <div className="obs-section-head">
-          <h2 id="tenants-heading">Tenants</h2>
-          <p className="obs-section-note">
-            The developers who buy the product, each with the projects they hold.
+      <section className="mad-plane" aria-labelledby="companies-heading">
+        <div className="mad-section-head">
+          <h2 id="companies-heading">Companies</h2>
+          <p>
+            A sales agency is a company of its own: it sells for developers, and each of its people
+            is granted one project at a time, so one agency can sell for two developers and see
+            neither whole.
+          </p>
+          <p>
+            The people are the demonstration directory&rsquo;s, the accounts the sign-in offers.
+            Inviting and suspending people arrive with the tables that will hold them.
           </p>
         </div>
-        <TableWrap labelledBy="tenants-heading">
-          <table className="mad-table">
-            <thead>
-              <tr>
-                <th scope="col">Tenant</th>
-                <th scope="col">Slug</th>
-                <th scope="col">Projects</th>
-                <th scope="col">Accounts holding a project</th>
-              </tr>
-            </thead>
-            <tbody>
-              {directory.tenants.map((tenant) => (
-                <tr key={tenant.id}>
-                  <th scope="row">{tenant.name}</th>
-                  <td>
-                    <span className="mad-code">{tenant.slug}</span>
-                  </td>
-                  <td>
-                    {tenant.projects.length === 0
-                      ? "None"
-                      : tenant.projects.map((project, i) => (
-                          <span key={project.slug}>
-                            {i === 0 ? "" : ", "}
-                            <Link href={`/${tenant.slug}/${project.slug}/ask`}>{project.name}</Link>
-                          </span>
-                        ))}
-                  </td>
-                  <td>{tenant.accounts}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableWrap>
-      </section>
-
-      <section className="mad-plane" aria-labelledby="agencies-heading">
-        <div className="obs-section-head">
-          <h2 id="agencies-heading">Agencies</h2>
-          <p className="obs-section-note">
-            Who operates the product, and for which developers. An agency is granted per project,
-            never per tenant, which is why one can sell for two developers and see neither whole.
-          </p>
-        </div>
-        <TableWrap labelledBy="agencies-heading">
-          <table className="mad-table">
-            <thead>
-              <tr>
-                <th scope="col">Agency</th>
-                <th scope="col">Sells for</th>
-                <th scope="col">Projects</th>
-                <th scope="col">Managers</th>
-                <th scope="col">Agents</th>
-              </tr>
-            </thead>
-            <tbody>
-              {directory.agencies.map((agency) => (
-                <tr key={agency.name}>
-                  <th scope="row">{agency.name}</th>
-                  <td>{agency.tenants.join(", ") || "No developer yet"}</td>
-                  <td>{agency.projects.join(", ") || "No project yet"}</td>
-                  <td>{agency.managers}</td>
-                  <td>{agency.agents}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableWrap>
-      </section>
-
-      <section className="mad-plane" aria-labelledby="people-heading">
-        <div className="obs-section-head">
-          <h2 id="people-heading">People</h2>
-          <p className="obs-section-note">
-            Every account the sign-in accepts, with the capacity it holds. The address is the one
-            printed on the sign-in screen; the password is the demonstration one and is not a
-            credential for anything real.
-          </p>
-        </div>
-        <TableWrap labelledBy="people-heading">
-          <table className="mad-table">
-            <thead>
-              <tr>
-                <th scope="col">Name</th>
-                <th scope="col">Role</th>
-                <th scope="col">Organisation</th>
-                <th scope="col">Company role</th>
-                <th scope="col">Address</th>
-                <th scope="col">Projects held</th>
-              </tr>
-            </thead>
-            <tbody>
-              {directory.people.map((person) => (
-                <tr key={person.email}>
-                  <th scope="row">{person.name}</th>
-                  <td>{person.roleWord}</td>
-                  <td>{person.organisation}</td>
-                  <td>{person.companyRoleWord}</td>
-                  <td>
-                    <span className="mad-code">{person.email}</span>
-                  </td>
-                  <td>{person.projects.length === 0 ? "None" : person.projects.join(", ")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </TableWrap>
+        <ul className="mad-companies">
+          {directory.companies.map((company) => (
+            <li key={company.key}>
+              <CompanyRow company={company} />
+            </li>
+          ))}
+        </ul>
       </section>
     </>
   );
 }
 
-/** The developers the control plane holds, or null where there is no control plane to hold any. */
-async function registeredDevelopers(): Promise<readonly TenantRow[] | null> {
-  const deps = await observerDepsAsync();
-  if (deps === null) return null;
-  try {
-    const read = await projectDirectoryAdmin(deps).tenants({ account: CONTROL_PLANE_ACCOUNT });
-    return read.ok ? read.value : [];
-  } catch {
-    /* A database that stops before the directory migration: the same absence, said the same way. */
-    return null;
-  }
+function CompanyRow({ company }: { company: Company }) {
+  const id = `company-${company.key.replace(/[^a-z0-9]+/gi, "-")}`;
+  return (
+    <details className="mad-company">
+      <summary>
+        <span className="mad-company-name">{company.name}</span>
+        <span className="mad-kind">{KIND_WORD[company.kind]}</span>
+        <span className="mad-company-summary">{companySummary(company)}</span>
+      </summary>
+
+      <div className="mad-company-body">
+        {company.address === null ? null : (
+          <p className="mad-note">
+            Address <span className="mad-code">/{company.address}</span>
+            {company.registered ? ", kept by the control plane" : ", from the demonstration"}
+          </p>
+        )}
+
+        {company.kind === "agency" ? (
+          <p className="mad-note">
+            Sells for{" "}
+            {company.sellsFor.length === 0 ? "no developer yet" : company.sellsFor.join(", ")}.
+          </p>
+        ) : company.projects.length + company.notYetInObserver === 0 ? (
+          <p className="mad-note">No project yet.</p>
+        ) : (
+          <ul className="mad-company-projects" aria-label={`Projects of ${company.name}`}>
+            {company.projects.map((project) => (
+              <li key={project.href}>
+                <Link href={dynamicRoute(project.href)}>{project.name}</Link>
+              </li>
+            ))}
+            {company.notYetInObserver === 0 ? null : (
+              <li className="mad-note">
+                {`${String(company.notYetInObserver)} registered on the control plane, not in Observer yet`}
+              </li>
+            )}
+          </ul>
+        )}
+
+        <h3 className="mad-company-heading" id={id}>
+          People
+        </h3>
+        {company.people.length === 0 ? (
+          <p className="mad-note">Nobody in the demonstration directory works here.</p>
+        ) : (
+          <TableWrap labelledBy={id}>
+            <table className="mad-table">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Company role</th>
+                  <th scope="col">Address</th>
+                  <th scope="col">Projects held</th>
+                </tr>
+              </thead>
+              <tbody>
+                {company.people.map((person) => (
+                  <tr key={person.email}>
+                    <th scope="row">{person.name}</th>
+                    <td>{person.roleWord}</td>
+                    <td>{person.companyRoleWord}</td>
+                    <td>
+                      <span className="mad-code">{person.email}</span>
+                    </td>
+                    <td>{person.projects.length === 0 ? "None" : person.projects.join(", ")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
+        )}
+      </div>
+    </details>
+  );
 }

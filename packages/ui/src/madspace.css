@@ -4552,3 +4552,137 @@ button.mad-quiet {
   color: var(--ink-4);
   font-size: var(--text-caption);
 }
+
+/* --- the companies: one row each, opening onto its people ------------------- */
+
+.mad-companies {
+  display: flex;
+  flex-direction: column;
+  margin: 0 -1.5rem;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.mad-companies > li {
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.mad-companies > li:last-child {
+  border-bottom: 0;
+}
+
+.mad-company > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-4) 1.5rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.mad-company > summary::-webkit-details-marker {
+  display: none;
+}
+
+.mad-company > summary::before {
+  content: "▸";
+  grid-row: span 3;
+  align-self: start;
+  color: var(--ink-4);
+}
+
+.mad-company[open] > summary::before {
+  content: "▾";
+}
+
+.mad-company > summary:hover {
+  background: var(--surface-inset);
+}
+
+.mad-company-name {
+  color: var(--ink);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.mad-company-summary {
+  grid-column: 2;
+  color: var(--ink-4);
+  font-size: var(--text-caption);
+}
+
+/* The kind is a word in a hairline, like the plane chip: a label, not a status. */
+.mad-kind {
+  justify-self: start;
+  grid-column: 2;
+  padding: 0.125rem 0.625rem;
+  border: 1px solid var(--border-field);
+  border-radius: var(--portal-round);
+  color: var(--ink-3);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+}
+
+.mad-company-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: 0 1.5rem var(--space-5);
+}
+
+.mad-company-projects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mad-company-projects a {
+  color: var(--iris-accent);
+  text-underline-offset: 2px;
+}
+
+.mad-company-heading {
+  margin: var(--space-2) 0 0;
+  color: var(--ink-4);
+  font-size: var(--text-micro);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+}
+
+@media (min-width: 48rem) {
+  .mad-company > summary {
+    grid-template-columns: auto auto auto minmax(0, 1fr);
+  }
+
+  .mad-company > summary::before {
+    grid-row: auto;
+    align-self: center;
+  }
+
+  .mad-kind,
+  .mad-company-summary {
+    grid-column: auto;
+  }
+
+  .mad-company-summary {
+    justify-self: end;
+    text-align: right;
+  }
+}
+
+/* Add company: a closed action under the head, never the page's lead. */
+.mad-add-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  max-width: 40rem;
+}

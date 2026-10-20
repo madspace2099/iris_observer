@@ -398,16 +398,6 @@ export interface DirectoryTenant {
   readonly slug: string;
   readonly name: string;
   readonly projects: readonly { readonly slug: string; readonly name: string }[];
-  /** Accounts holding at least one of its projects. */
-  readonly accounts: number;
-}
-
-export interface DirectoryAgency {
-  readonly name: string;
-  readonly tenants: readonly string[];
-  readonly projects: readonly string[];
-  readonly managers: number;
-  readonly agents: number;
 }
 
 export interface DirectoryPerson {
@@ -420,14 +410,30 @@ export interface DirectoryPerson {
   readonly projects: readonly string[];
 }
 
+/**
+ * A company people work for, as the demonstration directory knows it (ADR-0047).
+ *
+ * A company is the capacity's organisation (ADR-0043). Its kind is read from
+ * what its people do: MADSPACE administers, a sales agency's people sell, and
+ * anyone else works for a developer.
+ */
+export interface DirectoryCompany {
+  readonly name: string;
+  readonly kind: "developer" | "agency" | "madspace";
+  readonly people: readonly DirectoryPerson[];
+  /** The developers whose projects its people hold, by name: an agency's clients. */
+  readonly sellsFor: readonly string[];
+}
+
 export interface DirectoryView {
   readonly tenants: readonly DirectoryTenant[];
-  readonly agencies: readonly DirectoryAgency[];
+  readonly companies: readonly DirectoryCompany[];
   readonly people: readonly DirectoryPerson[];
 }
 
 /**
- * Tenants, agencies and people, as the demonstration directory holds them.
+ * Tenants, the companies people work for, and the people, as the
+ * demonstration directory holds them.
  *
  * Composed here because this file is the one place outside the composition
  * root that may name the synthetic world (`surfaces.test.ts`): it is where an
@@ -447,34 +453,7 @@ export function directoryView(): DirectoryView {
       slug: p.slug,
       name: p.name,
     })),
-    accounts: accounts.filter(({ viewer }) =>
-      viewer.projectIds.some((id) => PROJECTS.some((p) => p.id === id && p.tenantId === tenant.id)),
-    ).length,
   }));
-
-  const agencyNames = [
-    ...new Set(
-      accounts
-        .filter(({ viewer }) => viewer.role === "agency_manager" || viewer.role === "sales_agent")
-        .map(({ viewer }) => viewer.organisationName),
-    ),
-  ].sort();
-  const agencies: DirectoryAgency[] = agencyNames.map((name) => {
-    const members = accounts.filter(({ viewer }) => viewer.organisationName === name);
-    const projectIds = [...new Set(members.flatMap(({ viewer }) => viewer.projectIds))];
-    const tenantIds = [
-      ...new Set(
-        projectIds.flatMap((id) => PROJECTS.filter((p) => p.id === id).map((p) => p.tenantId)),
-      ),
-    ];
-    return {
-      name,
-      tenants: tenantIds.map((id) => TENANTS.find((t) => t.id === id)?.name ?? id),
-      projects: projectIds.map(projectName),
-      managers: members.filter(({ viewer }) => viewer.role === "agency_manager").length,
-      agents: members.filter(({ viewer }) => viewer.role === "sales_agent").length,
-    };
-  });
 
   const people: DirectoryPerson[] = accounts.map(({ account, viewer }) => ({
     name: account.displayName,
@@ -485,5 +464,30 @@ export function directoryView(): DirectoryView {
     projects: viewer.projectIds.map(projectName),
   }));
 
-  return { tenants, agencies, people };
+  const names = [...new Set(accounts.map(({ viewer }) => viewer.organisationName))];
+  const companies: DirectoryCompany[] = names.map((name) => {
+    const members = accounts.filter(({ viewer }) => viewer.organisationName === name);
+    const roles = new Set(members.map(({ viewer }) => viewer.role));
+    const kind = roles.has("madspace_admin")
+      ? "madspace"
+      : roles.has("agency_manager") || roles.has("sales_agent")
+        ? "agency"
+        : "developer";
+    const tenantIds = new Set(
+      members.flatMap(({ viewer }) =>
+        viewer.projectIds.flatMap((id) =>
+          PROJECTS.filter((p) => p.id === id).map((p) => p.tenantId),
+        ),
+      ),
+    );
+    return {
+      name,
+      kind,
+      people: people.filter((person) => person.organisation === name),
+      sellsFor:
+        kind === "agency" ? TENANTS.filter((t) => tenantIds.has(t.id)).map((t) => t.name) : [],
+    };
+  });
+
+  return { tenants, companies, people };
 }
