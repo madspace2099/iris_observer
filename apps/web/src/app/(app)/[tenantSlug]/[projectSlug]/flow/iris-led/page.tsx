@@ -107,7 +107,7 @@ export default async function IrisLedPage({
                 >
                   {view.context.period.label}, every figure over its denominator
                 </h2>
-                <div className="iris-kpis">
+                <div className="iris-kpis ir-led-figures">
                   {view.figures.map((figure) => (
                     <KpiCard
                       key={figure.id}

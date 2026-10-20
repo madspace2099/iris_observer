@@ -265,10 +265,10 @@ describe("which of the period's sales the showroom showed first", () => {
       name: "REALPAD",
       readAtDisplay: "30 Sept",
       reads: [
-        "deal stages, and the date it states for each reservation and purchase",
+        "deal stages, and the date the CRM states for each reservation and purchase",
         "unit availability from the uploaded sheet, a change dated by the sync that first saw it",
       ],
-      note: "Read from REALPAD, last read 30 Sept: deal stages, and the date it states for each reservation and purchase; unit availability from the uploaded sheet, a change dated by the sync that first saw it. Showings are read from every IRIS meeting on this project, whatever the period.",
+      note: "Read from REALPAD, last read 30 Sept: deal stages, and the date the CRM states for each reservation and purchase; unit availability from the uploaded sheet, a change dated by the sync that first saw it. Showings are read from every IRIS meeting on this project, whatever the period.",
     });
     expect(view.tableCaption).toBe(
       "3 sales shown in IRIS before their status changed, newest change first. Each date is the CRM's where it states one, else the sync that first saw the change.",

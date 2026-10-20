@@ -92,6 +92,24 @@
   }
 }
 
+/* --- the four figures: four across, two by two, or one column; never three and one --- */
+
+.ir-led-figures.iris-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@container (width >= 52rem) {
+  .ir-led-figures.iris-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (width < 26rem) {
+  .ir-led-figures.iris-kpis {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* --- the timeline ---------------------------------------------------------------- */
 
 .ir-led-figure {

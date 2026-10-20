@@ -179,7 +179,9 @@ describe("the page", () => {
     expect(html).toContain("Connect your CRM");
     expect(html).toContain("Shark Residence");
     expect(html).toContain("Demonstration CRM, connected");
-    expect(html).toContain("deal stages, and the date it states for each reservation and purchase");
+    expect(html).toContain(
+      "deal stages, and the date the CRM states for each reservation and purchase",
+    );
     for (const provider of ["Realpad", "Monday.com", "Google Sheets", "CSV upload"]) {
       expect(html).toContain(provider);
     }

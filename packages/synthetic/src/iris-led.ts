@@ -450,7 +450,9 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
       : `the catalogue from ${CATALOGUE_WORDS[catalogue.connector ?? "csv"]}`;
   const readAtDisplay = deals === null ? null : dayLabel(deals.fetchedAt, locale, zone);
   const reads = [
-    deals === null ? null : "deal stages, and the date it states for each reservation and purchase",
+    deals === null
+      ? null
+      : "deal stages, and the date the CRM states for each reservation and purchase",
     catalogue.connector !== null
       ? `unit availability from ${CATALOGUE_WORDS[catalogue.connector]}, a change dated by the sync that first saw it`
       : catalogue.fromDemonstrationCrm
