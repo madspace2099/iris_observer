@@ -271,6 +271,23 @@ describe("the stream route", () => {
     expect(body).not.toContain(KEY);
   });
 
+  it("spends no company key on a request addressed to a name", async () => {
+    Object.assign(process.env, { OBSERVER_DEMO_ACCOUNTS: "1", OBSERVER_DEMO_COMPANY_KEYS: "1" });
+    const clara = accountById("acct_clara");
+    if (clara === null) throw new Error("no Clara");
+    await setCompanyKey(clara, COMPANY_KEY, async () => ({ ok: true }));
+    vi.mocked(gate).mockResolvedValue({ ...admitted(), accountId: "acct_nora" });
+
+    for (const host of ["observer.example:3400", "10.0.0.5:3400"]) {
+      seen.grants.length = 0;
+      vi.mocked(admitModelRequest).mockClear();
+      const body = await ask(host);
+      expect(admitModelRequest, host).toHaveBeenCalledTimes(1);
+      expect(seen.grants, host).toEqual([{ blocked: "no_connection" }]);
+      expect(body, host).not.toContain(COMPANY_KEY);
+    }
+  });
+
   it("gives another company's member the owner's key, never this company's", async () => {
     Object.assign(process.env, LOCAL, { OBSERVER_DEMO_COMPANY_KEYS: "1" });
     const clara = accountById("acct_clara");
