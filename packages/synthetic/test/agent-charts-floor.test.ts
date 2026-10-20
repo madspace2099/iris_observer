@@ -95,6 +95,20 @@ describe("the radar under the floor", () => {
   it("keeps the count in the label above the floor, beside the shape", () => {
     expect(profile("agt_monika")?.label).toBe("Monika Kováčová · 25 meetings");
   });
+
+  it("reads the shape in words above the floor, with its count", () => {
+    expect(profile("agt_monika")?.reading).toContain("Monika Kováčová · 25 meetings:");
+  });
+
+  it("has no reading under the floor, where no shape is drawn", () => {
+    expect(profile("agt_akhilesh")?.reading).toBeNull();
+  });
+
+  it("names who is not drawn in the summary, and why", () => {
+    expect(charts.radar.summary).toContain(
+      `Not drawn, under ${AGENT_MIN_SAMPLE} meetings: Akhilesh Undev.`,
+    );
+  });
 });
 
 describe("the workload list under the floor", () => {

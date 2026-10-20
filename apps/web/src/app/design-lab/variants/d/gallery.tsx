@@ -18,14 +18,7 @@ import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
 import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-data";
 import { DCard } from "./card";
 import { DDefs } from "./defs";
-import {
-  Dumbbell,
-  OutcomeFunnels,
-  Parallel,
-  PunchCard,
-  RadialHistogram,
-  seriesTone,
-} from "./forms";
+import { Dumbbell, OutcomeFunnels, Parallel, PunchCard, RadialHistogram } from "./forms";
 import { BubbleLens } from "./bubble-lens";
 
 /**
@@ -49,15 +42,6 @@ import { BubbleLens } from "./bubble-lens";
  * colours that already mean something: an outcome keeps `OUTCOME_TONE`, a delta
  * keeps its verdict colour, and neither glows.
  */
-
-function radarSeries(card: DRadarCard, order: readonly string[]) {
-  return card.profiles.map((profile) => ({
-    id: profile.id,
-    label: profile.label,
-    values: profile.values,
-    tone: seriesTone(Math.max(0, order.indexOf(profile.id))),
-  }));
-}
 
 function Withheld({ rows }: { readonly rows: readonly DWithheld[] }) {
   if (rows.length === 0) return null;
@@ -126,20 +110,13 @@ function HeatBody({ card, variant }: { readonly card: DHeatCard; readonly varian
   );
 }
 
-function RadarBody({
-  card,
-  order,
-  variant,
-}: {
-  readonly card: DRadarCard;
-  readonly order: readonly string[];
-  readonly variant: string;
-}) {
+function RadarBody({ card, variant }: { readonly card: DRadarCard; readonly variant: string }) {
   return (
     <div className="dld-radar" data-variant={variant}>
       {card.profiles.length === 0 ? null : (
         <div className="dld-radar-plot">
-          <Radar axes={card.axes} series={radarSeries(card, order)} size={260} />
+          {/* Each profile wears its own seat colour from the read model, as on every product chart. */}
+          <Radar axes={card.axes} series={card.profiles} size={260} />
         </div>
       )}
       <AxisNotes
@@ -156,7 +133,6 @@ function RadarBody({
 
 export function GalleryD({ data }: { readonly data: LabChartsD }) {
   const reads = (source: string) => `${source} · ${data.projectName} · ${data.periodLabel}`;
-  const order = data.radarMultiply.profiles.map((p) => p.id);
   const { trend, sequence } = data;
 
   /*
@@ -296,7 +272,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             reads={reads("AgentCharts.radar")}
             facts={data.radarBasic.facts}
           >
-            <RadarBody card={data.radarBasic} order={order} variant="basic" />
+            <RadarBody card={data.radarBasic} variant="basic" />
           </DCard>
 
           <DCard
@@ -306,7 +282,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             reads={reads("AgentCharts.radar")}
             facts={data.radarSimple.facts}
           >
-            <RadarBody card={data.radarSimple} order={order} variant="simple" />
+            <RadarBody card={data.radarSimple} variant="simple" />
           </DCard>
 
           <DCard
@@ -316,7 +292,7 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             reads={reads("AgentCharts.radar")}
             facts={data.radarMultiply.facts}
           >
-            <RadarBody card={data.radarMultiply} order={order} variant="multiply" />
+            <RadarBody card={data.radarMultiply} variant="multiply" />
           </DCard>
 
           <DCard

@@ -563,38 +563,74 @@ export function buildBehaviourFunnel(
 
 /* --- agents across several dimensions ------------------------------------------ */
 
-const RADAR_AXES = [
-  { label: "Coverage", note: "share of core sections reached" },
-  { label: "Depth", note: "median steps per meeting" },
-  { label: "Units", note: "median units opened" },
-  { label: "Compare", note: "share of meetings using Compare" },
-  { label: "Returns", note: "share returning to a section" },
-  { label: "Places", note: "median named places stopped on" },
-] as const;
+/*
+ * The six measures, each over a set of meetings, in words for a reader who has
+ * not met the metric vocabulary: "typical" where the figure is a median, "how
+ * often" where it is a share.
+ */
+const RADAR_AXES: readonly {
+  readonly label: string;
+  readonly note: string;
+  readonly measure: (mine: readonly ShowroomSession[]) => number;
+}[] = [
+  {
+    label: "Coverage",
+    note: "How many of the main parts of the presentation a typical meeting reached.",
+    measure: (mine) =>
+      median(
+        mine.map((s) =>
+          share(
+            CORE_SECTION_IDS.filter((c) => s.steps.some((x) => x.sectionId === c)).length,
+            CORE_SECTION_IDS.length,
+          ),
+        ),
+      ),
+  },
+  {
+    label: "Depth",
+    note: "How many steps a typical meeting took through the presentation.",
+    measure: (mine) => median(mine.map((s) => s.steps.length)),
+  },
+  {
+    label: "Units",
+    note: "How many apartments a typical meeting opened.",
+    measure: (mine) => median(mine.map((s) => s.units.length)),
+  },
+  {
+    label: "Compare",
+    note: "How often a meeting used the side-by-side comparison.",
+    measure: (mine) =>
+      share(mine.filter((s) => s.steps.some((x) => x.sectionId === "compare")).length, mine.length),
+  },
+  {
+    label: "Returns",
+    note: "How often a meeting went back to a part it had already shown.",
+    measure: (mine) =>
+      share(mine.filter((s) => s.steps.some((x) => x.isReturn)).length, mine.length),
+  },
+  {
+    label: "Places",
+    note: "How many named places a typical meeting stopped at.",
+    measure: (mine) => median(mine.map((s) => s.places.length)),
+  },
+];
+
+/** "A, B and C": the readings are English sentences, whatever locale formats their figures. */
+const AND = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" });
 
 /*
- * PER-AGENT IDENTITY, NOT STATUS.
+ * PER-AGENT IDENTITY, NOT STATUS, AND ONE COLOUR PER PERSON.
  *
- * This used to be `["var(--accent)", "var(--gain)", "var(--watch)",
- * "var(--loss)"]` — the product's own good/watch/poor status tokens,
- * reassigned as arbitrary per-agent colours with no relationship to
- * performance. An agent third in whatever order the data returned them
- * inherited "watch" amber and a fourth inherited "loss" red, on a screen
- * that also draws a real outcome-quality legend in the same hues right next
- * to this chart. Evidence/identity and status are the doctrine's own named
- * orthogonal axes; a shape a reader can compare across agents should not
- * borrow the palette of a different, unrelated judgment.
- *
- * A restrained ramp instead: the brand accent, then two blends toward
- * neutral ink, so every agent is still a distinct, legible line without
- * reaching for a colour this product uses to mean something else.
+ * The kit's six agent hues (`--d-series-*`, chosen clear of the verdict
+ * colours), by seat order: the order `presentersIn` returns people in, never
+ * the period's workload, so a person keeps one colour on every chart that
+ * draws people. The four-step ramp this replaces gave the fifth agent the
+ * first one's colour.
  */
-const RADAR_TONES = [
-  "var(--accent)",
-  "color-mix(in srgb, var(--accent) 55%, var(--ink))",
-  "var(--ink-2)",
-  "color-mix(in srgb, var(--accent) 30%, var(--ink-3))",
-];
+// ponytail: colours wrap after six agents, and an agent with no meeting in the period shifts the colours of everyone after them; key the colour on the roster seat if a project grows past six presenters.
+function seatTone(seat: number): string {
+  return `var(--d-series-${(seat % 6) + 1})`;
+}
 
 export function buildAgentCharts(
   sessions: readonly ShowroomSession[],
@@ -617,24 +653,7 @@ export function buildAgentCharts(
          * the floor; both used to be drawn from four meetings.
          */
         belowMinimum: mine.length < AGENT_MIN_SAMPLE,
-        values: [
-          median(
-            mine.map((s) =>
-              share(
-                CORE_SECTION_IDS.filter((c) => s.steps.some((x) => x.sectionId === c)).length,
-                CORE_SECTION_IDS.length,
-              ),
-            ),
-          ),
-          median(mine.map((s) => s.steps.length)),
-          median(mine.map((s) => s.units.length)),
-          share(
-            mine.filter((s) => s.steps.some((x) => x.sectionId === "compare")).length,
-            mine.length,
-          ),
-          share(mine.filter((s) => s.steps.some((x) => x.isReturn)).length, mine.length),
-          median(mine.map((s) => s.places.length)),
-        ],
+        values: RADAR_AXES.map((axis) => axis.measure(mine)),
       },
     ];
   });
@@ -649,23 +668,45 @@ export function buildAgentCharts(
    */
   const peaks = RADAR_AXES.map((_, i) => Math.max(...raw.map((r) => r.values[i] ?? 0), 0.0001));
 
+  const profiles = raw.map((r, i) => {
+    const values = r.values.map((v, axis) => v / (peaks[axis] ?? 1));
+    /*
+     * One number, one place. Above the floor the label carries the count
+     * beside the shape. Below it the note carries the count — "19 meetings
+     * in this period, 1 short of the 20…" — so the label is the name alone,
+     * or the card read "19 meetings — 19 meetings in this period".
+     */
+    const label = r.belowMinimum
+      ? r.label
+      : `${r.label} · ${meetings(r.meetings, locale, language)}`;
+    return {
+      id: r.id,
+      label,
+      tone: seatTone(i),
+      values,
+      belowMinimum: r.belowMinimum,
+      note: r.belowMinimum ? suppressionNoteFor(r.meetings, locale, "sentence", language) : null,
+      reading: r.belowMinimum
+        ? null
+        : `${label}: ${AND.format(RADAR_AXES.map((axis, a) => `${axis.label} ${percent(values[a] ?? 0, locale)}`))} of the strongest on each.`,
+    };
+  });
+  const notDrawn = profiles.filter((p) => p.belowMinimum).map((p) => p.label);
+  const floor = count(AGENT_MIN_SAMPLE, locale);
+
   const radar: AgentRadar = {
     axes: RADAR_AXES.map((a) => a.label),
     axisNotes: RADAR_AXES.map((a) => a.note),
-    profiles: raw.map((r, i) => ({
-      id: r.id,
-      /*
-       * One number, one place. Above the floor the label carries the count
-       * beside the shape. Below it the note carries the count — "19 meetings
-       * in this period, 1 short of the 20…" — so the label is the name alone,
-       * or the card read "19 meetings — 19 meetings in this period".
-       */
-      label: r.belowMinimum ? r.label : `${r.label} · ${meetings(r.meetings, locale, language)}`,
-      tone: RADAR_TONES[i % RADAR_TONES.length] ?? "var(--accent)",
-      values: r.values.map((v, axis) => v / (peaks[axis] ?? 1)),
-      belowMinimum: r.belowMinimum,
-      note: r.belowMinimum ? suppressionNoteFor(r.meetings, locale, "sentence", language) : null,
-    })),
+    profiles,
+    summary: [
+      ...profiles.flatMap((p) => (p.reading === null ? [] : [p.reading])),
+      ...(profiles.some((p) => !p.belowMinimum)
+        ? []
+        : [`No agent reached ${floor} meetings in this period, so no shape is drawn.`]),
+      ...(notDrawn.length === 0
+        ? []
+        : [`Not drawn, under ${floor} meetings: ${AND.format(notDrawn)}.`]),
+    ].join(" "),
   };
 
   /*

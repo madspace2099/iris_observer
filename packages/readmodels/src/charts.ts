@@ -146,6 +146,11 @@ export interface BehaviourFunnel {
 export interface RadarProfile {
   readonly id: string;
   readonly label: string;
+  /**
+   * The agent's identity colour, by seat order: the same person wears the same
+   * colour on every chart that draws people, in every period they present.
+   * Never a status colour.
+   */
   readonly tone: string;
   /** Normalised 0–1 against the strongest agent on each axis. */
   readonly values: readonly number[];
@@ -158,12 +163,16 @@ export interface RadarProfile {
   readonly belowMinimum: boolean;
   /** The floor's own sentence, null when the sample clears it. */
   readonly note: string | null;
+  /** The shape in words, for a reader who cannot see it; null below the floor, where no shape is drawn. */
+  readonly reading: string | null;
 }
 
 export interface AgentRadar {
   readonly axes: readonly string[];
   readonly axisNotes: readonly string[];
   readonly profiles: readonly RadarProfile[];
+  /** Every drawn shape's reading, then who is not drawn and why. */
+  readonly summary: string;
 }
 
 /* --- which parts of the showroom an agent uses ---------------------------------- */

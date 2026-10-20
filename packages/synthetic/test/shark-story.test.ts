@@ -43,7 +43,8 @@ describe("Shark Residence's presenters", () => {
   it("each clear the reporting minimum in the quarter", async () => {
     const byName = await shares();
     expect(byName.size).toBe(5);
-    for (const [name, a] of byName) expect(a.meetings, name).toBeGreaterThanOrEqual(AGENT_MIN_SAMPLE);
+    for (const [name, a] of byName)
+      expect(a.meetings, name).toBeGreaterThanOrEqual(AGENT_MIN_SAMPLE);
   });
 
   it("spread from the storyteller and the closer down to the rusher", async () => {
@@ -64,6 +65,29 @@ describe("Shark Residence's presenters", () => {
   });
 });
 
+describe("Shark Residence's agent colours", () => {
+  it("give each of the five presenters their own seat colour, in seat order", async () => {
+    /* The old four-step ramp gave Iva, fifth, Lena's colour: a reverted ramp fails here. */
+    const charts = await repo.getAgentCharts(SHARK);
+    expect(charts.radar.profiles.map((p) => p.tone)).toEqual([
+      "var(--d-series-1)",
+      "var(--d-series-2)",
+      "var(--d-series-3)",
+      "var(--d-series-4)",
+      "var(--d-series-5)",
+    ]);
+  });
+
+  it("name everyone not drawn in the last 28 days, where only Marek clears the floor", async () => {
+    const charts = await repo.getAgentCharts({ ...SHARK, period: "last_28_days" });
+    for (const name of ["Lena Fischer", "Oliver Grant", "Zsófia Bárány", "Iva Horváth"]) {
+      expect(charts.radar.summary, name).toMatch(
+        new RegExp(`Not drawn, under 20 meetings:.*${name}`),
+      );
+    }
+  });
+});
+
 describe("Shark Residence's demonstration CRM", () => {
   const deals = syntheticDeals(sessionsForProject("prj_sharkres001"), TODAY).deals;
   const holds = deals.filter((d) => d.stage === "purchase" || d.stage === "reservation");
@@ -77,7 +101,8 @@ describe("Shark Residence's demonstration CRM", () => {
     const status = new Map(catalogueFor("prj_sharkres001").map((u) => [u.code, u.status]));
     const purchased = holds.filter((d) => d.stage === "purchase" && d.unitCode !== null);
     expect(purchased.length).toBeGreaterThan(10);
-    for (const d of purchased) expect(status.get(d.unitCode as string), d.unitCode ?? "").toBe("sold");
+    for (const d of purchased)
+      expect(status.get(d.unitCode as string), d.unitCode ?? "").toBe("sold");
   });
 });
 

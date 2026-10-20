@@ -44,6 +44,14 @@ describe("the roster", () => {
   });
 });
 
+describe("the agent page's radar", () => {
+  it("prints the note in place of the shape under the floor", () => {
+    expect(DETAIL, "the agent page draws a shape whatever the sample").toMatch(
+      /shape\.belowMinimum \? \([\s\S]*?\{shape\.note\}[\s\S]*?\) : \([\s\S]*?<Radar/,
+    );
+  });
+});
+
 describe("the agent page's head", () => {
   it("prints the read model's reason where the habit's timed set is under the floor", () => {
     expect(ANSWER, "the head reads a habit under a gate that counted the meetings held").toMatch(

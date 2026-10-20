@@ -40,7 +40,8 @@ import {
 } from "@/components/agents";
 import { ExportReport } from "@/components/report";
 import { OutcomeKey, OutcomeRing, PairedRates } from "@/showroom/charts";
-import { SectionSequence, TrendLine } from "@/showroom/charts2";
+import { Radar, SectionSequence, TrendLine } from "@/showroom/charts2";
+import { Sized } from "@/showroom/forms";
 
 export const metadata: Metadata = { title: "Sales agent" };
 
@@ -121,12 +122,15 @@ export default async function AgentPage({
    */
   let view;
   let report;
+  let charts;
   try {
     const query = { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE };
-    [view, report] = await Promise.all([
+    [view, report, charts] = await Promise.all([
       repository.getAgentDetail(query, agentId),
       /* The same person, as a report scope, for the export in the aside. */
       repository.getReportScope(query, { agentId }),
+      /* Their radar, read from the roster's own model so the shape matches Coaching's. */
+      repository.getAgentCharts(query),
     ]);
   } catch (error) {
     if (error instanceof NotFoundError || error instanceof NotPermittedError) notFound();
@@ -135,6 +139,7 @@ export default async function AgentPage({
 
   const periodLabel = view.context.period.label;
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
+  const shape = charts.radar.profiles.find((p) => p.id === view.agentId);
 
   /* The ten-second answer: `agentAnswer`, shared with the printed summary. */
   const answer = agentAnswer(view, view.context.language);
@@ -518,6 +523,46 @@ export default async function AgentPage({
               </ChartFrame>
             )}
           </div>
+
+          {/*
+           * THEIR SHAPE, THE ONE COACHING OVERLAYS WITH EVERYONE ELSE'S.
+           *
+           * Read from the roster's own model, so the spokes are scaled exactly
+           * as on Coaching. Below the floor the note stands where the shape
+           * would: a shape scaled against the strongest colleague is a ranking
+           * without numbers.
+           */}
+          {shape === undefined ? null : (
+            <ChartFrame
+              title={`How ${view.name} presents`}
+              period={periodLabel}
+              note="Six measures of how they presented in this period; each spoke is scaled to the strongest presenter on this project, drawn or not. A wider shape is a different way of presenting, not a better one."
+              summary={shape.reading ?? shape.note ?? ""}
+            >
+              {shape.belowMinimum ? (
+                <p className="ox-chart-note">{shape.note}</p>
+              ) : (
+                <>
+                  <div className="dld-radar" data-variant="basic">
+                    <div className="dld-radar-plot">
+                      <Sized
+                        xl={<Radar axes={charts.radar.axes} series={[shape]} size={260} />}
+                        l={<Radar axes={charts.radar.axes} series={[shape]} size={190} />}
+                      />
+                    </div>
+                  </div>
+                  <dl className="iris-axis-key">
+                    {charts.radar.axes.map((axis, i) => (
+                      <div key={axis}>
+                        <dt>{axis}</dt>
+                        <dd>{charts.radar.axisNotes[i]}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </>
+              )}
+            </ChartFrame>
+          )}
 
           {/*
            * THE TEAM'S MEDIAN IS THE COMPARISON THE FLOOR SUPPRESSES HERE.

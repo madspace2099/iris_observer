@@ -684,22 +684,6 @@ const D_BEHAVIOURS: Readonly<Record<string, (s: ShowroomSession) => boolean>> = 
 };
 
 /**
- * The radar's six measures, in words for a reader who has not met the metric
- * vocabulary: "typical" where the read model says median, "how often" where it
- * says share. The read model's own notes stay as they are, because the Sales
- * Agents page prints them; the lab words them again, and refuses an axis it has
- * no words for rather than falling back on the vocabulary it set out to avoid.
- */
-const D_RADAR_WORDS: Readonly<Record<string, string>> = {
-  Coverage: "How many of the main parts of the presentation a typical meeting reached.",
-  Depth: "How many steps a typical meeting took through the presentation.",
-  Units: "How many apartments a typical meeting opened.",
-  Compare: "How often a meeting used the side-by-side comparison.",
-  Returns: "How often a meeting went back to a part it had already shown.",
-  Places: "How many named places a typical meeting stopped at.",
-};
-
-/**
  * The bubble rule, as it was given: one bubble per meeting, its size the
  * meeting's recorded outcome — the further up the ladder, the larger, and
  * "not interested" the smallest, in red. A purchase is a closed deal, so it is
@@ -978,11 +962,8 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
   );
   const radarNote =
     "Each spoke is scaled to the strongest agent on it. Wider is a different way of presenting, not a better one.";
-  const radarWords = radar.axes.map((axis) => {
-    const words = D_RADAR_WORDS[axis];
-    if (words === undefined) refuse(`plain words for the radar's "${axis}" axis`);
-    return words;
-  });
+  /* The read model's own plain words: the product prints the same definitions. */
+  const radarWords = radar.axisNotes;
   /* The definition all four agent-shape cards print; the six measures themselves are listed under each drawing. */
   const shapeNote = (scale: string) =>
     `Six measures of how an agent presented ${period}, each defined under the drawing. Every value is divided by the highest any agent reached on the same measure, so ${scale}. An agent under ${n(AGENT_MIN_SAMPLE)} meetings is not drawn.`;

@@ -960,17 +960,24 @@
   stroke-linejoin: round;
 }
 
-.dld-root .dld-radar .iris-radar-shape {
+/*
+ * The radar forms reach the product too (the agent page's basic shape), so
+ * these rules read under either scope. At (0,3,0) and above they beat the
+ * product's own `[data-charts="d"] .d-card .iris-radar-shape` where a variant
+ * names itself.
+ */
+:is(.dld-root, [data-charts="d"]) .dld-radar .iris-radar-shape {
   stroke-width: 3;
   filter: url(#dld-glow);
 }
 
-/* Basic: one outline, no fill, a soft field of its own colour behind it. */
-.dld-root .dld-radar[data-variant="basic"] .iris-radar-shape {
+/* Basic: one outline, no fill; in the lab, a soft field of its own colour behind it. */
+:is(.dld-root, [data-charts="d"]) .dld-radar[data-variant="basic"] .iris-radar-shape {
   fill: none;
 }
 
-.dld-radar[data-variant="basic"] .dld-radar-plot::before {
+/* The field is a blurred colour blob, which the product's doctrine refuses: the lab keeps it. */
+.dld-root .dld-radar[data-variant="basic"] .dld-radar-plot::before {
   content: "";
   position: absolute;
   inset: 22% 20% 30%;
@@ -985,19 +992,19 @@
 }
 
 /* Simple: the hexagonal web at half strength in mother-of-pearl, the shape filled at 11%. */
-.dld-root .dld-radar[data-variant="simple"] .iris-radar-web,
-.dld-root .dld-radar[data-variant="simple"] .iris-radar-spoke {
+:is(.dld-root, [data-charts="d"]) .dld-radar[data-variant="simple"] .iris-radar-web,
+:is(.dld-root, [data-charts="d"]) .dld-radar[data-variant="simple"] .iris-radar-spoke {
   stroke: #96969d;
   opacity: 0.5;
 }
 
-.dld-root .dld-radar[data-variant="simple"] .iris-radar-shape {
+:is(.dld-root, [data-charts="d"]) .dld-radar[data-variant="simple"] .iris-radar-shape {
   fill: color-mix(in oklab, var(--tone) 11%, transparent);
   filter: none;
 }
 
 /* Multiply: every drawn profile outlined, each over its own faint fill. */
-.dld-root .dld-radar[data-variant="multiply"] .iris-radar-shape {
+:is(.dld-root, [data-charts="d"]) .dld-radar[data-variant="multiply"] .iris-radar-shape {
   fill: color-mix(in oklab, var(--tone) 7%, transparent);
 }
 
