@@ -13,6 +13,7 @@ import type {
   UnitDetailView,
 } from "./screens";
 import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "./charts";
+import type { IrisLedSalesView } from "./iris-led";
 import type {
   AgentsView,
   AudienceCriteria,
@@ -132,6 +133,13 @@ export interface ObserverRepository {
    * and changes independently of everything else on the page.
    */
   getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts>;
+
+  /**
+   * IRIS-led sales (ADR-0049): the period's sales the CRM states, each with
+   * the showings of its flat that came before the status change. An observed
+   * sequence over the project's whole history of meetings, never a cause.
+   */
+  getIrisLedSales(query: OverviewQuery): Promise<IrisLedSalesView>;
 
   /** Progress against the plan, and where journeys stop. */
   getProjectCharts(query: OverviewQuery): Promise<ProjectCharts>;

@@ -51,7 +51,36 @@ async function resolve(project: ProjectSummary): Promise<DeliveredCatalogue | nu
     connector: active.kind,
     units,
     orientationMap: config.success ? config.data.orientationMap : {},
+    statusObservedAt: await statusObservedAt(service, projectUuid, active.kind, units),
   };
+}
+
+/**
+ * WHEN A SYNC SAW A FLAT'S AVAILABILITY CHANGE (ADR-0049), the deals' rule
+ * (`deal-source.ts`) applied to the catalogue: only a change WITNESSED between
+ * two syncs onto the status the flat still has. A flat first seen already sold
+ * was `added`, and its instant is when the connector was switched on. The
+ * façade answers newest first, so the first status change met for a flat is
+ * its latest; a thousand rows is one page, and an older change stays undated.
+ */
+async function statusObservedAt(
+  service: NonNullable<Awaited<ReturnType<typeof liveConnectorService>>>,
+  projectUuid: string,
+  kind: DeliveredCatalogue["connector"],
+  units: DeliveredCatalogue["units"],
+): Promise<Record<string, string>> {
+  const standing = new Map(units.map((u) => [u.code, u.status]));
+  const met = new Set<string>();
+  const out: Record<string, string> = {};
+  for (const change of await service.recentChanges(projectUuid, 1000)) {
+    if (change.connector !== kind || change.kind !== "changed" || met.has(change.code)) continue;
+    const fields = Array.isArray(change.changed_fields) ? (change.changed_fields as unknown[]) : [];
+    if (!fields.includes("status")) continue;
+    met.add(change.code);
+    const after = (change.after_unit as { readonly status?: unknown } | null)?.status;
+    if (after === standing.get(change.code)) out[change.code] = change.fetched_at;
+  }
+  return out;
 }
 
 export const liveCatalogueSource: CatalogueSource = {

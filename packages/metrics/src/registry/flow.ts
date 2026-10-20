@@ -311,6 +311,49 @@ export const irisAssistedSales = defineMetric({
   roles: ["developer", "agency_manager"],
 });
 
+/**
+ * IRIS-led sales (ADR-0049).
+ *
+ * The owner's question in the owner's words, answered as a rule about order:
+ * of the period's sales, how many had their flat opened in IRIS before the
+ * status change, and how often and how long before. The 72-hour verdict above
+ * is one column of it. An observed sequence, for `irisAssistedSales`' reason:
+ * the buyer is not linked to the visitor, so there is no attribution rule.
+ */
+export const irisLedSales = defineMetric({
+  id: "flow.iris_led_sales",
+  displayName: "IRIS-led sales",
+  businessDefinition:
+    "Of the sales the CRM states in the period, the share whose flat was opened in an IRIS presentation at any time before the status change.",
+  kind: "ratio",
+  calculation:
+    "Deals the CRM states at reservation or purchase, and flats a catalogue sync saw change to reserved or sold where the CRM holds no sale for them, whose dated change falls in the period and names a flat; of those, the ones a showroom meeting opened at or before the change, over all of them. The date is the CRM's stage instant, else the sync that first saw the change, and only for a change Observer witnessed. Showings are read across the project's whole history, and each sale states how many came first, in the period or before it, the first and last, and the days from the last to the change.",
+  numerator: "dated sales in the period whose flat was opened in IRIS before the change",
+  denominator:
+    "deals at reservation or purchase, and witnessed availability changes to reserved or sold, dated in the period and naming a flat",
+  exclusions: [
+    "sales with no date Observer could use, which no period can hold",
+    "sales that name no flat",
+    "flats the catalogue lists as reserved or sold with no date for the change",
+    "showings after the change",
+  ],
+  dimensions: ["project", "period", "agent"],
+  timeWindow: "period",
+  requiredFacts: ["unit.viewed", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit", "deal.stage_date"],
+  requiredUnitAttributes: ["status"],
+  minimumSampleSize: 5,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "The CRM states no sale dated in this period.",
+    insufficient: insufficient(5, "dated sales"),
+    unavailable: NO_CRM,
+  },
+  drillTo: "deals",
+  roles: ["developer", "agency_manager"],
+});
+
 export const FLOW_METRICS = [
   stageCounts,
   stageConversion,
@@ -323,4 +366,5 @@ export const FLOW_METRICS = [
   showroomSaleCycle,
   stalledOpportunities,
   irisAssistedSales,
+  irisLedSales,
 ] as const;

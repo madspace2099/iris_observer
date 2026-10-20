@@ -48,7 +48,7 @@ export function dealsFor(projectId: string): DeliveredDeals | null {
 /** The rungs, in the order a deal climbs them. `lost` is terminal and is counted beside, not on, the ladder. */
 export const LADDER_STAGES: readonly DealStage[] = DEAL_STAGES.filter((s) => s !== "lost");
 
-const STAGE_LABELS: Readonly<Record<DealStage, string>> = {
+export const STAGE_LABELS: Readonly<Record<DealStage, string>> = {
   lead: "Lead",
   meeting: "Meeting",
   negotiation: "Negotiation",
@@ -59,7 +59,7 @@ const STAGE_LABELS: Readonly<Record<DealStage, string>> = {
 };
 
 /** How the note names the source. The connector id is an implementation word; the reader gets the name. */
-const CONNECTOR_WORDS: Readonly<Record<DeliveredDeals["connector"], string>> = {
+export const CONNECTOR_WORDS: Readonly<Record<DeliveredDeals["connector"], string>> = {
   realpad: "REALPAD",
   monday: "Monday",
   lomnio: "Lomnio",
@@ -78,7 +78,7 @@ export function daysBetween(from: string | null, to: string): number | null {
   return Math.max(0, Math.floor((b - a) / DAY_MS));
 }
 
-function median(values: readonly number[]): number | null {
+export function median(values: readonly number[]): number | null {
   if (values.length === 0) return null;
   const sorted = [...values].sort((x, y) => x - y);
   const mid = Math.floor(sorted.length / 2);
@@ -737,7 +737,7 @@ const VERDICT_LABELS: Readonly<Record<AssistVerdict, string>> = {
   not_shown: "Not shown in IRIS",
 };
 
-function lagWords(hours: number, language: Language): string {
+export function lagWords(hours: number, language: Language): string {
   if (hours < 1) return "under an hour before";
   if (hours < 48) {
     return sentence(language, DEAL_LAG_HOURS_SENTENCE, { count: Math.floor(hours) });

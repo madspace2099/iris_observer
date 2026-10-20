@@ -19,10 +19,13 @@ import type {
 } from "@observer/readmodels";
 import {
   addressOf,
+  agentDetailHref,
   DEFAULT_LANGUAGE,
   formattingLocale,
   NotFoundError,
   NotPermittedError,
+  replayHref,
+  type IrisLedSalesView,
   type Language,
 } from "@observer/readmodels";
 import type { ReportScopeSelector } from "@observer/readmodels";
@@ -59,7 +62,11 @@ import type {
   ProjectDirectory,
   ShowroomSessionSource,
 } from "@observer/readmodels";
-import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
+import {
+  DEFAULT_ATTRIBUTION_POLICY,
+  DEFAULT_IRIS_ASSIST_POLICY,
+  comparisonRefusalReason,
+} from "@observer/metrics";
 import { endOfDayIn, periodsAt, periodWords } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
@@ -67,9 +74,11 @@ import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildProjectPulse, catalogueFor, provideCatalogue } from "./pulse";
 import { buildProjectDiagnostics } from "./diagnostics";
+import { buildIrisLedSales, irisLedCatalogue, provideCatalogueChanges } from "./iris-led";
 import { buildDeliveredAskSession } from "./ask-computed";
 import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
+  presenterName,
   presentersIn,
   rosterOf,
   provideAgentNames,
@@ -421,6 +430,12 @@ export class SyntheticObserverRepository implements ObserverRepository {
         ? null
         : rawUnitsFromCatalogue(delivered.units, delivered.orientationMap).units,
     );
+    provideCatalogueChanges(
+      project.id as string,
+      delivered === null
+        ? null
+        : { connector: delivered.connector, statusObservedAt: delivered.statusObservedAt ?? {} },
+    );
   }
 
   async getExecutiveOverview(query: OverviewQuery): Promise<ExecutiveOverview> {
@@ -555,6 +570,33 @@ export class SyntheticObserverRepository implements ObserverRepository {
       dealsFor(context.project.id as string),
       sessionsForProject(context.project.id as string),
     );
+  }
+
+  async getIrisLedSales(query: OverviewQuery): Promise<IrisLedSalesView> {
+    const { context, current, today } = await this.slices(query);
+    const project = context.project.id as string;
+    const at = addressOf(context);
+    /* An agent's page holds the period's meetings; one who showed a flat only before it has none. */
+    const presenting = new Set(current.map((s) => s.agentId));
+    return buildIrisLedSales({
+      context,
+      deals: dealsFor(project),
+      catalogue: irisLedCatalogue(project),
+      sessions: sessionsForProject(project),
+      /* The period's own slice, extended through today exactly as `slices` extends it. */
+      window: {
+        from: context.period.from,
+        to: new Date(sliceSpan(context, today).to).toISOString(),
+      },
+      policy: DEFAULT_IRIS_ASSIST_POLICY,
+      unitHref: (code) =>
+        catalogueFor(project).some((u) => u.code === code)
+          ? `/${at.tenantSlug}/${at.projectSlug}/units/${encodeURIComponent(code)}`
+          : null,
+      meetingHref: (meetingId) => replayHref(at, meetingId),
+      agentName: (agentId) => presenterName(project, agentId, context.language),
+      agentHref: (agentId) => (presenting.has(agentId) ? agentDetailHref(at, agentId) : null),
+    });
   }
 
   async getFlowCharts(query: OverviewQuery, window: KpiWindowId): Promise<FlowCharts> {

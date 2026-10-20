@@ -415,6 +415,31 @@
       ]
     },
     {
+      "id": "flow.iris_led_sales",
+      "displayName": "IRIS-led sales",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit",
+        "deal.stage_date"
+      ],
+      "requiredUnitAttributes": [
+        "status"
+      ],
+      "minimumSampleSize": 5,
+      "comparison": "none",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
       "id": "unit.unique_interested_contacts",
       "displayName": "Unique interested contacts",
       "kind": "count",
@@ -1889,6 +1914,7 @@
         "flow.showroom_sale_cycle",
         "flow.stalled_opportunities",
         "flow.iris_assisted_sales",
+        "flow.iris_led_sales",
         "project.sold_by_segment",
         "people.follow_up_delay",
         "people.share_to_offer",
@@ -2294,6 +2320,7 @@
         "exec.notable_changes",
         "flow.showroom_sale_cycle",
         "flow.iris_assisted_sales",
+        "flow.iris_led_sales",
         "unit.unique_interested_contacts",
         "unit.raw_views",
         "unit.meaningful_views",
