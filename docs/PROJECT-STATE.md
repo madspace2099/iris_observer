@@ -5449,3 +5449,38 @@ on a phone, the disclosure open over the figures. No dev server, build or Playwr
 Hart (replay links) and as Clara Weiss (none), at 1440 and 390, and `/settings/crm` from it; then run
 `e2e/iris-led.spec.ts` and `nav-reachability`. A real CRM will have sales the showroom never showed —
 the first live connection is where that list is first seen.
+
+## 2026-10-20 — IRIS-led sales: the two reviews' findings (ADR-0049 amended)
+
+Two adversarial reviews of the branch above; every finding was checked in the code first.
+
+- **Fixed.** A catalogue flat is dated only by its witnessed move off the market — from a status the
+  mapping knows, with the CRM's own word changing — so mapping a status word no longer mints a sale,
+  and a flat reserved then sold is dated by the reservation (`DeliveredCatalogue.statusChanges`). A
+  sync-dated change is an interval: only showings by the sync before count; one between the two
+  syncs is stated as of unknown order (`stageSeenBeforeAt`, `seenBefore`). A failure reading the
+  changes leaves flats undated, not the catalogue dropped. The demonstration CRM's 100% is disclosed
+  as made from meetings; the page says the Sales Flow card counts every dated deal, this page the
+  period's; the unplaced sentence sits beside the figures (the lede when nothing is counted); M reads
+  "sales with a date and a flat"; the showings median is locale-formatted; the timeline's crowded
+  ticks step aside on a narrow track.
+- **Connect your CRM.** Only the developer's admin or MADSPACE may act (`mayConnectCrm`): Tomáš
+  Varga, admin of the agency Meridian Sales, reads ISTER TOWER's CRM and is refused every action.
+  Map boxes are drawn filled with what is stored; a flats upload names unmapped status words; a new
+  REALPAD price-list pair keeps the stored Data Takeout pair (`saveRealpadPricelist`); read times are
+  in the project's zone; the tiles state the real cadence (on save; daily at 06:00 UTC once
+  `CRON_SECRET` is set) instead of "each hour"; a connected project links to its IRIS-led sales.
+- **Left, and why.** ADR-0039's card (`buildAssistedSales`) still counts a showing between two syncs
+  and its note still says "never shorter": the card's note belongs to a parallel stream this round.
+  Sales Flow has no line for a catalogue-only project (the brief allows one link on that page);
+  `/settings/crm` links to the page instead.
+
+**Verified.** Typecheck clean; lint and prettier clean on every changed file. The full unit suite
+(after `pnpm release:wrappers`): 261 files, 4941 passed, 1 skipped, 1 failed — `no-secret-recipes`,
+which needs a web build to scan the browser bundle; `scripts/secret-audit.mjs` reports the working
+tree, staged diff and history clean. No dev server, build or Playwright: `e2e/iris-led.spec.ts`'s
+new cases are written, not run, and the pages were not looked at after these changes.
+
+**Next recommended action.** Carry the interval rule into `buildAssistedSales` once the card's note
+is free, then look at `/shark/shark-residence/flow/iris-led` and `/settings/crm` (as Clara, Daniel
+and Tomáš) at 1440 and 390 on the demo build, and run `e2e/iris-led.spec.ts`.
