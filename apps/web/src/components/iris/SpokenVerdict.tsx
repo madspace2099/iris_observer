@@ -15,9 +15,10 @@ import type { CSSProperties } from "react";
  * shown by its own `animation-delay` (`iris.css`, "the spoken verdict"), so
  * nothing below the heading moves while it types and there is no hydration to
  * mismatch. The caret is each character's `::after`, lit for exactly that
- * character's step; the last one blinks three times and fades. The mark's
- * speaking (a turning scan arc, a ping, five level bars) runs for the same
- * span and settles into one slow breathing ring.
+ * character's step, and the character is shown whole as its step begins, so
+ * the caret is never drawn inside a half-faded letter; the last one blinks
+ * three times and fades. The mark's speaking (a turning scan arc, a ping, five
+ * level bars) runs for the same span and settles into one slow breathing ring.
  *
  * Under reduced motion, and in print, every animation is off: the sentence
  * stands complete, no caret, and the mark is its resting frame.

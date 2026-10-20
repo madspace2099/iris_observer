@@ -93,6 +93,11 @@ describe("the spoken verdict's motion", () => {
     }
   });
 
+  it("shows each character whole as its step begins, so its caret is not drawn faded", () => {
+    const rule = /\n\.iris-spoken-ch \{([^}]*)\}/.exec(SHEET)?.[1] ?? "";
+    expect(rule).toMatch(/animation: iris-spoken-type 1ms steps\(1, end\) /);
+  });
+
   it("animates every animated rule it names, and nothing it does not stop", () => {
     const animated = [...SHEET.matchAll(/\n(\.iris-spoken[^{]*)\{[^}]*\banimation:/g)].map((m) =>
       (m[1] ?? "").trim(),

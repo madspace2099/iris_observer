@@ -204,9 +204,14 @@
   letter-spacing: 0.14em;
 }
 
+/*
+ * Shown whole the moment its step begins, never faded in: the caret is this
+ * span's `::after`, so it takes the span's opacity, and a fade would draw it
+ * at a fifth of its strength for every character but the last.
+ */
 .iris-spoken-ch {
   position: relative;
-  animation: iris-spoken-type 80ms ease-out calc(var(--i) * var(--sv-step)) backwards;
+  animation: iris-spoken-type 1ms steps(1, end) calc(var(--i) * var(--sv-step)) backwards;
 }
 
 .iris-spoken-ch::after {
@@ -252,11 +257,11 @@
   stroke-width: 1;
 }
 
-/* A tick every six degrees. */
+/* A tick every ten degrees, about a pixel wide at 56px (the welcome's 0.6 would be a quarter). */
 .iris-spoken-ticks {
-  stroke: rgb(150 185 240 / 30%);
+  stroke: rgb(150 185 240 / 45%);
   stroke-width: 2.5;
-  stroke-dasharray: 0.6 5.4;
+  stroke-dasharray: 3 7;
 }
 
 .iris-spoken-inner {
