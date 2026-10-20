@@ -43,9 +43,18 @@ import {
 } from "@/components/product";
 import { PrintPage } from "@/components/report";
 import { printedSections } from "@/components/report/omit";
+import { CellBar, OutcomeMix, OutcomeSwatch } from "@/components/report/ReportCharts";
+import {
+  ReportCover,
+  ReportDocument,
+  documentKind,
+  type CoverFigure,
+  type SectionNotes,
+} from "@/components/report/ReportDocument";
 import {
   AGENT_REPORT_WORDS,
   REPORT_BLANK_SECTIONS,
+  REPORT_DOCUMENT_WORDS,
   REPORT_LEFT_OUT_SECTIONS,
   REPORT_PARTIAL_SECTIONS,
   REPORT_WORDS,
@@ -151,6 +160,11 @@ export async function AgentReport({
     view.belowMinimum ? [] : [{ key: "share", label, numeric: true }];
 
   const runningOrder = [...view.profile.sections].sort((a, b) => a.order - b.order);
+  /* The longest median stay draws the full bar; the cell prints the read model's duration. */
+  const longestStay = Math.max(
+    0,
+    ...runningOrder.map((section) => section.medianDwellSeconds ?? 0),
+  );
 
   const unitColumns: readonly DataColumn[] = [
     { key: "unit", label: words.unitColumns[0] },
@@ -205,7 +219,6 @@ export async function AgentReport({
           action={null}
           period={period}
         />
-        <p className="ox-section-note">{view.followUp.note}</p>
 
         <p className="ox-subhead">{words.outcomesTheyRecorded}</p>
         <Tally>
@@ -223,7 +236,6 @@ export async function AgentReport({
             />
           ))}
         </Tally>
-        <p className="ox-section-note">{words.recordedNote(view.name)}</p>
       </>
     ),
 
@@ -263,7 +275,10 @@ export async function AgentReport({
             dwell: isDash(section.dwellDisplay) ? (
               <Missing what={words.notTimed} />
             ) : (
-              section.dwellDisplay
+              <span className="ox-bar-value">
+                <CellBar value={section.medianDwellSeconds} max={longestStay} />
+                {section.dwellDisplay}
+              </span>
             ),
             share: (
               <ShareFigure
@@ -317,34 +332,46 @@ export async function AgentReport({
           }))}
           period={period}
         />
-        <DataTable
-          caption={words.outcomeCaption(
-            view.name,
-            view.belowMinimum,
-            view.sampleSize,
-            view.minimumSampleSize,
-          )}
-          columns={[
-            { key: "outcome", label: words.outcomeColumns[0] },
-            { key: "count", label: words.outcomeColumns[1], numeric: true },
-            ...shareColumns(words.outcomeColumns[2]),
-          ]}
-          rows={view.outcomeMix.map((slice) => ({
-            key: slice.outcome,
-            cells: {
-              outcome: slice.label,
-              count: ofTheirs(slice.count),
-              share: (
-                <ShareFigure
-                  share={slice.share}
-                  {...floor}
-                  qualifier={words.ofMeetings(view.sampleSize)}
-                />
-              ),
-            },
-          }))}
-          period={period}
-        />
+        <div className="ox-report-chart">
+          <OutcomeMix
+            slices={view.outcomeMix}
+            id="agent-outcomes"
+            label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
+          />
+          <DataTable
+            caption={words.outcomeCaption(
+              view.name,
+              view.belowMinimum,
+              view.sampleSize,
+              view.minimumSampleSize,
+            )}
+            columns={[
+              { key: "outcome", label: words.outcomeColumns[0] },
+              { key: "count", label: words.outcomeColumns[1], numeric: true },
+              ...shareColumns(words.outcomeColumns[2]),
+            ]}
+            rows={view.outcomeMix.map((slice) => ({
+              key: slice.outcome,
+              cells: {
+                outcome: (
+                  <span className="ox-swatched">
+                    <OutcomeSwatch outcome={slice.outcome} id={`agent-outcome-${slice.outcome}`} />
+                    {slice.label}
+                  </span>
+                ),
+                count: ofTheirs(slice.count),
+                share: (
+                  <ShareFigure
+                    share={slice.share}
+                    {...floor}
+                    qualifier={words.ofMeetings(view.sampleSize)}
+                  />
+                ),
+              },
+            }))}
+            period={period}
+          />
+        </div>
       </>
     ),
 
@@ -392,7 +419,6 @@ export async function AgentReport({
             ))}
           </ul>
         )}
-        <p className="ox-section-note">{words.projectsNote}</p>
       </>
     ),
 
@@ -406,10 +432,6 @@ export async function AgentReport({
           emptyNote={words.registerEmpty(view.name, periodLabel)}
           language={language}
         />
-        <p className="ox-section-note">
-          <Link href={link(meetingsHref)}>{words.registerLink}</Link>
-          {words.registerRest}
-        </p>
       </>
     ),
 
@@ -439,91 +461,138 @@ export async function AgentReport({
     ),
   };
 
+  /*
+   * Every sentence that qualified a section on the page, for "How to read
+   * this report", in the order the section printed them: the tables'
+   * captions (still each table's accessible caption), the follow-up note, the
+   * recorded-outcome note, the scope of the project list, and the register's
+   * link to every meeting it is taken from.
+   */
+  const notes: SectionNotes = {
+    "agent-activity": [view.followUp.note, words.recordedNote(view.name)],
+    "agent-presentation": [
+      words.presentationCaption(
+        view.name,
+        view.belowMinimum,
+        view.sampleSize,
+        view.minimumSampleSize,
+      ),
+    ],
+    "agent-buyers": [
+      words.buyersCaption(view.name, view.belowMinimum, view.sampleSize, view.minimumSampleSize),
+      words.outcomeCaption(view.name, view.belowMinimum, view.sampleSize, view.minimumSampleSize),
+    ],
+    "agent-units": [words.unitsCaption(view.name, periodLabel)],
+    "agent-projects": [words.projectsNote],
+    "agent-meetings": [
+      ...(view.recentMeetings.length === 0 ? [] : [words.registerCaption(view.name, periodLabel)]),
+      <>
+        <Link href={link(meetingsHref)}>{words.registerLink}</Link>
+        {words.registerRest}
+      </>,
+    ],
+    "evidence-appendix": [words.appendixCaption],
+  };
+
+  /* The cover's figures are the activity the summary opens with, each with its own base. */
+  const figures: readonly CoverFigure[] = view.activity.slice(0, 4).map((metric) => ({
+    key: metric.metricId,
+    label: metric.label,
+    value: <Figure value={metric} language={language} />,
+  }));
+  const answer = agentAnswer(view, language);
+
   return (
-    <div className="ox-page ox-report" lang={language}>
-      <PageHead
-        kicker={`${report.context.project.name} · ${words.kicker} · ${report.scope.label}`}
-        title={view.name}
-        answer={agentAnswer(view, language)}
-        lede={words.lede(view.organisationName)}
-        crumbs={[
-          { label: report.context.project.name, href: `${root}/project` },
-          { label: words.crumbAgents, href: `${root}/agents` },
-          { label: view.name, href: agentDetailHref({ tenantSlug, projectSlug }, view.agentId) },
-          { label: words.crumbSummary },
-        ]}
-        aside={
-          <>
-            <Synthetic language={language} />
-            <Sample
-              n={view.sampleSize}
-              noun={language === "en" ? "meetings" : plural(language, view.sampleSize, MEETINGS)}
-            />
-            <PrintPage label={reportWords.print} />
-          </>
-        }
-        period={period}
-        language={language}
-      />
-
-      <div className="ox-body">
-        <section className="ox-plane" aria-labelledby="report-cover">
-          <div className="ox-section-head">
-            <h2 className="ox-section-title" id="report-cover">
-              {report.scope.label}
-            </h2>
-            <p className="ox-section-note">
-              {reportWords.audience}{" "}
-              {report.unavailableCount === 0
-                ? words.everyWritable
-                : sentence(language, REPORT_BLANK_SECTIONS, {
-                    count: String(report.unavailableCount),
-                    total: String(total),
-                    from: slovakZForm(total),
-                    n: report.unavailableCount,
-                  })}
-              {partialCount === 0
-                ? ""
-                : ` ${sentence(language, REPORT_PARTIAL_SECTIONS, {
-                    count: String(partialCount),
-                    countAt: hungarianAdessive(String(partialCount)),
-                    total: String(total),
-                    from: slovakZForm(total),
-                    n: partialCount,
-                  })}`}
-              {leftOut.length === 0
-                ? ""
-                : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
-                    count: String(leftOut.length),
-                    total: String(total),
-                    from: slovakZForm(total),
-                    n: leftOut.length,
-                  })}`}
-            </p>
-          </div>
-          <ol className="ox-report-contents">
-            {report.sections.map((section) =>
-              leftOut.includes(section) ? (
-                <li key={section.id}>
-                  {section.label}
-                  <span className="ox-n"> · {reportWords.leftOut}</span>
-                </li>
-              ) : (
-                <li key={section.id}>
-                  <a href={`#${section.id}`}>{section.label}</a>
-                  <span className="ox-n"> · {reportWords.availability[section.availability]}</span>
-                </li>
-              ),
-            )}
-          </ol>
-        </section>
-
-        {printed.map((section) => (
-          <ReportPlane key={section.id} section={section} period={period} language={language}>
+    <ReportDocument
+      report={report}
+      printed={printed}
+      notes={notes}
+      language={language}
+      head={
+        <PageHead
+          kicker={`${report.context.project.name} · ${words.kicker} · ${report.scope.label}`}
+          title={view.name}
+          answer={answer}
+          lede={words.lede(view.organisationName)}
+          crumbs={[
+            { label: report.context.project.name, href: `${root}/project` },
+            { label: words.crumbAgents, href: `${root}/agents` },
+            { label: view.name, href: agentDetailHref({ tenantSlug, projectSlug }, view.agentId) },
+            { label: words.crumbSummary },
+          ]}
+          aside={
+            <>
+              <Synthetic language={language} />
+              <Sample
+                n={view.sampleSize}
+                noun={language === "en" ? "meetings" : plural(language, view.sampleSize, MEETINGS)}
+              />
+              <PrintPage label={reportWords.print} />
+            </>
+          }
+          period={period}
+          language={language}
+        />
+      }
+      cover={
+        <ReportCover
+          report={report}
+          subject={view.name}
+          verdict={answer}
+          figures={figures}
+          language={language}
+        />
+      }
+      footer={[
+        report.context.project.name,
+        documentKind("agent", language),
+        view.name,
+        periodLabel,
+      ]}
+      statement={
+        <>
+          {reportWords.audience}{" "}
+          {report.unavailableCount === 0
+            ? words.everyWritable
+            : sentence(language, REPORT_BLANK_SECTIONS, {
+                count: String(report.unavailableCount),
+                total: String(total),
+                from: slovakZForm(total),
+                n: report.unavailableCount,
+              })}
+          {partialCount === 0
+            ? ""
+            : ` ${sentence(language, REPORT_PARTIAL_SECTIONS, {
+                count: String(partialCount),
+                countAt: hungarianAdessive(String(partialCount)),
+                total: String(total),
+                from: slovakZForm(total),
+                n: partialCount,
+              })}`}
+          {leftOut.length === 0
+            ? ""
+            : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
+                count: String(leftOut.length),
+                total: String(total),
+                from: slovakZForm(total),
+                n: leftOut.length,
+              })}`}
+        </>
+      }
+    >
+      {(number) =>
+        printed.map((section) => (
+          <ReportPlane
+            key={section.id}
+            section={section}
+            number={number(section.id)}
+            period={period}
+            language={language}
+          >
             {section.availability === "unavailable" ? null : content[section.id]}
           </ReportPlane>
-        ))}
-      </div>
-    </div>
+        ))
+      }
+    </ReportDocument>
   );
 }

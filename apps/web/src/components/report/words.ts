@@ -247,6 +247,77 @@ export const REPORT_WORDS: Readonly<Record<Language, ReportWords>> = {
   },
 };
 
+/**
+ * THE PRINTED DOCUMENT'S OWN FRAME (ADR-0049): the cover, the contents, the
+ * appendix that holds every section's notes, and the running footer. The
+ * document type reuses the words the page already prints for it (`title`,
+ * `meetingSummary`, the agent kicker), so the cover and the screen cannot name
+ * one document twice. Slovak and Hungarian are drafts for review, like the
+ * rest of this file.
+ */
+export interface ReportDocumentWords {
+  /** "Internal — not for buyers" (ADR-0018), on the cover. */
+  readonly internal: string;
+  readonly project: string;
+  readonly period: string;
+  readonly language: string;
+  readonly generated: string;
+  readonly contents: string;
+  readonly howToRead: string;
+  readonly howToReadLede: string;
+  /** The project cover: the meetings the source timed from the first step to the last. */
+  readonly timedEndToEnd: string;
+  /** The project cover: the team's progression, as Sales Flow states it. */
+  readonly team: string;
+  /** The outcome chart's name to a screen reader: the shape, not a figure. */
+  readonly outcomeChart: string;
+}
+
+export const REPORT_DOCUMENT_WORDS: Readonly<Record<Language, ReportDocumentWords>> = {
+  en: {
+    internal: "Internal — not for buyers",
+    project: "Project",
+    period: "Period",
+    language: "Language",
+    generated: "Generated",
+    contents: "Contents",
+    howToRead: "How to read this report",
+    howToReadLede:
+      "The notes behind each section, numbered as the sections are: what a table counts, what it leaves out, and why.",
+    timedEndToEnd: "Timed end to end",
+    team: "The team",
+    outcomeChart: "How the meetings ended, as parts of one whole",
+  },
+  sk: {
+    internal: "Interné — nie pre kupujúcich",
+    project: "Projekt",
+    period: "Obdobie",
+    language: "Jazyk",
+    generated: "Vytvorené",
+    contents: "Obsah",
+    howToRead: "Ako čítať túto správu",
+    howToReadLede:
+      "Poznámky k jednotlivým sekciám, očíslované rovnako ako sekcie: čo tabuľka počíta, čo vynecháva a prečo.",
+    timedEndToEnd: "S meraným časom od začiatku do konca",
+    team: "Tím",
+    outcomeChart: "Ako sa stretnutia skončili, ako časti jedného celku",
+  },
+  hu: {
+    internal: "Belső használatra — vevőknek nem",
+    project: "Projekt",
+    period: "Időszak",
+    language: "Nyelv",
+    generated: "Készült",
+    contents: "Tartalom",
+    howToRead: "Hogyan olvassa ezt a jelentést",
+    howToReadLede:
+      "Az egyes szakaszokhoz tartozó megjegyzések, a szakaszokkal azonos számozással: mit számol egy táblázat, mit hagy ki, és miért.",
+    timedEndToEnd: "Elejétől végéig mért idejű",
+    team: "A csapat",
+    outcomeChart: "Hogyan zárultak a találkozók, egy egész részeiként",
+  },
+};
+
 /** "1 of 8 sections would be blank, and each says why." */
 export const REPORT_BLANK_SECTIONS: Sentence = {
   en: { text: "{count} of {total} sections would be blank, and each says why." },

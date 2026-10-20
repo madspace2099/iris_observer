@@ -33,9 +33,20 @@ import {
 } from "@/components/product";
 import { PrintPage } from "@/components/report";
 import { omittedFrom, printedSections } from "@/components/report/omit";
+import { CellBar, OutcomeMix, OutcomeSwatch } from "@/components/report/ReportCharts";
 import {
+  Count,
+  ReportCover,
+  ReportDocument,
+  documentKind,
+  type CoverFigure,
+  type SectionNotes,
+} from "@/components/report/ReportDocument";
+import {
+  AGENT_REPORT_WORDS,
   REPORT_BLANK_SECTIONS,
   REPORT_COVERAGE_CAPTION,
+  REPORT_DOCUMENT_WORDS,
   REPORT_LEFT_OUT_SECTIONS,
   REPORT_MEETINGS_NEEDED,
   REPORT_WORDS,
@@ -88,6 +99,15 @@ export const metadata: Metadata = { title: "Report" };
  * the body of every section is the page's, drawn with the screens' own
  * components, so a rate reaches paper with the denominator and the floor it
  * has on screen.
+ *
+ * ## One document, three scopes (ADR-0049)
+ *
+ * Every scope prints the same document: a cover with the verdict and the
+ * headline figures the page already reads, numbered contents, the numbered
+ * sections with one line of provenance each, and "How to read this report",
+ * where every explanatory paragraph that used to follow a section now stands
+ * under that section's number. Each scope hands its notes over beside its
+ * content, so nothing a section said is lost; it is said once, at the back.
  */
 
 export default async function ReportPage({
@@ -136,7 +156,18 @@ export default async function ReportPage({
     requireSurface(viewer, "[agentId]", `/${tenantSlug}/${projectSlug}`);
     return <AgentReport query={query} agentId={agentId} omitted={omitted} />;
   }
+  return <ProjectReport query={query} omitted={omitted} />;
+}
 
+/** The project's report: the sections `getReportScope` lists, each from the read model that owns it. */
+async function ProjectReport({
+  query,
+  omitted,
+}: {
+  readonly query: OverviewQuery;
+  readonly omitted: ReadonlySet<string>;
+}) {
+  const { tenantSlug, projectSlug, period, language } = query;
   const [report, flow, project, agents, meetings] = await Promise.all([
     repository.getReportScope(query),
     repository.getSalesFlow(query),
@@ -153,6 +184,13 @@ export default async function ReportPage({
   const pct = (share: number) => percent.format(share);
   const link = (href: string) => dynamicRoute(withPeriod(href, period));
   const words = REPORT_WORDS[language];
+  const coverageCaption = sentence(language, REPORT_COVERAGE_CAPTION, {
+    timed: String(agents.timedMeetingCount),
+    total: String(agents.meetingCount),
+    from: slovakZForm(agents.meetingCount),
+  });
+  /* The longest share draws the full bar; the bar places a mark, the cell prints the figure. */
+  const widestShare = Math.max(0, ...agents.teamSections.map((section) => section.teamShare));
 
   const content: Readonly<Record<string, ReactNode>> = {
     "period-summary": (
@@ -167,7 +205,8 @@ export default async function ReportPage({
               <TallyItem
                 key={window.id}
                 label={words.windowMeetings(window.label)}
-                value={String(window.meetings)}
+                /* Its own box: two bare strings in the tile's flex row ran together as "2median". */
+                value={<span>{window.meetings}</span>}
                 delta={words.median(window.medianDurationDisplay)}
               />
             ))}
@@ -178,11 +217,7 @@ export default async function ReportPage({
     "presentation-coverage":
       agents.teamSections.length === 0 ? null : (
         <DataTable
-          caption={sentence(language, REPORT_COVERAGE_CAPTION, {
-            timed: String(agents.timedMeetingCount),
-            total: String(agents.meetingCount),
-            from: slovakZForm(agents.meetingCount),
-          })}
+          caption={coverageCaption}
           columns={[
             { key: "section", label: words.coverageColumns[0] },
             { key: "share", label: words.coverageColumns[1], numeric: true },
@@ -192,7 +227,12 @@ export default async function ReportPage({
             key: section.sectionId,
             cells: {
               section: section.label,
-              share: pct(section.teamShare),
+              share: (
+                <span className="ox-bar-value">
+                  <CellBar value={section.teamShare} max={widestShare} />
+                  {pct(section.teamShare)}
+                </span>
+              ),
               dwell: section.teamDwellDisplay,
             },
           }))}
@@ -269,28 +309,44 @@ export default async function ReportPage({
     ),
     outcomes: (
       <>
-        <DataTable
-          caption={words.outcomesCaption}
-          columns={[
-            { key: "outcome", label: words.outcomesColumns[0] },
-            { key: "count", label: words.outcomesColumns[1], numeric: true },
-            { key: "share", label: words.outcomesColumns[2], numeric: true },
-          ]}
-          rows={flow.outcomes.map((slice) => ({
-            key: slice.outcome,
-            cells: { outcome: slice.label, count: String(slice.count), share: pct(slice.share) },
-          }))}
-          period={period}
-        />
+        <div className="ox-report-chart">
+          <OutcomeMix
+            slices={flow.outcomes}
+            id="project-outcomes"
+            label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
+          />
+          <DataTable
+            caption={words.outcomesCaption}
+            columns={[
+              { key: "outcome", label: words.outcomesColumns[0] },
+              { key: "count", label: words.outcomesColumns[1], numeric: true },
+              { key: "share", label: words.outcomesColumns[2], numeric: true },
+            ]}
+            rows={flow.outcomes.map((slice) => ({
+              key: slice.outcome,
+              cells: {
+                outcome: (
+                  <span className="ox-swatched">
+                    <OutcomeSwatch
+                      outcome={slice.outcome}
+                      id={`project-outcome-${slice.outcome}`}
+                    />
+                    {slice.label}
+                  </span>
+                ),
+                count: String(slice.count),
+                share: pct(slice.share),
+              },
+            }))}
+            period={period}
+          />
+        </div>
+        {/* The ladder's intro and its note are the section's notes, at the back. */}
         {flow.ladder.source === "crm" ? (
           <div className="ox-report-ladder">
-            <p className="ox-section-note">{words.ladderIntro}</p>
             <FlowLadder stages={flow.ladder.stages} noun="deals" language={language} />
-            <p className="ox-section-note">{flow.ladder.note}</p>
           </div>
-        ) : (
-          <p className="ox-section-note">{flow.ladder.note}</p>
-        )}
+        ) : null}
       </>
     ),
     "channel-split": (
@@ -348,83 +404,136 @@ export default async function ReportPage({
     ),
   };
 
+  /* Every sentence that qualifies a section, for "How to read this report". */
+  const notes: SectionNotes = {
+    "presentation-coverage": agents.teamSections.length === 0 ? [] : [coverageCaption],
+    "unit-demand": [words.unitDemandCaption],
+    "sales-agents": [words.agentsCaption],
+    outcomes: [
+      words.outcomesCaption,
+      ...(flow.ladder.source === "crm" ? [words.ladderIntro] : []),
+      flow.ladder.note,
+    ],
+    "meeting-summary": meetings.rows.length === 0 ? [] : [words.meetingsCaption],
+    "evidence-appendix": [words.appendixCaption],
+  };
+
+  /*
+   * The cover's figures, each a field the page already reads with the base it
+   * stands on: the meetings in the period, the ones the source could time, the
+   * team's progression as Sales Flow writes it, and the meetings nobody
+   * recorded an outcome for.
+   */
+  const { ofMeetings } = AGENT_REPORT_WORDS[language];
+  const unrecorded = flow.outcomes.find((slice) => slice.outcome === "skipped");
+  const figures: readonly CoverFigure[] = [
+    {
+      key: "meetings",
+      label: words.meetingsInPeriod,
+      value: <Count n={flow.meetingCount} of={report.periodLabel} />,
+    },
+    {
+      key: "timed",
+      label: REPORT_DOCUMENT_WORDS[language].timedEndToEnd,
+      value: <Count n={agents.timedMeetingCount} of={ofMeetings(agents.meetingCount)} />,
+    },
+    {
+      key: "team",
+      label: REPORT_DOCUMENT_WORDS[language].team,
+      value: (
+        <span className="ox-value">
+          <span className="ox-cover-statement">{flow.team.display}</span>
+        </span>
+      ),
+    },
+    ...(unrecorded === undefined
+      ? []
+      : [
+          {
+            key: "unrecorded",
+            label: unrecorded.label,
+            value: <Count n={unrecorded.count} of={ofMeetings(flow.meetingCount)} />,
+          },
+        ]),
+  ];
+
   return (
-    <div className="ox-page ox-report" lang={language}>
-      <PageHead
-        kicker={`${report.context.project.name} · ${words.report} · ${report.periodLabel}`}
-        title={words.title}
-        answer={flow.verdict}
-        lede={words.lede}
-        crumbs={[
-          { label: report.context.project.name, href: `${root}/project` },
-          { label: words.report },
-        ]}
-        aside={
-          <>
-            <Synthetic language={language} />
-            <PrintPage label={words.print} />
-          </>
-        }
-        period={period}
-        language={language}
-      />
-
-      <div className="ox-body">
-        {/* --- the cover facts ------------------------------------------------ */}
-        <section className="ox-plane" aria-labelledby="report-cover">
-          <div className="ox-section-head">
-            <h2 className="ox-section-title" id="report-cover">
-              {report.scope.label}
-            </h2>
-            <p className="ox-section-note">
-              {words.audience}{" "}
-              {words.attribution(
-                report.context.attribution.version,
-                report.context.attribution.effectiveFrom.slice(0, 10),
-              )}{" "}
-              {report.unavailableCount === 0
-                ? words.everyWritable
-                : sentence(language, REPORT_BLANK_SECTIONS, {
-                    count: String(report.unavailableCount),
-                    total: String(report.sections.length),
-                    from: slovakZForm(report.sections.length),
-                    n: report.unavailableCount,
-                  })}
-              {leftOut.length === 0
-                ? ""
-                : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
-                    count: String(leftOut.length),
-                    total: String(report.sections.length),
-                    from: slovakZForm(report.sections.length),
-                    n: leftOut.length,
-                  })}`}
-            </p>
-          </div>
-          <ol className="ox-report-contents">
-            {report.sections.map((section) =>
-              leftOut.includes(section) ? (
-                <li key={section.id}>
-                  {section.label}
-                  <span className="ox-n"> · {words.leftOut}</span>
-                </li>
-              ) : (
-                <li key={section.id}>
-                  <a href={`#${section.id}`}>{section.label}</a>
-                  <span className="ox-n"> · {words.availability[section.availability]}</span>
-                </li>
-              ),
-            )}
-          </ol>
-        </section>
-
-        {/* --- the sections, in the read model's order ---------------------- */}
-        {printed.map((section) => (
-          <ReportPlane key={section.id} section={section} period={period} language={language}>
+    <ReportDocument
+      report={report}
+      printed={printed}
+      notes={notes}
+      language={language}
+      head={
+        <PageHead
+          kicker={`${report.context.project.name} · ${words.report} · ${report.periodLabel}`}
+          title={words.title}
+          answer={flow.verdict}
+          lede={words.lede}
+          crumbs={[
+            { label: report.context.project.name, href: `${root}/project` },
+            { label: words.report },
+          ]}
+          aside={
+            <>
+              <Synthetic language={language} />
+              <PrintPage label={words.print} />
+            </>
+          }
+          period={period}
+          language={language}
+        />
+      }
+      cover={
+        <ReportCover
+          report={report}
+          subject={report.context.project.name}
+          verdict={flow.verdict}
+          figures={figures}
+          language={language}
+        />
+      }
+      footer={[report.context.project.name, documentKind("project", language), report.periodLabel]}
+      statement={
+        <>
+          {words.audience}{" "}
+          {words.attribution(
+            report.context.attribution.version,
+            report.context.attribution.effectiveFrom.slice(0, 10),
+          )}{" "}
+          {report.unavailableCount === 0
+            ? words.everyWritable
+            : sentence(language, REPORT_BLANK_SECTIONS, {
+                count: String(report.unavailableCount),
+                total: String(report.sections.length),
+                from: slovakZForm(report.sections.length),
+                n: report.unavailableCount,
+              })}
+          {leftOut.length === 0
+            ? ""
+            : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
+                count: String(leftOut.length),
+                total: String(report.sections.length),
+                from: slovakZForm(report.sections.length),
+                n: leftOut.length,
+              })}`}
+        </>
+      }
+    >
+      {/* --- the sections, in the read model's order ---------------------- */}
+      {(number) =>
+        printed.map((section) => (
+          <ReportPlane
+            key={section.id}
+            section={section}
+            number={number(section.id)}
+            period={period}
+            language={language}
+          >
             {section.availability === "unavailable" ? null : content[section.id]}
           </ReportPlane>
-        ))}
-      </div>
-    </div>
+        ))
+      }
+    </ReportDocument>
   );
 }
 
@@ -478,7 +587,7 @@ async function MeetingReport({
           <TallyItem label={words.presentedBy} value={replay.agentName} />
           <TallyItem label={words.recordedOutcome} value={replay.outcomeLabel} />
         </Tally>
-        <ol className="ox-report-contents">
+        <ol className="ox-report-steps">
           {replay.steps.map((step) => (
             <li key={step.ordinal}>
               {step.label}
@@ -490,9 +599,6 @@ async function MeetingReport({
             </li>
           ))}
         </ol>
-        {replay.gaps.length === 0 ? null : (
-          <p className="ox-section-note">{replay.gaps.join(" ")}</p>
-        )}
       </>
     ),
     "evidence-appendix": (
@@ -515,35 +621,81 @@ async function MeetingReport({
       />
     ),
   };
+  /* The gaps the replay states, and the session record's caption, are notes. */
+  const notes: SectionNotes = {
+    "meeting-summary": replay.gaps.length === 0 ? [] : [replay.gaps.join(" ")],
+    "evidence-appendix": [words.sessionCaption],
+  };
+  /* The cover's figures are the summary's own four facts, as the replay states them. */
+  const fact = (text: string) => (
+    <span className="ox-value">
+      <span className="ox-cover-statement">{text}</span>
+    </span>
+  );
+  const figures: readonly CoverFigure[] = [
+    { key: "started", label: words.started, value: fact(replay.startedDisplay) },
+    { key: "length", label: words.length, value: fact(replay.durationDisplay) },
+    { key: "agent", label: words.presentedBy, value: fact(replay.agentName) },
+    { key: "outcome", label: words.recordedOutcome, value: fact(replay.outcomeLabel) },
+  ];
   return (
-    <div className="ox-page ox-report" lang={query.language}>
-      <PageHead
-        kicker={`${report.context.project.name} · ${words.meetingSummary} · ${report.scope.label}`}
-        title={words.meetingSummary}
-        answer={replay.headline}
-        lede={words.meetingLede}
-        crumbs={[
-          { label: report.context.project.name, href: `${root}/project` },
-          { label: words.meetings, href: `${root}/meetings` },
-          { label: replay.startedDisplay, href: replayHref(query, meetingId) },
-          { label: words.summary },
-        ]}
-        aside={
-          <>
-            <Synthetic language={language} />
-            <PrintPage label={words.print} />
-          </>
-        }
-        period={period}
-        language={language}
-      />
-      <div className="ox-body">
-        {printed.map((section) => (
-          <ReportPlane key={section.id} section={section} period={period} language={language}>
+    <ReportDocument
+      report={report}
+      printed={printed}
+      notes={notes}
+      language={language}
+      head={
+        <PageHead
+          kicker={`${report.context.project.name} · ${words.meetingSummary} · ${report.scope.label}`}
+          title={words.meetingSummary}
+          answer={replay.headline}
+          lede={words.meetingLede}
+          crumbs={[
+            { label: report.context.project.name, href: `${root}/project` },
+            { label: words.meetings, href: `${root}/meetings` },
+            { label: replay.startedDisplay, href: replayHref(query, meetingId) },
+            { label: words.summary },
+          ]}
+          aside={
+            <>
+              <Synthetic language={language} />
+              <PrintPage label={words.print} />
+            </>
+          }
+          period={period}
+          language={language}
+        />
+      }
+      cover={
+        <ReportCover
+          report={report}
+          subject={report.scope.label}
+          verdict={replay.headline}
+          figures={figures}
+          language={language}
+        />
+      }
+      footer={[
+        report.context.project.name,
+        documentKind("meeting", language),
+        replay.startedDisplay,
+        report.periodLabel,
+      ]}
+      statement={words.audience}
+    >
+      {(number) =>
+        printed.map((section) => (
+          <ReportPlane
+            key={section.id}
+            section={section}
+            number={number(section.id)}
+            period={period}
+            language={language}
+          >
             {content[section.id]}
           </ReportPlane>
-        ))}
-      </div>
-    </div>
+        ))
+      }
+    </ReportDocument>
   );
 }

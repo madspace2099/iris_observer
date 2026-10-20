@@ -104,13 +104,16 @@ const sampleOf = (n: number, language: Language): string =>
  * and the end is exclusive, so the times are written rather than implied.
  */
 function periodCell(report: ReportScopeView): string {
-  const { period, project } = report.context;
-  const range = new Intl.DateTimeFormat(project.locale, {
+  return `${report.periodLabel} (${periodRange(report.context)})`;
+}
+
+/** The period's bounds alone, as the CSV and the printed cover write them. */
+export function periodRange({ period, project }: ReportScopeView["context"]): string {
+  return new Intl.DateTimeFormat(project.locale, {
     dateStyle: "medium",
     timeStyle: "short",
     timeZone: project.timeZone,
   }).formatRange(new Date(period.from), new Date(period.to));
-  return `${report.periodLabel} (${range})`;
 }
 
 /**
