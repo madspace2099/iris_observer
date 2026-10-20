@@ -18,7 +18,7 @@ import type { CompanyKeyState } from "@/lib/credentials/company-keys";
 export const LIVE_QUESTIONS: readonly string[] = Object.freeze([
   "What separates meetings that progressed from those that did not?",
   "Which agent's presentations progressed most, and how did they present?",
-  "Which sections do presentations reach, and how do meetings that did not progress differ?",
+  "Which sections do presentations reach, and which do they skip?",
   "Which units draw the most attention, and do they convert?",
 ]);
 

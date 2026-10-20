@@ -30,7 +30,14 @@ import {
 import { sampleWords } from "./sample-units";
 import { JsonFieldStreamer, STREAMED_FIELDS } from "./streaming";
 import { addUsage } from "./telemetry";
-import { TOOL_NAMES, TOOLS, toolByName, type ToolContext, type ToolResult } from "./tools";
+import {
+  PROJECT_WIDE_SALES,
+  TOOL_NAMES,
+  TOOLS,
+  toolByName,
+  type ToolContext,
+  type ToolResult,
+} from "./tools";
 
 /**
  * Ask Observer.
@@ -201,7 +208,7 @@ export interface AskContextInput extends ToolContext {
  * word at "ô" or "é". Where an ordinary word shares a causal stem only the
  * causal forms are listed: Slovak "spôsob" is "a way" and "vedie" is "is
  * ahead", so only "spôsobilo" and "vedie k"; Hungarian "vezet" is "leads (the
- * ranking)", so only "-hoz vezetett", leads to.
+ * ranking)", so only with a "-hoz" goal beside it, in either order.
  */
 const CAUSAL_WORDS = [
   /* English */
@@ -229,26 +236,49 @@ const CAUSAL_WORDS = [
   "kvoli",
   "v\\s+dôsledku",
   "v\\s+dosledku",
-  "spôsob(?:il|ila|ilo|ili|uje|ujú|ia)",
-  "sposob(?:il|ila|ilo|ili|uje|uju|ia)",
-  "zapríčin(?:il|ila|ilo|ili|uje|ujú)",
-  "zapricin(?:il|ila|ilo|ili|uje|uju)",
-  "(?:vedie|vedú|vedu|viedol|viedla|viedlo|viedli)\\s+ku?",
+  "spôsob(?:il|ila|ilo|ili|uje|ujú|ia|í)",
+  "sposob(?:il|ila|ilo|ili|uje|uju|ia|i)",
+  "spôsoben\\p{L}*",
+  "sposoben\\p{L}*",
+  "zapríčin\\p{L}*",
+  "zapricin\\p{L}*",
+  "keďže",
+  "kedze",
+  "vďaka",
+  "vdaka",
+  "z\\s+dôvodu",
+  "z\\s+dovodu",
+  "dôsledkom",
+  "dosledkom",
+  /* "the cause is", not "príčinná" (causal) in "no causal link" or "príčinu" in a refusal. */
+  "príčin(?:a|ou)",
+  "pricin(?:a|ou)",
+  "(?:vedie|vedú|vedu|povedie|povedú|povedu|viedol|viedla|viedlo|viedli|priviedol|priviedla|priviedlo|priviedli)\\s+ku?",
   /* Hungarian */
   "mert",
+  "hiszen",
   "miatt(?:a|uk)?",
   "emiatt",
   "ezért",
   "ezert",
   "mivel",
-  "okoz(?:za|ta|ott|zák|ták|zak|tak)?",
+  "oka",
+  "okai",
+  /* Every form of "cause", but not "okozat" (effect) or "okozati" (causal) in "no causal link". */
+  "okoz(?!at)\\p{L}*",
+  "köszönhet\\p{L}*",
+  "koszonhet\\p{L}*",
   "következtében",
   "kovetkezteben",
   "hatására",
   "hatasara",
+  "eredményeként",
+  "eredmenyekent",
   "eredményez(?:te|ett|i)?",
   "eredmenyez(?:te|ett|i)?",
   "\\p{L}*(?:hoz|hez|höz)\\s+vezet(?:ett|ettek|nek|het|ő|o)?",
+  /* Verb first, "vezetett a foglaláshoz": only with a "-hoz" goal, as "Lena vezetett" is "led the ranking". */
+  "vezet(?:ett|ettek|het|hetett|nek)?\\s+(?:\\p{L}+\\s+){0,3}\\p{L}*(?:hoz|hez|höz)",
 ];
 
 export const CAUSAL_PATTERNS = new RegExp(
@@ -260,13 +290,33 @@ export const CAUSAL_PATTERNS = new RegExp(
  * "Why" in Slovak and Hungarian, beside the contracts' English `isCausalQuestion`.
  *
  * The contracts are frozen, so the other languages are composed here: prečo,
- * čo spôsobilo, z akého dôvodu; miért, mi okozta, mi az oka.
+ * čo spôsobilo, čo viedlo k, z čoho, z akého dôvodu; miért, mitől, mi okozta,
+ * mi okozhatta, mi vezetett, mi az oka.
  */
 const CAUSAL_QUESTION_ELSEWHERE =
-  /(?<![\p{L}\p{N}_])(?:prečo|preco|čo\s+spôsobil[oaie]?|co\s+sposobil[oaie]?|z\s+akého\s+dôvodu|z\s+akeho\s+dovodu|miért|miert|mi\s+okoz(?:ta|za|ott)?|mi\s+az\s+oka)(?![\p{L}\p{N}_])/iu;
+  /(?<![\p{L}\p{N}_])(?:prečo|preco|čo\s+spôsobil[oaie]?|co\s+sposobil[oaie]?|(?:čo|co)\s+(?:viedlo|viedli|viedol|viedla)\s+ku?|z\s+(?:čoho|coho)|z\s+akého\s+dôvodu|z\s+akeho\s+dovodu|miért|miert|mitől|mitol|mi\s+okoz\p{L}*|mi\s+vezetett|mi\s+az\s+oka)(?![\p{L}\p{N}_])/iu;
 
 export function asksWhy(question: string): boolean {
   return isCausalQuestion(question) || CAUSAL_QUESTION_ELSEWHERE.test(question);
+}
+
+/*
+ * The refusal of a cause, in English, Slovak and Hungarian, read on folded
+ * text. The contracts hold an English "why" to it; this holds the others.
+ */
+const DECLINES_CAUSE =
+  /(?<![a-z])(?:cannot|can't|does not|do not|not establish|unable to|no evidence|neda|nedaju|nemozno|nevieme|nepreukazuj[a-z]*|nedokazuj[a-z]*|neurcuj[a-z]*|nem\s+(?:allapit|lehet|igazol|bizonyit|mutat|derul)[a-z]*)(?![a-z])/;
+
+/**
+ * Whether a model's answer to a "why" asked in another language says the
+ * figures cannot establish the cause, as `findAnswerDefects` requires of an
+ * English one. An English "why" is the contracts' to judge, and passes here.
+ */
+export function declinesCauseElsewhere(answer: ObserverAnswer, question: string): boolean {
+  if (!asksWhy(question) || isCausalQuestion(question) || answer.orbState === "error") return true;
+  return DECLINES_CAUSE.test(
+    foldText(`${answer.answer} ${answer.interpretation} ${answer.limitations.join(" ")}`),
+  );
 }
 
 /**
@@ -378,13 +428,13 @@ ABSOLUTE RULES
 LANGUAGE
 - Answer in the language the user's question is written in: English, Slovak, Hungarian or any other. If it mixes languages, use the one most of it is written in. The tools report in English; every prose field you write (answer, headline, finding statements, interpretation, limitations, action labels and rationales, follow-up questions) is in the question's language.
 - Keep unit codes, agent names, figures, percentages and evidence (bundle) ids exactly as the tools returned them, written with the same digits. Translate only the words around them. Never translate, convert, round or spell out a figure: an answer that states a number the tools did not return is discarded.
-- The causation rule holds in every language. In Slovak never write "pretože", "lebo", "preto", "kvôli", "v dôsledku", "spôsobilo" or "vedie k"; in Hungarian never write "mert", "miatt", "emiatt", "ezért", "mivel", "okozta", "következtében", "hatására" or "-hoz vezetett". Write the equivalents of "associated with", "alongside" or "in this sample".
+- The causation rule holds in every language. In Slovak never write "pretože", "lebo", "preto", "keďže", "kvôli", "vďaka", "z dôvodu", "v dôsledku", "príčinou", "spôsobilo", "spôsobený" or "vedie k"; in Hungarian never write "mert", "hiszen", "miatt", "emiatt", "ezért", "mivel", "oka", "okozta", "okozhatja", "köszönhető", "következtében", "hatására", "eredményeként" or "vezetett ...-hoz". Write the equivalents of "associated with", "alongside" or "in this sample".
 
 ANSWERING "WHY"
 A question that asks why something changed is asking for a cause, and nothing you can observe carries one. Answer it in four moves, in this order:
 1. State the current value with its period, denominator and source.
 2. State the comparison value the same way, and the size of the change.
-3. Say plainly that these figures establish the change and do not establish its cause. Do not imply otherwise by omission.
+3. Say plainly that these figures establish the change and do not establish its cause. Do not imply otherwise by omission. In Slovak write it as "Z týchto čísel sa nedá určiť, prečo k zmene došlo."; in Hungarian as "Ezekből a számokból nem állapítható meg, miért történt a változás."
 4. Name the specific next comparison that would narrow it — agent mix between the two periods, meeting cohorts, presentation sequences, or data completeness. Name one that your tools can actually run, not a generic suggestion to "investigate further".
 Set the orb state to "waiting_for_human" when the question asked for a cause: the figures are settled, the explanation is a judgement a person makes.
 
@@ -520,17 +570,19 @@ const SLOVAK_OR_HUNGARIAN_WORDS = new Set(
  * Without a model the answer is composed in English, and a question asked in
  * another language is told so rather than answered as if nothing happened.
  * Counted on function words, because names carry accents in an English
- * question too ("Prepare me for Viktória's meeting"); a presenter's name is
- * not counted at all. A word with a letter outside English counts against,
- * which is how a language with no list here is still recognised.
+ * question too ("Prepare me for Viktória's meeting"); a presenter's name, and
+ * any capitalised word after the first (a buyer, a place: "Ľubomíra Ďuricová",
+ * "Želiezovce"), is not counted at all. A word with a letter outside English
+ * counts against, which is how a language with no list here is still recognised.
  */
 export function isEnglishQuestion(question: string, roster: readonly RosterEntry[]): boolean {
   const names = new Set(roster.flatMap((a) => foldText(a.name).split(/\s+/)));
   let english = 0;
   let other = 0;
-  for (const word of question.split(/[^\p{L}]+/u)) {
+  const words = question.split(/[^\p{L}]+/u).filter((word) => word.length > 0);
+  for (const [index, word] of words.entries()) {
     const folded = foldText(word);
-    if (folded.length < 2 || names.has(folded)) continue;
+    if (folded.length < 2 || names.has(folded) || (index > 0 && /^\p{Lu}/u.test(word))) continue;
     if (ENGLISH_WORDS.has(folded)) english += 1;
     else if (SLOVAK_OR_HUNGARIAN_WORDS.has(folded) || /[^a-z]/.test(word.toLowerCase())) other += 1;
   }
@@ -598,13 +650,10 @@ export function routeQuestion(
    *
    * Nothing records a buyer leaving; what is measured is how the meetings
    * that did not progress were presented against those that did, and which
-   * sections a presentation reaches at all. Both, in that order. Asked
-   * without the premise, it is the sections reached beside how the meetings
-   * that did not progress differ.
+   * sections a presentation reaches at all. Both, in that order. Which
+   * sections are reached, asked alone, is the section coverage below.
    */
-  if (
-    /\blos(e|es|ing|t)\b|drop(s|ped)? off|drop-off|abandon|\bstall|\bsections?\b.*\breach/.test(q)
-  ) {
+  if (/\blos(e|es|ing|t)\b|drop(s|ped)? off|drop-off|abandon|\bstall/.test(q)) {
     return [
       { tool: "compare_meeting_cohorts", args: {} },
       { tool: "analyze_feature_usage", args: {} },
@@ -1266,13 +1315,19 @@ export async function* askStream(
    * The deterministic composition speaks English. A question asked in another
    * language is told so in its first line, never silently answered in English:
    * without a model, because none is connected; with one, because whenever this
-   * composition is shown the model's answer was not.
+   * composition is shown the model's answer was not. Where the router read
+   * nothing in it and fell to the period summary, the question was not
+   * answered at all, and the note says that instead.
    */
+  const unread =
+    model === null && calls.length === 1 && calls[0]?.tool === "summarize_showroom_period";
   const languageNote = isEnglishQuestion(trimmed, context.roster)
     ? null
-    : model === null
-      ? "Answered in English; typed answers in other languages need a language model."
-      : "Answered in English; the language model's answer could not be used.";
+    : unread
+      ? "This question was not read: a question in another language needs a language model. The period summary follows."
+      : model === null
+        ? "Answered in English; typed answers in other languages need a language model."
+        : "Answered in English; the language model's answer could not be used.";
   const deterministic = composeDeterministic(run.results, bundles, context, trimmed, languageNote);
   const toolsUsed = run.results.map((r) => r.tool);
 
@@ -1352,9 +1407,10 @@ export async function* askStream(
     transcript.push({ role: "tool_result", callId: output.callId, output: output.output });
   }
 
+  const evidence = evidenceBlock(run.results, bundles);
   transcript.push({
     role: "user",
-    content: `${evidenceBlock(run.results, bundles)}
+    content: `${evidence}
 
 Answer the question using only the figures above. Cite bundle ids in every finding. Return the required JSON object and nothing else.`,
   });
@@ -1436,40 +1492,60 @@ Answer the question using only the figures above. Cite bundle ids in every findi
     return;
   }
 
-  /* Everything the model was shown: the question, the context and what the tools returned. */
-  const given = transcript
-    .map((m) =>
-      m.role === "tool_result" ? m.output : m.role === "assistant_tool_calls" ? "" : m.content,
-    )
-    .join("\n");
+  /*
+   * What the read models returned, and the labels the server set. Never the
+   * question: a figure the reader typed is their premise, not a measurement,
+   * and an answer repeating it is not one "matched to the read models".
+   */
+  const given = [
+    evidence,
+    ...run.outputs.map((o) => o.output),
+    context.projectLabel,
+    context.periodLabel,
+  ].join("\n");
 
   if (
     containsCausalClaim(parsed) ||
     !isTraceableAnswer(parsed, question) ||
+    !declinesCauseElsewhere(parsed, question) ||
     !figuresAreGiven(parsed, given)
   ) {
     yield { type: "final", outcome: finish(deterministic, true, truncated, false, "output_guard") };
     return;
   }
 
-  yield { type: "final", outcome: finish(parsed, false, truncated, true) };
+  /*
+   * A limitation the answer must carry is carried in the tool's own words. The
+   * model writes its own limitations and may translate or drop this one, and
+   * without it a project-wide sales share reads as a rate for the units listed
+   * beside it.
+   */
+  const carried =
+    run.results.some((r) => r.caveats.includes(PROJECT_WIDE_SALES)) &&
+    !parsed.limitations.includes(PROJECT_WIDE_SALES)
+      ? { ...parsed, limitations: [...parsed.limitations.slice(0, 5), PROJECT_WIDE_SALES] }
+      : parsed;
+
+  yield { type: "final", outcome: finish(carried, false, truncated, true) };
 }
 
 /**
  * Whether every number in a model's answer is one it was given.
  *
  * The system prompt asks the model to state only the tools' figures; this is
- * what makes the answer's byline true ("every figure in it was checked"). A
- * number found in nothing the model was shown was computed or invented, and the
- * deterministic composition is shown instead.
+ * what makes the answer's byline true ("every number in it was matched to one
+ * the read models returned"). `given` is the tools' output and the server's own
+ * labels, never the question. A number found in none of it was computed,
+ * invented or taken from the reader's premise, and the deterministic
+ * composition is shown instead.
  *
  * Compared as runs of digits, so "83%" and "83 %", "1.5" and "1,5" are the same
  * figure: a translated answer is held to the figures, not to their typography.
  *
  * ponytail: a set of digit runs, so a small number ("3") passes once anything
- * the model saw contains it. It catches invented and computed figures, not a
- * real figure moved to the wrong sentence; that needs figures parsed with their
- * labels.
+ * the model saw contains it, and a figure written in words ("twice") is not
+ * seen at all. It catches invented and computed digits, not a real figure moved
+ * to the wrong sentence; that needs figures parsed with their labels.
  */
 export function figuresAreGiven(answer: ObserverAnswer, given: string): boolean {
   const runs = (text: string) =>

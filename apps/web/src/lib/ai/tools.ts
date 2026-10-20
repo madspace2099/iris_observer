@@ -904,6 +904,14 @@ const getMetricEvidence: ToolDefinition<z.ZodObject<{ metricId: z.ZodString }>> 
  * claim. A model rewriting the draft still cannot change a figure, and the
  * causal-language guard runs over what it writes.
  */
+/**
+ * Asked beside unit attention ("do they convert?"), the share reads as a
+ * per-unit rate unless it is said not to be one. A limitation every answer
+ * using these sales carries, the model's included (`askStream`).
+ */
+export const PROJECT_WIDE_SALES =
+  "These are the whole project's dated sales, counted across every unit; no figure here is a rate for any one unit.";
+
 const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>>> = {
   name: "analyze_iris_assisted_sales",
   description:
@@ -967,14 +975,7 @@ const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>
       sources: WITH_OUTCOME,
       evidence: view.evidence,
       sampleSize: assisted.datedSales,
-      /*
-       * Asked beside unit attention ("do they convert?"), the share reads as
-       * a per-unit rate unless it is said not to be one.
-       */
-      caveats: [
-        assisted.note,
-        "These are the whole project's dated sales, counted across every unit; no figure here is a rate for any one unit.",
-      ],
+      caveats: [assisted.note, PROJECT_WIDE_SALES],
       action,
       draft: assisted.headline,
     };

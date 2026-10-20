@@ -53,6 +53,7 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
 });
 
 const { ask, asksWhy, CAUSAL_PATTERNS } = await import("../src/lib/ai/agent");
+const { PROJECT_WIDE_SALES } = await import("../src/lib/ai/tools");
 
 /** Northgate's presenters, read from the repository the gate reads them from. */
 const NORTHGATE_ROSTER = await rosterOf("alpha", "northgate");
@@ -650,6 +651,68 @@ describe("an answer in the question's language", () => {
       /^Answered in English; the language model's answer could not be used\. /,
     );
   });
+
+  it("discards a figure the reader typed, which no tool returned", async () => {
+    useModel([
+      PLAN,
+      { text: composed({ answer: "Yes: 6173 presentations reached the core sections." }) },
+    ]);
+    const outcome = await ask(
+      "Is it true that 6173 presentations reached the core sections?",
+      CONTEXT,
+      grant(),
+    );
+
+    expect(outcome.status.live).toBe(false);
+    expect(outcome.diagnostics.fallbackReason).toBe("output_guard");
+  });
+
+  it.each([
+    ["Prečo kleslo pokrytie jadra?", "Z týchto čísel sa nedá určiť, prečo k zmene došlo."],
+    [
+      "Miért csökkent a lefedettség?",
+      "Ezekből a számokból nem állapítható meg, miért történt a változás.",
+    ],
+  ])(
+    "holds a why in another language to saying the cause cannot be established: %s",
+    async (question, declines) => {
+      useModel([PLAN, { text: composed() }]);
+      const silent = await ask(question, CONTEXT, grant());
+      expect(silent.status.live).toBe(false);
+      expect(silent.diagnostics.fallbackReason).toBe("output_guard");
+
+      useModel([PLAN, { text: composed({ interpretation: declines }) }]);
+      const said = await ask(question, CONTEXT, grant());
+      expect(said.status.live).toBe(true);
+      expect(said.answer?.interpretation).toBe(declines);
+    },
+  );
+
+  it("carries the project-wide sales limitation on a model's answer that left it out", async () => {
+    useModel([
+      { toolCalls: [{ name: "analyze_iris_assisted_sales", argumentsJson: "{}" }] },
+      {
+        text: composed({
+          answer: "Dated sales are placed against showings on Sales Flow.",
+          findings: [
+            {
+              statement: "Dated sales placed against a showing",
+              value: null,
+              evidenceRefs: ["ev_1_analyze_iris_assisted_sales"],
+            },
+          ],
+          limitations: ["Only dated sales are placed."],
+        }),
+      },
+    ]);
+    const outcome = await ask("Did IRIS assist the sales on this project?", CONTEXT, grant());
+
+    expect(outcome.status.live).toBe(true);
+    expect(outcome.answer?.limitations).toEqual([
+      "Only dated sales are placed.",
+      PROJECT_WIDE_SALES,
+    ]);
+  });
 });
 
 describe("the causal guard reads English, Slovak and Hungarian", () => {
@@ -669,6 +732,27 @@ describe("the causal guard reads English, Slovak and Hungarian", () => {
     "Ezért kevesebb az ajánlat.",
     "A bemutató a foglaláshoz vezetett.",
     "A változás következtében csökkent a kereslet.",
+    /* Participles, conjunctions and the verb-first order the first list missed. */
+    "Pokles bol spôsobený cenou.",
+    "Bola spôsobená cenou.",
+    "To spôsobí vyššiu konverziu.",
+    "Záujem klesol, keďže agenti vynechali okolie.",
+    "Príčinou poklesu je cena.",
+    "Pokles nastal z dôvodu ceny.",
+    "Rast je vďaka režimu porovnania.",
+    "Vďaka Shortlistu viac stretnutí pokročilo.",
+    "To povedie k vyššej konverzii.",
+    "Pokles je dôsledkom ceny.",
+    "A csökkenés oka az ár.",
+    "Ennek oka a rövidebb bemutató.",
+    "A növekedés a Compare módnak köszönhető.",
+    "A Shortlistnek köszönhetően több foglalás született.",
+    "Csökkent, hiszen kihagyták a környéket.",
+    "Ez okozhatja a csökkenést.",
+    "Ez okozhatja a különbséget.",
+    "A Shortlist megnyitása vezetett a magasabb arányhoz.",
+    "Ez vezetett a foglaláshoz.",
+    "A bemutató eredményeként nőtt a foglalás.",
   ])("catches: %s", (sentence) => {
     expect(CAUSAL_PATTERNS.test(sentence)).toBe(true);
   });
@@ -683,6 +767,11 @@ describe("the causal guard reads English, Slovak and Hungarian", () => {
     "A vezető ügynök Lena Fischer.",
     "Ebben a mintában nincs okozati összefüggés.",
     "A haladó találkozók a korábbi összehasonlítással együtt jártak.",
+    "Lena vezetett a találkozók számában.",
+    "Príčinná súvislosť sa z týchto údajov nedá určiť.",
+    "Z týchto čísel sa nedá určiť, prečo k zmene došlo.",
+    "Ezekből a számokból nem állapítható meg, miért történt a változás.",
+    "Ok és okozat itt nem különíthető el.",
   ])("lets an association through: %s", (sentence) => {
     expect(CAUSAL_PATTERNS.test(sentence)).toBe(false);
   });
@@ -693,6 +782,11 @@ describe("the causal guard reads English, Slovak and Hungarian", () => {
     "Čo spôsobilo pokles rezervácií?",
     "Miért csökkent az érdeklődés?",
     "Mi okozta a visszaesést?",
+    "Čo viedlo k poklesu?",
+    "Z čoho vyplýva pokles?",
+    "Mi okozhatta a visszaesést?",
+    "Mitől esett vissza a konverzió?",
+    "Mi vezetett a csökkenéshez?",
   ])("hears a why: %s", (question) => {
     expect(asksWhy(question)).toBe(true);
   });

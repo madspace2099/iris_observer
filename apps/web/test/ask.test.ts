@@ -274,8 +274,12 @@ describe("the live questions reach their analyses without a model", () => {
     expect(routes(LIVE_QUESTIONS[1] as string)).toEqual(["compare_agent_outcomes"]);
   });
 
-  it("reads the sections reached beside how the meetings that did not progress differ", () => {
-    expect(routes(LIVE_QUESTIONS[2] as string)).toEqual([
+  it("reads the sections reached and skipped from the section coverage alone", () => {
+    expect(routes(LIVE_QUESTIONS[2] as string)).toEqual(["analyze_feature_usage"]);
+  });
+
+  it("still reads where presentations lose buyers from the cohorts and the sections", () => {
+    expect(routes("Where do presentations lose buyers?")).toEqual([
       "compare_meeting_cohorts",
       "analyze_feature_usage",
     ]);
@@ -501,14 +505,29 @@ describe("a question asked in another language, without a model", () => {
     { agentId: "agt_b", name: "Marek Dvořák" },
   ];
 
+  const UNREAD =
+    "This question was not read: a question in another language needs a language model. The period summary follows. ";
+
+  /*
+   * Nothing in these reaches an analysis without a model, and the period
+   * summary they fall to is not their answer: they are told it was not read.
+   */
   it.each([
     "Ktorý agent mal najviac stretnutí?",
     "Ktory agent mal najviac stretnuti?",
     "Melyik egység kapja a legtöbb figyelmet?",
     "Welche Einheiten bekommen die größte Aufmerksamkeit?",
-  ])("says first that it answered in English: %s", async (question) => {
+  ])("says first that it did not read the question: %s", async (question) => {
     expect(isEnglishQuestion(question, ROSTER)).toBe(false);
     const outcome = await ask(question, CONTEXT, NO_KEY);
+    expect(outcome.answer?.answer.startsWith(UNREAD), outcome.answer?.answer).toBe(true);
+  });
+
+  it("says first that it answered in English where the router read the question", async () => {
+    const question = "Ktoré byty majú najväčšiu attention?";
+    expect(isEnglishQuestion(question, ROSTER)).toBe(false);
+    const outcome = await ask(question, CONTEXT, NO_KEY);
+    expect(outcome.toolsUsed).toEqual(["analyze_unit_attention"]);
     expect(outcome.answer?.answer.startsWith(NOTE), outcome.answer?.answer).toBe(true);
   });
 
@@ -517,10 +536,16 @@ describe("a question asked in another language, without a model", () => {
     "Compare Zsófia Bárány and Marek Dvořák.",
     "Which units draw the most attention, and do they convert?",
     "Lena vs Iva?",
+    /* A buyer or a place with accents is a name, not another language. */
+    "Brief me on Viktória Halász",
+    "Show Viktória Halász's journey",
+    "How is Ľubomíra Ďuricová doing?",
+    "Brief me on Ľubomíra Ďuricová",
+    "Is A-101 at Želiezovce popular?",
   ])("reads as English, and adds no note: %s", async (question) => {
     expect(isEnglishQuestion(question, ROSTER)).toBe(true);
     const outcome = await ask(question, { ...CONTEXT, roster: ROSTER }, NO_KEY);
-    expect(outcome.answer?.answer ?? "").not.toContain("Answered in English");
+    expect(outcome.answer?.answer ?? "").not.toMatch(/Answered in English|was not read/);
   });
 
   it.each(["Prečo klesol záujem o porovnanie?", "Miért csökkent az érdeklődés?"])(
