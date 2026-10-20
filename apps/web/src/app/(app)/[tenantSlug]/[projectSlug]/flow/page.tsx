@@ -361,6 +361,7 @@ export default async function FlowPage({
               assisted={view.assisted}
               period={query.period}
               canOpen={canOpenMeeting}
+              irisLedHref={`${base}/iris-led`}
             />
           </>
         ) : null}

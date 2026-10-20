@@ -1,6 +1,9 @@
+import Link from "next/link";
 import type { AssistedSales as AssistedSalesView, PeriodPreset } from "@observer/readmodels";
 
 import { InfoTip } from "@/components/iris/InfoTip";
+
+import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { SourceChips } from "@/showroom/parts";
 import { RankedBars } from "@/showroom/charts2";
@@ -28,11 +31,14 @@ export function AssistedSales({
   assisted,
   period,
   canOpen,
+  irisLedHref,
 }: {
   readonly assisted: Extract<AssistedSalesView, { readonly source: "crm" }>;
   readonly period: PeriodPreset;
   /** Whether the reader's role may open a meeting replay. */
   readonly canOpen: boolean;
+  /** The drill-down beneath this card (ADR-0049): every showing before every sale. */
+  readonly irisLedHref?: string;
 }) {
   return (
     <div className="d-card">
@@ -77,6 +83,13 @@ export function AssistedSales({
         </p>
       )}
       <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
+      {irisLedHref === undefined ? null : (
+        <p style={{ marginTop: ".875rem" }}>
+          <Link className="iris-action" href={dynamicRoute(withPeriod(irisLedHref, period))}>
+            Open IRIS-led sales
+          </Link>
+        </p>
+      )}
     </div>
   );
 }

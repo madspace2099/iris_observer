@@ -235,6 +235,13 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
    * open it and what its presenters are called (`docs/21-self-served-projects.md`).
    */
   "/madspace/projects/[projectId]/dashboard",
+
+  /*
+   * IRIS-led sales (ADR-0049) — the owner asked which sales the showroom
+   * showed first. A drill-down beneath Sales Flow, reached from its
+   * IRIS-assisted card; deliberately not a nav item.
+   */
+  "/[tenantSlug]/[projectSlug]/flow/iris-led",
 ];
 
 describe("every route the reference served is still served", () => {

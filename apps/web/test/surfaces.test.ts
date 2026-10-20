@@ -168,6 +168,7 @@ describe("surface audience", () => {
       "[threadId]", // a row in the Ask IRIS history list
       "[unitCode]", // a row in the unit register, on Units
       "[agentId]", // a row in the roster, on Sales Agents
+      "iris-led", // "IRIS-led sales", the last line of Sales Flow's IRIS-assisted card (ADR-0049)
 
       /*
        * FORMERLY DRAWN VIA `SECONDARY_NAV`, NOW REACHED FROM THEIR OWNING

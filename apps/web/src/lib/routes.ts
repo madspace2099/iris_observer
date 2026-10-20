@@ -130,6 +130,17 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
+  /*
+   * IRIS-LED SALES (ADR-0049), the drill-down from Sales Flow's IRIS-assisted
+   * card. The same roles as Sales Flow, because it is the same CRM figures one
+   * level deeper; what it links to is gated by its own entries — a showing
+   * opens its replay only for a role `[meetingId]` admits.
+   */
+  {
+    route: "/[tenantSlug]/[projectSlug]/flow/iris-led",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
   {
     route: "/[tenantSlug]/[projectSlug]/project",
     audience: "internal",

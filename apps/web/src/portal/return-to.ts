@@ -38,6 +38,8 @@ const ALLOWED: readonly RegExp[] = [
    * projects instead, and never known why.
    */
   /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/(ask|showroom|flow|project|agents|presentation|units|storytelling|features|attention|meetings|audience|people|overview)$/,
+  /* IRIS-led sales, beneath Sales Flow (ADR-0049). */
+  /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/flow\/iris-led$/,
   /* One earlier question, and the list of them. */
   /^\/[a-z0-9-]{1,64}\/[a-z0-9-]{1,64}\/ask\/[a-z0-9_-]{1,64}$/,
   /* One unit. Codes are upper-case in the catalogue — `A-402`, not `a-402`. */
