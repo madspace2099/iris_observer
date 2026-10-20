@@ -170,10 +170,25 @@ test.describe("madspace operations", () => {
     await shoot(page, "01-madspace-projects", info.project.name);
   });
 
+  /*
+   * The onboarding wizard (ADR-0044), one capture per step it can show without
+   * writing anything. Step 1.4 is not photographed: it holds a live activation
+   * code, and a credential in a review image is a credential in a folder.
+   */
   test("new project", async ({ page }, info) => {
     await signInAs(page, "MADSPACE Operations");
     await page.goto("/madspace/projects/new");
-    await shoot(page, "02-new-project", info.project.name);
+    await shoot(page, "02-new-project-1-client", info.project.name);
+
+    await page.getByRole("button", { name: "Generate ID" }).click();
+    await page.getByRole("button", { name: /^Next: Project/ }).click();
+    await page.getByLabel(/^Project name/).fill("Riverside Gardens");
+    await page.getByLabel(/^Currency/).selectOption("EUR");
+    await shoot(page, "02-new-project-2-project", info.project.name);
+
+    await page.getByRole("button", { name: /^Next: Source/ }).click();
+    await page.getByRole("button", { name: "Main PC" }).click();
+    await shoot(page, "02-new-project-3-source", info.project.name);
   });
 
   test("project detail", async ({ page }, info) => {

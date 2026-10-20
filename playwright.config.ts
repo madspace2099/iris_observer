@@ -204,7 +204,11 @@ const HARNESS_ENV = {
  * `/lab` sits behind the same gate as `/design-lab` since 2026-09-29, so its
  * specs run on the lab's server too: under `next start` both are a 404.
  */
-const LAB_SPECS = /(^|[\\/])(design-)?lab[.-]/;
+/*
+ * The onboarding wizard writes to the local control plane, which only the
+ * lab's server opens (ADR-0044), so its spec runs there too.
+ */
+const LAB_SPECS = /(^|[\\/])((design-)?lab[.-]|madspace-onboarding\.)/;
 
 export default defineConfig({
   testDir: "./e2e",
