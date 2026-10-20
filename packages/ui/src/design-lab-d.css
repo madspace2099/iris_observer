@@ -2661,7 +2661,8 @@
     var(--d-ramp-hi),
     color-mix(in oklab, var(--d-ramp-hi) 55%, var(--d-ramp-lo))
   );
-  box-shadow: 0 0 14px rgb(21 255 171 / 0.25);
+  /* "Progressed" is an outcome, so it does not glow. */
+  box-shadow: none;
 }
 
 /* Below 60rem the steps lie down (showroom.css): the round end and the bright end move to the tip. */
@@ -2792,15 +2793,13 @@
   height: 8px;
   border-radius: 0;
   background: linear-gradient(90deg, var(--d-ramp-lo), var(--d-ramp-hi));
-  box-shadow:
-    0 2px 6px rgb(21 255 171 / 0.35),
-    0 8px 22px rgb(21 255 171 / 0.22);
+  /* Units sold against the plan are an outcome, so the bar does not glow. */
+  box-shadow: none;
 }
 
-/* Behind the schedule is a verdict: the product's watch colour, and no glow. */
+/* Behind the schedule is a verdict: the product's watch colour. */
 [data-charts="d"] .d-card .iris-bullet-track i[data-behind="true"] {
   background: var(--watch);
-  box-shadow: none;
 }
 
 [data-charts="d"] .d-card .iris-bullet-track b {
