@@ -320,7 +320,7 @@ export interface JourneyFunnelData {
     readonly share: number;
     readonly shareDisplay: string;
   }[];
-  /** The stages nobody stopped before, named rather than drawn; null when every stage is drawn. */
+  /** Every stage named rather than drawn, and why; null when every stage is drawn. */
   readonly merged: string | null;
 }
 

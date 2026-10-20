@@ -301,11 +301,13 @@ export interface JourneyFunnelStep {
 /**
  * The journey drawn as one narrowing path. A stage nobody stopped before would
  * add a band exactly as wide as the one above it, so it is named in `merged`
- * rather than drawn. `steps` is empty when the period holds no meeting, and
- * `of` then says so instead of stating the first band.
+ * rather than drawn; so is a stage no meeting reached, and "Progressed" on a
+ * project with no CRM to record an outcome. `steps` is empty when the period
+ * holds no meeting, and `of` then says so instead of stating the first band.
  */
 export interface JourneyFunnel {
   readonly steps: readonly JourneyFunnelStep[];
+  /** Every stage named rather than drawn, and why; null when every stage is drawn. */
   readonly merged: string | null;
   /** What every share is out of, in words; or, with no step, why nothing is drawn. */
   readonly of: string;

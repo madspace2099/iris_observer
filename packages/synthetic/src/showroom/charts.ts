@@ -1082,27 +1082,53 @@ export function buildTargets(
 export function buildJourney(
   sessions: readonly ShowroomSession[],
   locale: string,
+  crmConnected: boolean,
 ): JourneyFlowModel {
   const opened = sessions.filter((s) => s.units.length > 0);
   const shortlisted = opened.filter((s) => s.units.some((u) => u.favourited));
-  const progressed = shortlisted.filter((s) => hasProgressed(s.outcome));
+  /*
+   * "Progressed" is a recorded outcome, and a project records one only through
+   * its CRM: without one the stage is not drawn at all rather than drawn at
+   * nought. With one, a shortlisted meeting whose outcome was not recorded is
+   * not known to have stopped, so it is counted in words, not as a drop.
+   */
+  const progressed = crmConnected ? shortlisted.filter((s) => hasProgressed(s.outcome)) : null;
+  const unrecorded = crmConnected
+    ? shortlisted.filter((s) => outcomeIsUnknown(s.outcome)).length
+    : 0;
   const stages = [
     { id: "all", label: "Presented", count: sessions.length },
     { id: "opened", label: "Opened a unit", count: opened.length },
     { id: "shortlisted", label: "Shortlisted one", count: shortlisted.length },
-    { id: "progressed", label: "Progressed", count: progressed.length },
+    ...(progressed === null
+      ? []
+      : [{ id: "progressed", label: "Progressed", count: progressed.length }]),
   ];
+  const end = stages[stages.length - 1]?.count ?? 0;
+  const one = unrecorded === 1;
 
   return {
     stages,
-    links: [
-      { from: "all", to: "opened", count: opened.length },
-      { from: "opened", to: "shortlisted", count: shortlisted.length },
-      { from: "shortlisted", to: "progressed", count: progressed.length },
-    ],
-    droppedLabel: `${count(sessions.length - progressed.length, locale)} did not reach the end of this path`,
+    links: stages.slice(1).map((to, i) => ({
+      from: stages[i]?.id ?? "",
+      to: to.id,
+      count: to.count,
+    })),
+    droppedLabel: `${count(sessions.length - end - unrecorded, locale)} did not reach the end of this path${
+      unrecorded === 0
+        ? ""
+        : `, and ${count(unrecorded, locale)} ${one ? "has" : "have"} no recorded outcome`
+    }`,
     note: "Each band is what survived the previous step. A meeting that stopped is not a failure — most presentations are not meant to close on the day.",
-    funnel: journeyFunnel(stages, locale),
+    funnel: journeyFunnel(stages, locale, {
+      merged: crmConnected
+        ? null
+        : `"Progressed" is not drawn: no CRM is connected to this project, so no meeting carries an outcome.`,
+      of:
+        unrecorded === 0
+          ? null
+          : `${count(unrecorded, locale)} of the ${count(shortlisted.length, locale)} that shortlisted one ${one ? "has" : "have"} no recorded outcome, so whether ${one ? "it" : "they"} progressed is not known; "Progressed" counts recorded outcomes only.`,
+    }),
   };
 }
 
@@ -1110,10 +1136,12 @@ export function buildJourney(
  * The same stages as one narrowing path. Every stage is a subset of the one
  * before it, so no band is wider than the band above; a stage nobody stopped
  * before would add a band exactly as wide as the last, and is named instead.
+ * So is a stage no meeting reached, once: every stage after it is empty too.
  */
 function journeyFunnel(
   stages: readonly { readonly id: string; readonly label: string; readonly count: number }[],
   locale: string,
+  more: { readonly merged: string | null; readonly of: string | null },
 ): JourneyFunnel {
   const first = stages[0];
   if (first === undefined || first.count === 0) {
@@ -1123,15 +1151,25 @@ function journeyFunnel(
       of: "No meeting was presented in this period, so there is no journey to draw.",
     };
   }
-  const drawn = stages.filter((s, i) => s.count !== stages[i - 1]?.count);
-  const merged = stages.flatMap((s, i) => {
-    const before = stages[i - 1];
+  const empty = stages.findIndex((s) => s.count === 0);
+  const reached = empty === -1 ? stages : stages.slice(0, empty);
+  const drawn = reached.filter((s, i) => s.count !== reached[i - 1]?.count);
+  const merged = reached.flatMap((s, i) => {
+    const before = reached[i - 1];
     return before === undefined || drawn.includes(s)
       ? []
       : [
           `"${s.label}" is not drawn: all ${count(s.count, locale)} at "${before.label}" reached it, so nobody stopped between the two.`,
         ];
   });
+  const none = stages[empty];
+  if (none !== undefined) {
+    merged.push(
+      `No meeting reached "${none.label}", so it ${empty < stages.length - 1 ? "and every stage after it are" : "is"} not drawn.`,
+    );
+  }
+  if (more.merged !== null) merged.push(more.merged);
+  const of = `Each share is out of the first band: the ${count(first.count, locale)} ${first.count === 1 ? "meeting" : "meetings"} presented in the period.`;
   return {
     steps: drawn.map((s) => ({
       id: s.id,
@@ -1142,7 +1180,7 @@ function journeyFunnel(
       shareDisplay: shareDisplay(s.count / first.count, locale),
     })),
     merged: merged.length === 0 ? null : merged.join(" "),
-    of: `Each share is out of the first band: the ${count(first.count, locale)} ${first.count === 1 ? "meeting" : "meetings"} presented in the period.`,
+    of: more.of === null ? of : `${of} ${more.of}`,
   };
 }
 
@@ -1200,7 +1238,7 @@ export function buildProjectCharts(
 ): ProjectCharts {
   return {
     targets: buildTargets(projectId, today, locale, timeZone, crmConnected),
-    journey: buildJourney(sessions, locale),
+    journey: buildJourney(sessions, locale, crmConnected),
   };
 }
 

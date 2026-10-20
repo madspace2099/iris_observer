@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import type { ShowroomSession } from "@observer/contracts";
 import { VIEWERS, syntheticRepository } from "@observer/synthetic";
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
+
+import { buildJourney } from "../src/showroom/charts";
 
 /**
  * The project page's two drawn forms, composed in the read model (ADR-0012):
@@ -49,6 +52,108 @@ describe("the journey funnel", () => {
 
   it("says what its shares are out of", () => {
     expect(funnel.of).toContain(`the ${funnel.steps[0]?.countDisplay ?? "?"} meetings presented`);
+  });
+});
+
+/* A meeting that opened `units` units, shortlisted one when `kept`, and recorded `outcome`. */
+function meeting(
+  n: number,
+  units: number,
+  kept: boolean,
+  outcome: ShowroomSession["outcome"],
+): ShowroomSession {
+  return {
+    sessionId: `ses_${n}`,
+    meetingId: `mtg_${n}`,
+    projectId: "prj_x",
+    agentId: "agt_x",
+    channel: "showroom",
+    contactId: null,
+    startedAt: "2026-10-01T10:00:00Z",
+    endedAt: "2026-10-01T11:00:00Z",
+    durationSeconds: 3600,
+    outcome,
+    steps: [],
+    units: Array.from({ length: units }, (_, i) => ({
+      unitId: `unt_${i}`,
+      unitCode: `A-${i}`,
+      views: 1,
+      dwellSeconds: 60,
+      longestViewSeconds: 60,
+      favourited: kept && i === 0,
+      pdfOpened: false,
+      balconyViews: 0,
+      floorCutViews: 0,
+      screenshots: 0,
+      comparedWith: [],
+      keptFromComparison: null,
+      shared: false,
+    })),
+    environment: [],
+    filters: [],
+    places: [],
+    screenshots: 0,
+    irisRating: null,
+    priorMeetings: 0,
+    timingUnavailable: false,
+  };
+}
+
+describe("the journey funnel's last stage is an outcome, and absent is never nought", () => {
+  const sessions = [
+    meeting(1, 0, false, "skipped"),
+    meeting(2, 2, false, "not_interested"),
+    meeting(3, 1, true, "reservation"),
+    meeting(4, 1, true, "presentation_only"),
+    meeting(5, 1, true, "skipped"),
+  ];
+
+  it("draws no Progressed band on a project with no CRM, and says why", () => {
+    const journey = buildJourney(sessions, "en-GB", false);
+    expect(journey.stages.map((s) => s.id)).toEqual(["all", "opened", "shortlisted"]);
+    expect(journey.funnel.steps.map((s) => s.id)).toEqual(["all", "opened", "shortlisted"]);
+    expect(journey.funnel.merged).toContain('"Progressed" is not drawn: no CRM is connected');
+    expect(journey.droppedLabel).toBe("2 did not reach the end of this path");
+  });
+
+  it("does not count an unrecorded outcome as a stop, and says how many there are", () => {
+    const journey = buildJourney(sessions, "en-GB", true);
+    expect(journey.funnel.steps.map((s) => [s.id, s.count])).toEqual([
+      ["all", 5],
+      ["opened", 4],
+      ["shortlisted", 3],
+      ["progressed", 1],
+    ]);
+    expect(journey.funnel.of).toContain(
+      "1 of the 3 that shortlisted one has no recorded outcome, so whether it progressed is not known",
+    );
+    expect(journey.droppedLabel).toBe(
+      "3 did not reach the end of this path, and 1 has no recorded outcome",
+    );
+  });
+
+  it("names a stage no meeting reached once, rather than 'all 0 reached it'", () => {
+    const journey = buildJourney(
+      [meeting(1, 0, false, "skipped"), meeting(2, 0, false, "interested")],
+      "en-GB",
+      true,
+    );
+    expect(journey.funnel.steps.map((s) => s.id)).toEqual(["all"]);
+    expect(journey.funnel.merged).toBe(
+      'No meeting reached "Opened a unit", so it and every stage after it are not drawn.',
+    );
+  });
+
+  it("names the last stage alone when only it is empty", () => {
+    const journey = buildJourney(
+      [meeting(1, 1, true, "not_interested"), meeting(2, 1, false, "interested")],
+      "en-GB",
+      true,
+    );
+    expect(journey.funnel.steps.map((s) => s.id)).toEqual(["all", "shortlisted"]);
+    expect(journey.funnel.merged).toBe(
+      '"Opened a unit" is not drawn: all 2 at "Presented" reached it, so nobody stopped between the two. No meeting reached "Progressed", so it is not drawn.',
+    );
   });
 });
 
