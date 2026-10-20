@@ -3132,9 +3132,14 @@
   fill-opacity: 0.34;
 }
 
+/*
+ * Greyscale, on paper: follow-up needed composites to a luma of about 202 and
+ * not interested to 124, its neighbours in the bar. At 0.4 this grey was 196,
+ * and a mono printer merged the bar's two largest parts; at 0.62 it is 163.
+ */
 .ox-mix-part[data-outcome="presentation_only"] {
   fill: var(--ox-ink-4);
-  fill-opacity: 0.4;
+  fill-opacity: 0.62;
 }
 
 .ox-mix-part[data-outcome="not_interested"] {
@@ -3201,8 +3206,8 @@
  * ink; every page after it is paper (ADR-0042). Sections flow: nothing here
  * keeps a whole section on one page — that is what left the half-empty pages
  * — only a heading with what follows it, a figure tile, a chart, a finding,
- * a table row. Tables repeat their head on every page they cross. The notes
- * appendix starts a page of its own, and nothing else does.
+ * a table row. Tables repeat their head on every page they cross. Nothing
+ * forces a page break but the cover's end: the notes appendix follows on.
  *
  * The shell's own chrome and the Ask dock leave in the sheets that own them
  * (iris-shell.css, ask-iris.css): a sheet never claims a name another sheet
@@ -3529,16 +3534,21 @@
     margin-bottom: var(--ox-major);
   }
 
-  /* Two columns, read down: the contents and their one-line descriptions fit half a page. */
-  .ox-report-contents {
-    display: block;
-    columns: 2;
-    column-gap: 8mm;
-  }
-
+  /*
+   * One column, a line of description per section: the manifest's summaries
+   * run to seven lines in Hungarian, and two columns of them filled most of
+   * page two before section 01 began. The section itself says the rest.
+   */
   .ox-report-contents li {
     padding: 0.25rem 0;
     break-inside: avoid;
+  }
+
+  .ox-report .ox-toc-summary {
+    max-width: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
   }
 
   .ox-report-section {
@@ -3590,8 +3600,9 @@
 
   /* --- figures, findings, tables: small blocks that stay whole ---------- */
 
+  /* Up to four tiles a row; a tally of two takes the width in halves, not half of it in quarters. */
   .ox-report .ox-tally {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
     border-radius: 0;
     overflow: visible;
     break-inside: avoid;
@@ -3628,6 +3639,17 @@
   .ox-report .ox-table-wrap {
     border-radius: 0;
     overflow: visible;
+  }
+
+  /*
+   * A list in the report is a few rows (the projects an agent presents in):
+   * a block, like the planes, and whole, so its heading goes over with it.
+   * As a flex column Chrome broke between its top edge and its first row and
+   * left "06" at the foot of a page over an empty frame.
+   */
+  .ox-report .ox-list {
+    display: block;
+    break-inside: avoid;
   }
 
   /* A printed table is rules between rows, not a box. */
@@ -3709,9 +3731,11 @@
     break-before: avoid;
   }
 
+  /* A row that wraps — a Hungarian duration, a visitor label — wraps tight: three lines, not three paragraphs. */
   .ox-report .ox-table th,
   .ox-report .ox-table td {
     padding: 0.25rem 0.375rem;
+    line-height: 1.35;
     box-shadow: none;
     border-bottom: 1px solid var(--ox-line-hair);
   }
@@ -3782,8 +3806,10 @@
 
   /*
    * The funnel and the CRM ladder, compact: a stage per line — its name, its
-   * bar centred on the line so the stages narrow like the funnel they are, and
-   * its figures — rather than a stack of padded rows.
+   * bar from the left edge, and its figures — rather than a stack of padded
+   * rows. Not centred: an agent's stages each have their own base (shortlisted
+   * of opened, progressed of recorded), so a centred shape would claim each is
+   * a subset of the one above, and 51 recorded would bulge past 46 shortlisted.
    */
   .ox-report .ox-funnel {
     gap: 0;
@@ -3799,7 +3825,6 @@
 
   .ox-report .ox-stage-bar {
     display: flex;
-    justify-content: center;
     height: 14px;
     background: none;
   }

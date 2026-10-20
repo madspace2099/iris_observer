@@ -105,6 +105,15 @@ describe("the printed report flows", () => {
     expect(heading?.body).toMatch(/break-after:\s*avoid/);
   });
 
+  it("prints a list as a whole block, so its heading never ends a page over an empty frame", () => {
+    /* As a flex column, Chrome broke between the list's top edge and its first row. */
+    const list = PRINT_RULES.find(
+      (rule) => rule.selectors.includes(".ox-report .ox-list") && /display:/.test(rule.body),
+    );
+    expect(list?.body).toMatch(/display:\s*block/);
+    expect(list?.body).toMatch(/break-inside:\s*avoid/);
+  });
+
   it("starts the cover on the graphite ground and ends it with its page", () => {
     const cover = PRINT_RULES.find((rule) => rule.selectors.includes(".ox-report .ox-cover"));
     expect(cover?.body).toMatch(/break-after:\s*page/);
@@ -122,5 +131,48 @@ describe("the printed report flows", () => {
     );
     expect(narrow.length).toBeGreaterThan(0);
     expect(narrow.filter((query) => !query.startsWith("screen and"))).toEqual([]);
+  });
+});
+
+describe("the outcome bar on a mono printer", () => {
+  it("keeps every part a step of luma from the part beside it", () => {
+    /* Paper's inks, as the print block declares them for a report. */
+    const paper = PRINT_RULES.find(
+      (rule) => rule.selectors.includes(".ox-paper") && rule.body.includes("--ox-good-mark"),
+    );
+    const ink = (token: string): readonly number[] => {
+      const hex = new RegExp(String.raw`${token}:\s*#([0-9a-f]{6})`).exec(paper?.body ?? "")?.[1];
+      expect(hex, token).toBeDefined();
+      return [0, 2, 4].map((i) => parseInt((hex ?? "").slice(i, i + 2), 16));
+    };
+    /* A part on white paper, as a mono printer sees it: Rec. 601 luma of the composite. */
+    const luma = (outcome: string): number => {
+      const rule = new RegExp(
+        String.raw`\.ox-mix-part\[data-outcome="${outcome}"\]\s*\{([^}]*)\}`,
+      ).exec(CODE)?.[1];
+      const token = /fill:\s*var\((--ox-[a-z0-9-]+)\)/.exec(rule ?? "")?.[1] ?? "";
+      const alpha = Number(/fill-opacity:\s*([\d.]+)/.exec(rule ?? "")?.[1] ?? 1);
+      const [r = 0, g = 0, b = 0] = ink(token).map((c) => 255 - alpha * (255 - c));
+      return 0.299 * r + 0.587 * g + 0.114 * b;
+    };
+    /*
+     * The read model's order (`outcomeSlices`); "no outcome recorded" is a
+     * hatch, not a fill. ponytail: neighbours in the full order only — a part
+     * whose neighbour has no meetings can sit beside a closer grey, and the
+     * count printed in it and the table under it are what name it then.
+     */
+    const order = [
+      "purchase",
+      "reservation",
+      "interested",
+      "follow_up_needed",
+      "presentation_only",
+      "not_interested",
+    ];
+    const steps = order.slice(1).map((outcome, i) => ({
+      pair: `${order[i] ?? ""} | ${outcome}`,
+      step: Math.round(Math.abs(luma(outcome) - luma(order[i] ?? ""))),
+    }));
+    expect(steps.filter(({ step }) => step < 25)).toEqual([]);
   });
 });
