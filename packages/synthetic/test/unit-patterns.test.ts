@@ -163,7 +163,7 @@ describe("what the most-opened flats share", () => {
      */
     expect(view.patterns.map((p) => p.statement)).toEqual([
       "4 of the 5 most-opened flats face south and are in block A, against 50% of the 12 flats in the catalogue.",
-      "4 of the 5 most-opened flats have two rooms, against 50% of the 12 flats in the catalogue.",
+      "4 of the 5 have two rooms, against 50% of the 12 flats in the catalogue.",
     ]);
     expect(view.patterns[0]?.unitCodes).toEqual(["A-301", "A-401", "A-501", "A-601"]);
     expect(view.patterns[1]).toMatchObject({
@@ -180,8 +180,8 @@ describe("what the most-opened flats share", () => {
      */
     expect(view.ranges).toEqual([
       "The most-opened flats stand on floors 3 to 6; 67% of the 12 flats in the catalogue fall in that range.",
-      "The most-opened flats are priced from €135,000 to €165,000; 58% of the 12 priced flats in the catalogue fall in that range.",
-      "The most-opened flats measure from 58 to 80 m²; 67% of the 12 flats in the catalogue that state an area fall in that range.",
+      "The most-opened flats are priced from €135,000 to €165,000; 58% of the 12 flats in the catalogue fall in that range.",
+      "The most-opened flats measure from 58 to 80 m²; 67% of the 12 flats in the catalogue fall in that range.",
     ]);
     expect(view.note).toBeNull();
   });
@@ -190,8 +190,8 @@ describe("what the most-opened flats share", () => {
     provideCatalogue(PROJECT_ID, CATALOGUE);
     const view = buildUnitAttentionPatterns(context(), sessions(10), SALES);
     expect(view.conversion).toEqual([
-      "2 of the 5 most-opened flats are reserved or sold now, against 25% of the 12 flats in the catalogue.",
-      "Of the 1 with a sale the CRM dates, 1 followed an IRIS showing of the flat within 72 hours.",
+      "2 of the 5 are reserved or sold now, against 25% of the 12 flats in the catalogue.",
+      "Of the 1 whose sale the CRM dates, 1 followed an IRIS showing within 72 hours.",
       "The CRM states no sale date for A-501, so it cannot be placed against a showing.",
     ]);
     expect(view.top.find((f) => f.unitCode === "A-401")?.sale?.verdictLabel).toBe(
@@ -208,10 +208,20 @@ describe("what the most-opened flats share", () => {
   });
 
   it("never puts an unstated attribute in a band", () => {
-    /* Block A states no aspect: as a value of its own it would be four of five against half. */
+    /*
+     * Block A states no aspect: as a value of its own it would be four of five
+     * against half. B-501 states no price, so the prices are read over the 11
+     * that do: €135,000–€165,000 holds 135, 140, 145, 155, 160 and 165.
+     */
     provideCatalogue(
       PROJECT_ID,
-      CATALOGUE.map((u) => (u.block === "A" ? { ...u, orientation: null } : u)),
+      CATALOGUE.map((u) =>
+        u.block === "A"
+          ? { ...u, orientation: null }
+          : u.code === "B-501"
+            ? { ...u, price: null }
+            : u,
+      ),
     );
     const view = buildUnitAttentionPatterns(context(), sessions(10), SALES);
     expect(view.patterns.map((p) => p.statement)).toContain(
@@ -219,6 +229,9 @@ describe("what the most-opened flats share", () => {
     );
     expect(view.patterns.some((p) => /face|null/.test(p.statement))).toBe(false);
     expect(view.top[0]?.attributesDisplay).toContain("Aspect not stated");
+    expect(view.ranges).toContain(
+      "The most-opened flats are priced from €135,000 to €165,000; 55% of the 11 priced flats in the catalogue fall in that range.",
+    );
   });
 
   it("says plainly when the flats share nothing the catalogue does not", () => {
@@ -289,12 +302,12 @@ describe("on Shark Residence, quarter to date", () => {
     const south = catalogue.filter((u) => u.orientation === "S");
     expect(view.patterns.map((p) => p.statement)).toEqual([
       `All 5 most-opened flats are on the middle floors, 4 to 7, against ${pct(middle.length)} of the 60 flats in the catalogue.`,
-      `All 5 most-opened flats have two rooms, against ${pct(twoRoom.length)} of the 60 flats in the catalogue.`,
-      `4 of the 5 most-opened flats face south and are in block S, against ${pct(south.length)} of the 60 flats in the catalogue.`,
+      `All 5 have two rooms, against ${pct(twoRoom.length)} of the 60 flats in the catalogue.`,
+      `4 of the 5 face south and are in block S, against ${pct(south.length)} of the 60 flats in the catalogue.`,
     ]);
     const held = catalogue.filter((u) => u.status !== "available");
     expect(view.conversion[0]).toBe(
-      `4 of the 5 most-opened flats are reserved or sold now, against ${pct(held.length)} of the 60 flats in the catalogue.`,
+      `4 of the 5 are reserved or sold now, against ${pct(held.length)} of the 60 flats in the catalogue.`,
     );
     /* The demonstration CRM's deals are made from meetings, and the reader is told. */
     expect(view.caveats.join(" ")).toMatch(/demonstration CRM makes each of its deals/);

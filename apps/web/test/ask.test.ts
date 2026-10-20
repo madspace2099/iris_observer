@@ -3,9 +3,11 @@ import { resolve } from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { VIEWERS } from "@observer/synthetic";
 import {
+  CAUSAL_PATTERNS,
   ask,
   bundlesFor,
   composeDeterministic,
+  containsCausalClaim,
   isEnglishQuestion,
   namedAgents,
   routeQuestion,
@@ -285,11 +287,46 @@ describe("the live questions reach their analyses without a model", () => {
     ]);
   });
 
-  it("reads unit attention beside the sales that followed a showing", () => {
-    expect(routes(LIVE_QUESTIONS[3] as string)).toEqual([
-      "analyze_unit_attention",
-      "analyze_iris_assisted_sales",
-    ]);
+  it("reads what the most-opened flats share, and their own sales, in one analysis", () => {
+    expect(routes(LIVE_QUESTIONS[3] as string)).toEqual(["analyze_unit_attention"]);
+  });
+
+  /*
+   * ADR-0050, the owner on 2026-10-20: not "The units drawing most attention
+   * are S-503 (29 meetings), S-603 (22 meetings), S-403 (23 meetings)…" — out of
+   * order, and a list rather than an answer — but what those flats share.
+   */
+  it("leads with a pattern, then the sales, then the ranking in descending order", async () => {
+    const shark: AskContextInput = {
+      ...CONTEXT,
+      viewer: VIEWERS.developerShark,
+      tenantSlug: "shark",
+      projectSlug: "shark-residence",
+      projectLabel: "Shark Residence",
+      roster: await rosterOf("shark", "shark-residence"),
+    };
+    const outcome = await ask(LIVE_QUESTIONS[3] as string, shark, NO_KEY);
+    const answer = outcome.answer;
+    expect(outcome.toolsUsed).toEqual(["analyze_unit_attention"]);
+    expect(answer).not.toBeNull();
+    if (answer === null) return;
+
+    const text = answer.answer;
+    const pattern = text.indexOf("All 5 most-opened flats are on the middle floors, 4 to 7");
+    const sales = text.indexOf("4 of the 5 are reserved or sold now");
+    const ranking = text.indexOf("Most opened: ");
+    expect(pattern, text).toBe(0);
+    expect(sales, text).toBeGreaterThan(pattern);
+    expect(ranking, text).toBeGreaterThan(sales);
+
+    const counts = [...text.slice(ranking).matchAll(/[A-Z]-\d+ \((\d+)/g)].map((m) => Number(m[1]));
+    expect(counts).toHaveLength(5);
+    expect(counts).toEqual([...counts].sort((a, b) => b - a));
+
+    /* No project-wide share, no list for an answer, no cause, in any language the guard reads. */
+    expect(text).not.toMatch(/units drawing most attention|dated sales \(/);
+    expect(containsCausalClaim(answer)).toBe(false);
+    expect(CAUSAL_PATTERNS.test(answer.limitations.join(" "))).toBe(false);
   });
 
   it.each(LIVE_QUESTIONS)("answers from showroom evidence, with no causal claim: %s", async (q) => {

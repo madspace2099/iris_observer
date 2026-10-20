@@ -625,7 +625,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
   {
     name: "analyze_unit_attention",
     description:
-      "Buyer attention on units: meetings, dwell, repeat views, shortlisting, plans, comparisons and the recent trend.",
+      "Buyer attention on units. With a unit code: meetings, dwell, repeat views, shortlisting, plans, comparisons and the recent trend. Without one: what the period's most-opened flats share against the whole catalogue (aspect, floors, rooms, block, price, area), how many are reserved or sold now, each one's dated sale against its last showing, and the ranking.",
     input: z.object({ unitCode: z.string().optional().describe("Optional unit code, e.g. A-402") }),
     async run(context, args) {
       const view = await repository.getUnitAttention(query(context), args.unitCode ?? null);
@@ -676,25 +676,56 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
         };
       }
 
-      const top = view.rows.filter((r) => r.meetings > 0).slice(0, 5);
+      /*
+       * WHAT THE MOST-OPENED FLATS SHARE (ADR-0050), not a list of them.
+       *
+       * The owner asked for the pattern — aspect, floors, rooms, price — and
+       * the list only as its evidence. Every sentence is the read model's; the
+       * draft leads with the patterns, then whether those flats sold, then the
+       * ranking. The project-wide sales share is not asked for here: each
+       * flat's own sale is placed instead, so no figure needs PROJECT_WIDE_SALES.
+       */
+      const patterns = await repository.getUnitAttentionPatterns(query(context));
+      const lead =
+        patterns.patterns.length > 0
+          ? patterns.patterns.map((p) => p.statement)
+          : [...(patterns.note === null ? [] : [patterns.note]), ...patterns.ranges];
+      const ranking = patterns.top.length === 0 ? [] : [`Most opened: ${patterns.ranking}.`];
       return {
         tool: "analyze_unit_attention",
-        facts: top.map((r) => ({
-          label: r.unitCode,
-          value: `${r.meetings} of ${view.evidence.observationCount} meetings`,
-          note: `${roomsWord(r.rooms, view.context.language)} · median ${r.medianDwellSeconds}s · ${r.favourites} shortlisted`,
-        })),
-        sources: OBSERVED,
-        evidence: view.evidence,
         /*
-         * The meetings the ranking was read from, not the five rows it kept:
-         * an answer says "measured across" this, and five units are not five
-         * meetings.
+         * The patterns first and the flats after them: a composed answer shows
+         * the first three facts as its figures. The spans and the sales lines
+         * are whole sentences, there for a model to word from.
          */
-        sampleSize: view.evidence.observationCount,
-        caveats: [],
-        action: { label: "Open Unit attention", href: `${root(context)}/units` },
-        draft: `The units drawing most attention are ${top.map((r) => `${r.unitCode} (${r.meetings} meetings)`).join(", ")}.`,
+        facts: [
+          ...patterns.patterns.map((p) => ({
+            label: p.label,
+            value: `${String(p.topCount)} of the ${String(p.topTotal)} most opened`,
+            note: `against ${String(p.baseCount)} of the ${String(p.baseTotal)} in the catalogue`,
+          })),
+          ...patterns.top.map((f) => ({
+            label: f.unitCode,
+            value: `${String(f.meetings)} of ${String(patterns.meetings)} meetings`,
+            note: `${f.attributesDisplay} · ${String(f.favourites)} shortlisted · ${f.status}${f.sale === null ? "" : ` · ${f.sale.verdictLabel}`}`,
+          })),
+          ...[...(patterns.patterns.length > 0 ? patterns.ranges : []), ...patterns.conversion].map(
+            (line) => ({ label: line, value: "", note: null }),
+          ),
+        ],
+        sources: patterns.conversion.length > 0 ? WITH_OUTCOME : OBSERVED,
+        evidence: patterns.evidence,
+        /* The meetings the flats were opened in: five flats are not five meetings. */
+        sampleSize: patterns.meetings,
+        caveats: [...(patterns.tieNote === null ? [] : [patterns.tieNote]), ...patterns.caveats],
+        action: { label: "Open Units", href: `${root(context)}/units` },
+        /* The ranking before the spans: the ceiling trims the tail, and the spans are on the screen. */
+        draft: [
+          ...lead,
+          ...patterns.conversion,
+          ...ranking,
+          ...(patterns.patterns.length > 0 ? patterns.ranges : []),
+        ].join(" "),
       };
     },
   };
@@ -905,9 +936,10 @@ const getMetricEvidence: ToolDefinition<z.ZodObject<{ metricId: z.ZodString }>> 
  * causal-language guard runs over what it writes.
  */
 /**
- * Asked beside unit attention ("do they convert?"), the share reads as a
- * per-unit rate unless it is said not to be one. A limitation every answer
- * using these sales carries, the model's included (`askStream`).
+ * Read beside a list of units, the share reads as a per-unit rate unless it is
+ * said not to be one. A limitation every answer using these sales carries, the
+ * model's included (`askStream`). "Which units draw the most attention, and do
+ * they convert?" no longer asks for it: it places each flat's own sale (ADR-0050).
  */
 export const PROJECT_WIDE_SALES =
   "These are the whole project's dated sales, counted across every unit; no figure here is a rate for any one unit.";

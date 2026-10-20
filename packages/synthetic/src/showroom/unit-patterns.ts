@@ -64,7 +64,9 @@ const COMPASS: Readonly<Record<string, string>> = {
 
 const ROOM_NUMBERS = ["no", "one", "two", "three", "four", "five", "six"];
 
-const THIRDS = ["lowest third", "middle third", "highest third"] as const;
+/** The catalogue's thirds by price and by area, cheapest and smallest first. */
+const PRICE_THIRDS = ["cheapest", "middle", "dearest"] as const;
+const AREA_THIRDS = ["smallest", "middle", "largest"] as const;
 const FLOOR_BANDS = ["lower", "middle", "upper"] as const;
 
 /** A set of catalogue flats an attribute value picks out, with how to say it. */
@@ -72,6 +74,8 @@ interface Band {
   readonly id: string;
   /** The predicate, plural: "face south", "are on the middle floors, 4 to 7". */
   readonly phrase: string;
+  /** The same, as a label: "Facing south", "Floors 4 to 7". */
+  readonly label: string;
   readonly holds: (unit: RawUnit) => boolean;
 }
 
@@ -82,7 +86,8 @@ interface Attribute {
   readonly noun: string;
   readonly bands: readonly Band[];
   /** A continuous attribute's span among the flats, said when no band concentrates. */
-  readonly range: ((top: readonly RawUnit[], stated: readonly RawUnit[]) => string | null) | null;
+  readonly range:
+    ((top: readonly RawUnit[], stated: readonly RawUnit[], noun: string) => string | null) | null;
 }
 
 function share(part: number, whole: number, locale: string): string {
@@ -91,11 +96,12 @@ function share(part: number, whole: number, locale: string): string {
 
 const was = (n: number) => (n === 1 ? "was" : "were");
 
+/** "All 5", "4 of the 5": the subject once the flats are named. */
+const of = (k: number, n: number) =>
+  k === n ? `All ${String(n)}` : `${String(k)} of the ${String(n)}`;
+
 /** "All 5 most-opened flats", "4 of the 5 most-opened flats". */
-const lead = (k: number, n: number) =>
-  k === n
-    ? `All ${String(n)} most-opened flats`
-    : `${String(k)} of the ${String(n)} most-opened flats`;
+const lead = (k: number, n: number) => `${of(k, n)} most-opened flats`;
 
 function joinCodes(codes: readonly string[]): string {
   return codes.length <= 1
@@ -107,10 +113,18 @@ function joinCodes(codes: readonly string[]): string {
 function categorical(
   units: readonly RawUnit[],
   value: (unit: RawUnit) => number | string | null,
-  phrase: (value: number | string) => string,
+  words: (value: number | string) => readonly [phrase: string, label: string],
 ): Band[] {
   const values = [...new Set(units.map(value).filter((v) => v !== null))];
-  return values.map((v) => ({ id: String(v), phrase: phrase(v), holds: (u) => value(u) === v }));
+  return values.map((v) => {
+    const [phrase, label] = words(v);
+    return { id: String(v), phrase, label, holds: (u: RawUnit) => value(u) === v };
+  });
+}
+
+/** "€212,000 to €289,000", or the one value where both ends meet. */
+function span(low: number, high: number, say: (v: number) => string): string {
+  return low === high ? say(low) : `${say(low)} to ${say(high)}`;
 }
 
 /**
@@ -120,7 +134,7 @@ function categorical(
 function thirds(
   units: readonly RawUnit[],
   value: (unit: RawUnit) => number | null,
-  phrase: (index: number, low: number, high: number) => string,
+  words: (index: number, low: number, high: number) => readonly [phrase: string, label: string],
 ): Band[] {
   const sorted = units
     .map(value)
@@ -139,10 +153,12 @@ function thirds(
     if (members.length === 0) return [];
     const low = members[0] as number;
     const high = members[members.length - 1] as number;
+    const [phrase, label] = words(index, low, high);
     return [
       {
         id: String(index),
-        phrase: phrase(index, low, high),
+        phrase,
+        label,
         holds: (u: RawUnit) => {
           const v = value(u);
           return v !== null && inBand(v);
@@ -175,6 +191,7 @@ function floorBands(units: readonly RawUnit[]): Band[] {
           low === high
             ? `are on floor ${String(low)}`
             : `are on the ${FLOOR_BANDS[index] ?? ""} floors, ${String(low)} to ${String(high)}`,
+        label: low === high ? `Floor ${String(low)}` : `Floors ${String(low)} to ${String(high)}`,
         holds: (u: RawUnit) => u.floor !== null && group.includes(u.floor),
       },
     ];
@@ -210,25 +227,30 @@ function attributes(
   const price = (u: RawUnit) => u.price;
   const area = (u: RawUnit) => u.areaSqm;
   const floor = (u: RawUnit) => u.floor;
+  /* A delivered flat with no building arrives with an empty block: unstated, not a block. */
+  const block = (u: RawUnit) => (u.block === "" ? null : u.block);
   const fmt = (v: number) => money(v, currency, locale);
   return [
     {
       id: "rooms",
       value: (u) => u.rooms,
-      noun: "flats in the catalogue",
+      noun: "flats in the catalogue that state their rooms",
       bands: categorical(
         catalogue,
         (u) => u.rooms,
-        (v) => `have ${ROOM_NUMBERS[Number(v)] ?? String(v)} ${Number(v) === 1 ? "room" : "rooms"}`,
+        (v) => {
+          const rooms = `${ROOM_NUMBERS[Number(v)] ?? String(v)} ${Number(v) === 1 ? "room" : "rooms"}`;
+          return [`have ${rooms}`, rooms.charAt(0).toUpperCase() + rooms.slice(1)];
+        },
       ),
       range: null,
     },
     {
       id: "floor",
       value: floor,
-      noun: "flats in the catalogue",
+      noun: "flats in the catalogue that state a floor",
       bands: floorBands(catalogue),
-      range: (top, stated) =>
+      range: (top, stated, noun) =>
         spanLine(
           top,
           stated,
@@ -237,49 +259,49 @@ function attributes(
             low === high
               ? `are all on floor ${String(low)}`
               : `stand on floors ${String(low)} to ${String(high)}`,
-          "flats in the catalogue",
+          noun,
           locale,
         ),
     },
     {
       id: "orientation",
       value: (u) => u.orientation,
-      noun: "flats in the catalogue",
+      noun: "flats in the catalogue that state an aspect",
       bands: categorical(
         catalogue,
         (u) => u.orientation,
-        (v) => `face ${COMPASS[String(v)] ?? String(v)}`,
+        (v) => [
+          `face ${COMPASS[String(v)] ?? String(v)}`,
+          `Facing ${COMPASS[String(v)] ?? String(v)}`,
+        ],
       ),
       range: null,
     },
     {
       id: "block",
-      value: (u) => u.block,
-      noun: "flats in the catalogue",
-      bands: categorical(
-        catalogue,
-        (u) => u.block,
-        (v) => `are in block ${String(v)}`,
-      ),
+      value: block,
+      noun: "flats in the catalogue that state a block",
+      bands: categorical(catalogue, block, (v) => [
+        `are in block ${String(v)}`,
+        `Block ${String(v)}`,
+      ]),
       range: null,
     },
     {
       id: "price",
       value: price,
       noun: "priced flats in the catalogue",
-      bands: thirds(
-        catalogue,
-        price,
-        (index, low, high) =>
-          `are priced ${fmt(low)} to ${fmt(high)}, the ${THIRDS[index] ?? ""} of the catalogue's prices`,
-      ),
-      range: (top, stated) =>
+      bands: thirds(catalogue, price, (index, low, high) => [
+        `are priced ${span(low, high, fmt)} (the ${PRICE_THIRDS[index] ?? ""} third)`,
+        span(low, high, fmt),
+      ]),
+      range: (top, stated, noun) =>
         spanLine(
           top,
           stated,
           price,
           (low, high) => `are priced from ${fmt(low)} to ${fmt(high)}`,
-          "priced flats in the catalogue",
+          noun,
           locale,
         ),
     },
@@ -287,19 +309,17 @@ function attributes(
       id: "area",
       value: area,
       noun: "flats in the catalogue that state an area",
-      bands: thirds(
-        catalogue,
-        area,
-        (index, low, high) =>
-          `measure ${String(low)} to ${String(high)} m², the ${THIRDS[index] ?? ""} of the catalogue's areas`,
-      ),
-      range: (top, stated) =>
+      bands: thirds(catalogue, area, (index, low, high) => [
+        `measure ${span(low, high, String)} m² (the ${AREA_THIRDS[index] ?? ""} third)`,
+        `${span(low, high, String)} m²`,
+      ]),
+      range: (top, stated, noun) =>
         spanLine(
           top,
           stated,
           area,
           (low, high) => `measure from ${String(low)} to ${String(high)} m²`,
-          "flats in the catalogue that state an area",
+          noun,
           locale,
         ),
     },
@@ -309,6 +329,7 @@ function attributes(
 interface Candidate {
   readonly attribute: string;
   readonly phrase: string;
+  readonly label: string;
   readonly top: readonly string[];
   readonly base: readonly string[];
   readonly baseTotal: number;
@@ -333,6 +354,8 @@ function findPatterns(
   const ranges: string[] = [];
   for (const attribute of attributes(catalogue, currency, locale)) {
     const stated = catalogue.filter((u) => attribute.value(u) !== null);
+    /* The narrower noun only where some flat leaves the attribute out. */
+    const noun = stated.length === catalogue.length ? "flats in the catalogue" : attribute.noun;
     let found = false;
     for (const band of attribute.bands) {
       const inTop = top.filter(band.holds);
@@ -344,15 +367,16 @@ function findPatterns(
         candidates.push({
           attribute: attribute.id,
           phrase: band.phrase,
+          label: band.label,
           top: inTop.map((u) => u.code),
           base: inBase.map((u) => u.code),
           baseTotal: stated.length,
-          noun: attribute.noun,
+          noun,
         });
       }
     }
     if (!found && attribute.range !== null) {
-      const line = attribute.range(top, stated);
+      const line = attribute.range(top, stated, noun);
       if (line !== null) ranges.push(line);
     }
   }
@@ -362,13 +386,25 @@ function findPatterns(
     const key = `${c.top.join(",")}|${c.base.join(",")}`;
     merged.set(key, [...(merged.get(key) ?? []), c]);
   }
-  const patterns = [...merged.values()].map((group): UnitPatternLine => {
-    const first = group[0] as Candidate;
+  const groups = [...merged.values()].map((group) => ({
+    group,
+    first: group[0] as Candidate,
+    id: group.map((c) => c.attribute).join("-"),
+  }));
+  /* The strongest concentration first: the most flats, then the furthest above the catalogue. */
+  groups.sort(
+    (a, b) =>
+      b.first.top.length - a.first.top.length ||
+      a.first.base.length / a.first.baseTotal - b.first.base.length / b.first.baseTotal ||
+      a.id.localeCompare(b.id),
+  );
+  /* The first line names the flats; the lines after it read on from it ("All 5 have two rooms"). */
+  const patterns = groups.map(({ group, first, id }, index): UnitPatternLine => {
     const k = first.top.length;
-    const id = group.map((c) => c.attribute).join("-");
     return {
       id,
-      statement: `${lead(k, n)} ${group.map((c) => c.phrase).join(" and ")}, against ${share(first.base.length, first.baseTotal, locale)} of the ${String(first.baseTotal)} ${first.noun}.`,
+      label: group.map((c) => c.label).join(" · "),
+      statement: `${index === 0 ? lead(k, n) : of(k, n)} ${group.map((c) => c.phrase).join(" and ")}, against ${share(first.base.length, first.baseTotal, locale)} of the ${String(first.baseTotal)} ${first.noun}.`,
       topCount: k,
       topTotal: n,
       baseCount: first.base.length,
@@ -382,13 +418,6 @@ function findPatterns(
       ),
     };
   });
-  /* The strongest concentration first: the most flats, then the furthest above the catalogue. */
-  patterns.sort(
-    (a, b) =>
-      b.topCount - a.topCount ||
-      a.baseCount / a.baseTotal - b.baseCount / b.baseTotal ||
-      a.id.localeCompare(b.id),
-  );
   return { patterns, ranges };
 }
 
@@ -441,7 +470,7 @@ export function buildUnitAttentionPatterns(
         areaWord(row.areaSqm),
         aspectWord(row.orientation),
         floorWord(row.floor),
-        `block ${unit?.block ?? "not stated"}`,
+        unit === undefined || unit.block === "" ? "Block not stated" : `block ${unit.block}`,
         row.priceDisplay,
       ].join(" · "),
       sale:
@@ -525,7 +554,7 @@ export function buildUnitAttentionPatterns(
   const held = top.filter((f) => f.status !== "available");
   const heldBase = catalogue.filter((u) => u.status !== "available").length;
   const conversion = [
-    `${lead(held.length, n)} are reserved or sold now, against ${share(heldBase, catalogue.length, locale)} of the ${String(catalogue.length)} flats in the catalogue.`,
+    `${of(held.length, n)} are reserved or sold now, against ${share(heldBase, catalogue.length, locale)} of the ${String(catalogue.length)} flats in the catalogue.`,
   ];
   if (!sales.connected) {
     conversion.push(
@@ -541,7 +570,7 @@ export function buildUnitAttentionPatterns(
     const stillListed = dated.filter((f) => f.status === "available").map((f) => f.unitCode);
     if (dated.length > 0) {
       conversion.push(
-        `Of the ${String(dated.length)} with a sale the CRM dates, ${String(within)} followed an IRIS showing of the flat within ${String(sales.windowHours)} hours${earlier === 0 ? "" : `, ${String(earlier)} ${was(earlier)} shown earlier than that`}${never === 0 ? "" : `, ${String(never)} ${was(never)} not opened in IRIS before it`}.${stillListed.length === 0 ? "" : ` The catalogue still lists ${joinCodes(stillListed)} as available.`}`,
+        `Of the ${String(dated.length)} whose sale the CRM dates, ${String(within)} followed an IRIS showing within ${String(sales.windowHours)} hours${earlier === 0 ? "" : `; ${String(earlier)} ${was(earlier)} shown earlier`}${never === 0 ? "" : `; ${String(never)} ${was(never)} not shown before it`}.${stillListed.length === 0 ? "" : ` The catalogue still lists ${joinCodes(stillListed)} as available.`}`,
       );
     }
     const undated = held.filter((f) => f.sale === null).map((f) => f.unitCode);

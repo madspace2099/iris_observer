@@ -487,6 +487,8 @@ export interface UnitPatternFlat {
  */
 export interface UnitPatternLine {
   readonly id: string;
+  /** The attribute value as a label: "Floors 4 to 7", "Facing south · Block S". */
+  readonly label: string;
   /** "4 of the 5 most-opened flats face south, against 50% of the 60 flats in the catalogue." */
   readonly statement: string;
   /** How many of the most-opened flats, of `topTotal`. */

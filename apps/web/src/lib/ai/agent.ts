@@ -663,16 +663,16 @@ export function routeQuestion(
    * Units that draw attention, and whether they sold.
    *
    * Before the broad "convert" reading, which would answer the second half
-   * with the meeting cohorts and drop the units altogether.
+   * with the meeting cohorts and drop the units altogether. One analysis since
+   * ADR-0050: what the most-opened flats share, and each one's own sale. The
+   * project-wide sales share it used to stand beside read as a rate for the
+   * flats listed, which is the misreading PROJECT_WIDE_SALES had to forbid.
    */
   if (
     /\b(unit|apartment|flat|home)s?\b.*\b(attention|interest|draw|popular)/.test(q) &&
     /convert|\bsell|\bsold|reserv|purchas/.test(q)
   ) {
-    return [
-      { tool: "analyze_unit_attention", args: {} },
-      { tool: "analyze_iris_assisted_sales", args: {} },
-    ];
+    return [{ tool: "analyze_unit_attention", args: {} }];
   }
   /*
    * Before the broad "sold / closed / convert" reading below, which would send
