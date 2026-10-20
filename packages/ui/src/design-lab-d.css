@@ -2300,8 +2300,12 @@
   color: var(--d-ink-4);
 }
 
-/* A card's own heading is the kit's XL title: bold 16 on 28, telegray, in the reader's case. */
+/*
+ * A card's own heading is the kit's XL title: bold 16 on 28, telegray, in the
+ * reader's case. Bare, or in the row it shares with its `i` (`.iris-titled`).
+ */
 [data-charts="d"] .d-card > .iris-kicker:first-child,
+[data-charts="d"] .d-card > .iris-titled:first-child > .iris-kicker,
 [data-charts="d"] .d-card > h3:first-child,
 [data-charts="d"] .d-card .ox-chart-title {
   font-size: 16px;

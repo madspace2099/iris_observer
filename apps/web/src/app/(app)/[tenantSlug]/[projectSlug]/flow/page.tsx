@@ -14,6 +14,7 @@ import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AssistedSales, FlowLadder } from "@/components/flow";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
@@ -184,7 +185,8 @@ export default async function FlowPage({
            * The plan's four groups (R05 item 2), named and defined, and every
            * word of them the read model's. A group nothing measures is printed
            * empty with what is missing, never dropped. "Typical length" stands
-           * in the row outside any group.
+           * in the row outside any group. The definition stands behind the `i`
+           * beside the name (the owner, 2026-10-20); what is missing does not.
            */}
           <div className="iris-kpi-groups" style={{ marginTop: "1rem" }}>
             {[
@@ -204,10 +206,14 @@ export default async function FlowPage({
                   aria-labelledby={`kpi-group-${item.id}`}
                   data-empty={item.missing === null ? undefined : "true"}
                 >
-                  <p className="iris-kicker iris-kicker-measured" id={`kpi-group-${item.id}`}>
-                    {item.label}
-                  </p>
-                  <p className="iris-meta iris-meta-measured">{item.definition}</p>
+                  <header className="iris-titled">
+                    <p className="iris-kicker iris-kicker-measured" id={`kpi-group-${item.id}`}>
+                      {item.label}
+                    </p>
+                    <InfoTip id={`kpi-${item.id}`} label={item.label}>
+                      {item.definition}
+                    </InfoTip>
+                  </header>
                   <div className="iris-kpis">
                     {item.missing === null ? (
                       item.figureIds.map(kpiCard)
@@ -245,9 +251,16 @@ export default async function FlowPage({
          * A chart region like the others on the page, so it wears their card.
          */}
         <div className="d-card">
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-            The deal ladder, as the CRM states it
-          </h2>
+          <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured">
+              The deal ladder, as the CRM states it
+            </h2>
+            {view.ladder.source === "crm" ? (
+              <InfoTip id="deal-ladder" label="the deal ladder">
+                {view.ladder.note}
+              </InfoTip>
+            ) : null}
+          </header>
           {view.ladder.source === "crm" ? (
             <>
               <FlowLadder
@@ -255,8 +268,15 @@ export default async function FlowPage({
                 stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
                 noun="deals"
               />
+              {/*
+               * The note's own figures stay in view (the denominators the rungs
+               * stand on); its explanation is behind the `i`.
+               */}
               <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                {view.ladder.note}
+                {view.ladder.total}{" "}
+                {view.ladder.total === 1 ? "deal as it stands" : "deals as they stand"} now
+                {view.ladder.unmapped === 0 ? null : ` · ${view.ladder.unmapped} not mapped`}
+                {view.ladder.lost === 0 ? null : ` · ${view.ladder.lost} lost`}
               </p>
               <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
             </>
@@ -277,9 +297,16 @@ export default async function FlowPage({
           <>
             <hr className="iris-rule iris-section-rule" />
             <div className="d-card">
-              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-                Stalled deals, longest on their rung first
-              </h2>
+              <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+                <h2 className="iris-kicker iris-kicker-measured">
+                  Stalled deals, longest on their rung first
+                </h2>
+                {view.ladder.stalled.length === 0 ? null : (
+                  <InfoTip id="stalled-deals" label="stalled deals">
+                    {view.ladder.stalledNote}
+                  </InfoTip>
+                )}
+              </header>
               {view.ladder.stalled.length === 0 ? (
                 <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
               ) : (
@@ -302,8 +329,10 @@ export default async function FlowPage({
                     collapseAfter={5}
                     tone="late"
                   />
+                  {/* The list's denominator stays in view; the rest is behind the `i`. */}
                   <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                    {view.ladder.stalledNote}
+                    {view.ladder.stalled.length} of {view.ladder.open} open{" "}
+                    {view.ladder.open === 1 ? "deal" : "deals"}
                   </p>
                   <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
                 </>
@@ -331,18 +360,20 @@ export default async function FlowPage({
 
         <div className="iris-band" key={`steps-${query.period}`}>
           <div className="d-card">
-            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-              Meetings, and how many progressed
-            </h2>
-            {view.periods.some((p) => p.inPeriod) ? (
-              <>
-                <PeriodSteps periods={view.periods} />
-                <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+            <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+              <h2 className="iris-kicker iris-kicker-measured">
+                Meetings, and how many progressed
+              </h2>
+              {view.periods.some((p) => p.inPeriod) ? (
+                <InfoTip id="meetings-progressed" label="meetings, and how many progressed">
                   The lighter column is every meeting; the solid part is those that reached a
                   follow-up or better. Beneath each is the median length — a part-week is compared
                   against the same days of the week before, never against a whole one.
-                </p>
-              </>
+                </InfoTip>
+              ) : null}
+            </header>
+            {view.periods.some((p) => p.inPeriod) ? (
+              <PeriodSteps periods={view.periods} />
             ) : (
               /* Six columns of "not in this period" would be a chart with nothing on it. */
               <p className="iris-meta iris-meta-measured">
@@ -369,15 +400,31 @@ export default async function FlowPage({
         {/* --- what changed in how meetings are run ----------------------- */}
 
         <div>
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-            What changed since {view.context.period.baselineLabel}
-          </h2>
+          {/*
+           * The policy the two periods were measured under, and what a direction
+           * does not claim, stand behind the `i`; a refusal never does.
+           */}
+          <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured">
+              What changed since {view.context.period.baselineLabel}
+            </h2>
+            <InfoTip id="what-changed" label="what changed">
+              <p>
+                Both periods measured under attribution policy {view.context.attribution.version},
+                effective {view.context.attribution.effectiveFrom.slice(0, 10)}.
+              </p>
+              <p>
+                How the presentations were run, not how many there were. A direction compares two
+                periods at the stated sample size — it is not a trend, and not a cause.
+              </p>
+            </InfoTip>
+          </header>
           {/*
            * THE POLICY-VERSION GUARD (docs/10-policies.md §1): a comparison
            * across two attribution policies is refused with its reason, never
            * silently drawn. Under one policy the figures are drawn and the
-           * version is stated beneath them, so a reader of a printed page
-           * knows what "comparable" rested on.
+           * version is stated behind the `i` above them, so a reader can see
+           * what "comparable" rested on.
            */}
           {view.context.attribution.comparisonRefusal !== null ? (
             <p className="iris-meta iris-meta-measured">
@@ -404,14 +451,6 @@ export default async function FlowPage({
               ))}
             </div>
           )}
-          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-            Both periods measured under attribution policy {view.context.attribution.version},
-            effective {view.context.attribution.effectiveFrom.slice(0, 10)}.
-          </p>
-          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-            How the presentations were run, not how many there were. A direction compares two
-            periods at the stated sample size — it is not a trend, and not a cause.
-          </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
@@ -471,25 +510,25 @@ export default async function FlowPage({
           </div>
 
           <div className="iris-band-side d-card">
-            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-              What those meetings became
-            </h2>
-            {view.meetingCount === 0 ? (
-              <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
-            ) : (
-              <>
-                <OutcomeRows
-                  label="What those meetings became, month by month"
-                  rows={charts.composition.columns}
-                  keys={charts.composition.keys}
-                  keyCounts={teamParts}
-                />
-                <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+            <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+              <h2 className="iris-kicker iris-kicker-measured">What those meetings became</h2>
+              {view.meetingCount === 0 ? null : (
+                <InfoTip id="months" label="what those meetings became">
                   Each month is its own whole. Its figure is the share of the month&rsquo;s recorded
                   meetings that reached a follow-up or better; below {AGENT_MIN_SAMPLE} recorded it
                   states no rate.
-                </p>
-              </>
+                </InfoTip>
+              )}
+            </header>
+            {view.meetingCount === 0 ? (
+              <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
+            ) : (
+              <OutcomeRows
+                label="What those meetings became, month by month"
+                rows={charts.composition.columns}
+                keys={charts.composition.keys}
+                keyCounts={teamParts}
+              />
             )}
           </div>
         </div>
@@ -497,9 +536,21 @@ export default async function FlowPage({
         <hr className="iris-rule iris-section-rule" />
 
         <div className="d-card" key={`agents-${query.period}`}>
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: "1.25rem" }}>
-            How each agent&rsquo;s meetings end
-          </h2>
+          <header className="iris-titled" style={{ marginBottom: "1.25rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured">
+              How each agent&rsquo;s meetings end
+            </h2>
+            {view.meetingCount === 0 ? null : (
+              <InfoTip id="agents" label="how each agent’s meetings end">
+                Every row is its own whole, its parts in ladder order from purchase on the left, so
+                a share in one row compares with the same share in any other, presenter to presenter
+                and against the team. The hatched part is meetings with no outcome recorded; every
+                rate stands on the recorded ones only. Presenters keep the roster&rsquo;s order, not
+                a ranking, and a row with fewer than {AGENT_MIN_SAMPLE} recorded meetings states no
+                rate.
+              </InfoTip>
+            )}
+          </header>
           {view.meetingCount === 0 ? (
             <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
           ) : (
@@ -539,13 +590,6 @@ export default async function FlowPage({
               </article>
             ))}
           </div>
-          <p className="iris-meta iris-meta-measured" style={{ marginTop: "1rem" }}>
-            Every row is its own whole, its parts in ladder order from purchase on the left, so a
-            share in one row compares with the same share in any other, presenter to presenter and
-            against the team. The hatched part is meetings with no outcome recorded; every rate
-            stands on the recorded ones only. Presenters keep the roster&rsquo;s order, not a
-            ranking, and a row with fewer than {AGENT_MIN_SAMPLE} recorded meetings states no rate.
-          </p>
           {/*
             Named where it contributed. A project with no CRM connected has no
             CRM outcome under these figures, and a chip saying otherwise is the
@@ -566,17 +610,20 @@ export default async function FlowPage({
         {/* --- what the quietest meetings had in common ------------------- */}
 
         <div className="d-card" key={`funnel-${query.period}`}>
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-            {charts.funnel.cohortLabel}
-          </h2>
+          {/* The group's count is in its heading and the comparison's under the bands. */}
+          <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured">{charts.funnel.cohortLabel}</h2>
+            {charts.funnel.empty !== null || charts.funnel.disclaimer === "" ? null : (
+              <InfoTip id="not-interested" label="the not-interested group">
+                {charts.funnel.disclaimer}
+              </InfoTip>
+            )}
+          </header>
           {charts.funnel.empty !== null ? (
             <p className="iris-meta iris-meta-measured">{charts.funnel.empty}</p>
           ) : (
             <>
               <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
-              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                {charts.funnel.disclaimer}
-              </p>
               <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
             </>
           )}

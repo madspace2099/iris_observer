@@ -89,27 +89,23 @@
 }
 
 /*
- * Each group takes three rows of the parent, name, definition, figures, so the
- * names line up, the definitions line up and the figures line up however many
- * lines a definition wraps to. A figure outside any group puts its strip in
- * the figure row, under no name.
+ * Each group takes two rows of the parent, its name and its figures, so the
+ * names line up and the figures line up. The definition stands behind the `i`
+ * beside the name (the owner, 2026-10-20). A figure outside any group puts its
+ * strip in the figure row, under no name.
  */
 .iris-kpi-group {
   display: grid;
-  grid-row: span 3;
+  grid-row: span 2;
   grid-template-rows: subgrid;
   min-width: 0;
 }
 
-.iris-kpi-group > p {
-  margin: 0;
-}
-
 .iris-kpi-group > .iris-kpis:only-child {
-  grid-row: 3;
+  grid-row: 2;
 }
 
-.iris-kpi-group[data-empty="true"] > .iris-kicker {
+.iris-kpi-group[data-empty="true"] > .iris-titled {
   margin-top: 1.25rem;
 }
 

@@ -1,5 +1,6 @@
 import type { AssistedSales as AssistedSalesView, PeriodPreset } from "@observer/readmodels";
 
+import { InfoTip } from "@/components/iris/InfoTip";
 import { withPeriod } from "@/lib/period";
 import { SourceChips } from "@/showroom/parts";
 import { RankedBars } from "@/showroom/charts2";
@@ -35,9 +36,16 @@ export function AssistedSales({
 }) {
   return (
     <div className="d-card">
-      <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-        IRIS-assisted sales
-      </h2>
+      {/*
+       * The rule and what it does not say stand behind the `i` (the owner,
+       * 2026-10-20); the headline below keeps the count and its denominator.
+       */}
+      <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+        <h2 className="iris-kicker iris-kicker-measured">IRIS-assisted sales</h2>
+        <InfoTip id="assisted-sales" label="IRIS-assisted sales">
+          {assisted.note}
+        </InfoTip>
+      </header>
       <p className="iris-lede" style={{ marginBottom: "1rem" }}>
         {assisted.headline}
       </p>
@@ -57,13 +65,10 @@ export function AssistedSales({
           })}
           peak={1}
           measured
-          // R05 item 8. The denominators, "N of M dated sales", are in the headline and the note.
+          // R05 item 8. The denominator, "N of M dated sales", is in the headline.
           collapseAfter={5}
         />
       )}
-      <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-        {assisted.note}
-      </p>
       <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
     </div>
   );
