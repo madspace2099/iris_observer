@@ -70,3 +70,20 @@ executed with restraint.
   component that still imports it.
 - Every product page with charts needs a fresh screenshot that somebody looked at (non-negotiable 11):
   a green build approves none of this.
+
+## Amendments
+
+**2026-10-19, after the chart-stream review.** Four points of decision 2 changed on screen evidence:
+
+- **Ring ends are butt, not round.** A round cap reaches half the stroke past its slice, and the
+  neighbour's cap painted over a one-purchase slice.
+- **Ranked rows are neutral by default.** Every list in the kit's green with its glow read as one
+  wall. `RankedBars` names a tone where it says something: the kit's green for a plain count of
+  work, the watch colour (never glowing) for stalled deals. The glow is the pointer's and the
+  keyboard's.
+- **Three geometries, not two.** `Sized` takes a middle drawing for a card between the Large and the
+  XL, and each is shown only where it renders at 1:1 or more, so no chart label falls under 12px on a
+  tablet or a phone. The trend line draws all three.
+- **The scatter is a picture of its key.** Its SVG is hidden from assistive technology with the
+  reading as a sentence beside it; the points stay pointer links out of the tab order, and the key's
+  links are the keyboard's route.
