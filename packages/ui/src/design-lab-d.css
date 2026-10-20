@@ -2215,11 +2215,6 @@
   }
 }
 
-/* On a paper plate the kit's dark-ground shadow is a stain; the half of it lifts the card. */
-[data-charts="d"] .ox-paper .d-card {
-  box-shadow: var(--d-elevation-half);
-}
-
 [data-charts="d"] .d-card svg {
   overflow: visible;
 }

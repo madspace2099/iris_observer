@@ -227,44 +227,44 @@
 @media print {
   .ox-root:has(.ox-report),
   .ox-paper {
-  --ox-ink: #14161a;
-  --ox-ink-2: #45494f;
-  --ox-ink-3: #575c63;
-  --ox-ink-4: #676c74; /* 4.80:1 on the plate, the tightest value in the system */
-  --ox-ink-disabled: #adb1b6;
+    --ox-ink: #14161a;
+    --ox-ink-2: #45494f;
+    --ox-ink-3: #575c63;
+    --ox-ink-4: #676c74; /* 4.80:1 on the plate, the tightest value in the system */
+    --ox-ink-disabled: #adb1b6;
 
-  --ox-page: #f5f4f1;
-  --ox-panel: #ffffff;
-  --ox-panel-2: #edece8;
-  --ox-inset-fill: rgb(20 22 26 / 4%);
+    --ox-page: #f5f4f1;
+    --ox-panel: #ffffff;
+    --ox-panel-2: #edece8;
+    --ox-inset-fill: rgb(20 22 26 / 4%);
 
-  --ox-line-hair: rgb(20 22 26 / 7%);
-  --ox-line-panel: rgb(20 22 26 / 10%);
-  --ox-line: rgb(20 22 26 / 13%);
-  --ox-line-field: rgb(20 22 26 / 18%);
-  --ox-line-dashed: rgb(20 22 26 / 26%);
-  --ox-line-hover: rgb(20 22 26 / 38%);
+    --ox-line-hair: rgb(20 22 26 / 7%);
+    --ox-line-panel: rgb(20 22 26 / 10%);
+    --ox-line: rgb(20 22 26 / 13%);
+    --ox-line-field: rgb(20 22 26 / 18%);
+    --ox-line-dashed: rgb(20 22 26 / 26%);
+    --ox-line-hover: rgb(20 22 26 / 38%);
 
-  --ox-good: #0f5c39;
-  --ox-good-mark: #1f8a5b;
-  --ox-good-tint: #f2f8f5;
+    --ox-good: #0f5c39;
+    --ox-good-mark: #1f8a5b;
+    --ox-good-tint: #f2f8f5;
 
-  --ox-watch: #7d4a00;
-  --ox-watch-mark: #b9791a;
-  --ox-watch-tint: #faf6f0;
+    --ox-watch: #7d4a00;
+    --ox-watch-mark: #b9791a;
+    --ox-watch-tint: #faf6f0;
 
-  --ox-human: #0b6fae;
-  --ox-human-mark: #2c81d6;
-  --ox-human-tint: #f4f9fd;
+    --ox-human: #0b6fae;
+    --ox-human-mark: #2c81d6;
+    --ox-human-tint: #f4f9fd;
 
-  --ox-poor: #a92019;
-  --ox-poor-mark: #c65d57;
-  --ox-poor-tint: #fbf2f2;
+    --ox-poor: #a92019;
+    --ox-poor-mark: #c65d57;
+    --ox-poor-tint: #fbf2f2;
 
-  --ox-quiet: var(--ox-ink-4);
-  --ox-quiet-tint: var(--ox-inset-fill);
+    --ox-quiet: var(--ox-ink-4);
+    --ox-quiet-tint: var(--ox-inset-fill);
 
-  /*
+    /*
    * The same lift the graphite ground spends, and deliberately unchanged from
    * what this ground already wore: the dialog's shadow was a literal until the
    * menu needed the same height, so naming it here preserves exactly what
@@ -272,23 +272,23 @@
    * is worth a look the next time this ground is designed rather than a guess
    * made while moving a token.
    */
-  --ox-lift: 0 24px 64px rgb(0 0 0 / 55%);
+    --ox-lift: 0 24px 64px rgb(0 0 0 / 55%);
 
-  /*
+    /*
    * The brand blue measures 2.73:1 on this ground and would fail as a focus
    * indicator, so paper takes the dim step of the same hue at 5.39:1.
    */
-  --ox-focus: var(--iris-accent-dim);
+    --ox-focus: var(--iris-accent-dim);
 
-  /*
+    /*
    * `.ox-root` sets `color-scheme: dark` for the frame. Without this line the
    * user agent paints every native control, scrollbar and date picker inside a
    * paper plate as though the plate were dark — which is exactly what happened
    * in the lab, where no plate had ever contained an input.
    */
-  color-scheme: light;
-  background: var(--ox-page);
-  color: var(--ox-ink);
+    color-scheme: light;
+    background: var(--ox-page);
+    color: var(--ox-ink);
   }
 }
 
@@ -377,9 +377,13 @@
 }
 
 /* On paper the brand accent measures 2.73:1, so a chart's own accent takes the
- * dim step there — the same correction the focus ring makes above. */
-.ox-paper {
-  --accent: var(--iris-accent-dim);
+ * dim step there — the same correction the focus ring makes above. Print only
+ * (ADR-0042): on screen a plate is graphite and the brand blue holds. */
+@media print {
+  .ox-root:has(.ox-report),
+  .ox-paper {
+    --accent: var(--iris-accent-dim);
+  }
 }
 
 /* ============================================================================
@@ -773,10 +777,14 @@
  * head of this file), so a link there takes the dim step of the same hue at
  * 5.39:1, as the focus ring and a chart's accent already do. The underline still
  * says it is a link; hovering does not lighten it back below the threshold.
+ * Print only (ADR-0042): on screen a plate is graphite, where the brand blue
+ * is the link colour everywhere else.
  */
-.ox-paper .ox-link,
-.ox-paper .ox-link:hover {
-  color: var(--iris-accent-dim);
+@media print {
+  .ox-paper .ox-link,
+  .ox-paper .ox-link:hover {
+    color: var(--iris-accent-dim);
+  }
 }
 
 .ox-head-aside {
@@ -886,9 +894,11 @@
  * 7. PLANES AND PLATES
  *
  * Nothing is a card. Content sits on planes divided by hairlines; the only
- * thing that ever floats is the dialog. A "plate" is the paper region: it is
- * held off the graphite by `--ox-inset` and pads itself by `--ox-pad`, which is
- * what makes the two grounds share one left edge.
+ * thing that ever floats is the dialog. A "plate" is the measured region: it is
+ * held off the page by `--ox-inset` and pads itself by `--ox-pad`, which is
+ * what keeps it on one left edge with the copy around it. On screen it is a
+ * hairline on graphite (its `--ox-page` is the graphite `transparent`); it
+ * prints on paper (ADR-0042).
  * ========================================================================= */
 
 .ox-body {

@@ -24,7 +24,8 @@ export interface Crumb {
  * `observer-product.css` §6 and ADR-0034 make one argument: above the seam is
  * what we CONCLUDE, below it is what we MEASURED. This component is everything
  * above the seam, and it always renders on graphite. It must never be wrapped in
- * a `.ox-paper` plate, and there is no prop that would let it be.
+ * a `.ox-paper` plate (which prints as a measured region, ADR-0042), and there
+ * is no prop that would let it be.
  *
  * The four pieces of text are four different jobs and they are not
  * interchangeable:

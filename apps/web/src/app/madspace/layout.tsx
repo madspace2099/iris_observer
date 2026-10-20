@@ -102,8 +102,9 @@ export default async function MadspaceLayout({ children }: { children: ReactNode
     /*
      * `mad-portal` is the boundary of the client-portal design system.
      *
-     * Everything inside it is warm paper and ink; everything outside stays the
-     * dark IRIS product. The class carries no layout of its own: it redeclares
+     * Since ADR-0037 it is the same graphite as the product on screen, with
+     * the warm paper it began on kept for print only (ADR-0042 made the
+     * product follow). The class carries no layout of its own: it redeclares
      * the tokens the rules underneath already speak, which is how a surface
      * this size turns over without a rule-by-rule rewrite. The system's own
      * dark theme works the same way and says why — a token swap keeps modals

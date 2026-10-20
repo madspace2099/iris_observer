@@ -62,8 +62,9 @@ export interface ChartLegendItem {
  * product page it now wears the Hyper kit's black card (`.d-card`, in
  * `design-lab-d.css`), the one exception CLAUDE.md's "nothing is a card"
  * makes, for chart regions only. `ox-graphite` re-declares the dark token
- * names inside it, so a frame that stands on a paper plate draws its chart
- * on the card's dark ground rather than in paper ink. The plot is keyed on
+ * names inside it, so a frame inside a plate that prints on paper (ADR-0042;
+ * on screen every plate is graphite) still draws its chart in the card's dark
+ * tokens rather than in paper ink. The plot is keyed on
  * the period, so a chart draws itself in again when the reader changes it.
  */
 export function ChartFrame({

@@ -75,17 +75,17 @@ export function Plane({
 }
 
 /**
- * A PAPER REGION — a register of readings.
+ * A PLATE — a register of readings.
  *
- * Earned rather than decorative, which is the constraint ADR-0034 puts on this
- * ground: it appears where a dense measured body genuinely reads better on warm
- * paper — the stacking plan, the unit register, the table of filters buyers
- * applied — and nowhere else. A paragraph does not get a plate and a verdict
- * never does.
+ * Earned rather than decorative, which is the constraint ADR-0034 puts on a
+ * plate: it appears where a dense measured body needs its own edge — the
+ * stacking plan, the unit register, the table of filters buyers applied — and
+ * nowhere else. A paragraph does not get a plate and a verdict never does.
  *
- * `.ox-paper` also resets `color-scheme` to light, which is what stops the user
- * agent painting a native control inside the plate as though the plate were
- * dark. Applying the ground is this one class and nothing else.
+ * On screen a plate is graphite inside a hairline, like everything else the
+ * owner sees (ADR-0042: "Everything in the system must have a dark background,
+ * not white"). `.ox-paper` declares the paper ground under `@media print`
+ * only, light `color-scheme` included, so a printed plate is dark ink on white.
  */
 export function Plate({
   id,

@@ -7,8 +7,12 @@ import { describe, expect, it } from "vitest";
  * THE OBSERVER PRODUCT SURFACE, ASSERTED RATHER THAN REMEMBERED.
  *
  * `packages/ui/src/observer-product.css` is the Hybrid Executive content system
- * (ADR-0034): one set of token names declared twice and applied by region,
- * `.ox-graphite` for what we conclude and `.ox-paper` for what we measured.
+ * (ADR-0034): one set of token names declared twice, `.ox-graphite` and
+ * `.ox-paper`. ADR-0034 applied paper to measured regions on screen; ADR-0042
+ * (the owner, 2026-10-19: "Everything in the system must have a dark
+ * background, not white") keeps the paper values for print only, so every
+ * paper check below describes the printed page, and one test guards that the
+ * screen never reaches them.
  * Nothing about that survives a year of edits unless the rules are executable,
  * which is the same argument `madspace-design-system.test.ts` makes for the
  * operations surface.
@@ -49,6 +53,26 @@ function executable(source: string): string {
 }
 
 const CODE = executable(SHEET);
+
+/** The sheet as a screen reads it: every `@media print` block cut out, braces balanced. */
+function screenOnly(code: string): string {
+  let out = "";
+  let at = 0;
+  for (;;) {
+    const start = code.indexOf("@media print", at);
+    if (start === -1) return out + code.slice(at);
+    out += code.slice(at, start);
+    let depth = 0;
+    let i = code.indexOf("{", start);
+    for (; i < code.length; i += 1) {
+      if (code[i] === "{") depth += 1;
+      else if (code[i] === "}" && --depth === 0) break;
+    }
+    at = i + 1;
+  }
+}
+
+const SCREEN = screenOnly(CODE);
 
 /* --- colour, measured the way a reader sees it ---------------------------- */
 
@@ -171,13 +195,13 @@ describe("the Hybrid Executive token system", () => {
               Number(alpha[2] ?? "100") / 100,
               GRAPHITE_PANEL,
             );
-      measured[`graphite ${name}`] = contrast(colour, GRAPHITE_PANEL);
-      measured[`paper ${name}`] = contrast(hex(token(PAPER, name)), PAPER_PLATE);
+      measured[`screen ${name}`] = contrast(colour, GRAPHITE_PANEL);
+      measured[`print ${name}`] = contrast(hex(token(PAPER, name)), PAPER_PLATE);
     }
 
     for (const name of ["--ox-good", "--ox-watch", "--ox-human", "--ox-poor"]) {
-      measured[`graphite ${name}`] = contrast(hex(token(GRAPHITE, name)), GRAPHITE_PANEL);
-      measured[`paper ${name}`] = contrast(hex(token(PAPER, name)), PAPER_PANEL);
+      measured[`screen ${name}`] = contrast(hex(token(GRAPHITE, name)), GRAPHITE_PANEL);
+      measured[`print ${name}`] = contrast(hex(token(PAPER, name)), PAPER_PANEL);
     }
 
     const failing = Object.entries(measured)
@@ -187,7 +211,7 @@ describe("the Hybrid Executive token system", () => {
     expect(failing, failing.join("\n")).toEqual([]);
   });
 
-  it("never offers the brand accent as text or focus on the paper ground", () => {
+  it("never offers the brand accent as text or focus on the printed page", () => {
     /*
      * `#00a3ff` measures 2.73:1 on white. It is the one brand value that cannot
      * survive the seam, and the dim step of the same hue is what carries focus
@@ -200,15 +224,70 @@ describe("the Hybrid Executive token system", () => {
     expect(contrast(hex("#0b6fae"), PAPER_PANEL)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("resets color-scheme on the paper ground", () => {
+  it("resets color-scheme on the printed page", () => {
     /*
      * `.ox-root` sets `color-scheme: dark` for the frame. Without this line the
-     * user agent paints every native control, scrollbar and date picker inside
-     * a paper plate as though the plate were dark. The design lab never hit it
-     * because no plate there had ever contained an input; the product's first
-     * paper plate contains a filter bar.
+     * user agent paints every native control inside a printed plate as though
+     * the plate were dark. On screen the plate is graphite and the frame's
+     * `dark` is the right answer, which the next test holds.
      */
     expect(block(PAPER)).toContain("color-scheme: light");
+  });
+
+  it("keeps every on-screen surface dark: paper exists only in print (ADR-0042)", () => {
+    /*
+     * The owner, 2026-10-19: "Everything in the system must have a dark
+     * background, not white." The paper values survive for the printer alone.
+     * Measured on the sheet a screen reads, with every `@media print` cut out.
+     */
+    expect(CODE, "the print cut must have something to cut").toContain("@media print");
+    expect(SCREEN).not.toContain("@media print");
+
+    /* The paper block is inside print, and so is every light scheme. */
+    expect(SCREEN, "a paper token reached the screen").not.toMatch(/--ox-ink:\s*#14161a/);
+    expect(SCREEN, "a light scheme reached the screen").not.toMatch(/color-scheme:\s*light/);
+
+    /*
+     * On screen the grounds are declared once, by graphite. A second
+     * declaration of a ground token is a second ground.
+     */
+    for (const name of ["--ox-page", "--ox-panel", "--ox-panel-2"]) {
+      const declared = [...SCREEN.matchAll(new RegExp(`${name}:\\s*([^;]+);`, "g"))].map((m) =>
+        (m[1] ?? "").trim(),
+      );
+      expect(declared, `${name} on screen`).toEqual([token(GRAPHITE, name)]);
+    }
+
+    /*
+     * The only screen rule naming `.ox-paper` is the chart bridge, which it
+     * shares with `.ox-graphite` and which declares nothing but names pointing
+     * at the `--ox-` tokens around it.
+     */
+    const rules = [...SCREEN.matchAll(/([^{}]*\.ox-paper[^{}]*)\{/g)].map((m) =>
+      (m[1] ?? "").replace(/\s+/g, " ").trim(),
+    );
+    expect(rules).toEqual([".ox-graphite, .ox-paper"]);
+
+    /*
+     * A plate is painted with `--ox-page`, which on graphite is `transparent`:
+     * the shell's own near-black shows through. And the lightest graphite
+     * ground, the panel lift composited on that near-black, is still dark.
+     */
+    expect(block(".ox-plate")).toContain("background: var(--ox-page)");
+    expect(token(GRAPHITE, "--ox-page")).toBe("transparent");
+    expect(luminance(GRAPHITE_PANEL)).toBeLessThan(0.02);
+  });
+
+  it("prints the whole report on paper, the shell around it included", () => {
+    /*
+     * A printed report keeps the context band (the period it covers) and its
+     * planes, which name `--ox-ink` and the rest. Before ADR-0042 the print
+     * block set `#111` on two containers and every child that names a token
+     * printed graphite ink on white. The paper tokens are declared on the
+     * shell holding a report, so everything under it reads paper ink.
+     */
+    const print = CODE.slice(CODE.indexOf("@media print"));
+    expect(print).toMatch(/\.ox-root:has\(\.ox-report\),\s*\.ox-paper\s*\{\s*--ox-ink:\s*#14161a/);
   });
 
   it("holds the 12px type floor", () => {

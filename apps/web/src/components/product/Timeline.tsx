@@ -38,9 +38,9 @@ export interface TimelineStep {
  * Observer does not produce at any sample size (ADR-0010).
  *
  * This belongs inside a `.ox-paper` plate. It is a row of readings — times,
- * labels, what a source recorded — and §3 of the stylesheet puts exactly that
- * kind of dense measured body on paper. The conclusion drawn FROM the timeline
- * stays on graphite above it.
+ * labels, what a source recorded — and §3 of the stylesheet prints exactly that
+ * kind of dense measured body on paper (on screen the plate is graphite,
+ * ADR-0042). The conclusion drawn FROM the timeline stands above it.
  *
  * ## The spine is one rule, not one border per step
  *
