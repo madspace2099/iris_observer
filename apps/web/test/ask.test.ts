@@ -2,11 +2,19 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { VIEWERS } from "@observer/synthetic";
-import { ask, namedAgents, routeQuestion, type AskContextInput } from "../src/lib/ai/agent";
+import {
+  ask,
+  bundlesFor,
+  composeDeterministic,
+  isEnglishQuestion,
+  namedAgents,
+  routeQuestion,
+  type AskContextInput,
+} from "../src/lib/ai/agent";
 import { LIVE_QUESTIONS } from "../src/components/ask-iris/live-questions";
 import { rosterOf } from "./support/roster";
 import type { ModelGrant } from "../src/lib/ai/provider";
-import { TOOLS, TOOL_NAMES } from "../src/lib/ai/tools";
+import { TOOLS, TOOL_NAMES, type ToolResult } from "../src/lib/ai/tools";
 import { resetEnvironmentCache } from "../src/lib/env";
 import { repository } from "../src/lib/repository";
 
@@ -434,5 +442,103 @@ describe("the tools state each figure's own denominator", () => {
     }
     /* Asked beside unit attention, the sales are said to be the project's, not a unit's. */
     expect(sales.caveats.join(" ")).toMatch(/whole project's dated sales/);
+  });
+});
+
+/*
+ * WITHOUT A MODEL THE ANSWER IS ENGLISH, AND SAYS SO TO A READER WHO ASKED IN ANOTHER LANGUAGE.
+ *
+ * It used to answer a Slovak question in English without a word, which reads
+ * as answering a different question. Language is told by the question's words,
+ * never by its letters alone: an English question names Viktória and Zsófia.
+ */
+describe("a question asked in another language, without a model", () => {
+  const NOTE = "Answered in English; typed answers in other languages need a language model. ";
+  const ROSTER = [
+    { agentId: "agt_a", name: "Zsófia Bárány" },
+    { agentId: "agt_b", name: "Marek Dvořák" },
+  ];
+
+  it.each([
+    "Ktorý agent mal najviac stretnutí?",
+    "Ktory agent mal najviac stretnuti?",
+    "Melyik egység kapja a legtöbb figyelmet?",
+    "Welche Einheiten bekommen die größte Aufmerksamkeit?",
+  ])("says first that it answered in English: %s", async (question) => {
+    expect(isEnglishQuestion(question, ROSTER)).toBe(false);
+    const outcome = await ask(question, CONTEXT, NO_KEY);
+    expect(outcome.answer?.answer.startsWith(NOTE), outcome.answer?.answer).toBe(true);
+  });
+
+  it.each([
+    "Prepare me for Viktória's meeting.",
+    "Compare Zsófia Bárány and Marek Dvořák.",
+    "Which units draw the most attention, and do they convert?",
+    "Lena vs Iva?",
+  ])("reads as English, and adds no note: %s", async (question) => {
+    expect(isEnglishQuestion(question, ROSTER)).toBe(true);
+    const outcome = await ask(question, { ...CONTEXT, roster: ROSTER }, NO_KEY);
+    expect(outcome.answer?.answer ?? "").not.toContain("Answered in English");
+  });
+
+  it.each(["Prečo klesol záujem o porovnanie?", "Miért csökkent az érdeklődés?"])(
+    "answers a why in another language as a why: %s",
+    async (question) => {
+      const outcome = await ask(question, CONTEXT, NO_KEY);
+      expect(outcome.answer?.interpretation).toMatch(/cannot establish why/i);
+    },
+  );
+});
+
+/*
+ * THE COMPOSED ANSWER IS THE READ MODELS' SENTENCES, NOT A CHATBOT'S.
+ *
+ * It opened "Here is what I found." under a "Read models" byline, said "I
+ * could not find measured evidence" when empty, and was cut at character 600,
+ * mid-figure if need be.
+ */
+describe("the composed answer speaks as the read models", () => {
+  const draftOf = (sentences: number): ToolResult => ({
+    tool: "summarize_showroom_period",
+    facts: [],
+    sources: ["IRIS_SHOWROOM_OBSERVED"],
+    evidence: null,
+    sampleSize: 40,
+    caveats: [],
+    action: null,
+    draft: Array.from(
+      { length: sentences },
+      (_, i) => `Section ${i + 1} was reached in ${i + 10} meetings.`,
+    ).join(" "),
+  });
+
+  it("starts with the measured sentences", async () => {
+    const outcome = await ask(
+      "Which IRIS sections are being skipped most frequently?",
+      CONTEXT,
+      NO_KEY,
+    );
+    expect(outcome.answer?.answer).not.toMatch(/here is what i found|^I /i);
+    const one = draftOf(2);
+    expect(composeDeterministic([one], bundlesFor([one], CONTEXT), CONTEXT).answer).toBe(one.draft);
+  });
+
+  it("says plainly when nothing was measured", () => {
+    expect(composeDeterministic([], [], CONTEXT).answer).toBe(
+      "No measured evidence for this in Northgate, quarter to date.",
+    );
+  });
+
+  it("stops at a sentence boundary under the ceiling", () => {
+    const long = draftOf(40);
+    const { answer } = composeDeterministic([long], bundlesFor([long], CONTEXT), CONTEXT);
+    expect(answer.length).toBeLessThanOrEqual(600);
+    expect(answer.endsWith("meetings.")).toBe(true);
+    expect(long.draft.startsWith(answer)).toBe(true);
+  });
+
+  it("names the sample in the unit its analysis counts", async () => {
+    const outcome = await ask("Did IRIS assist the sales on this project?", CONTEXT, NO_KEY);
+    expect(outcome.answer?.headline).toMatch(/^Measured across \d+ dated sales?$/);
   });
 });

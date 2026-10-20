@@ -52,7 +52,7 @@ vi.mock("../src/lib/ai/provider", async (importOriginal) => {
   };
 });
 
-const { ask, CAUSAL_PATTERNS } = await import("../src/lib/ai/agent");
+const { ask, asksWhy, CAUSAL_PATTERNS } = await import("../src/lib/ai/agent");
 
 /** Northgate's presenters, read from the repository the gate reads them from. */
 const NORTHGATE_ROSTER = await rosterOf("alpha", "northgate");
@@ -571,5 +571,137 @@ describe("a composed answer does not restate itself", () => {
     // a verdict alone, which is what the tools already put on the screen.
     const outcome = await ask("What changed this month?", CONTEXT, grant());
     expect((outcome.answer?.answer ?? "").length).toBeGreaterThan(40);
+  });
+});
+
+/* --- the question's language ---------------------------------------------------- */
+
+/*
+ * A MODEL ANSWERS IN THE LANGUAGE IT WAS ASKED IN, AND THE GUARDS READ THAT LANGUAGE.
+ *
+ * Unit codes, names, figures and evidence ids stay exactly as the tools wrote
+ * them; the words around them are translated. A causal claim is refused in
+ * Slovak and Hungarian as it is in English, and a figure the tools never
+ * returned is refused in any language.
+ */
+describe("an answer in the question's language", () => {
+  it("tells the model to answer in the question's language and to keep every figure as given", async () => {
+    const model = useModel([PLAN, { text: composed() }]);
+    await ask("Ktorý agent mal najviac stretnutí?", CONTEXT, grant());
+
+    expect(model.seen.length).toBeGreaterThan(0);
+    for (const turn of model.seen) {
+      expect(turn.instructions).toContain("\nLANGUAGE\n");
+      expect(turn.instructions).toContain(
+        "Answer in the language the user's question is written in: English, Slovak, Hungarian or any other.",
+      );
+      expect(turn.instructions).toContain(
+        "Keep unit codes, agent names, figures, percentages and evidence (bundle) ids exactly as the tools returned them",
+      );
+      expect(turn.instructions).toContain("Never translate, convert, round or spell out a figure");
+      expect(turn.instructions).toMatch(
+        /In Slovak never write .*pretože.*in Hungarian never write .*mert/,
+      );
+    }
+  });
+
+  it("keeps a Slovak answer whose figures are the tools', in the tools' digits", async () => {
+    const slovak = "Pokrytie jadra sa v tomto období udržalo na 89 % prezentácií.";
+    useModel([
+      PLAN,
+      {
+        text: composed({
+          answer: slovak,
+          headline: "Pokrytie jadra je stabilné",
+          findings: [{ statement: "Pokrytie jadra", value: "89 %", evidenceRefs: [FIRST_BUNDLE] }],
+          interpretation: "V tejto vzorke je pokrytie stabilné a súvisí s hĺbkou prezentácie.",
+          limitations: ["Niektoré stretnutia nemajú časovanie krokov."],
+          followUpQuestions: ["Ktoré sekcie sa vynechávajú najčastejšie?"],
+        }),
+      },
+    ]);
+    const outcome = await ask("Ako sa vyvíjalo pokrytie jadra?", CONTEXT, grant());
+
+    expect(outcome.status.live).toBe(true);
+    expect(outcome.answer?.answer).toBe(slovak);
+  });
+
+  it("discards an answer that states a figure no tool returned", async () => {
+    useModel([PLAN, { text: composed({ answer: "Core coverage reached 6173 presentations." }) }]);
+    const outcome = await ask("Summarise the period.", CONTEXT, grant());
+
+    expect(outcome.status.live).toBe(false);
+    expect(outcome.diagnostics.fallbackReason).toBe("output_guard");
+    expect(JSON.stringify(outcome.answer)).not.toContain("6173");
+  });
+
+  it.each([
+    "Pokrytie kleslo, pretože agenti vynechali okolie.",
+    "A lefedettség azért csökkent, mert az ügynökök kihagyták a környéket.",
+  ])("discards a causal claim in another language: %s", async (interpretation) => {
+    useModel([PLAN, { text: composed({ interpretation }) }]);
+    const outcome = await ask("Ako sa vyvíjalo pokrytie jadra?", CONTEXT, grant());
+
+    expect(outcome.status.live).toBe(false);
+    expect(outcome.diagnostics.fallbackReason).toBe("output_guard");
+    expect(outcome.answer?.interpretation).not.toBe(interpretation);
+    /* The English composition shown instead says why it is English. */
+    expect(outcome.answer?.answer).toMatch(
+      /^Answered in English; the language model's answer could not be used\. /,
+    );
+  });
+});
+
+describe("the causal guard reads English, Slovak and Hungarian", () => {
+  it.each([
+    "Showing Surroundings caused the purchase.",
+    "Compare mode leads to more offers.",
+    "Offers fell due to the price.",
+    "Kúpa nastala, pretože agent ukázal okolie.",
+    "Pretoze agent ukazal okolie.",
+    "Režim porovnania spôsobil viac ponúk.",
+    "Ukážka okolia vedie k rezervácii.",
+    "Ponuky klesli kvôli cene.",
+    "V dôsledku toho klesli ponuky.",
+    "A vásárlás azért történt, mert az ügynök megmutatta a környéket.",
+    "Az összehasonlító mód okozta a több ajánlatot.",
+    "Az ár miatt csökkentek az ajánlatok.",
+    "Ezért kevesebb az ajánlat.",
+    "A bemutató a foglaláshoz vezetett.",
+    "A változás következtében csökkent a kereslet.",
+  ])("catches: %s", (sentence) => {
+    expect(CAUSAL_PATTERNS.test(sentence)).toBe(true);
+  });
+
+  it.each([
+    "Meetings that progressed were associated with earlier use of Compare.",
+    "In this sample, Compare mode appears alongside offers.",
+    "Stretnutia, ktoré pokročili, boli spojené so skorším použitím porovnania.",
+    "Lena vedie v počte stretnutí.",
+    "Spôsob prezentácie sa medzi agentmi líši.",
+    "Lena vezet a találkozók számában.",
+    "A vezető ügynök Lena Fischer.",
+    "Ebben a mintában nincs okozati összefüggés.",
+    "A haladó találkozók a korábbi összehasonlítással együtt jártak.",
+  ])("lets an association through: %s", (sentence) => {
+    expect(CAUSAL_PATTERNS.test(sentence)).toBe(false);
+  });
+
+  it.each([
+    "Why did demand fall this quarter?",
+    "Prečo klesol záujem o porovnanie?",
+    "Čo spôsobilo pokles rezervácií?",
+    "Miért csökkent az érdeklődés?",
+    "Mi okozta a visszaesést?",
+  ])("hears a why: %s", (question) => {
+    expect(asksWhy(question)).toBe(true);
+  });
+
+  it.each([
+    "Which units draw the most attention?",
+    "Ktorý agent mal najviac stretnutí?",
+    "Melyik egység a legnépszerűbb?",
+  ])("hears no why in: %s", (question) => {
+    expect(asksWhy(question)).toBe(false);
   });
 });
