@@ -184,15 +184,16 @@ export function buildKpis(
    * rather than as a design choice. Where a slice has nothing to measure — no
    * timed session, no recorded outcome — the series carries the last value it
    * had, because a drop to zero would be read as a collapse rather than as
-   * silence.
+   * silence. Slices before the first measured one take its value for the same
+   * reason, and a window with no measured slice has no shape at all: a level
+   * line at nought would state a zero nothing measured.
    */
   const seriesOf = (measure: (slice: readonly ShowroomSession[]) => number | null): number[] => {
-    let carried = 0;
-    return buckets.map((slice) => {
-      const value = measure(slice);
-      if (value !== null) carried = value;
-      return carried;
-    });
+    const values = buckets.map(measure);
+    const first = values.find((v): v is number => v !== null);
+    if (first === undefined) return [];
+    let carried = first;
+    return values.map((value) => (carried = value ?? carried));
   };
 
   const points = buckets.map((b) => b.length);
@@ -1106,6 +1107,7 @@ export function buildJourney(
   ];
   const end = stages[stages.length - 1]?.count ?? 0;
   const one = unrecorded === 1;
+  const recorded = shortlisted.length - unrecorded;
 
   return {
     stages,
@@ -1124,6 +1126,16 @@ export function buildJourney(
       merged: crmConnected
         ? null
         : `"Progressed" is not drawn: no CRM is connected to this project, so no meeting carries an outcome.`,
+      /*
+       * An empty "Progressed" with outcomes unrecorded is not a stage nobody
+       * reached: what is known is that no recorded outcome is a progression.
+       */
+      lastEmpty:
+        unrecorded === 0
+          ? null
+          : recorded === 0
+            ? `"Progressed" is not drawn: none of the ${count(shortlisted.length, locale)} that shortlisted one has a recorded outcome.`
+            : `"Progressed" is not drawn: none of the ${count(recorded, locale)} recorded ${recorded === 1 ? "outcome" : "outcomes"} among those that shortlisted one is a progression.`,
       of:
         unrecorded === 0
           ? null
@@ -1141,7 +1153,12 @@ export function buildJourney(
 function journeyFunnel(
   stages: readonly { readonly id: string; readonly label: string; readonly count: number }[],
   locale: string,
-  more: { readonly merged: string | null; readonly of: string | null },
+  more: {
+    readonly merged: string | null;
+    readonly of: string | null;
+    /** Said instead of "No meeting reached" when only the last stage is empty and that is not known. */
+    readonly lastEmpty: string | null;
+  },
 ): JourneyFunnel {
   const first = stages[0];
   if (first === undefined || first.count === 0) {
@@ -1164,8 +1181,11 @@ function journeyFunnel(
   });
   const none = stages[empty];
   if (none !== undefined) {
+    const last = empty === stages.length - 1;
     merged.push(
-      `No meeting reached "${none.label}", so it ${empty < stages.length - 1 ? "and every stage after it are" : "is"} not drawn.`,
+      last && more.lastEmpty !== null
+        ? more.lastEmpty
+        : `No meeting reached "${none.label}", so it ${last ? "is" : "and every stage after it are"} not drawn.`,
     );
   }
   if (more.merged !== null) merged.push(more.merged);

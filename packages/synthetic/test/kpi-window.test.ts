@@ -79,3 +79,20 @@ describe("a summary figure says which window it is counting", () => {
     }
   });
 });
+
+/*
+ * A slice with nothing to measure carried the series' last value, and before
+ * the first measured slice that value was nought: a project with no CRM drew
+ * "Progressing" as a level line at 0% where no outcome exists at all.
+ */
+describe("a summary figure with nothing measured draws no shape", () => {
+  it("riverside, which records no outcome", async () => {
+    const projectSlug = "riverside";
+    for (const window of KPI_WINDOWS) {
+      const charts = await repo.getFlowCharts(query(projectSlug), window.id);
+      const progressed = charts.kpis.figures.find((f) => f.id === "progressed");
+      expect(progressed?.value, `${projectSlug}/${window.id}`).toBe("—");
+      expect(progressed?.points, `${projectSlug}/${window.id}`).toEqual([]);
+    }
+  });
+});

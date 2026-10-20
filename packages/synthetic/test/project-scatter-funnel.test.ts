@@ -144,6 +144,31 @@ describe("the journey funnel's last stage is an outcome, and absent is never nou
     );
   });
 
+  it("does not say no meeting reached Progressed while outcomes are unrecorded", () => {
+    const some = buildJourney(
+      [
+        meeting(1, 1, true, "skipped"),
+        meeting(2, 1, true, "skipped"),
+        meeting(3, 1, true, "not_interested"),
+      ],
+      "en-GB",
+      true,
+    );
+    expect(some.funnel.merged).toContain(
+      '"Progressed" is not drawn: none of the 1 recorded outcome among those that shortlisted one is a progression.',
+    );
+    expect(some.funnel.of).toContain("2 of the 3 that shortlisted one have no recorded outcome");
+
+    const none = buildJourney(
+      [meeting(1, 1, true, "skipped"), meeting(2, 1, true, "skipped")],
+      "en-GB",
+      true,
+    );
+    expect(none.funnel.merged).toContain(
+      '"Progressed" is not drawn: none of the 2 that shortlisted one has a recorded outcome.',
+    );
+  });
+
   it("names the last stage alone when only it is empty", () => {
     const journey = buildJourney(
       [meeting(1, 1, true, "not_interested"), meeting(2, 1, false, "interested")],
