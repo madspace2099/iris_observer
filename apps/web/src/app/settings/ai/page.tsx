@@ -215,7 +215,10 @@ export default async function AiSettings({
         <div className="irs-header-end">
           <div className="irs-who">
             <div className="irs-who-name">{account.displayName}</div>
-            <div className="irs-who-role">{standingLine}</div>
+            {/* The shell's role slot holds a word, not a sentence; the panel below names the company and who holds its key. */}
+            <div className="irs-who-role" title={standingLine}>
+              {standing.role === "admin" ? "Company admin" : "Member"}
+            </div>
           </div>
           <Link className="ox-btn" data-weight="quiet" href={dynamicRoute("/projects")}>
             Projects
