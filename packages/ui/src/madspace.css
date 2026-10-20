@@ -4456,3 +4456,64 @@ button.mad-quiet {
   background: var(--surface-inset);
   color: var(--ink-4);
 }
+
+/* ============================================================================
+ * THE PORTFOLIO, THE DIAGNOSIS AND THE COMPANIES (ADR-0047)
+ *
+ * The MADSPACE home lists every project by company, Diagnostics reads one row
+ * per project, and Directory opens one company at a time. All three are rows
+ * and ruled tables on the planes above, never cards.
+ * ========================================================================= */
+
+/* --- a project in the portfolio -------------------------------------------- */
+
+.mad-row--portfolio {
+  align-items: start;
+}
+
+.mad-feeds {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mad-feeds li {
+  display: flex;
+  align-items: center;
+  gap: var(--rhythm-tight);
+  color: var(--ink-2);
+}
+
+.mad-feed-age {
+  color: var(--ink-4);
+}
+
+.mad-facts-figure {
+  color: var(--ink);
+  font-size: var(--text-value);
+  font-weight: var(--weight-medium);
+}
+
+.mad-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+@media (min-width: 64rem) {
+  .mad-row--portfolio {
+    grid-template-columns: minmax(13rem, 1fr) minmax(0, 2.6fr) minmax(12rem, 16rem);
+  }
+
+  .mad-facts--portfolio {
+    grid-template-columns: minmax(13rem, 1.6fr) repeat(3, minmax(7rem, 1fr));
+    gap: var(--space-3) var(--space-5);
+  }
+
+  .mad-row--portfolio > .mad-row-actions {
+    justify-content: flex-end;
+  }
+}
