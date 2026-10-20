@@ -73,6 +73,10 @@ export function OutcomeSwatch({
  * order, each as wide as the share the read model states for it. A part wide
  * enough to hold its count prints it; every part is named, with its count and
  * its denominator, in the table this stands above.
+ *
+ * Below the agent floor it is still drawn, as the agent's own screen draws
+ * the same parts as a ring at any sample: what the floor withholds is the
+ * printed rate and the comparison with the team, and the bar prints neither.
  */
 export function OutcomeMix({
   slices,
