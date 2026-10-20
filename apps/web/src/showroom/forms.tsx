@@ -198,6 +198,49 @@ const ON_PLOT: Readonly<Record<string, string>> = {
   dead_stock: "Dead stock",
 };
 
+/**
+ * Where each point's number goes, in drawing units: right of its point, unless
+ * that lands on another point, an earlier number or the frame's edge; then
+ * left, above or below, whichever touches least. Geometry only, no figure. A
+ * number is taken as 8 units a digit and 13 high, the largest it is set in.
+ */
+export function pointLabels(
+  points: readonly { readonly x: number; readonly y: number }[],
+  r: number,
+  frame: { readonly width: number; readonly height: number },
+): { x: number; y: number; anchor: "start" | "end" | "middle" }[] {
+  interface Box {
+    l: number;
+    r: number;
+    t: number;
+    b: number;
+  }
+  const h = 13;
+  const placed: Box[] = [];
+  return points.map((p, i) => {
+    const w = String(i + 1).length * 8;
+    const v = r + 3 + h / 2;
+    const options = [
+      { x: p.x + 10, y: p.y, anchor: "start" as const, box: { l: p.x + 10, r: p.x + 10 + w } },
+      { x: p.x - 10, y: p.y, anchor: "end" as const, box: { l: p.x - 10 - w, r: p.x - 10 } },
+      { x: p.x, y: p.y - v, anchor: "middle" as const, box: { l: p.x - w / 2, r: p.x + w / 2 } },
+      { x: p.x, y: p.y + v, anchor: "middle" as const, box: { l: p.x - w / 2, r: p.x + w / 2 } },
+    ].map((o) => ({ ...o, box: { ...o.box, t: o.y - h / 2, b: o.y + h / 2 } }));
+    const touches = (b: Box) =>
+      points.filter(
+        (q, j) =>
+          j !== i &&
+          Math.max(b.l - q.x, 0, q.x - b.r) ** 2 + Math.max(b.t - q.y, 0, q.y - b.b) ** 2 <
+            (r + 1) ** 2,
+      ).length +
+      placed.filter((o) => b.l < o.r + 2 && o.l < b.r + 2 && b.t < o.b && o.t < b.b).length +
+      (b.l < 0 || b.t < 0 || b.r > frame.width || b.b > frame.height ? 1 : 0);
+    const best = options.reduce((a, o) => (touches(o.box) < touches(a.box) ? o : a));
+    placed.push(best.box);
+    return { x: best.x, y: best.y, anchor: best.anchor };
+  });
+}
+
 export function Scatter({
   data,
   size,
@@ -212,6 +255,12 @@ export function Scatter({
   const x = (index: number) => pad.left + (Math.min(index, data.indexMax) / data.indexMax) * plotW;
   const y = (share: number) => pad.top + (1 - share) * plotH;
   const xTicks = Array.from({ length: Math.round(data.indexMax / 0.5) + 1 }, (_, i) => i * 0.5);
+  const radius = size === "l" ? 5 : 6;
+  const labels = pointLabels(
+    data.points.map((p) => ({ x: x(p.index), y: y(p.share) })),
+    radius,
+    { width, height },
+  );
 
   /*
    * Each cell's name sits in its own cell, against the parity line, at the
@@ -323,14 +372,16 @@ export function Scatter({
         {name("mispriced", "right", "bottom")}
         {name("dead_stock", "left", "bottom")}
         {data.points.map((p, i) => {
+          const at = labels[i];
           const mark = (
             <g className="dld-scatter-point" data-quadrant={p.quadrant}>
-              <circle cx={f(x(p.index))} cy={f(y(p.share))} r={size === "l" ? 5 : 6}>
+              <circle cx={f(x(p.index))} cy={f(y(p.share))} r={radius}>
                 <title>{`${p.label}: ${p.display}`}</title>
               </circle>
               <text
-                x={f(x(p.index) + 10)}
-                y={f(y(p.share))}
+                x={f(at?.x ?? x(p.index) + 10)}
+                y={f(at?.y ?? y(p.share))}
+                textAnchor={at?.anchor ?? "start"}
                 dominantBaseline="middle"
                 className="dld-point-label"
               >
