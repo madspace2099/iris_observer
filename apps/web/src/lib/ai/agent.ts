@@ -504,7 +504,7 @@ function escapeRegExp(text: string): string {
 
 /* Function words a question is built from, folded. None of them is also a Slovak or Hungarian word. */
 const ENGLISH_WORDS = new Set(
-  "the which what who whose why how where when did does are were of and or with for from than this that these those should could would can between about across show tell compare prepare give me our their they there been have has least more less many much meetings meeting presentations presentation units sales sold buyers".split(
+  "the which what who whose why how where when did does are were of and or with for from than this that these those should could would can between about across show tell compare prepare give me our their they there been have least less many much meetings meeting presentations presentation units sales sold buyers".split(
     " ",
   ),
 );
