@@ -100,7 +100,7 @@ const NOT_PROOF: readonly Rule[] = [
 
 /*
  * THE PRINTED REPORT (NYOMTAT1). The print stylesheet hides the header and the
- * mobile bar, so most of the screen's frame is not on paper; since ADR-0049 the
+ * mobile bar, so most of the screen's frame is not on paper; since ADR-0050 the
  * context band does not print either, and the cover states the project and the
  * period in the report's language. These lists hold what the printed render
  * showed on 2026-10-01, and the cover's product name since 2026-10-20.
@@ -415,7 +415,7 @@ for (const reading of READINGS) {
 }
 
 /*
- * THE PERIOD ON PAPER (NYOMTAT1). Since ADR-0049 the printed report opens on a
+ * THE PERIOD ON PAPER (NYOMTAT1). Since ADR-0050 the printed report opens on a
  * cover that states the project and the period, and the context band (which
  * would sit above the full-bleed cover) no longer prints. Measured rather than
  * inferred: on every report, in each language, the cover's period is visible

@@ -248,7 +248,7 @@ export const REPORT_WORDS: Readonly<Record<Language, ReportWords>> = {
 };
 
 /**
- * THE PRINTED DOCUMENT'S OWN FRAME (ADR-0049): the cover, the contents, the
+ * THE PRINTED DOCUMENT'S OWN FRAME (ADR-0050): the cover, the contents, the
  * appendix that holds every section's notes, and the running footer. The
  * document type reuses the words the page already prints for it (`title`,
  * `meetingSummary`, the agent kicker), so the cover and the screen cannot name

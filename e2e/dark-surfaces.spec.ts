@@ -92,7 +92,7 @@ test.describe("dark on screen", () => {
 });
 
 /*
- * ADR-0049: the printed report opens on a cover on the graphite ground, in the
+ * ADR-0050: the printed report opens on a cover on the graphite ground, in the
  * brand's light ink, and every page after it is paper. The context band no
  * longer prints (the cover states the project and the period), so the ink is
  * measured on the document's own text: headings, the contents, the notes.

@@ -100,7 +100,7 @@ export const metadata: Metadata = { title: "Report" };
  * components, so a rate reaches paper with the denominator and the floor it
  * has on screen.
  *
- * ## One document, three scopes (ADR-0049)
+ * ## One document, three scopes (ADR-0050)
  *
  * Every scope prints the same document: a cover with the verdict and the
  * headline figures the page already reads, numbered contents, the numbered

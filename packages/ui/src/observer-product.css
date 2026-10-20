@@ -2814,7 +2814,7 @@
  * Those two steps are for SCREENS. An A4 page less its margins is 182mm,
  * about 43rem, so in print the phone layout applied to every table: the
  * owner's exported agent summary was fourteen pages of one-cell-per-line
- * records (ADR-0049). Paper is a desk width with small type, and the print
+ * records (ADR-0050). Paper is a desk width with small type, and the print
  * rules at the end of this sheet lay it out as one.
  * ========================================================================= */
 
@@ -2982,7 +2982,7 @@
 /* --- the report page: a document drawn on the product's own planes ------- */
 
 /*
- * THE REPORT AS A DOCUMENT (ADR-0049). One structure on screen and on paper:
+ * THE REPORT AS A DOCUMENT (ADR-0050). One structure on screen and on paper:
  * numbered contents, numbered sections that keep one line of provenance, and
  * "How to read this report" at the back holding every note a section used to
  * carry beneath it. The cover is paper's alone — on screen the page head says
@@ -3193,7 +3193,7 @@
 }
 
 /*
- * PRINT: the page is the document (ADR-0049). An A4 sheet — 16mm above, 14mm
+ * PRINT: the page is the document (ADR-0050). An A4 sheet — 16mm above, 14mm
  * at the sides, 18mm below for the running footer — on the named page
  * `report`, so these margins and the bare first page reach a printed report
  * and nothing else the product prints. The footer is the margin boxes': the

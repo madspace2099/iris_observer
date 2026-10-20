@@ -7,7 +7,7 @@ import { LANGUAGE_NAMES } from "@/lib/language";
 import { AGENT_REPORT_WORDS, REPORT_DOCUMENT_WORDS, REPORT_WORDS } from "./words";
 
 /**
- * THE REPORT AS A PRINTED DOCUMENT (ADR-0049).
+ * THE REPORT AS A PRINTED DOCUMENT (ADR-0050).
  *
  * The owner exported an agent summary to PDF and found fourteen pages of one
  * long column: no cover, a contents list without structure, every section

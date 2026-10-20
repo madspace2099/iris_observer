@@ -2,7 +2,7 @@ import type { MeetingOutcome } from "@observer/contracts";
 import type { OutcomeSlice } from "@observer/readmodels";
 
 /**
- * THE REPORT'S CHARTS, DRAWN FOR PAPER (ADR-0049).
+ * THE REPORT'S CHARTS, DRAWN FOR PAPER (ADR-0050).
  *
  * Two shapes the report printed as rows of text and bars of background: how
  * the meetings ended, as one whole, and how long each section held a meeting.

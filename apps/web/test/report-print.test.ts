@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * THE PRINTED REPORT'S PAGE RULES (ADR-0049), READ FROM THE SHEET.
+ * THE PRINTED REPORT'S PAGE RULES (ADR-0050), READ FROM THE SHEET.
  *
  * The owner's PDF was fourteen pages with half pages left white. Two rules
  * caused most of it and a test holds each: the phone layout reached paper (an

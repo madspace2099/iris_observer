@@ -20,7 +20,7 @@ import { REPORT_WORDS } from "@/components/report/words";
  * drawn from the read model that owns them, with the components the screens
  * use, never composed from the section's fields.
  *
- * The rest of the manifest has a place of its own in the document (ADR-0049):
+ * The rest of the manifest has a place of its own in the document (ADR-0050):
  * the summary is the section's line in the contents, and a partial section's
  * stated gap leads its entry in "How to read this report", numbered as the
  * section is. A blank section keeps its reason here, because the reason is

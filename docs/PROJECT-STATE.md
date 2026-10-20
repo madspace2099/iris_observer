@@ -5485,7 +5485,7 @@ new cases are written, not run, and the pages were not looked at after these cha
 is free, then look at `/shark/shark-residence/flow/iris-led` and `/settings/crm` (as Clara, Daniel
 and Tomáš) at 1440 and 390 on the demo build, and run `e2e/iris-led.spec.ts`.
 
-## 2026-10-20 — The report prints as a document (ADR-0049)
+## 2026-10-20 — The report prints as a document (ADR-0050)
 
 Máté exported Zsófia Bárány's summary (Shark Residence, YTD, Hungarian) to PDF: "not really well
 structured for PDF … 14 pages … a lot of blank space … not visually impressive either". Two causes:
@@ -5502,8 +5502,20 @@ the `width <= 48rem` phone layout applied to A4 paper (about 43rem wide), and
   over its table, bars beside section times and shares, the funnel and ladder compact.
 
 **Measured** (headless Chromium 151, A4, backgrounds off, the real read models and sheets): agent
-HU 14 → 7 pages, project EN 11 → 5, meeting 3 → 2. Tests: `report-document.test.ts`,
+HU 14 → 6 pages, project EN 11 → 5, meeting 3 → 2. Tests: `report-document.test.ts`,
 `report-print.test.ts`; `dark-surfaces` and `frame-language` e2e specs edited, not run.
 
+**Review round.** Two reviewers' findings, fixed: the report's hidden captions are `ox-sr`
+(layout-integrity read the old 1px rule as six hard clips); "Period" joined frame-language's
+spoken homonyms; a list prints as a block, so "06" no longer ends a page over an empty frame;
+tallies auto-fit; funnel bars start at the left (the stages do not nest); "presentation only" is
+a distinct grey on a mono printer (a test computes the luma steps); contents one line a section;
+the project cover prints its verdict's base ("Read from 131 meetings") and the team's window; the
+agent cover is the summary's headline, not section 01's row; the meeting cover drops the period
+and the facts its title states; the cover prints the period's label, not its bounds; the
+follow-up gap moved into the notes; the manifest no longer says the outcome slices are only a
+table. **The ADR is 0050**: a parallel stream committed ADR-0049 ("IRIS-led sales and connect
+your CRM"); every reference in this stream was renumbered.
+
 **Next recommended action.** Máté exports the same summary from the demo build in Chrome ("Save as
-PDF", Default margins) and looks at the seven pages; the footer needs Chrome 131 or later.
+PDF", Default margins) and looks at the six pages; the footer needs Chrome 131 or later.
