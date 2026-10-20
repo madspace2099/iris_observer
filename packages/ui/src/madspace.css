@@ -3311,6 +3311,15 @@ button.mad-quiet {
   border-top: 1px solid rgb(255 255 255 / 8%);
 }
 
+/* The black card is the screen's; on paper it is the page's card again (ADR-0042). */
+@media print {
+  .mad-portal .mad-plane,
+  .mad-portal .mad-plane + .mad-plane {
+    border-color: var(--border-panel);
+    background: var(--surface-card);
+  }
+}
+
 /*
  * A ROW INSIDE A PANEL IS A HAIRLINE, NOT A CARD.
  *
@@ -4514,13 +4523,20 @@ button.mad-quiet {
     grid-template-columns: minmax(13rem, 1fr) minmax(0, 2.6fr) minmax(12rem, 16rem);
   }
 
+  /* Two facts a line until the track can hold four without running under the actions. */
   .mad-facts--portfolio {
-    grid-template-columns: minmax(13rem, 1.6fr) repeat(3, minmax(7rem, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-3) var(--space-5);
   }
 
   .mad-row--portfolio > .mad-row-actions {
     justify-content: flex-end;
+  }
+}
+
+@media (min-width: 80rem) {
+  .mad-facts--portfolio {
+    grid-template-columns: minmax(13rem, 1.6fr) repeat(3, minmax(7rem, 1fr));
   }
 }
 
@@ -4648,7 +4664,8 @@ button.mad-quiet {
   text-underline-offset: 2px;
 }
 
-.mad-company-heading {
+/* Raised over `.mad-portal h3`, which would otherwise set it larger than the company's name. */
+.mad-portal .mad-company-heading {
   margin: var(--space-2) 0 0;
   color: var(--ink-4);
   font-size: var(--text-micro);
@@ -4676,6 +4693,27 @@ button.mad-quiet {
     justify-self: end;
     text-align: right;
   }
+}
+
+/* On a phone the plane's padding is the section rhythm, and the rows follow it to its edge. */
+@media (max-width: 48rem) {
+  .mad-companies {
+    margin-inline: calc(var(--rhythm-section) * -1);
+  }
+
+  .mad-company > summary,
+  .mad-company-body {
+    padding-inline: var(--rhythm-section);
+  }
+}
+
+/*
+ * The product header's role line is 11px in the product; MADSPACE keeps its own
+ * floor (docs/20). The mark's 7px "by MADSPACE" is the logotype, not text, and
+ * is the one exception (ADR-0047).
+ */
+.mad-portal .irs-who-role {
+  font-size: 12px;
 }
 
 /* Add company: a closed action under the head, never the page's lead. */
