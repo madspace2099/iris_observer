@@ -1147,34 +1147,26 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
       refuse(`a journey that narrows ("${s.label}" holds more than "${before.label}")`);
     }
   });
-  /* A stage nobody stopped before would add a band exactly as wide as the last: it is named, not drawn. */
-  const drawnStages = journey.stages.filter((s, i) => s.count !== journey.stages[i - 1]?.count);
-  const firstStage = drawnStages[0];
-  if (firstStage === undefined || firstStage.count === 0) {
-    refuse("a journey with a meeting in it");
-  }
-  const lastStage = drawnStages[drawnStages.length - 1] ?? firstStage;
-  const journeySteps: DFunnelStep[] = drawnStages.map((s) => ({
-    id: s.id,
-    label: s.label,
-    count: s.count,
-    countDisplay: n(s.count),
-    share: s.count / firstStage.count,
-    shareDisplay: pct(s.count / firstStage.count),
-  }));
-  const mergedStages = journey.stages.flatMap((s, i) => {
-    const before = journey.stages[i - 1];
-    return before === undefined || drawnStages.includes(s)
-      ? []
-      : [
-          `"${s.label}" is not drawn: all ${meetings(s.count)} at "${before.label}" reached it, so nobody stopped between the two.`,
-        ];
-  });
+  /*
+   * The funnel the Project page draws, as the read model composed it: its
+   * bands, and the stages it names rather than draws (a stage nobody stopped
+   * before, one nobody reached, "Progressed" without a CRM).
+   */
+  const journeySteps: readonly DFunnelStep[] = journey.funnel.steps;
+  const firstStage = journeySteps[0];
+  if (firstStage === undefined) refuse("a journey with a meeting in it");
+  same("the journey's first band", firstStage.count, sessions.length);
+  const lastStage = journeySteps[journeySteps.length - 1] ?? firstStage;
+  /* A shortlisted meeting with no recorded outcome is not known to have stopped before "Progressed". */
+  const unrecorded = sessions.filter(
+    (s) => s.units.some((u) => u.favourited) && outcomeIsUnknown(s.outcome),
+  ).length;
   const stops = journeySteps.flatMap((to, i) => {
     const from = journeySteps[i - 1];
+    const unknown = to.id === "progressed" ? unrecorded : 0;
     return from === undefined
       ? []
-      : [{ id: `${from.id}-${to.id}`, from, to, lost: from.count - to.count }];
+      : [{ id: `${from.id}-${to.id}`, from, to, lost: from.count - to.count - unknown, unknown }];
   });
   const lastStop = stops[stops.length - 1];
   /* What each stage counts, as `buildJourney` tests it; a stage this does not know is refused rather than described. */
@@ -1198,14 +1190,18 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     )}. A band is what reached that step, and the share beside it is out of the first band.`;
   const journeyFunnel: DJourneyCard = {
     steps: journeySteps,
-    merged: mergedStages.length === 0 ? null : mergedStages.join(" "),
+    merged: journey.funnel.merged,
     facts: {
       note: journeyNote,
       summary: `${journeySteps.map((s) => `${s.label} ${s.countDisplay}, ${s.shareDisplay} of the first band`).join("; ")}.`,
       lead:
         lastStop === undefined
           ? undefined
-          : `Of the ${meetings(lastStop.from.count)} at "${lastStop.from.label}", ${n(lastStop.lost)} stopped at the last step, before "${lastStop.to.label}".`,
+          : `Of the ${meetings(lastStop.from.count)} at "${lastStop.from.label}", ${n(lastStop.lost)} stopped at the last step, before "${lastStop.to.label}"${
+              lastStop.unknown === 0
+                ? ""
+                : `, and ${n(lastStop.unknown)} ${lastStop.unknown === 1 ? "has" : "have"} no recorded outcome`
+            }.`,
       figures: [
         figure(firstStage.label, n(firstStage.count), periodLabel),
         figure(
