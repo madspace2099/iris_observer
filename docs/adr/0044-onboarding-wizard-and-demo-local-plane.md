@@ -1,6 +1,7 @@
 # ADR-0044 — Akhilesh's onboarding wizard, and a local plane for the recorded demo
 
-**Status:** accepted · **Date:** 2026-10-19
+**Status:** accepted · **Date:** 2026-10-19 · **Amended:** 2026-10-20 (short codes, recent
+codes, no environment question, his look)
 **Amends:** the local control plane's gate (`apps/web/src/lib/sources/local-db.ts`) for one local
 case; `docs/21-self-served-projects.md` work package 2 (the creation screens)
 **Keeps:** ADR-0040 (what a local demonstration is), ADR-0037 (the graphite MADSPACE surface),
@@ -29,8 +30,8 @@ said "Control plane not configured" and the wizard would have had nowhere to wri
    summary grid and the Step 2.1 hint. Fields: client ID (the developer's address, lowercased,
    Generate ID, registered developers as pills, demonstration and reserved addresses refused), project
    name, domain (the project's address, filled from the name, fixed once created), currency (no
-   default), locale and time zone (filled visibly from the browser), source name, environment (no
-   default).
+   default), locale and time zone (filled visibly from the browser), source name. (The environment
+   question was removed by the amendment below.)
 2. **One press, nothing written until everything passes.** `onboardAction` validates every field,
    re-authorises `madspace_admin`, opens the plane and checks both peppers (`assertPeppersUsable`)
    before the first read of the estate, refuses a taken domain before `createProject`, then
@@ -60,13 +61,64 @@ said "Control plane not configured" and the wizard would have had nowhere to wri
 
 - **The browser's insert into Supabase.** Codes are minted and stored by the control plane's
   facades, as an HMAC verifier, never as plaintext.
-- **`localStorage` and the recent-codes list.** It kept every code in plaintext in the browser and
-  offered Copy on old ones. A code is shown once; another is issued from the source's page.
-- **`ACT-XXXX-XXXX` codes.** The real code is `obs.<selector>.<secret>`, about seventy characters,
-  so the code box breaks it anywhere rather than letter-spacing it.
-- **Gradients, glows, pulsing dots, emoji and the panel icons.** IRIS blue is solid; a state is a
-  word with its mark (`StatusChip`), never a colour alone.
+- **`localStorage`.** It kept every code in plaintext in the browser. (His recent-codes list itself
+  is restored by the amendment below, from the server.)
+- ~~**`ACT-XXXX-XXXX` codes.**~~ Superseded by the amendment below.
+- **Purple, glows and emoji.** IRIS blue; a state is a word with its mark (`StatusChip`), never a
+  colour alone. (His pulsing dot, icons and blue gradients are restored by the amendment below.)
 - **"Connected".** See decision 3.
+
+## Amendment (2026-10-20): his code, his list, his look, no environment question
+
+The owner compared the wizard with Akhilesh's again: step 1.3 asked for an environment his did not,
+his "View recent activation codes" was missing, his code is `ACT-66SV-J9RJ` where ours was seventy
+characters, and his was nicer and clearer. His words override the paragraphs above where they
+conflict.
+
+1. **A short alias for the code, on the local plane only** (`lib/madspace/activation-aliases.ts`).
+   The issuer and its `obs.<selector>.<secret>` stay frozen. When `onboardAction` or Source Detail's
+   `issueActivationCodeAction` issues a code where the local control plane is the plane in use
+   (`localControlPlaneEnabled()` and no hosted database ahead of it), it also mints
+   `ACT-XXXX-XXXX` from `crypto.randomBytes` over his 32 symbol alphabet (no 0, 1, I or O; upper
+   case L stays, there being no 1, and 32 symbols make each byte's low five bits unbiased), and
+   keeps `sha256(alias) → { real code, expiry, client, project, source }` in process memory on
+   `globalThis`. The operator sees only the alias. The activation route normalises an alias
+   (upper case, dashes and spaces optional), swaps it for the real code and hands the body to the
+   frozen `handleActivate`; the wire contract allows any 8 to 64 character code and says the prefix
+   is not semantic. The alias is removed on success, expires with the real code, and an unknown,
+   spent or expired alias reaches the handler untouched, so it gets the unknown code's 401 byte for
+   byte. **Why memory only:** the alias exists to be read aloud for fifteen minutes; nothing about
+   it is worth a migration, and a restart loses only codes that are reissued from the source's page
+   anyway. **Why local only:** a hosted plane runs several instances, and an alias minted on one
+   would be unknown on the next, so there no alias is minted and the long code is shown as before.
+   **Threat model:** 40 bits, live 15 minutes, single use. The endpoint is unauthenticated and the
+   frozen handler applies no rate limit, so alias lookups are capped at ten per address per minute
+   through the handler's own `rateLimit` seam (its 429). The address is the first
+   `x-forwarded-for` entry, which a caller can set; the cap only slows a careless loop, and the
+   defence is the entropy: a million guesses inside one code's lifetime find it with odds of about
+   one in a million, on a plane `demo-start.mjs` binds to 127.0.0.1. The alias store holds the real
+   code in plaintext while the alias lives, as `company-keys.ts` holds a company key: process
+   memory, never disk, never a log, never a response.
+2. **His recent codes, from the server.** "View recent activation codes" under the steps reads
+   `recentActivationCodesAction` (MADSPACE administrators only, like every action here): the last
+   fifteen codes this server issued, newest first, with client, project, source, issue time and
+   status (Active with time left, Activated, Expired). An active alias is shown in full with Copy;
+   a spent or expired one masked (`ACT-66SV-••••`), its plaintext and its real code dropped from
+   the store. The real code is never listed. A hosted plane keeps no list and says so.
+3. **No environment question.** Step 1.3 asks for the source name only. The server decides: the
+   local demonstration plane registers the source as `demo`, any other plane as `production`
+   (`onboardAction`). Step 1.4's summary states it read only. A machine that is neither is
+   registered from the project's New source form, which still asks.
+4. **His look, in our tokens.** Header with an icon badge, the stepper joined by lines, a tile and
+   one line of his text beside each step's intro (without "Supabase"), the activation card under a
+   3px rule, "Unreal Engine onboarding code", the countdown pill with a pulse that stops for reduced
+   motion, the code large, centred and letter-spaced in a dashed well, a Copy Code button with its
+   icon, the status chip ("Active, waiting for the engine", then "Activated"; never "Connected"),
+   "Expires in 14m 51s", a two-column summary (Client ID, Project, Domain, Source, Environment), the
+   blue "Next in Unreal Engine (Step 2.1)" box, the footer. IRIS blue for his blue to purple: a
+   gentle blue to blue gradient on the badge, Copy Code and Next, no purple, no glow and no shadow.
+   Icons are CSS masks over `currentColor` in `madspace.css`, so the design test's rule that no
+   MADSPACE component draws its own shapes holds. One column at phone width.
 
 ## Consequences
 
