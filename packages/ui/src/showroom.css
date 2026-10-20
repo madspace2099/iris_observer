@@ -1354,9 +1354,10 @@
  * and the shadow the one lift a floating control spends (`--ox-lift`).
  */
 .iris-info-panel {
-  box-sizing: border-box;
+  /* The 34ch is the measure of the text, so the padding stands outside it. */
+  box-sizing: content-box;
   width: max-content;
-  max-width: min(34ch, calc(100vw - 2rem));
+  max-width: min(34ch, calc(100vw - 4rem));
   padding: 0.75rem 0.875rem;
   border: 1px solid var(--ox-line-panel, var(--rule-firm));
   border-radius: 8px;
