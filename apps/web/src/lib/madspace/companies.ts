@@ -71,6 +71,19 @@ export function companySummary(company: Company): string {
   return `${people}, ${counted(company.projects.length + company.notYetInObserver, "project", "projects")}`;
 }
 
+/**
+ * The MADSPACE company's name when a tenant is MADSPACE's own, else null.
+ *
+ * ponytail: a tenant named after MADSPACE ("MADSPACE Integration Sandbox") is
+ * MADSPACE's own holding tenant, not a developer, so its projects are listed
+ * under MADSPACE on every screen. Matched by name because the world marks it no
+ * other way; give tenants a kind when a second such tenant arrives.
+ */
+export function madspaceOwner(tenantName: string): string | null {
+  const madspace = directoryView().companies.find((c) => c.kind === "madspace") ?? null;
+  return madspace !== null && tenantName.startsWith(`${madspace.name} `) ? madspace.name : null;
+}
+
 /** The developers the control plane holds, or null where there is no control plane to hold any. */
 async function registeredDevelopers(): Promise<readonly TenantRow[] | null> {
   const deps = await observerDepsAsync();
@@ -102,15 +115,7 @@ export async function companyDirectory(viewer: Viewer): Promise<CompanyDirectory
 
   const peopleOf = (name: string) => directory.people.filter((p) => p.organisation === name);
   const registeredRow = (slug: string) => registered?.find((row) => row.slug === slug) ?? null;
-  const madspace = directory.companies.find((c) => c.kind === "madspace") ?? null;
-  /*
-   * ponytail: a tenant named after MADSPACE ("MADSPACE Integration Sandbox") is
-   * MADSPACE's own holding tenant, not a developer, so its projects are listed
-   * under MADSPACE. Matched by name because the world marks it no other way;
-   * give tenants a kind when a second such tenant arrives.
-   */
-  const ownedByMadspace = (name: string) =>
-    madspace !== null && name.startsWith(`${madspace.name} `);
+  const ownedByMadspace = (name: string) => madspaceOwner(name) !== null;
 
   const developers: Company[] = held
     .filter(({ tenant }) => !ownedByMadspace(tenant.name))

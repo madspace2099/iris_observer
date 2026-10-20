@@ -10,6 +10,7 @@ import { isComplete } from "@observer/sources";
 
 import type { MarkTone } from "@/components/madspace/StatusMark";
 import { directoryRows } from "@/lib/directory/rows";
+import { madspaceOwner } from "@/lib/madspace/companies";
 import { projectSummaries } from "@/lib/madspace/estate";
 import { count, duration } from "@/lib/madspace/format";
 import { readModelProjectIdFor, repository } from "@/lib/repository";
@@ -216,6 +217,13 @@ async function controlPlaneProjects() {
         name: project.name,
         company: row?.tenant_name ?? NO_DEVELOPER,
       });
+    } else if (twins.has(readModelId)) {
+      /* A second twin of the same project is listed on its own rather than lost. */
+      waiting.push({
+        id: project.projectId,
+        name: project.name,
+        company: row?.tenant_name ?? NO_DEVELOPER,
+      });
     } else {
       twins.set(readModelId, project.projectId);
     }
@@ -229,11 +237,12 @@ export async function portfolio(viewer: Viewer): Promise<Portfolio> {
     controlPlaneProjects(),
   ]);
 
-  const companies: PortfolioCompany[] = await Promise.all(
+  const held: PortfolioCompany[] = await Promise.all(
     tenants.map(async (tenant) => {
       const projects = await repository.listProjects(viewer, tenant.id);
       return {
-        name: tenant.name,
+        /* MADSPACE's own sandbox tenant is listed under MADSPACE, as the Directory lists it. */
+        name: madspaceOwner(tenant.name) ?? tenant.name,
         projects: await Promise.all(
           projects.map(async (project): Promise<PortfolioProject> => {
             const diagnostics = await diagnose(viewer, tenant.slug, project.slug);
@@ -252,25 +261,33 @@ export async function portfolio(viewer: Viewer): Promise<Portfolio> {
   );
 
   /* Projects Observer does not hold yet, under their developer where they have one. */
-  for (const project of plane.waiting) {
-    const row: PortfolioProject = {
-      key: project.id,
-      name: project.name,
-      address: null,
-      diagnostics: null,
-      controlPlaneId: project.id,
-      status: statusOf(null, false),
-    };
-    const index = companies.findIndex((company) => company.name === project.company);
-    const company = companies[index];
-    if (company === undefined) companies.push({ name: project.company, projects: [row] });
-    else companies[index] = { ...company, projects: [...company.projects, row] };
+  const waiting = plane.waiting.map((project) => ({
+    name: project.company,
+    projects: [
+      {
+        key: project.id,
+        name: project.name,
+        address: null,
+        diagnostics: null,
+        controlPlaneId: project.id,
+        status: statusOf(null, false),
+      },
+    ],
+  }));
+
+  /* One entry per company name, its projects in the order they came. */
+  const companies: PortfolioCompany[] = [];
+  for (const company of [...held, ...waiting]) {
+    const index = companies.findIndex((c) => c.name === company.name);
+    const known = companies[index];
+    if (known === undefined) companies.push(company);
+    else companies[index] = { ...known, projects: [...known.projects, ...company.projects] };
   }
 
-  const held = companies.filter((company) => company.projects.length > 0);
+  const listed = companies.filter((company) => company.projects.length > 0);
   return {
-    companies: held,
-    total: held.reduce((sum, company) => sum + company.projects.length, 0),
+    companies: listed,
+    total: listed.reduce((sum, company) => sum + company.projects.length, 0),
     planeReadable: plane.readable,
     planeEmpty: plane.empty,
   };
@@ -298,7 +315,7 @@ export async function portfolioProject(
     controlPlaneProjects(),
   ]);
   return {
-    company: resolved.tenant.name,
+    company: madspaceOwner(resolved.tenant.name) ?? resolved.tenant.name,
     planeReadable: plane.readable,
     project: {
       key: resolved.project.id as string,

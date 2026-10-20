@@ -30,3 +30,16 @@ describe("the company directory", () => {
     expect(madspace?.projects.map((p) => p.name)).toEqual(["Akhilesh Demo Source"]);
   });
 });
+
+describe("the projects home", () => {
+  it("lists the integration sandbox under MADSPACE, as the Directory does", async () => {
+    const { portfolio } = await import("../src/lib/madspace/portfolio");
+    const all = await portfolio(VIEWERS.madspace as Viewer);
+
+    const names = all.companies.map((c) => c.name);
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).not.toContain("MADSPACE Integration Sandbox");
+    const madspace = all.companies.find((c) => c.name === "MADSPACE");
+    expect(madspace?.projects.map((p) => p.name)).toEqual(["Akhilesh Demo Source"]);
+  });
+});
