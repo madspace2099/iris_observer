@@ -27,6 +27,7 @@ import {
   type ModelUsage,
   type ObserverModel,
 } from "./provider";
+import { sampleWords } from "./sample-units";
 import { JsonFieldStreamer, STREAMED_FIELDS } from "./streaming";
 import { addUsage } from "./telemetry";
 import { TOOL_NAMES, TOOLS, toolByName, type ToolContext, type ToolResult } from "./tools";
@@ -193,9 +194,80 @@ export interface AskContextInput extends ToolContext {
  * ADR-0010: Observer produces observed sequences, attributed conversions and
  * statistical associations. Never causation. This is a guard rather than a
  * request — the system prompt asks, and this enforces.
+ *
+ * In every language a model may answer in (see LANGUAGE in the system prompt),
+ * so in Slovak and Hungarian too, with and without diacritics. Word edges are
+ * explicit letter lookarounds rather than `\b`, which is ASCII and would end a
+ * word at "ô" or "é". Where an ordinary word shares a causal stem only the
+ * causal forms are listed: Slovak "spôsob" is "a way" and "vedie" is "is
+ * ahead", so only "spôsobilo" and "vedie k"; Hungarian "vezet" is "leads (the
+ * ranking)", so only "-hoz vezetett", leads to.
  */
-export const CAUSAL_PATTERNS =
-  /\b(because|caused|causes|causing|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves|proving|responsible for)\b/i;
+const CAUSAL_WORDS = [
+  /* English */
+  "because",
+  "caused",
+  "causes",
+  "causing",
+  "drives",
+  "drove",
+  "leads\\s+to",
+  "led\\s+to",
+  "results\\s+in",
+  "resulted\\s+in",
+  "due\\s+to",
+  "therefore",
+  "proves",
+  "proving",
+  "responsible\\s+for",
+  /* Slovak */
+  "pretože",
+  "pretoze",
+  "lebo",
+  "preto",
+  "kvôli",
+  "kvoli",
+  "v\\s+dôsledku",
+  "v\\s+dosledku",
+  "spôsob(?:il|ila|ilo|ili|uje|ujú|ia)",
+  "sposob(?:il|ila|ilo|ili|uje|uju|ia)",
+  "zapríčin(?:il|ila|ilo|ili|uje|ujú)",
+  "zapricin(?:il|ila|ilo|ili|uje|uju)",
+  "(?:vedie|vedú|vedu|viedol|viedla|viedlo|viedli)\\s+ku?",
+  /* Hungarian */
+  "mert",
+  "miatt(?:a|uk)?",
+  "emiatt",
+  "ezért",
+  "ezert",
+  "mivel",
+  "okoz(?:za|ta|ott|zák|ták|zak|tak)?",
+  "következtében",
+  "kovetkezteben",
+  "hatására",
+  "hatasara",
+  "eredményez(?:te|ett|i)?",
+  "eredmenyez(?:te|ett|i)?",
+  "\\p{L}*(?:hoz|hez|höz)\\s+vezet(?:ett|ettek|nek|het|ő|o)?",
+];
+
+export const CAUSAL_PATTERNS = new RegExp(
+  `(?<![\\p{L}\\p{N}_])(?:${CAUSAL_WORDS.join("|")})(?![\\p{L}\\p{N}_])`,
+  "iu",
+);
+
+/**
+ * "Why" in Slovak and Hungarian, beside the contracts' English `isCausalQuestion`.
+ *
+ * The contracts are frozen, so the other languages are composed here: prečo,
+ * čo spôsobilo, z akého dôvodu; miért, mi okozta, mi az oka.
+ */
+const CAUSAL_QUESTION_ELSEWHERE =
+  /(?<![\p{L}\p{N}_])(?:prečo|preco|čo\s+spôsobil[oaie]?|co\s+sposobil[oaie]?|z\s+akého\s+dôvodu|z\s+akeho\s+dovodu|miért|miert|mi\s+okoz(?:ta|za|ott)?|mi\s+az\s+oka)(?![\p{L}\p{N}_])/iu;
+
+export function asksWhy(question: string): boolean {
+  return isCausalQuestion(question) || CAUSAL_QUESTION_ELSEWHERE.test(question);
+}
 
 /**
  * Says out loud that the model call failed, and why.
@@ -303,6 +375,11 @@ ABSOLUTE RULES
 - Never infer anything about a person's income, family, health, ethnicity, sexual orientation, political opinion, religion or financial distress.
 - Recommend at most three actions, each tied to something you actually measured.
 
+LANGUAGE
+- Answer in the language the user's question is written in: English, Slovak, Hungarian or any other. If it mixes languages, use the one most of it is written in. The tools report in English; every prose field you write (answer, headline, finding statements, interpretation, limitations, action labels and rationales, follow-up questions) is in the question's language.
+- Keep unit codes, agent names, figures, percentages and evidence (bundle) ids exactly as the tools returned them, written with the same digits. Translate only the words around them. Never translate, convert, round or spell out a figure: an answer that states a number the tools did not return is discarded.
+- The causation rule holds in every language. In Slovak never write "pretože", "lebo", "preto", "kvôli", "v dôsledku", "spôsobilo" or "vedie k"; in Hungarian never write "mert", "miatt", "emiatt", "ezért", "mivel", "okozta", "következtében", "hatására" or "-hoz vezetett". Write the equivalents of "associated with", "alongside" or "in this sample".
+
 ANSWERING "WHY"
 A question that asks why something changed is asking for a cause, and nothing you can observe carries one. Answer it in four moves, in this order:
 1. State the current value with its period, denominator and source.
@@ -347,7 +424,7 @@ function evidenceBlock(results: readonly ToolResult[], bundles: readonly Evidenc
     const caveats = result.caveats.map((c) => `    - ${c}`).join("\n");
     return `  TOOL ${result.tool}
     bundle_id: ${bundle?.bundleId ?? "unknown"}
-    sample_size: ${result.sampleSize}
+    sample_size: ${sampleWords(result.tool, result.sampleSize)}
     evidence_level: ${bundle?.evidenceLevel ?? "observed_sequence"}
     source: ${bundle?.sourceChannel ?? "IRIS_SHOWROOM_DERIVED"}
 ${facts || "    (no figures)"}
@@ -423,6 +500,41 @@ export function namedAgents(question: string, roster: readonly RosterEntry[]): r
 
 function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/* Function words a question is built from, folded. None of them is also a Slovak or Hungarian word. */
+const ENGLISH_WORDS = new Set(
+  "the which what who whose why how where when did does are were of and or with for from than this that these those should could would can between about across show tell compare prepare give me our their they there been have has least more less many much meetings meeting presentations presentation units sales sold buyers".split(
+    " ",
+  ),
+);
+const SLOVAK_OR_HUNGARIAN_WORDS = new Set(
+  "ktory ktora ktore ktori kolko preco ako aky aka ake kde kedy co ci najviac najmenej najlepsie stretnuti stretnutia stretnutie jednotky jednotka byty bytov predaj predaja predali prezentacie prezentacii porovnaj ukaz je su sa sme mal mala mali bol bola boli na pre od za pri alebo ale melyik melyek hany mennyi miert hogyan hol mikor mit mi mely legtobb legkevesebb es vagy az egy van volt voltak nem hogy ugynok ugynokok talalkozo talalkozok lakas lakasok eladas eladasok bemutato bemutatok kapta kaptak eladtak".split(
+    " ",
+  ),
+);
+
+/**
+ * Whether a question reads as English, by its words rather than its letters.
+ *
+ * Without a model the answer is composed in English, and a question asked in
+ * another language is told so rather than answered as if nothing happened.
+ * Counted on function words, because names carry accents in an English
+ * question too ("Prepare me for Viktória's meeting"); a presenter's name is
+ * not counted at all. A word with a letter outside English counts against,
+ * which is how a language with no list here is still recognised.
+ */
+export function isEnglishQuestion(question: string, roster: readonly RosterEntry[]): boolean {
+  const names = new Set(roster.flatMap((a) => foldText(a.name).split(/\s+/)));
+  let english = 0;
+  let other = 0;
+  for (const word of question.split(/[^\p{L}]+/u)) {
+    const folded = foldText(word);
+    if (folded.length < 2 || names.has(folded)) continue;
+    if (ENGLISH_WORDS.has(folded)) english += 1;
+    else if (SLOVAK_OR_HUNGARIAN_WORDS.has(folded) || /[^a-z]/.test(word.toLowerCase())) other += 1;
+  }
+  return other <= english;
 }
 
 /**
@@ -691,6 +803,8 @@ export function composeDeterministic(
   bundles: readonly EvidenceBundle[],
   context: AskContextInput,
   question = "",
+  /** One line said first, when the question was asked in a language this composition does not speak. */
+  languageNote: string | null = null,
 ): ObserverAnswer {
   /*
    * A "why" asked of this path is still a "why".
@@ -703,7 +817,7 @@ export function composeDeterministic(
    * the sentence saying what they can and cannot settle, and the comparison
    * that would narrow it.
    */
-  const causal = isCausalQuestion(question);
+  const causal = asksWhy(question);
 
   /*
    * Two tools that measured the same thing said it twice.
@@ -723,7 +837,7 @@ export function composeDeterministic(
    * finding labels where the whole label is the subject; prose is not that.
    */
   const seenSentences = new Set<string>();
-  const facts = results
+  const sentences = results
     .flatMap((r) => (r.draft.length === 0 ? [] : r.draft.split(/(?<=[.!?])\s+/)))
     .filter((sentence) => {
       const shape = sentence
@@ -736,8 +850,34 @@ export function composeDeterministic(
       if (shape.length === 0 || seenSentences.has(shape)) return false;
       seenSentences.add(shape);
       return true;
-    })
-    .join(" ");
+    });
+
+  /*
+   * The measured sentences themselves, with no preamble: the byline already
+   * says who composed them, and "Here is what I found" is a chatbot's voice
+   * over the read models' figures. Whole sentences only, up to the answer's
+   * ceiling, so a figure is never cut off mid-number.
+   */
+  const lines = [
+    ...(languageNote === null ? [] : [languageNote]),
+    ...(sentences.length === 0
+      ? [
+          `No measured evidence for this in ${context.projectLabel}, ${context.periodLabel.toLowerCase()}.`,
+        ]
+      : sentences),
+  ];
+  let answer = "";
+  for (const line of lines) {
+    const next = answer.length === 0 ? line : `${answer} ${line}`;
+    if (next.length > 600) break;
+    answer = next;
+  }
+
+  /* The widest sample, in the unit its analysis counts: 32 dated sales are not 32 meetings. */
+  const widest = results.reduce<ToolResult | null>(
+    (best, r) => (best === null || r.sampleSize > best.sampleSize ? r : best),
+    null,
+  );
 
   const findings = results.flatMap((result, index) => {
     const bundle = bundles[index];
@@ -749,23 +889,21 @@ export function composeDeterministic(
     }));
   });
 
-  const totalSample = Math.max(...results.map((r) => r.sampleSize), 0);
+  const totalSample = widest?.sampleSize ?? 0;
   const caveats = [...new Set(results.flatMap((r) => r.caveats))].slice(0, 6);
   const action = results.find((r) => r.action !== null)?.action ?? null;
 
   return {
-    answer:
-      facts.length === 0
-        ? "I could not find measured evidence for that in this project and period."
-        : `Here is what I found. ${facts}`.slice(0, 600),
+    /* A first line longer than the ceiling is the one case cut short rather than dropped. */
+    answer: answer.length > 0 ? answer : (lines[0] ?? "").slice(0, 600),
     headline:
-      totalSample === 0
+      widest === null || totalSample === 0
         ? "No measured evidence in this period"
-        : `Measured across ${totalSample} meeting${totalSample === 1 ? "" : "s"}`,
+        : `Measured across ${sampleWords(widest.tool, totalSample)}`,
     findings: findings.slice(0, 8),
     evidence: bundles.slice(0, 12),
     interpretation:
-      facts.length === 0
+      sentences.length === 0
         ? `Nothing in ${context.projectLabel} over ${context.periodLabel} supports an answer to this. The figures on the page are still the measured ones.`
         : /*
            * Note the wording: no "because".
@@ -1120,7 +1258,18 @@ export async function* askStream(
   }
 
   const bundles = bundlesFor(run.results, context);
-  const deterministic = composeDeterministic(run.results, bundles, context, trimmed);
+  /*
+   * The deterministic composition speaks English. A question asked in another
+   * language is told so in its first line, never silently answered in English:
+   * without a model, because none is connected; with one, because whenever this
+   * composition is shown the model's answer was not.
+   */
+  const languageNote = isEnglishQuestion(trimmed, context.roster)
+    ? null
+    : model === null
+      ? "Answered in English; typed answers in other languages need a language model."
+      : "Answered in English; the language model's answer could not be used.";
+  const deterministic = composeDeterministic(run.results, bundles, context, trimmed, languageNote);
   const toolsUsed = run.results.map((r) => r.tool);
 
   const finish = (
@@ -1282,12 +1431,55 @@ Answer the question using only the figures above. Cite bundle ids in every findi
     return;
   }
 
-  if (containsCausalClaim(parsed) || !isTraceableAnswer(parsed, question)) {
+  /* Everything the model was shown: the question, the context and what the tools returned. */
+  const given = transcript
+    .map((m) =>
+      m.role === "tool_result" ? m.output : m.role === "assistant_tool_calls" ? "" : m.content,
+    )
+    .join("\n");
+
+  if (
+    containsCausalClaim(parsed) ||
+    !isTraceableAnswer(parsed, question) ||
+    !figuresAreGiven(parsed, given)
+  ) {
     yield { type: "final", outcome: finish(deterministic, true, truncated, false, "output_guard") };
     return;
   }
 
   yield { type: "final", outcome: finish(parsed, false, truncated, true) };
+}
+
+/**
+ * Whether every number in a model's answer is one it was given.
+ *
+ * The system prompt asks the model to state only the tools' figures; this is
+ * what makes the answer's byline true ("every figure in it was checked"). A
+ * number found in nothing the model was shown was computed or invented, and the
+ * deterministic composition is shown instead.
+ *
+ * Compared as runs of digits, so "83%" and "83 %", "1.5" and "1,5" are the same
+ * figure: a translated answer is held to the figures, not to their typography.
+ *
+ * ponytail: a set of digit runs, so a small number ("3") passes once anything
+ * the model saw contains it. It catches invented and computed figures, not a
+ * real figure moved to the wrong sentence; that needs figures parsed with their
+ * labels.
+ */
+export function figuresAreGiven(answer: ObserverAnswer, given: string): boolean {
+  const runs = (text: string) =>
+    (text.match(/\d+/g) ?? []).map((run) => run.replace(/^0+(?=\d)/, ""));
+  const known = new Set(runs(given));
+  const written = [
+    answer.answer,
+    answer.headline,
+    answer.interpretation,
+    ...answer.limitations,
+    ...answer.findings.flatMap((f) => [f.statement, f.value ?? ""]),
+    ...answer.recommendedActions.flatMap((a) => [a.label, a.rationale]),
+    ...answer.followUpQuestions,
+  ].join(" ");
+  return runs(written).every((run) => known.has(run));
 }
 
 /**

@@ -945,7 +945,8 @@ const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>
           : [
               {
                 label: "Sales that cannot be placed",
-                value: String(assisted.unplaced),
+                /* Counted beside the dated sales, never inside them: together they are every sale. */
+                value: `${String(assisted.unplaced)} of ${String(assisted.datedSales + assisted.unplaced)} sales`,
                 note: "no stage date, or no unit named",
               },
             ]),

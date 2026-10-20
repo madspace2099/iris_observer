@@ -92,7 +92,8 @@ function composed(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
     answer: "Core coverage held across the period.",
     headline: "Coverage steady, depth moved",
-    findings: [{ statement: "Core coverage", value: "78%", evidenceRefs: [FIRST_BUNDLE] }],
+    /* Northgate's own core coverage: a model may state only figures the tools returned. */
+    findings: [{ statement: "Core coverage", value: "89%", evidenceRefs: [FIRST_BUNDLE] }],
     interpretation:
       "Coverage is stable in this sample, and median depth is the figure associated with the change.",
     limitations: ["Some sessions carry no per-step timing."],
