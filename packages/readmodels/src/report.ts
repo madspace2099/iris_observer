@@ -7,7 +7,7 @@ import type { EvidenceRef } from "./metric-value";
  *
  * The report is a page (`/report`), drawn from the read models the screens
  * use. The browser prints that page to a PDF, and its figures download as a
- * CSV (ADR-0045, the owner, 2026-10-20). No server renders a document, nothing
+ * CSV (ADR-0045, the owner, 2026-10-20). No server renders a PDF, nothing
  * is scheduled and nothing is sent: those remain in M4 (`docs/roadmap.md`).
  *
  * How it is produced is a **type**, not a sentence a component invents.
@@ -82,7 +82,7 @@ export interface ReportScope {
 export type ReportScopeSelector = { readonly meetingId: string } | { readonly agentId: string };
 
 export const REPORT_GENERATION_STATES = [
-  /** The page, printed by the browser to PDF, and its figures as CSV. No server renders a document. */
+  /** The page, printed by the browser to PDF, and its figures as CSV. No server renders a PDF. */
   "available",
 ] as const;
 export type ReportGenerationState = (typeof REPORT_GENERATION_STATES)[number];

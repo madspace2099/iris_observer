@@ -343,11 +343,11 @@ function plans(context: ViewContext, sessions: readonly ShowroomSession[]): read
           `${root}/report`,
           n,
         ),
-        actionLabel: "See what a report would contain",
+        actionLabel: "Open the report page",
         actionHref: `${root}/report`,
         followUps: ["Which sections would be blank?", "Can I have one meeting instead?"],
         caveat:
-          "Nothing generates a document yet. The report surface states, section by section, what one would hold.",
+          "The report page composes this. Its export prints it to a PDF through the browser or downloads its figures as a CSV; no server renders a PDF.",
       },
     ],
   });

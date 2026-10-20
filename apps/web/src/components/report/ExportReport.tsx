@@ -9,7 +9,6 @@ import {
   sentence,
   type Language,
   type PluralForms,
-  type ReportGeneration,
   type ReportScope,
   type ReportSection,
   type Sentence,
@@ -51,10 +50,11 @@ import { csvAddress, withOmitted, withPrint } from "./omit";
  * checkboxes and the language chips apply to the PDF and the CSV exactly as
  * to the page, and the report says on its cover what was left out.
  *
- * What is still absent, and stated by the read model's own sentence rather
- * than implied: a server-side PDF renderer, scheduled sends, and a
- * buyer-facing document — M4 (`docs/roadmap.md`). No progress bar, no queue,
- * no email-it-to-me field.
+ * What is still absent — a server-side PDF renderer, scheduled sends, and a
+ * buyer-facing document — is M4, recorded in ADR-0045 and `docs/roadmap.md`
+ * rather than on this screen: a reader choosing a format needs to know what
+ * the button does, not the milestone plan. No progress bar, no queue, no
+ * email-it-to-me field.
  *
  * ## ADR-0018 — a client-facing document is a different contract
  *
@@ -102,7 +102,6 @@ export interface ExportReportView {
   readonly scope: ReportScope;
   readonly periodLabel: string;
   readonly sections: readonly ReportSection[];
-  readonly generation: ReportGeneration;
   /** Sections that would be blank, counted by the read model so this need not. */
   readonly unavailableCount: number;
 }
@@ -289,10 +288,10 @@ export function ExportReport({
 
           <p className="ox-section-note">
             The period is set in the bar at the top of the screen and applies to the whole document;
-            there is one period control in this product and it is not in here. A document meant to
-            be shared with a buyer is a separate, sanitised contract with no field the internal
-            pre-meeting brief could reach — that contract is not built, so nothing assembled here
-            leaves the room.
+            there is one period control in this product and it is not in here. Everything produced
+            here is the internal report. A document meant to be shared with a buyer is a separate,
+            sanitised contract with no field the internal pre-meeting brief could reach, and that
+            contract is not built.
           </p>
 
           {/* --- what would be in it -------------------------------------- */}
@@ -365,8 +364,8 @@ export function ExportReport({
            * `.ox-result` rather than `.ox-empty`: this is a statement about the
            * product, not a slot that failed to fill. The chip carries the word
            * as well as the tone, since a state never reaches this screen as a
-           * colour alone. The sentence after it is the read model's: how the
-           * document is produced, and what is still not built.
+           * colour alone. How the chosen format is produced is the footer's one
+           * plain sentence, beside the button that produces it.
            */}
           <p className="ox-result">
             <span className="ox-chip" data-tone="good">
@@ -380,9 +379,6 @@ export function ExportReport({
                 ? ""
                 : ` ${sentence(language, EXPORT_BLANK_SENTENCE, { count: report.unavailableCount })}`}
             </span>
-          </p>
-          <p className="ox-section-note">
-            {report.generation.statement} {report.generation.milestone}
           </p>
         </div>
 

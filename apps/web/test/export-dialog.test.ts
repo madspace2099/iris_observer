@@ -57,7 +57,9 @@ describe("the dialog's buttons take the address it composed", () => {
     expect(html).not.toContain("scheduled for M4");
     expect(html).toContain("Available now");
     expect(html).toContain("Save as PDF");
-    /* The read model's own sentence: how the document is produced, and what is still M4. */
-    expect(html).toContain(report.generation.milestone);
+    /* The footer says what the button does; the milestone plan is the ADR's, not the screen's. */
+    expect(html).not.toContain(report.generation.milestone);
+    expect(html).not.toContain("docs/roadmap.md");
+    expect(html).not.toContain("leaves the room");
   });
 });

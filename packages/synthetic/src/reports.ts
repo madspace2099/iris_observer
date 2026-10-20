@@ -132,7 +132,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
     allWebIris:
       "Every presentation on this project ran on WEB IRIS, so there is no split to report.",
     generation:
-      "The report is a page drawn from the read models the screens use: the browser prints it to a PDF, and its figures download as a CSV. No server renders a document.",
+      "The report is a page drawn from the read models the screens use: the browser prints it to a PDF, and its figures download as a CSV. No server renders a PDF.",
     milestone:
       "A server-side PDF renderer, scheduled sends and the buyer-facing document remain in M4 (docs/roadmap.md).",
     meetingSequence: {
@@ -148,7 +148,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
     meetingLegacy:
       "This meeting came from the legacy import, which records the order of sections and not their timing. The sequence is written; the pacing is not.",
     meetingGeneration:
-      "The meeting summary is a page drawn from the session record: the browser prints it to a PDF, and its figures download as a CSV. No server renders a document.",
+      "The meeting summary is a page drawn from the session record: the browser prints it to a PDF, and its figures download as a CSV. No server renders a PDF.",
   },
   sk: {
     periodSummary: {
@@ -201,7 +201,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
       "Každá prezentácia na tomto projekte prebehla v inštalácii v showroome, takže niet čo rozdeliť.",
     allWebIris: "Každá prezentácia na tomto projekte prebehla vo WEB IRIS, takže niet čo rozdeliť.",
     generation:
-      "Správa je stránka zostavená z dátových modelov, ktoré používajú obrazovky: prehliadač ju vytlačí do PDF a jej údaje sa stiahnu ako CSV. Žiadny server dokument negeneruje.",
+      "Správa je stránka zostavená z dátových modelov, ktoré používajú obrazovky: prehliadač ju vytlačí do PDF a jej údaje sa stiahnu ako CSV. Žiadny server negeneruje PDF.",
     milestone:
       "Serverové generovanie PDF, plánované odosielanie a dokument pre kupujúceho zostávajú v M4 (docs/roadmap.md).",
     meetingSequence: {
@@ -217,7 +217,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
     meetingLegacy:
       "Toto stretnutie pochádza zo staršieho importu, ktorý zaznamenáva poradie sekcií, ale nie ich časovanie. Poradie je zapísané, tempo nie.",
     meetingGeneration:
-      "Zhrnutie stretnutia je stránka zostavená zo záznamu zo showroomu: prehliadač ju vytlačí do PDF a jej údaje sa stiahnu ako CSV. Žiadny server dokument negeneruje.",
+      "Zhrnutie stretnutia je stránka zostavená zo záznamu zo showroomu: prehliadač ju vytlačí do PDF a jej údaje sa stiahnu ako CSV. Žiadny server negeneruje PDF.",
   },
   hu: {
     periodSummary: {
@@ -271,7 +271,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
     allWebIris:
       "Ezen a projekten minden bemutató a WEB IRIS-ben zajlott, így nincs mit megbontani.",
     generation:
-      "A jelentés a képernyők adatmodelljeiből összeállított oldal: a böngésző PDF-be nyomtatja, az adatai pedig CSV-ként letölthetők. Dokumentumot szerver nem állít elő.",
+      "A jelentés a képernyők adatmodelljeiből összeállított oldal: a böngésző PDF-be nyomtatja, az adatai pedig CSV-ként letölthetők. PDF-et szerver nem állít elő.",
     milestone:
       "A szerveroldali PDF-előállítás, az ütemezett küldés és a vevőnek szóló dokumentum az M4 mérföldkőben marad (docs/roadmap.md).",
     meetingSequence: {
@@ -287,7 +287,7 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
     meetingLegacy:
       "Ez a találkozó a régi rendszerből importált adatokból származik, amely a szakaszok sorrendjét rögzíti, az időzítésüket nem. A sorrend megvan, a tempó nincs.",
     meetingGeneration:
-      "A találkozó összefoglalója a showroom-rekordból összeállított oldal: a böngésző PDF-be nyomtatja, az adatai pedig CSV-ként letölthetők. Dokumentumot szerver nem állít elő.",
+      "A találkozó összefoglalója a showroom-rekordból összeállított oldal: a böngésző PDF-be nyomtatja, az adatai pedig CSV-ként letölthetők. PDF-et szerver nem állít elő.",
   },
 };
 
@@ -775,7 +775,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
       "Kept for the sales team: the rows of this register are the meeting drill-down's own material, which this account does not open. Every one of these meetings is counted in the sections above.",
     noFindings: "Nothing on their screen reached a finding in the period.",
     generation:
-      "One agent's summary is a page drawn from the read model their own screen draws: the browser prints it to a PDF, and its figures download as a CSV. No server renders a document.",
+      "One agent's summary is a page drawn from the read model their own screen draws: the browser prints it to a PDF, and its figures download as a CSV. No server renders a PDF.",
     timedNoun: () => "timed meetings",
     listedNoun: () => "meetings listed",
   },
@@ -831,7 +831,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
       "Vyhradené pre obchodný tím: riadky tohto registra patria k detailu stretnutia, ktorý toto konto neotvára. Každé z týchto stretnutí je započítané v sekciách vyššie.",
     noFindings: "Nič na maklérskej obrazovke v tomto období nedosiahlo úroveň zistenia.",
     generation:
-      "Zhrnutie jedného makléra je stránka zostavená z dátového modelu, ktorý kreslí maklérska obrazovka: prehliadač ju vytlačí do PDF a jej údaje sa stiahnu ako CSV. Žiadny server dokument negeneruje.",
+      "Zhrnutie jedného makléra je stránka zostavená z dátového modelu, ktorý kreslí maklérska obrazovka: prehliadač ju vytlačí do PDF a jej údaje sa stiahnu ako CSV. Žiadny server negeneruje PDF.",
     timedNoun: (n) =>
       pluralCategory("sk", n) === "one"
         ? "stretnutie s meraným časom"
@@ -898,7 +898,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
       "Az értékesítői csapatnak fenntartva: a lista sorai a találkozó részletnézetéhez tartoznak, amelyet ez a fiók nem nyit meg. Mindegyik találkozó szerepel a fenti szakaszok számaiban.",
     noFindings: "A képernyőjén semmi sem ért el megállapítást az időszakban.",
     generation:
-      "Egy értékesítő összefoglalója a saját képernyőjét rajzoló adatmodellből összeállított oldal: a böngésző PDF-be nyomtatja, az adatai pedig CSV-ként letölthetők. Dokumentumot szerver nem állít elő.",
+      "Egy értékesítő összefoglalója a saját képernyőjét rajzoló adatmodellből összeállított oldal: a böngésző PDF-be nyomtatja, az adatai pedig CSV-ként letölthetők. PDF-et szerver nem állít elő.",
     timedNoun: () => "mért idejű találkozó",
     listedNoun: () => "listázott találkozó",
   },

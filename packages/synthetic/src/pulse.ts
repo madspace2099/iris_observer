@@ -978,14 +978,14 @@ export function buildAskSession(
        *
        * The caveat says how the document is produced (ADR-0045): the page
        * composes it, the browser prints it to a PDF, and its figures download
-       * as a CSV. No server renders a file, which is what
-       * `ReportGeneration.state` and the export dialog say on screen.
+       * as a CSV. No server renders a PDF, which is what
+       * `ReportGeneration.state` states and the export dialog's footer says.
        */
       actionLabel: "Open the report page",
       actionHref: `${root}/report`,
       followUps: ["Include the buyer list", "Compare with last quarter"],
       caveat:
-        "The report page composes this on screen. Its export prints it to a PDF through the browser or downloads its figures as a CSV; no server renders a file.",
+        "The report page composes this on screen. Its export prints it to a PDF through the browser or downloads its figures as a CSV; no server renders a PDF.",
     },
   ];
 
