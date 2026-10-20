@@ -6,12 +6,15 @@ import {
   ACTIVATION_CODE_PEPPER,
   SOURCE_TOKEN_PEPPER,
   describePepper,
+  projectDirectoryAdmin,
   type AdminRefusal,
   type ObserverAdmin,
 } from "@observer/sources";
 
+import { aliasesEnabled, mintAlias, recentCodes } from "@/lib/madspace/activation-aliases";
 import { currentViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
+import { observerDepsAsync } from "@/lib/sources/deps";
 
 /**
  * THE OPERATIONS AN ADMINISTRATOR PERFORMS ON ONE SOURCE.
@@ -194,15 +197,77 @@ export async function issueActivationCodeAction(sourceId: string): Promise<
    * receipt into this literal and this module keeps no other reference to it —
    * no variable that outlives the return, no log line, and deliberately no
    * `console` anywhere in this file, because `IssuedActivation.toJSON` narrows
-   * that accident rather than preventing it.
+   * that accident rather than preventing it. On the local plane the journey is
+   * into the alias store, and the alias is what leaves (ADR-0044).
    */
   return {
     ok: true,
-    code: issued.value.plaintext,
+    code: aliasesEnabled()
+      ? mintAlias(issued.value.plaintext, {
+          issuedAt,
+          expiresAt: issued.value.expiresAt,
+          ...(await describeSource(held.admin, sourceId)),
+        })
+      : issued.value.plaintext,
     purpose: issued.value.purpose,
     issuedAt,
     expiresAt: issued.value.expiresAt,
   };
+}
+
+/**
+ * The client, project and source a code from Source Detail was issued for, as
+ * the recent list names them. Best effort: a read that fails names nothing
+ * rather than refusing a code already minted.
+ *
+ * ponytail: one read per project until the source turns up; the local plane
+ * holds a handful. A facade that reads one source would make it one.
+ */
+async function describeSource(
+  admin: ObserverAdmin,
+  sourceId: string,
+): Promise<{ client: string | null; project: string; source: string }> {
+  try {
+    const deps = await observerDepsAsync();
+    const projects =
+      deps === null
+        ? null
+        : await projectDirectoryAdmin(deps).directory({ account: CONTROL_PLANE_ACCOUNT });
+    for (const project of projects?.ok === true ? projects.value : []) {
+      const sources = await admin.sourceStatus({
+        account: CONTROL_PLANE_ACCOUNT,
+        project: project.project_id,
+      });
+      const found = sources.ok ? sources.value.find((row) => row.source_id === sourceId) : null;
+      if (found) {
+        return { client: project.tenant_slug, project: project.name, source: found.display_label };
+      }
+    }
+  } catch {
+    /* Named nothing, below. */
+  }
+  return { client: null, project: "", source: "" };
+}
+
+/**
+ * The activation codes this server issued, most recent first: Akhilesh's
+ * "View recent activation codes", from the alias store and nowhere else.
+ *
+ * An active code comes back in full, so it can be copied again; an activated
+ * or expired one masked. The real code is never in it. A hosted plane keeps no
+ * list, because it keeps no alias, and says so.
+ */
+export async function recentActivationCodesAction(): Promise<
+  { readonly ok: true; readonly codes: ReturnType<typeof recentCodes> } | Refused
+> {
+  const held = await operator();
+  if (!held.ok) return held;
+  if (!aliasesEnabled()) {
+    return refuse(
+      "This server keeps no list of recent codes. On a hosted control plane a code is shown once, when it is issued.",
+    );
+  }
+  return { ok: true, codes: recentCodes() };
 }
 
 /**

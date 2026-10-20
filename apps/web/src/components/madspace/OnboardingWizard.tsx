@@ -6,7 +6,10 @@ import { ENVIRONMENT_CHOICES } from "@/components/madspace/CreateSourceForm";
 import { StatusChip } from "@/components/madspace/StatusMark";
 import { onboardAction } from "@/lib/madspace/create-actions";
 import { localeFits, slugFrom, timeZoneFits } from "@/lib/madspace/slug";
-import { activationClaimedAction } from "@/lib/madspace/source-actions";
+import {
+  activationClaimedAction,
+  recentActivationCodesAction,
+} from "@/lib/madspace/source-actions";
 
 /**
  * CLIENT & ENGINE ONBOARDING, AS AKHILESH DESIGNED IT (ADR-0044).
@@ -17,19 +20,29 @@ import { activationClaimedAction } from "@/lib/madspace/source-actions";
  * sends all of it to `onboardAction`, which writes nothing until every field
  * and both peppers pass, and step 1.4 shows the code that comes back.
  *
- * What was deliberately not ported: the Supabase insert from the browser, the
- * `localStorage` list of recent codes in plaintext, the `ACT-XXXX-XXXX` code
- * shape, and the gradients. The code is the real `obs.<selector>.<secret>`,
- * held in ONE place, `issued` below, and dropped by "Onboard another client".
+ * On the local plane that code is his `ACT-XXXX-XXXX`, an alias the server
+ * swaps for the real code at the activation endpoint; elsewhere it is the real
+ * `obs.<selector>.<secret>`. Either way it is held in ONE place, `issued`
+ * below, and dropped by "Onboard another client". The environment is not asked:
+ * the server registers the source as demo on the local plane and production
+ * elsewhere, and 1.4 says which.
+ *
+ * His "View recent activation codes" reads the server's alias store through a
+ * guarded action, never browser storage, and shows a code in full only while
+ * it can still be used.
  *
  * ACTIVATED is what the poll can see: a credential minted at or after the code
  * was issued. Observer keeps CONNECTED for a heartbeat, so this screen never
  * says the engine is connected.
+ *
+ * Icons are drawn by the stylesheet (`.mad-wizard-icon`), so this file draws no
+ * shapes of its own.
  */
 
 type Step = 1 | 2 | 3 | 4;
 
 type Issued = Extract<Awaited<ReturnType<typeof onboardAction>>, { ok: true }>;
+type Recent = Awaited<ReturnType<typeof recentActivationCodesAction>>;
 
 interface Problem {
   readonly step: Step;
@@ -38,11 +51,48 @@ interface Problem {
   readonly text: string;
 }
 
-const STEPS: readonly { readonly step: Step; readonly title: string; readonly sub: string }[] = [
-  { step: 1, title: "Client", sub: "Client ID" },
-  { step: 2, title: "Project", sub: "Name & Domain" },
-  { step: 3, title: "Source", sub: "Main PC" },
-  { step: 4, title: "Activation", sub: "Copy code" },
+type IconName = "user-plus" | "users" | "folder" | "database" | "key" | "copy" | "info" | "chevron";
+
+const STEPS: readonly {
+  readonly step: Step;
+  readonly title: string;
+  readonly sub: string;
+  readonly icon: IconName;
+  readonly heading: string;
+  readonly intro: string;
+}[] = [
+  {
+    step: 1,
+    title: "Client",
+    sub: "Client ID",
+    icon: "users",
+    heading: "Step 1.1: Add client",
+    intro: "Specify the unique client identifier for this onboarding instance.",
+  },
+  {
+    step: 2,
+    title: "Project",
+    sub: "Name & Domain",
+    icon: "folder",
+    heading: "Step 1.2: Add project",
+    intro: "Enter the project name and the main target domain.",
+  },
+  {
+    step: 3,
+    title: "Source",
+    sub: "Main PC",
+    icon: "database",
+    heading: "Step 1.3: Add source",
+    intro: "Identify which workstation, PC or kiosk will run Unreal Engine.",
+  },
+  {
+    step: 4,
+    title: "Activation",
+    sub: "Copy code",
+    icon: "key",
+    heading: "Step 1.4: Activation code",
+    intro: "Code generated. Active for exactly 15 minutes.",
+  },
 ];
 
 /** Akhilesh's quick names for the machine that runs Unreal Engine. */
@@ -57,6 +107,20 @@ function clock(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+}
+
+/** His "14m 51s". */
+function left(seconds: number): string {
+  const m = Math.floor(seconds / 60);
+  return `${m > 0 ? `${m}m ` : ""}${seconds % 60}s`;
+}
+
+/** His "just now", "4m ago". */
+function ago(at: string, now: number): string {
+  const seconds = Math.max(0, Math.floor((now - Date.parse(at)) / 1000));
+  if (seconds < 60) return "just now";
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  return `${Math.floor(seconds / 3600)}h ago`;
 }
 
 function knownLocale(value: string): boolean {
@@ -76,6 +140,10 @@ function knownTimeZone(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function Icon({ name }: { readonly name: IconName }) {
+  return <span className="mad-wizard-icon" data-icon={name} aria-hidden="true" />;
 }
 
 export function OnboardingWizard({
@@ -108,16 +176,20 @@ export function OnboardingWizard({
   const [locale, setLocale] = useState("");
   const [timeZone, setTimeZone] = useState("");
   const [sourceLabel, setSourceLabel] = useState("");
-  const [environment, setEnvironment] = useState("");
   const [problem, setProblem] = useState<Problem | null>(null);
   const [busy, setBusy] = useState(false);
 
   const [issued, setIssued] = useState<Issued | null>(null);
   const [activated, setActivated] = useState(false);
   const [now, setNow] = useState(() => Date.now());
-  const [copied, setCopied] = useState(false);
+  /** The code last copied, so only its own button says Copied. */
+  const [copied, setCopied] = useState<string | null>(null);
   const [said, setSaid] = useState("");
   const [origin, setOrigin] = useState("");
+
+  const [recentOpen, setRecentOpen] = useState(false);
+  const [recent, setRecent] = useState<Recent | null>(null);
+  const [listedAt, setListedAt] = useState(0);
 
   const panel = useRef<HTMLDivElement>(null);
   const moved = useRef(false);
@@ -186,13 +258,31 @@ export function OnboardingWizard({
   }, [expired, sourceId, issuedAt]);
 
   useEffect(() => {
-    if (!copied) return undefined;
+    if (copied === null) return undefined;
     const timer = window.setTimeout(() => {
-      setCopied(false);
+      setCopied(null);
       setSaid("");
     }, COPIED_MS);
     return () => window.clearTimeout(timer);
   }, [copied]);
+
+  /* The recent list, read when it opens and again when a code changes state. */
+  useEffect(() => {
+    if (!recentOpen) return;
+    let current = true;
+    void recentActivationCodesAction()
+      .then((answer) => {
+        if (!current) return;
+        setRecent(answer);
+        setListedAt(Date.now());
+      })
+      .catch(() => {
+        if (current) setRecent({ ok: false, problem: "The list could not be read. Try again." });
+      });
+    return () => {
+      current = false;
+    };
+  }, [recentOpen, issued, activated, expired]);
 
   /* --- validation, step by step --- */
 
@@ -255,13 +345,6 @@ export function OnboardingWizard({
 
   function sourcePasses(): boolean {
     if (sourceLabel.trim() === "") return refuse(3, "source", "Give the machine a source name.");
-    if (environment === "") {
-      return refuse(
-        3,
-        "environment",
-        "Choose the environment this machine runs in. It cannot be changed from the installation afterwards.",
-      );
-    }
     return true;
   }
 
@@ -283,7 +366,6 @@ export function OnboardingWizard({
       locale,
       timeZone,
       sourceLabel,
-      environment,
     })
       .then((answer) => {
         if (!answer.ok) {
@@ -317,7 +399,7 @@ export function OnboardingWizard({
   function restart() {
     setIssued(null);
     setActivated(false);
-    setCopied(false);
+    setCopied(null);
     setSaid("");
     setClient("");
     setProjectName("");
@@ -325,17 +407,16 @@ export function OnboardingWizard({
     setDomainTouched(false);
     setCurrency("");
     setSourceLabel("");
-    setEnvironment("");
     go(1);
   }
 
   async function copy(code: string) {
     try {
       await navigator.clipboard.writeText(code);
-      setCopied(true);
+      setCopied(code);
       setSaid("Activation code copied to the clipboard.");
     } catch {
-      setSaid("The clipboard is unavailable here. Select the code above and copy it.");
+      setSaid("The clipboard is unavailable here. Select the code and copy it.");
     }
   }
 
@@ -357,18 +438,31 @@ export function OnboardingWizard({
             : "Generate activation code"
           : "+ Onboard another client";
 
-  const chosenEnvironment = ENVIRONMENT_CHOICES.find((choice) => choice.value === environment);
+  const intro = STEPS[step - 1];
+  const short = issued !== null && issued.code.startsWith("ACT-");
+  const countdown = activated
+    ? "good"
+    : remaining === 0
+      ? "expired"
+      : remaining <= WARNING_SECONDS
+        ? "warning"
+        : "good";
 
   return (
     <section className="mad-wizard" aria-labelledby={id("title")}>
       <header className="mad-wizard-head">
-        <div>
-          <h1 className="mad-wizard-title" id={id("title")}>
-            Client &amp; Engine Onboarding
-          </h1>
-          <p className="mad-wizard-sub">
-            Generate a 15-minute activation code to connect Unreal Engine to Observer.
-          </p>
+        <div className="mad-wizard-heading">
+          <span className="mad-wizard-badge">
+            <Icon name="user-plus" />
+          </span>
+          <div>
+            <h1 className="mad-wizard-title" id={id("title")}>
+              Client &amp; Engine Onboarding
+            </h1>
+            <p className="mad-wizard-sub">
+              Generate a 15-minute activation code to connect Unreal Engine to Observer.
+            </p>
+          </div>
         </div>
         <a className="mad-wizard-close" href="/madspace/projects" aria-label="Close onboarding">
           ×
@@ -409,15 +503,20 @@ export function OnboardingWizard({
       </ol>
 
       <div className="mad-wizard-body" ref={panel}>
+        {intro === undefined || (step === 4 && issued === null) ? null : (
+          <div className="mad-wizard-intro">
+            <span className="mad-wizard-tile" data-tone={step === 4 ? "good" : undefined}>
+              <Icon name={intro.icon} />
+            </span>
+            <div>
+              <h2>{intro.heading}</h2>
+              <p>{intro.intro}</p>
+            </div>
+          </div>
+        )}
+
         {step === 1 ? (
           <div className="mad-wizard-panel">
-            <div className="mad-wizard-intro">
-              <h2>Step 1.1: Add client</h2>
-              <p>
-                The developer this project belongs to. Pick one already registered, or give a new
-                client an ID.
-              </p>
-            </div>
             <div className="mad-field">
               <label className="mad-field-label" htmlFor={id("client")}>
                 Client ID{" "}
@@ -481,10 +580,6 @@ export function OnboardingWizard({
 
         {step === 2 ? (
           <div className="mad-wizard-panel">
-            <div className="mad-wizard-intro">
-              <h2>Step 1.2: Add project</h2>
-              <p>The development&rsquo;s name, its address, and how its figures are written.</p>
-            </div>
             <div className="mad-field">
               <label className="mad-field-label" htmlFor={id("project")}>
                 Project name{" "}
@@ -610,10 +705,6 @@ export function OnboardingWizard({
 
         {step === 3 ? (
           <div className="mad-wizard-panel">
-            <div className="mad-wizard-intro">
-              <h2>Step 1.3: Add source</h2>
-              <p>Identify which workstation, PC or kiosk will run Unreal Engine.</p>
-            </div>
             <div className="mad-field">
               <label className="mad-field-label" htmlFor={id("source")}>
                 Source name{" "}
@@ -647,67 +738,16 @@ export function OnboardingWizard({
                 ))}
               </div>
             </div>
-            <fieldset className="mad-fieldset">
-              <legend className="mad-field-label">
-                Environment{" "}
-                <span className="mad-wizard-required" aria-hidden="true">
-                  *
-                </span>
-              </legend>
-              <p className="mad-field-hint">
-                Authoritative for every event this machine sends. A build that reports another one
-                is recorded as a mismatch, not believed.
-              </p>
-              <div className="mad-wizard-pills">
-                {ENVIRONMENT_CHOICES.map((choice) => (
-                  <label key={choice.value} className="mad-wizard-pill" data-radio="">
-                    <input
-                      type="radio"
-                      required
-                      name={id("environment")}
-                      id={
-                        choice.value === ENVIRONMENT_CHOICES[0].value
-                          ? id("environment")
-                          : undefined
-                      }
-                      value={choice.value}
-                      checked={environment === choice.value}
-                      onChange={() => setEnvironment(choice.value)}
-                      {...invalid("environment")}
-                    />
-                    {choice.name}
-                  </label>
-                ))}
-              </div>
-              {chosenEnvironment === undefined ? null : (
-                <p className="mad-field-hint">{chosenEnvironment.detail}</p>
-              )}
-            </fieldset>
           </div>
         ) : null}
 
         {step === 4 && issued !== null ? (
           <div className="mad-wizard-panel">
-            <div className="mad-wizard-intro">
-              <h2>Step 1.4: Activation code</h2>
-              <p>Shown once, never stored in readable form, and valid for 15 minutes.</p>
-            </div>
-
-            <div className="mad-wizard-code">
+            <div className="mad-wizard-card">
               <div className="mad-wizard-code-head">
-                <span className="mad-wizard-code-label">Unreal Engine activation code</span>
-                <span
-                  className="mad-wizard-countdown"
-                  data-state={
-                    activated
-                      ? "good"
-                      : remaining === 0
-                        ? "expired"
-                        : remaining <= WARNING_SECONDS
-                          ? "warning"
-                          : "good"
-                  }
-                >
+                <span className="mad-wizard-code-label">Unreal Engine onboarding code</span>
+                <span className="mad-wizard-countdown" data-state={countdown}>
+                  <span className="mad-wizard-pulse" aria-hidden="true" />
                   {activated
                     ? "Code used"
                     : remaining === 0
@@ -719,34 +759,46 @@ export function OnboardingWizard({
               </div>
 
               <div className="mad-wizard-code-row">
-                <code className="mad-activation-code">{issued.code}</code>
+                <code className="mad-wizard-code" data-shape={short ? "short" : "long"}>
+                  {issued.code}
+                </code>
                 <button
-                  className="mad-action"
+                  className="mad-wizard-copy"
                   type="button"
-                  data-weight={live ? "primary" : undefined}
                   disabled={!live}
+                  data-copied={copied === issued.code ? "" : undefined}
                   onClick={() => void copy(issued.code)}
                 >
-                  {copied ? "Copied" : "Copy"}
+                  <Icon name="copy" />
+                  {copied === issued.code ? "Copied" : "Copy Code"}
                 </button>
               </div>
               <span className="mad-copy-said" role="status" aria-live="polite">
                 {said}
               </span>
 
-              <p className="mad-wizard-status" role="status">
-                {activated ? (
-                  <StatusChip tone="good">Activated</StatusChip>
-                ) : remaining === 0 ? (
-                  <StatusChip tone="wrong">Expired</StatusChip>
-                ) : (
-                  <StatusChip tone="await">Active, waiting for the engine</StatusChip>
-                )}
-              </p>
+              <div className="mad-wizard-status-row">
+                <p className="mad-wizard-status" role="status">
+                  {activated ? (
+                    <StatusChip tone="good">Activated</StatusChip>
+                  ) : remaining === 0 ? (
+                    <StatusChip tone="wrong">Expired</StatusChip>
+                  ) : (
+                    <StatusChip tone="await">Active, waiting for the engine</StatusChip>
+                  )}
+                </p>
+                <span className="mad-wizard-expiry">
+                  {activated
+                    ? "Used by the engine"
+                    : remaining === 0
+                      ? "Expired, 15 minutes elapsed"
+                      : `Expires in ${left(remaining)}`}
+                </span>
+              </div>
 
-              <dl className="mad-activation-meta">
+              <dl className="mad-wizard-summary">
                 <div>
-                  <dt>Client</dt>
+                  <dt>Client ID</dt>
                   <dd className="mad-wizard-mono">{issued.tenantSlug}</dd>
                 </div>
                 <div>
@@ -754,7 +806,7 @@ export function OnboardingWizard({
                   <dd>{projectName}</dd>
                 </div>
                 <div>
-                  <dt>Address</dt>
+                  <dt>Domain</dt>
                   <dd className="mad-wizard-mono">
                     /{issued.tenantSlug}/{issued.projectSlug}
                   </dd>
@@ -765,17 +817,27 @@ export function OnboardingWizard({
                 </div>
                 <div>
                   <dt>Environment</dt>
-                  <dd>{chosenEnvironment?.name ?? environment}</dd>
+                  <dd>
+                    {ENVIRONMENT_CHOICES.find((choice) => choice.value === issued.environment)
+                      ?.name ?? issued.environment}
+                  </dd>
                 </div>
               </dl>
             </div>
 
             <div className="mad-wizard-hint">
-              <strong>Next in Unreal Engine (Step 2.1)</strong>
+              <p className="mad-wizard-hint-head">
+                <Icon name="info" />
+                <strong>Next in Unreal Engine (Step 2.1)</strong>
+              </p>
               <p>
-                Paste the code into the IRIS Observer plugin in Unreal Engine. It presents it to{" "}
-                <span className="mad-wizard-mono">{origin}/functions/v1/observer-activate</span>.
-                Leaving this page drops the code; another is issued from the source&rsquo;s page.
+                Copy this activation code and paste it into the IRIS Observer plugin in Unreal
+                Engine. The engine presents it to{" "}
+                <span className="mad-wizard-mono">{origin}/functions/v1/observer-activate</span> and
+                begins streaming analytics.{" "}
+                {short
+                  ? "Until it is used or expires it also waits under the recent activation codes below."
+                  : "Leaving this page drops the code; another is issued from the source’s page."}
               </p>
               <p className="mad-wizard-links">
                 <a className="mad-quiet" href={`/madspace/sources/${issued.sourceId}`}>
@@ -794,6 +856,67 @@ export function OnboardingWizard({
             {shown.text}
           </p>
         )}
+
+        <div className="mad-wizard-recent">
+          <button
+            className="mad-wizard-recent-toggle"
+            type="button"
+            aria-expanded={recentOpen}
+            aria-controls={id("recent")}
+            onClick={() => setRecentOpen((open) => !open)}
+          >
+            View recent activation codes
+            <Icon name="chevron" />
+          </button>
+          <div className="mad-wizard-recent-list" id={id("recent")} hidden={!recentOpen}>
+            {!recentOpen ? null : recent === null ? (
+              <p className="mad-wizard-recent-empty">Reading the codes this server issued…</p>
+            ) : !recent.ok ? (
+              <p className="mad-wizard-recent-empty">{recent.problem}</p>
+            ) : recent.codes.length === 0 ? (
+              <p className="mad-wizard-recent-empty">
+                No activation codes issued on this server yet.
+              </p>
+            ) : (
+              <ul>
+                {recent.codes.map((row) => {
+                  const named = [row.client, row.project, row.source].filter(Boolean).join(" · ");
+                  const stillValid = Math.round((Date.parse(row.expiresAt) - listedAt) / 1000);
+                  return (
+                    <li key={`${row.issuedAt}${row.code}`} className="mad-wizard-recent-row">
+                      <div className="mad-wizard-recent-info">
+                        <code className="mad-wizard-recent-code">{row.code}</code>
+                        <span className="mad-wizard-recent-meta">
+                          {named === "" ? "" : `${named} · `}issued {ago(row.issuedAt, listedAt)}
+                        </span>
+                      </div>
+                      <div className="mad-wizard-recent-side">
+                        {row.status === "active" ? (
+                          <StatusChip tone="await">
+                            {`Active, ${left(Math.max(0, stillValid))} left`}
+                          </StatusChip>
+                        ) : row.status === "activated" ? (
+                          <StatusChip tone="good">Activated</StatusChip>
+                        ) : (
+                          <StatusChip tone="wrong">Expired</StatusChip>
+                        )}
+                        {row.status === "active" ? (
+                          <button
+                            className="mad-action"
+                            type="button"
+                            onClick={() => void copy(row.code)}
+                          >
+                            {copied === row.code ? "Copied" : "Copy"}
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </div>
       </div>
 
       <footer className="mad-wizard-foot">

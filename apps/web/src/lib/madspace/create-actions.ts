@@ -19,6 +19,7 @@ import {
 } from "@observer/sources";
 
 import { forgetDirectoryMemo } from "@/lib/directory/live";
+import { aliasesEnabled, mintAlias } from "@/lib/madspace/activation-aliases";
 import { localeFits, timeZoneFits } from "@/lib/madspace/slug";
 import { isSyntheticTenantSlug } from "@/lib/repository";
 import { currentViewer } from "@/lib/session";
@@ -222,9 +223,8 @@ export interface OnboardInput {
   readonly currency: string;
   readonly locale: string;
   readonly timeZone: string;
-  /** Step 1.3. */
+  /** Step 1.3. The environment is not asked: see `onboardAction`. */
   readonly sourceLabel: string;
-  readonly environment: string;
 }
 
 /** The step whose field a refusal belongs to: 1 client, 2 project, 3 source. */
@@ -249,7 +249,13 @@ const PROJECT_TAKEN =
  *
  * The activation code's plaintext leaves this function once, in the returned
  * object, exactly as `issueActivationCodeAction` returns it, and nothing here
- * logs it.
+ * logs it. On the local plane what leaves is its `ACT-XXXX-XXXX` alias
+ * (`activation-aliases.ts`) and the real code stays in that store.
+ *
+ * THE ENVIRONMENT IS THE SERVER'S, NOT A QUESTION (the owner, 2026-10-20): the
+ * local demonstration plane registers every source as `demo`, any other plane
+ * as `production`. A machine that is something else is registered from the
+ * project's New source form, which still asks.
  */
 export async function onboardAction(input: OnboardInput): Promise<
   | {
@@ -261,6 +267,7 @@ export async function onboardAction(input: OnboardInput): Promise<
       readonly sourceId: string;
       readonly tenantSlug: string;
       readonly projectSlug: string;
+      readonly environment: (typeof ENVIRONMENTS)[number];
     }
   | { readonly ok: false; readonly problem: string; readonly step: OnboardStep }
 > {
@@ -277,7 +284,8 @@ export async function onboardAction(input: OnboardInput): Promise<
   const locale = field("locale");
   const timeZone = field("timeZone");
   const sourceLabel = field("sourceLabel");
-  const environment = field("environment");
+  const local = aliasesEnabled();
+  const environment = local ? "demo" : "production";
 
   /* --- every field, before anything is read or written --- */
   if (client.length === 0) return refuse("Give the client an ID before continuing.", 1);
@@ -313,12 +321,6 @@ export async function onboardAction(input: OnboardInput): Promise<
   if (sourceLabel.length === 0) return refuse("Give the machine a source name.", 3);
   if (sourceLabel.length > 200) {
     return refuse("That source name is longer than two hundred characters.", 3);
-  }
-  if (!(ENVIRONMENTS as readonly string[]).includes(environment)) {
-    return refuse(
-      "Choose the environment this machine runs in. It cannot be changed from the installation afterwards.",
-      3,
-    );
   }
 
   /* --- who is asking, and whether there is anywhere to write --- */
@@ -423,7 +425,7 @@ export async function onboardAction(input: OnboardInput): Promise<
       account: CONTROL_PLANE_ACCOUNT,
       project: projectId,
       type: REGISTRABLE_SOURCE_TYPE,
-      environment: environment as (typeof ENVIRONMENTS)[number],
+      environment,
       label: sourceLabel,
     });
     if (!source.ok) return unfinished(3);
@@ -447,13 +449,22 @@ export async function onboardAction(input: OnboardInput): Promise<
   /* The plaintext's one journey, read straight out of the receipt. */
   return {
     ok: true,
-    code: issued.plaintext,
+    code: local
+      ? mintAlias(issued.plaintext, {
+          issuedAt,
+          expiresAt: issued.expiresAt,
+          client,
+          project: projectName,
+          source: sourceLabel,
+        })
+      : issued.plaintext,
     issuedAt,
     expiresAt: issued.expiresAt,
     projectId,
     sourceId,
     tenantSlug: client,
     projectSlug,
+    environment,
   };
 }
 

@@ -57,7 +57,9 @@ vi.mock("../src/lib/repository", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const { onboardAction } = await import("../src/lib/madspace/create-actions");
-const { activationClaimedAction } = await import("../src/lib/madspace/source-actions");
+const { activationClaimedAction, recentActivationCodesAction } =
+  await import("../src/lib/madspace/source-actions");
+const { resetAliases } = await import("../src/lib/madspace/activation-aliases");
 
 const INPUT = {
   client: "Client-482",
@@ -67,7 +69,6 @@ const INPUT = {
   locale: "sk-SK",
   timeZone: "Europe/Bratislava",
   sourceLabel: "Main PC",
-  environment: "demo",
 };
 
 beforeEach(() => {
@@ -80,7 +81,18 @@ beforeEach(() => {
   /* Demo-only values in a test process; the harness relaxes the distinct-character rule. */
   vi.stubEnv("OBSERVER_ACTIVATION_CODE_PEPPER", "b".repeat(64));
   vi.stubEnv("OBSERVER_SOURCE_TOKEN_PEPPER", "c".repeat(64));
+  /* A hosted plane unless a test says otherwise: no local plane, no aliases. */
+  vi.stubEnv("OBSERVER_LOCAL_CONTROL_PLANE", "");
+  resetAliases();
 });
+
+/** The local control plane in use: its own flag, and no hosted database ahead of it. */
+function localPlane(): void {
+  vi.stubEnv("OBSERVER_LOCAL_CONTROL_PLANE", "1");
+  for (const name of ["SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SECRET_KEY"]) {
+    vi.stubEnv(name, "");
+  }
+}
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -122,6 +134,39 @@ describe("onboarding a client", () => {
     );
   });
 
+  it("registers production off the local plane, whatever a caller sends, and shows the real code", async () => {
+    const answer = await onboardAction({ ...INPUT, environment: "development" } as typeof INPUT);
+    if (!answer.ok) throw new Error(answer.problem);
+    expect(answer.environment).toBe("production");
+    expect(db.sourceCreate).toHaveBeenCalledWith(
+      expect.objectContaining({ environment: "production", label: "Main PC" }),
+    );
+    expect(answer.code).toMatch(/^obs\./);
+  });
+
+  it("registers demo on the local plane, and hands over a short alias instead of the code", async () => {
+    localPlane();
+    const answer = await onboardAction(INPUT);
+    if (!answer.ok) throw new Error(answer.problem);
+    expect(answer.environment).toBe("demo");
+    expect(db.sourceCreate).toHaveBeenCalledWith(expect.objectContaining({ environment: "demo" }));
+    expect(answer.code).toMatch(/^ACT-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+
+    /* The recent list names it, in full while it works, and never holds the real code. */
+    const listed = await recentActivationCodesAction();
+    if (!listed.ok) throw new Error(listed.problem);
+    expect(listed.codes).toEqual([
+      expect.objectContaining({
+        code: answer.code,
+        status: "active",
+        client: "client-482",
+        project: "Riverside Gardens",
+        source: "Main PC",
+      }),
+    ]);
+    expect(JSON.stringify(listed)).not.toContain("obs.");
+  });
+
   it("reuses the developer that already holds the client ID", async () => {
     tenants = [{ slug: "client-482", tenant_id: TENANT, name: "Client 482" }];
     const answer = await onboardAction(INPUT);
@@ -145,8 +190,6 @@ describe("onboarding a client", () => {
     ["timeZone", "Mars/Olympus_Mons", 2],
     ["timeZone", "+01:00", 2],
     ["sourceLabel", "", 3],
-    ["environment", "", 3],
-    ["environment", "lab", 3],
   ] as const)(
     "refuses %s %j at step %i before anything is read or written",
     async (key, value, step) => {
@@ -215,6 +258,18 @@ describe("onboarding a client", () => {
     const answer = await onboardAction(INPUT);
     expect(answer.ok).toBe(false);
     expect(calls).toEqual([]);
+  });
+});
+
+describe("the recent activation codes", () => {
+  it("are refused to anyone who is not a MADSPACE administrator", async () => {
+    localPlane();
+    role = "developer_exec";
+    expect((await recentActivationCodesAction()).ok).toBe(false);
+  });
+
+  it("are not kept by a hosted plane, and it says so", async () => {
+    expect(await recentActivationCodesAction()).toMatchObject({ ok: false });
   });
 });
 
