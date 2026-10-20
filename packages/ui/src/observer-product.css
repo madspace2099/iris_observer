@@ -1808,10 +1808,15 @@
  * Label, bar and figures on one line only where the bar keeps 8rem: from 48rem
  * the figures' `auto` column took the width it wanted, and at 768px the bar
  * collapsed to nothing. Below 64rem the figures stand under the bar.
+ *
+ * The figures' column is sized by the card, never by its own figures: each
+ * rung is its own grid, and a column sized to each row's figures gave the first
+ * rung, which has no drop to print, a longer track than the rest, so the rungs
+ * were not drawn on one scale. The figures wrap inside it.
  */
 @media (width >= 64rem) {
   .ox-stage {
-    grid-template-columns: 12rem minmax(8rem, 1fr) minmax(0, auto);
+    grid-template-columns: 12rem minmax(8rem, 1fr) minmax(0, 18rem);
     align-items: center;
   }
 }

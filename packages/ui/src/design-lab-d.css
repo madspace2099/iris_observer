@@ -2910,10 +2910,26 @@
 /*
  * The ladder's track was a 4% wash: on the dark card the rung had no visible
  * end, so a short bar read as a label with nothing after it. The kit's track
- * tone stands at 2.1:1 on the black card. `.ox-stage-fill` is not touched.
+ * tone stands at 2.06:1 on the black card. `.ox-stage-fill` is not touched.
  */
 [data-charts="d"] .d-card .ox-stage-bar {
   background: var(--d-track);
+}
+
+/*
+ * Inside the card the ladder is not a second box: its panel's edge, tint and
+ * radius go, and its rungs keep their hairlines and line up with the card's
+ * title. The tint also sat under the track and took it to 1.97:1; on the black
+ * card it holds 2.06:1.
+ */
+[data-charts="d"] .d-card > .ox-funnel {
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+[data-charts="d"] .d-card > .ox-funnel > .ox-stage {
+  padding-inline: 0;
 }
 
 /* --- the parity scale: type only; which side of parity a segment falls is a verdict -- */
