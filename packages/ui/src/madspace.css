@@ -3720,9 +3720,11 @@ button.mad-quiet {
  *
  * Akhilesh's "Client & Engine Onboarding" modal, as the page's main panel:
  * centred at his 620px, on this surface's graphite tokens. IRIS blue, solid,
- * marks the step in hand; the good state marks a step done. His gradients,
- * glows and pulsing dots are not ported. The panel carries no shadow, as
- * it does not float: it is the page.
+ * marks the step in hand and nothing else: inside the portal the accent is a
+ * status colour, so a chosen pill, the code and the hint are drawn in ink, as
+ * `.mad-stated` is. The good state marks a step done. His gradients, glows and
+ * pulsing dots are not ported. The panel carries no shadow, as it does not
+ * float: it is the page.
  * ========================================================================= */
 
 .mad-wizard {
@@ -3977,27 +3979,22 @@ button.mad-quiet {
 
 .mad-wizard-pill[aria-pressed="true"],
 .mad-wizard-pill:has(input:checked) {
-  border-color: var(--iris-accent);
-  background: color-mix(in srgb, var(--iris-accent) 12%, transparent);
+  border-color: var(--ink);
+  background: var(--surface-tint);
   color: var(--ink);
 }
 
 .mad-wizard-pill input {
   margin: 0;
-  accent-color: var(--iris-accent);
+  accent-color: var(--ink);
 }
 
-/* --- the code ------------------------------------------------------------- */
+/* --- the code: on the panel's plane, the code's own well the one box ---- */
 
 .mad-wizard-code {
   display: flex;
   flex-direction: column;
   gap: var(--rhythm-inner);
-  padding: var(--rhythm-section);
-  border: 1px solid var(--border-panel);
-  border-top: 2px solid var(--iris-accent);
-  border-radius: var(--portal-radius);
-  background: var(--surface-inset);
 }
 
 .mad-wizard-code-head {
@@ -4067,7 +4064,7 @@ button.mad-quiet {
 
 .mad-wizard-hint {
   padding: var(--rhythm-inner) var(--space-4);
-  border-left: 2px solid var(--iris-accent);
+  border-left: 2px solid var(--ink);
   background: var(--surface-tint);
   font-size: var(--text-caption);
   line-height: 1.55;
@@ -4104,7 +4101,11 @@ button.mad-quiet {
   margin-right: auto;
 }
 
-.mad-wizard-foot .mad-button[aria-disabled="true"] {
+/* Busy swaps the fill as well as the label, as `.mad-action[aria-disabled]` does. */
+.mad-wizard-foot .mad-button[aria-disabled="true"],
+.mad-wizard-foot .mad-button[aria-disabled="true"]:hover {
   cursor: progress;
+  border-color: var(--border-panel);
+  background: var(--surface-inset);
   color: var(--ink-4);
 }

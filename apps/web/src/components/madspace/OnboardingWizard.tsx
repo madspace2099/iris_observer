@@ -5,7 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { ENVIRONMENT_CHOICES } from "@/components/madspace/CreateSourceForm";
 import { StatusChip } from "@/components/madspace/StatusMark";
 import { onboardAction } from "@/lib/madspace/create-actions";
-import { slugFrom } from "@/lib/madspace/slug";
+import { localeFits, slugFrom, timeZoneFits } from "@/lib/madspace/slug";
 import { activationClaimedAction } from "@/lib/madspace/source-actions";
 
 /**
@@ -41,7 +41,7 @@ interface Problem {
 const STEPS: readonly { readonly step: Step; readonly title: string; readonly sub: string }[] = [
   { step: 1, title: "Client", sub: "Client ID" },
   { step: 2, title: "Project", sub: "Name & Domain" },
-  { step: 3, title: "Source", sub: "Machine" },
+  { step: 3, title: "Source", sub: "Main PC" },
   { step: 4, title: "Activation", sub: "Copy code" },
 ];
 
@@ -60,6 +60,7 @@ function clock(seconds: number): string {
 }
 
 function knownLocale(value: string): boolean {
+  if (!localeFits(value)) return false;
   try {
     return Intl.DateTimeFormat.supportedLocalesOf([value]).length === 1;
   } catch {
@@ -68,6 +69,7 @@ function knownLocale(value: string): boolean {
 }
 
 function knownTimeZone(value: string): boolean {
+  if (!timeZoneFits(value)) return false;
   try {
     new Intl.DateTimeFormat("en-GB", { timeZone: value });
     return true;
@@ -128,7 +130,9 @@ export function OnboardingWizard({
    */
   useEffect(() => {
     const resolved = Intl.DateTimeFormat().resolvedOptions();
-    setLocale((typed) => (typed === "" ? resolved.locale : typed));
+    /* The base name: a browser's -u- extensions are not a shape the project keeps. */
+    const own = new Intl.Locale(resolved.locale).baseName;
+    setLocale((typed) => (typed === "" ? own : typed));
     setTimeZone((typed) => (typed === "" ? resolved.timeZone : typed));
     setOrigin(window.location.origin);
   }, []);
@@ -167,6 +171,19 @@ export function OnboardingWizard({
     }, CLAIM_POLL_MS);
     return () => window.clearInterval(timer);
   }, [live, sourceId, issuedAt]);
+
+  /*
+   * One last read when the clock reaches zero. The tick that ends the countdown
+   * also ends the poll, and a throttled background tab can let a minute pass
+   * between polls, so a code used in that gap would otherwise read Expired.
+   */
+  const expired = issued !== null && !activated && remaining === 0;
+  useEffect(() => {
+    if (!expired || sourceId === null || issuedAt === null) return;
+    void activationClaimedAction(sourceId, issuedAt).then((answer) => {
+      if (answer.ok && answer.activated) setActivated(true);
+    });
+  }, [expired, sourceId, issuedAt]);
 
   useEffect(() => {
     if (!copied) return undefined;
@@ -283,7 +300,7 @@ export function OnboardingWizard({
         setProblem({
           step: 3,
           field: null,
-          text: "The server did not answer. Nothing on this page was changed; check Projects before trying again.",
+          text: "The server's answer did not arrive, so this page cannot say what was registered. Check Projects before trying again.",
         });
       })
       .finally(() => setBusy(false));
@@ -425,9 +442,14 @@ export function OnboardingWizard({
                 <button
                   className="mad-action"
                   type="button"
-                  onClick={() =>
-                    setClient(`client-${String(100 + Math.floor(Math.random() * 900))}`)
-                  }
+                  onClick={() => {
+                    /* Never the ID of a client already registered: the press would reuse it. */
+                    const taken = new Set(developers.map((developer) => developer.slug));
+                    const free = Array.from({ length: 900 }, (_, n) => `client-${n + 100}`).filter(
+                      (candidate) => !taken.has(candidate),
+                    );
+                    setClient(free[Math.floor(Math.random() * free.length)] ?? "");
+                  }}
                 >
                   Generate ID
                 </button>
@@ -476,7 +498,7 @@ export function OnboardingWizard({
                 required
                 type="text"
                 value={projectName}
-                placeholder="e.g. Ister Tower"
+                placeholder="e.g. Linden Court"
                 maxLength={200}
                 autoComplete="off"
                 onChange={(event) => {
@@ -499,7 +521,7 @@ export function OnboardingWizard({
                 required
                 type="text"
                 value={domain}
-                placeholder="ister-tower"
+                placeholder="linden-court"
                 maxLength={120}
                 autoComplete="off"
                 spellCheck={false}
@@ -540,11 +562,15 @@ export function OnboardingWizard({
               </div>
               <div className="mad-field">
                 <label className="mad-field-label" htmlFor={id("locale")}>
-                  Locale
+                  Locale{" "}
+                  <span className="mad-wizard-required" aria-hidden="true">
+                    *
+                  </span>
                 </label>
                 <input
                   className="mad-input mad-wizard-mono"
                   id={id("locale")}
+                  required
                   type="text"
                   value={locale}
                   placeholder="sk-SK"
@@ -556,11 +582,15 @@ export function OnboardingWizard({
               </div>
               <div className="mad-field">
                 <label className="mad-field-label" htmlFor={id("timezone")}>
-                  Time zone
+                  Time zone{" "}
+                  <span className="mad-wizard-required" aria-hidden="true">
+                    *
+                  </span>
                 </label>
                 <input
                   className="mad-input mad-wizard-mono"
                   id={id("timezone")}
+                  required
                   type="text"
                   value={timeZone}
                   placeholder="Europe/Bratislava"
@@ -682,7 +712,9 @@ export function OnboardingWizard({
                     ? "Code used"
                     : remaining === 0
                       ? "Expired"
-                      : `${clock(remaining)} remaining`}
+                      : remaining <= WARNING_SECONDS
+                        ? `Expires soon, ${clock(remaining)} remaining`
+                        : `${clock(remaining)} remaining`}
                 </span>
               </div>
 
@@ -691,7 +723,8 @@ export function OnboardingWizard({
                 <button
                   className="mad-action"
                   type="button"
-                  data-weight="primary"
+                  data-weight={live ? "primary" : undefined}
+                  disabled={!live}
                   onClick={() => void copy(issued.code)}
                 >
                   {copied ? "Copied" : "Copy"}
@@ -711,7 +744,7 @@ export function OnboardingWizard({
                 )}
               </p>
 
-              <dl className="mad-datapanel">
+              <dl className="mad-activation-meta">
                 <div>
                   <dt>Client</dt>
                   <dd className="mad-wizard-mono">{issued.tenantSlug}</dd>
