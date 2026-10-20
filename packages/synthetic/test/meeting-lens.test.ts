@@ -107,6 +107,26 @@ for (const period of Object.keys(DAYS) as PeriodPreset[]) {
   });
 }
 
+describe("a lens with nothing to draw says so", () => {
+  const KINGSFORD: OverviewQuery = {
+    ...SHARK,
+    viewer: VIEWERS.madspace as Viewer,
+    tenantSlug: "beta",
+    projectSlug: "kingsford",
+  };
+
+  it("names a period whose outcomes the rule does not size, rather than describing bubbles", async () => {
+    const { lens } = await repo.getFlowCharts(KINGSFORD, "month");
+    expect(lens.meetings).toHaveLength(0);
+    expect(lens.lead).toContain("none ended in an outcome the rule sizes, so no bubble is drawn");
+  });
+
+  it("names an empty period", async () => {
+    const { lens } = await repo.getFlowCharts({ ...KINGSFORD, period: "last_quarter" }, "month");
+    expect(lens.lead).toBe("No meeting in this period, so no bubble is drawn.");
+  });
+});
+
 describe("the months the lens steps through", () => {
   it("shades the July days before the last 28 days start", async () => {
     const { lens } = await repo.getFlowCharts({ ...SHARK, period: "last_28_days" }, "month");

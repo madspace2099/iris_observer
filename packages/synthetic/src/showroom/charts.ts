@@ -1652,10 +1652,13 @@ export function buildMeetingLens(
     total: sessions.length,
     notDrawn,
     nearest,
+    /* An empty period, or one whose every outcome the rule leaves unsized, says so rather than describing bubbles it does not draw. */
     lead:
-      largest === undefined
-        ? notDrawnWords
-        : `${n(sessions.length)} meetings, ${period}, ${n(meetings.length)} of them drawn: one bubble each, in the colour of the agent who presented it and the size of the outcome recorded at its end. The largest, the ${n(largest.count)} that ended "${largest.label}", are the nearest a purchase. ${notDrawnWords}`,
+      sessions.length === 0
+        ? "No meeting in this period, so no bubble is drawn."
+        : largest === undefined || meetings.length === 0
+          ? `${n(sessions.length)} meetings, ${period}, and none ended in an outcome the rule sizes, so no bubble is drawn. ${notDrawnWords}`
+          : `${n(sessions.length)} meetings, ${period}, ${n(meetings.length)} of them drawn: one bubble each, in the colour of the agent who presented it and the size of the outcome recorded at its end. The largest, the ${n(largest.count)} that ended "${largest.label}", are the nearest a purchase. ${notDrawnWords}`,
     note: "The sizes follow the order of the outcome ladder; they are not a computed likelihood. The outcome is the one the agent recorded in the room, not the CRM's stage. A week of one agent is not a sample: how each agent's meetings end, at its sample size, is further down this page.",
     summary: `${n(sessions.length)} meetings, ${period}: ${n(meetings.length)} drawn as bubbles, ${AND.format(outcomes.map((o) => `${o.label} ${n(o.count)}`))}. By agent: ${AND.format(agents.map((a, i) => `${a.label} ${n(meetings.filter((m) => m.a === i).length)}`))}. ${notDrawnWords}`,
     stripLabel: "The period, a column per day: move the lens",
