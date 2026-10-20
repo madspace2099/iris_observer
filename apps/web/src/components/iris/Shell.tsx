@@ -340,7 +340,14 @@ function rowFor(
  * `href` is optional so the mark still renders unlinked wherever `Shell` is
  * given no project to return to; every caller today has one.
  */
-function Brand({ href }: { readonly href?: Route }) {
+export function Brand({
+  href,
+  label = "IRIS by MADSPACE — this project's Ask IRIS",
+}: {
+  readonly href?: Route;
+  /** The link's accessible name, for a surface whose way home is not a project's Ask IRIS. */
+  readonly label?: string;
+}) {
   const mark = (
     <>
       {/*
@@ -358,7 +365,7 @@ function Brand({ href }: { readonly href?: Route }) {
   );
   if (href === undefined) return <div className="irs-brand">{mark}</div>;
   return (
-    <Link className="irs-brand" href={href} aria-label="IRIS by MADSPACE — this project's Ask IRIS">
+    <Link className="irs-brand" href={href} aria-label={label}>
       {mark}
     </Link>
   );
@@ -388,7 +395,7 @@ function Sparkle() {
  * swap needs no script and no state duplicated outside the element that
  * already holds it.
  */
-function MenuMark() {
+export function MenuMark() {
   return (
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none">
       <path

@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { requireViewer } from "@/lib/session";
+import { SESSION_COOKIE, destroySession, requireViewer } from "@/lib/session";
 import {
   CONTROL_PLANE_ACCOUNT_NAME,
   controlPlane,
   runningLocally,
   type ControlPlane,
 } from "@/lib/sources/control-plane";
-import { OpsNav } from "@/components/madspace/OpsNav";
+import { MadspaceHeader } from "@/components/madspace/MadspaceHeader";
 
 export const metadata: Metadata = {
   title: { default: "MADSPACE", template: "%s · MADSPACE" },
@@ -17,19 +19,11 @@ export const metadata: Metadata = {
 /**
  * Which control plane answered, in words. Never a coloured dot.
  *
- * Two readings became three, and the third is the honest one. `runningLocally()`
- * is an environment read: it says whether this process MAY open the development
- * database, never whether anything opened. Every other case, including a
- * process with no control plane configured at all, was therefore asserted to be
- * "Hosted control plane" — the header stated which database answered without
- * ever asking whether one had.
- *
- * `controlPlane()` already separates a plane that is not configured from one
- * that was configured and would not open, and it does so because a deployment
- * without a database and a development machine that has not set the flag are
- * different problems with different fixes. The shell says which.
- *
- * The word and the sentence are the same statement at two lengths, never two
+ * Three readings, because `runningLocally()` says whether this process MAY open
+ * the development database, never whether anything opened; `controlPlane()`
+ * separates a plane that is not configured from one that was configured and
+ * would not open, and those are different problems with different fixes. The
+ * word and the sentence are the same statement at two lengths, never two
  * different claims.
  */
 function controlPlaneReading(
@@ -54,36 +48,22 @@ function controlPlaneReading(
         word: "Local control plane",
         sentence:
           process.env.NODE_ENV === "production"
-            ? "Local control plane, a demonstration database running inside this server."
-            : "Local control plane, a development database running inside this dev server.",
+            ? `Local control plane for ${CONTROL_PLANE_ACCOUNT_NAME}, a demonstration database running inside this server.`
+            : `Local control plane for ${CONTROL_PLANE_ACCOUNT_NAME}, a development database running inside this dev server.`,
       }
     : {
         word: "Hosted control plane",
-        sentence: "Hosted control plane, the Postgres a deployment reaches.",
+        sentence: `Hosted control plane for ${CONTROL_PLANE_ACCOUNT_NAME}, the Postgres a deployment reaches.`,
       };
 }
 
 /**
- * The MADSPACE shell.
+ * The MADSPACE shell: the product's own shell, with MADSPACE's sections in it.
  *
- * A separate surface with its own chrome, deliberately outside the customer
- * navigation — tenancy, activation and integration health are MADSPACE's
- * business, and putting them in a customer's nav would both confuse the product
- * and invite a permission mistake.
- *
- * It uses the shell classes the rest of the application uses rather than a
- * second app shell. What differs is what the surface states before anything it
- * scopes: the ACCOUNT being administered and WHICH control plane is answering.
- * Both open every screen because every figure underneath them is scoped by the
- * first and only exists because of the second — an operator who cannot tell a
- * local development database from a hosted one will eventually believe a
- * demonstration estate is a customer's.
- *
- * They are a scope band at the top of the content rather than a chip in the
- * header, and the reason is that same sentence: the chip was hidden below
- * 768px, so the one fact this comment calls load-bearing left the screen on a
- * phone. Ink as a surface is what the system gives anything whose effect
- * reaches past the current screen, and the band survives to 390.
+ * `irs-shell ox-root ox-graphite` is the ground, atmosphere and type scale every
+ * project page stands on, and `MadspaceHeader` draws the product's header from
+ * the same classes (ADR-0047). `mad-portal` keeps what is MADSPACE's own: the
+ * status vocabulary and the operations components (ADR-0037).
  *
  * The role check is repeated in each page. A layout is not a security boundary:
  * Next may render a page without re-running an ancestor layout, so the page
@@ -95,84 +75,36 @@ export default async function MadspaceLayout({ children }: { children: ReactNode
 
   const plane = controlPlaneReading(await controlPlane(), runningLocally());
 
-  /*
-   * Required in the type is not the same as present. An empty display name
-   * rendered an empty element, and the header lost the operator identity it
-   * exists to state rather than saying a word matched to the field.
-   */
-  const operator = viewer.displayName.trim();
+  async function signOut() {
+    "use server";
+    const store = await cookies();
+    // Clearing the cookie is not enough: the server record has to go too.
+    destroySession(store.get(SESSION_COOKIE)?.value);
+    store.delete(SESSION_COOKIE);
+    redirect("/sign-in");
+  }
 
   return (
-    /*
-     * `mad-portal` is the boundary of the client-portal design system.
-     *
-     * Since ADR-0037 it is the same graphite as the product on screen, with
-     * the warm paper it began on kept for print only (ADR-0042 made the
-     * product follow). The class carries no layout of its own: it redeclares
-     * the tokens the rules underneath already speak, which is how a surface
-     * this size turns over without a rule-by-rule rewrite. The system's own
-     * dark theme works the same way and says why — a token swap keeps modals
-     * and fixed headers intact where a CSS filter would break both.
-     */
-    <div className="obs-shell mad-portal">
-      <header className="obs-header">
-        <div className="obs-brand">
-          <span className="obs-brand-mark">MADSPACE</span>
-          <span>Operations</span>
-        </div>
-
-        {/*
-         * The scope belongs in the chrome, not at the top of every page.
-         *
-         * It was a dark band above the content of all seven screens, which made
-         * the loudest thing on each one a fact that never changes. The system
-         * spends ink-as-surface on something whose effect reaches past the
-         * current screen; the account a whole surface is scoped to is chrome, and
-         * chrome is where it reads as permanent rather than as an announcement
-         * repeated seven times.
-         *
-         * It stayed in the content for one honest reason: the header chip used
-         * to disappear below 768px and took the fact with it. That is fixed in
-         * the stylesheet instead, where the problem actually was.
-         */}
-        <div className="mad-account">
-          <span className="mad-account-label">Account</span>
-          <span className="mad-account-name">{CONTROL_PLANE_ACCOUNT_NAME}</span>
-          <span className="mad-account-plane" title={plane.sentence}>
-            {plane.word}
-          </span>
-        </div>
-
-        <div className="obs-header-end">
-          <div className="obs-who">
-            {/*
-             * The name, and nothing under it. "MADSPACE administrator" was true
-             * of every reader of every screen here, because the check above
-             * redirects everybody else: the line restated the surface's own
-             * precondition and said nothing about the person reading it.
-             */}
-            <strong>{operator === "" ? "Name not set" : operator}</strong>
-          </div>
-          <a className="obs-action" href="/">
-            Back to Observer
-          </a>
-        </div>
-      </header>
-
-      <OpsNav />
-
-      <main className="obs-main" id="main">
+    <div className="irs-shell ox-root ox-graphite mad-portal">
+      <MadspaceHeader
+        operator={viewer.displayName.trim()}
+        plane={plane}
+        account={
+          <>
+            <Link className="ox-btn" data-weight="quiet" href="/">
+              Back to Observer
+            </Link>
+            <form action={signOut}>
+              <button className="ox-btn" data-weight="quiet" type="submit">
+                Sign out
+              </button>
+            </form>
+          </>
+        }
+      />
+      <main className="irs-main irs-main--wide mad-main" id="main">
         {children}
       </main>
-
-      {/*
-       * The fourth landmark, and the scope again where a long page ends.
-       *
-       * The contract names header, nav, main and footer; the shell had three.
-       * What it carries is what the figures above were counted against, rather
-       * than a second copy of the navigation.
-       */}
-      <footer className="mad-note">{`${CONTROL_PLANE_ACCOUNT_NAME}, ${plane.word}`}</footer>
     </div>
   );
 }

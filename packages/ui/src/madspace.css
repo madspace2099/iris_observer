@@ -310,12 +310,6 @@
     background: #f6f5f3;
     color-scheme: light;
   }
-
-  .mad-portal .obs-header,
-  .mad-portal .obs-nav,
-  .mad-portal > footer.mad-note {
-    display: none;
-  }
 }
 
 /*
@@ -359,12 +353,14 @@
   min-width: 0;
 }
 
+/* The product's title (`.ox-title`): the same display scale, weight and tracking (ADR-0047). */
 .mad-title {
   margin: 0;
-  font-size: var(--text-h5);
-  line-height: var(--text-h5-lh);
-  font-weight: var(--weight-semibold);
-  letter-spacing: -0.02em;
+  font-size: var(--ox-display);
+  line-height: var(--ox-lh-display);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--ox-track-display);
+  color: var(--ink);
   overflow-wrap: anywhere;
 }
 
@@ -376,6 +372,8 @@
  * reading as a banner, and this is a page about a project, not about its uuid.
  */
 .mad-title--id {
+  font-size: var(--text-h5);
+  line-height: var(--text-h5-lh);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
@@ -1010,12 +1008,6 @@ a.mad-row:focus-visible {
 @media (min-width: 64rem) {
   .mad-head {
     grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .mad-title {
-    font-size: var(--text-figure);
-    line-height: var(--text-figure-lh);
-    letter-spacing: -0.03em;
   }
 
   .mad-title--id {
@@ -2489,71 +2481,27 @@ button.mad-quiet {
  * hard-coded value had to be replaced because the token swap could not reach it.
  * ========================================================================= */
 
-/* --- the chrome, which the swap could not reach on its own ---------------- */
+/* --- the chrome is the product's (ADR-0047) ------------------------------ */
 
 /*
- * `obs-header` and `obs-nav` are the shared shell, and they paint themselves
- * with values rather than tokens, because they were written when there was one
- * ground and it was near-black. Inside the portal they are restated here rather
- * than changed at the source: the Observer surfaces still want the dark shell,
- * and this is the boundary that was declared for exactly this kind of case.
+ * The shell is `irs-shell ox-root ox-graphite`, the one every project page
+ * stands on, with its header drawn by `MadspaceHeader` from the same classes.
+ * `.mad-portal` above paints its own ground at the same specificity and loads
+ * later, so the product's ground is restated here: the atmosphere stays the
+ * window's light, and the portal tokens stay for what is MADSPACE's own.
  */
-.mad-portal.obs-shell {
-  background: var(--surface-page);
+.mad-portal.irs-shell {
+  background: var(--iris-ground);
 }
 
-.mad-portal .obs-header {
-  background: var(--surface-card);
-  border-bottom: 1px solid var(--border-panel);
-  color: var(--ink-2);
-  box-shadow: none;
-}
-
-.mad-portal .obs-brand-mark {
-  color: var(--ink);
-  letter-spacing: 0.22em;
-}
-
-.mad-portal .obs-brand > span:not(.obs-brand-mark) {
-  color: var(--ink-4);
-}
-
-.mad-portal .obs-who strong {
-  color: var(--ink);
-}
-
-.mad-portal .obs-who span {
-  color: var(--ink-4);
-}
-
-.mad-portal .obs-nav {
-  background: var(--surface-card);
-  border-bottom: 1px solid var(--border-panel);
-}
-
-.mad-portal .obs-nav a {
-  color: var(--ink-4);
-}
-
-.mad-portal .obs-nav a:hover {
-  color: var(--ink);
-}
-
-.mad-portal .obs-nav a[aria-current="page"] {
-  color: var(--ink);
-  border-bottom-color: var(--ink);
-}
-
-.mad-portal .obs-main {
-  background: var(--surface-page);
-  /*
-   * ONE class carries the gutter, so the header, the hero and the panels never
-   * drift apart. The cap is 1440px and the padding shrinks with the viewport;
-   * both come from the token block, which is the whole point of naming them.
-   */
-  max-width: var(--measure);
-  padding-inline: var(--gutter);
-  margin-inline: auto;
+/*
+ * The main column is the product's wide one. Its own padding replaces the old
+ * shell's; the gap between planes is the old main column's.
+ */
+.mad-portal .mad-main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
 }
 
 /*
@@ -3576,52 +3524,20 @@ button.mad-quiet {
   justify-content: space-between;
 }
 
-/* --- the account, in the chrome ------------------------------------------ */
+/* --- which control plane answers, in the header ---------------------------- */
 
 /*
- * The scope, stated once where it is permanent.
+ * A bordered word, not a coloured chip, and not a second header row.
  *
- * The word rather than the sentence, because a header is read at a glance and
- * the sentence is on the `title` for anyone who wants it. "Local control plane"
- * and "Hosted control plane" are different databases and an operator who
- * confuses them will eventually take a demonstration estate for a customer's,
- * which is why the reading is here at all rather than only in a comment.
- *
- * It survives to 390px. The chip this replaces was hidden below 768px, so the
- * one fact the whole surface is scoped by left the screen on a phone, and that
- * was the reason it had been promoted to a dark band above every page.
+ * Which database answered is not a project state, and principle 01 spends
+ * colour on status and nothing else, so this is ink on the inset with a
+ * hairline: visibly a label, carrying no verdict. The sentence is on its
+ * `title`. Below 1200px it moves into the menu sheet with the account, which
+ * is where the product's own header puts everything but the mark.
  */
-.mad-account {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--rhythm-tight);
-  min-width: 0;
-}
-
-.mad-account-label {
-  font-size: var(--text-micro);
-  font-weight: var(--weight-semibold);
-  letter-spacing: var(--track-micro);
-  text-transform: uppercase;
-  color: var(--ink-4);
-}
-
-.mad-account-name {
-  font-size: var(--text-body);
-  font-weight: var(--weight-medium);
-  color: var(--ink);
-}
-
-/*
- * The plane reading is a bordered word, not a coloured chip.
- *
- * A chip here would be a status mark, and which database answered is not a
- * project state. Principle 01 spends colour on status and nothing else, so this
- * is ink on the inset with a hairline: visibly a label, carrying no verdict.
- */
-.mad-account-plane {
-  padding: 0.125rem 0.5rem;
+.mad-plane-chip {
+  flex: none;
+  padding: 0.125rem 0.625rem;
   border: 1px solid var(--border-field);
   border-radius: var(--portal-round);
   background: var(--surface-inset);
@@ -3631,19 +3547,9 @@ button.mad-quiet {
   white-space: nowrap;
 }
 
-/* The header carries three things now, so it wraps rather than crushing them. */
-.mad-portal .obs-header {
-  flex-wrap: wrap;
-  row-gap: var(--rhythm-tight);
-}
-
-/*
- * The footer states the scope again where a long page ends, quietly.
- */
-.mad-portal > footer.mad-note {
-  max-width: var(--measure);
-  margin-inline: auto;
-  padding: var(--rhythm-section) var(--gutter) var(--rhythm-major);
+.irs-mobile-who .mad-plane-chip {
+  display: inline-block;
+  margin-top: var(--rhythm-tight);
 }
 
 /*
