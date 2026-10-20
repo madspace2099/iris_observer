@@ -1399,8 +1399,9 @@ export function showroomSessions(): readonly ShowroomSession[] {
         const r = rng(dataset.seed ^ (index * 2654435761));
         const agent = chooseAgent(r, roster);
 
-        // Meetings land on working days, spread across the period, weighted
-        // toward late morning and mid-afternoon.
+        // Meetings land on every day of the week, spread evenly across the
+        // period, each starting at an hour drawn evenly from 09:00 to 16:00
+        // in the project's own zone.
         const spread = new Date(from + (to - from) * ((i + r() * 0.8) / bounds.meetings));
         const onDay = zoneParts(spread, timeZone);
         const at = zonedInstant(

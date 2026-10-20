@@ -26,6 +26,8 @@ import {
   outcomeParts,
 } from "@/showroom/charts";
 import { Funnel, Heatmap, KpiCard, OutcomeRows, RankedBars, TrendLine } from "@/showroom/charts2";
+import { DrawIn } from "@/showroom/DrawIn";
+import { RadialHistogram, Sized } from "@/showroom/forms";
 
 export const metadata: Metadata = { title: "Sales Flow" };
 
@@ -467,6 +469,67 @@ export default async function FlowPage({
 
         {/* --- when meetings actually happen ------------------------------ */}
 
+        {/*
+         * THE DAY AS A CLOCK FACE (gallery D, ported 2026-10-20).
+         *
+         * Every meeting of the period by the hour it started, all twenty-four
+         * hours and every day together, counted in the weekday grid's own pass
+         * (`ActivityMatrix.day`) so the two cannot disagree. It reads the
+         * period, never `?window`, so it is keyed on the period alone.
+         */}
+        <div className="d-card" key={`day-${query.period}`}>
+          <div className="iris-band">
+            <div>
+              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
+                The day, hour by hour
+              </h2>
+              {charts.activity.day.total === 0 ? (
+                <p className="iris-meta iris-meta-measured">
+                  No meeting in this period, so there is no hour to draw.
+                </p>
+              ) : (
+                <DrawIn kind="turn">
+                  <div className="dld-centred">
+                    <Sized
+                      xl={<RadialHistogram data={charts.activity.day} size="xl" />}
+                      l={<RadialHistogram data={charts.activity.day} size="l" />}
+                    />
+                  </div>
+                </DrawIn>
+              )}
+            </div>
+            <div className="iris-band-side">
+              <p className="iris-meta iris-meta-measured">
+                {charts.activity.day.total} meetings, {view.context.period.label.toLowerCase()}, by
+                the hour each started, in the project&rsquo;s own time zone (
+                {view.context.project.timeZone}).
+              </p>
+              {charts.activity.day.busiest === null ? null : (
+                <p className="iris-meta iris-meta-measured">
+                  Busiest: {charts.activity.day.busiest.display},{" "}
+                  {charts.activity.day.busiest.count} of {charts.activity.day.total}
+                  {charts.activity.day.busiest.hours > 1 ? " each" : ""}.
+                </p>
+              )}
+              <p className="iris-meta iris-meta-measured">
+                {charts.activity.day.outsideGrid === 0
+                  ? "Every one started inside the weekday grid's hours below."
+                  : `${charts.activity.day.outsideGrid} started outside 09:00–19:00 and are counted only here.`}{" "}
+                A count of when meetings start, not a judgement of which hour sells.
+              </p>
+              <Link
+                className="iris-action"
+                href={dynamicRoute(
+                  withPeriod(`/${tenantSlug}/${projectSlug}/meetings`, query.period),
+                )}
+              >
+                Open the meetings
+              </Link>
+              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
+            </div>
+          </div>
+        </div>
+
         <div className="d-card" key={`heat-${query.period}`}>
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             When showroom meetings happen
@@ -475,7 +538,7 @@ export default async function FlowPage({
             rows={charts.activity.rows}
             columns={charts.activity.columns}
             cells={charts.activity.cells}
-            caption={`Meetings by weekday and hour, across ${charts.activity.meetingsCounted} presentations.`}
+            caption={`Meetings by weekday and hour, across ${charts.activity.meetingsCounted} of ${charts.activity.day.total} presentations.`}
           />
           <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
             {charts.activity.busiest === null
@@ -691,7 +754,7 @@ export default async function FlowPage({
              * R05-a those three stand right under the cards. A new section is
              * added to one list or the other, not claimed by either.
              */
-            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
+            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
           ]}
           title="How to read this"
         />

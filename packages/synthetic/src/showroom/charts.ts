@@ -414,6 +414,8 @@ export function buildActivity(
   const hours = Array.from({ length: 10 }, (_, i) => `${String(9 + i).padStart(2, "0")}:00`);
   const cells: Record<string, number> = {};
   let counted = 0;
+  /* The dial's twenty-four hours, counted in the grid's own pass from the same clock reading. */
+  const day = Array.from({ length: 24 }, () => 0);
 
   for (const s of sessions) {
     /*
@@ -422,6 +424,7 @@ export function buildActivity(
      * out of `meetingsCounted` altogether.
      */
     const at = zoneParts(s.startedAt, timeZone);
+    day[at.hour % 24] = (day[at.hour % 24] ?? 0) + 1;
     const weekday = WEEKDAYS[at.weekday];
     const hour = `${String(at.hour).padStart(2, "0")}:00`;
     if (weekday === undefined || !hours.includes(hour)) continue;
@@ -435,6 +438,10 @@ export function buildActivity(
     meetings: hours.reduce((a, h) => a + (cells[`${d}|${h}`] ?? 0), 0),
   }));
   const quietest = [...perDay].sort((a, b) => a.meetings - b.meetings)[0];
+
+  const clock = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
+  const peak = Math.max(0, ...day);
+  const tied = day.flatMap((n, h) => (peak > 0 && n === peak ? [h] : []));
 
   return {
     rows: [...WEEKDAYS],
@@ -450,6 +457,20 @@ export function buildActivity(
           },
     quietest: quietest ?? null,
     meetingsCounted: counted,
+    day: {
+      hours: day.map((count, hour) => ({ hour, label: clock(hour), count })),
+      peak,
+      total: sessions.length,
+      busiest:
+        tied.length === 0
+          ? null
+          : {
+              display: AND.format(tied.map((h) => `${clock(h)}–${clock(h + 1)}`)),
+              count: peak,
+              hours: tied.length,
+            },
+      outsideGrid: sessions.length - counted,
+    },
   };
 }
 

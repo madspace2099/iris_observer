@@ -1250,14 +1250,14 @@
   stroke-width: 1;
 }
 
-.dld-root .dld-centre-figure {
+:is(.dld-root, [data-charts="d"]) .dld-centre-figure {
   font-family: var(--d-font-numeric);
   font-size: 22px;
   letter-spacing: -0.05em;
   fill: var(--d-ink);
 }
 
-.dld-root .dld-centre-caption {
+:is(.dld-root, [data-charts="d"]) .dld-centre-caption {
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 600;
@@ -1460,20 +1460,20 @@
 
 /* --- radial histogram: one hue, brighter with the count ----------------------------- */
 
-.dld-root .dld-radial-spoke {
+:is(.dld-root, [data-charts="d"]) .dld-radial-spoke {
   stroke: var(--d-ink-4);
   stroke-opacity: 0.7;
   stroke-width: 1;
   stroke-linecap: round;
 }
 
-.dld-root .dld-radial-bar {
+:is(.dld-root, [data-charts="d"]) .dld-radial-bar {
   stroke: color-mix(in oklab, var(--d-ramp-hi) calc(30% + var(--v) * 70%), var(--d-ramp-lo));
   stroke-width: 5;
   stroke-linecap: round;
 }
 
-.dld-root .dld-radial-bar[data-long="true"] {
+:is(.dld-root, [data-charts="d"]) .dld-radial-bar[data-long="true"] {
   filter: url(#dld-glow);
 }
 

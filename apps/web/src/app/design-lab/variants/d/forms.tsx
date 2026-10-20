@@ -2,16 +2,16 @@ import type * as React from "react";
 
 import { Band } from "@/showroom/forms";
 
-import type { DDumbbellCard, DOutcomeFunnelsCard, DPunchCard, DRadialCard } from "../../lab-data";
+import type { DDumbbellCard, DOutcomeFunnelsCard, DPunchCard } from "../../lab-data";
 
 /**
  * VARIANT D'S NEW FORMS.
  *
- * Drawings the product does not have: a radial histogram, a punch card, a
- * dumbbell, and a funnel per outcome (the product draws one group's). The
- * journey funnel, the attention × conversion scatter and the parallel
- * coordinates were drawn here first and the product adopted them (ADR-0041):
- * they live in `@/showroom/forms` now, and the gallery imports them from there.
+ * Drawings the product does not have: a punch card, a dumbbell, and a funnel
+ * per outcome (the product draws one group's). The journey funnel, the
+ * attention × conversion scatter, the parallel coordinates and the radial day
+ * were drawn here first and the product adopted them (ADR-0041): they live in
+ * `@/showroom/forms` now, and the gallery imports them from there.
  *
  * ## These files draw; they do not count
  *
@@ -31,104 +31,8 @@ import type { DDumbbellCard, DOutcomeFunnelsCard, DPunchCard, DRadialCard } from
 
 export type DSize = "xl" | "l";
 
-const TAU = Math.PI * 2;
-
-function polar(cx: number, cy: number, r: number, turn: number): readonly [number, number] {
-  const a = turn * TAU - Math.PI / 2;
-  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-}
-
 function f(v: number): string {
   return v.toFixed(2);
-}
-
-/* --- the radial histogram: the day as a clock face -------------------------------- */
-
-export function RadialHistogram({
-  data,
-  size,
-}: {
-  readonly data: DRadialCard;
-  readonly size: DSize;
-}) {
-  // Room outside the bars for the hour labels: the conic mask the entry uses clips at the SVG box.
-  const box = size === "xl" ? 430 : 326;
-  const c = box / 2;
-  const r0 = size === "xl" ? 60 : 44;
-  const r1 = size === "xl" ? 164 : 124;
-  const peak = Math.max(1, data.peak);
-
-  return (
-    <svg
-      className="dld-radial"
-      viewBox={`0 0 ${box} ${box}`}
-      width={box}
-      height={box}
-      role="img"
-      aria-label={`Meetings by starting hour: ${data.hours
-        .filter((h) => h.count > 0)
-        .map((h) => `${h.label} ${h.count}`)
-        .join(", ")}`}
-    >
-      {data.hours.map((h) => {
-        const t = h.hour / 24;
-        const [sx, sy] = polar(c, c, r0, t);
-        const [ex, ey] = polar(c, c, r1, t);
-        return (
-          <line
-            key={`s${h.hour}`}
-            className="dld-radial-spoke"
-            x1={f(sx)}
-            y1={f(sy)}
-            x2={f(ex)}
-            y2={f(ey)}
-          />
-        );
-      })}
-      {data.hours.map((h) => {
-        if (h.count === 0) return null;
-        const t = h.hour / 24;
-        const v = h.count / peak;
-        const [sx, sy] = polar(c, c, r0, t);
-        const [ex, ey] = polar(c, c, r0 + (r1 - r0) * v, t);
-        return (
-          <line
-            key={`b${h.hour}`}
-            className="dld-radial-bar"
-            data-long={v >= 0.5 ? "true" : undefined}
-            x1={f(sx)}
-            y1={f(sy)}
-            x2={f(ex)}
-            y2={f(ey)}
-            style={{ "--v": v.toFixed(3) } as React.CSSProperties}
-          >
-            <title>{`${h.label}: ${h.count}`}</title>
-          </line>
-        );
-      })}
-      {[0, 6, 12, 18].map((hour) => {
-        const [x, y] = polar(c, c, r1 + (size === "xl" ? 16 : 13), hour / 24);
-        return (
-          <text
-            key={hour}
-            x={f(x)}
-            y={f(y)}
-            className="dld-axis-label"
-            textAnchor="middle"
-            dominantBaseline="middle"
-          >
-            {`${String(hour).padStart(2, "0")}:00`}
-          </text>
-        );
-      })}
-      <text x={c} y={c + 2} textAnchor="middle" className="dld-centre-figure">
-        {data.total}
-      </text>
-      <text x={c} y={c + 20} textAnchor="middle" className="dld-centre-caption">
-        MEETINGS
-      </text>
-    </svg>
-  );
 }
 
 /* --- the punch card: who presents at which hour ---------------------------------- */

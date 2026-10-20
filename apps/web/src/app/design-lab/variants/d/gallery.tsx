@@ -13,12 +13,20 @@ import {
   TrendLine,
 } from "@/showroom/charts2";
 
-import { AxisNotes, JourneyFunnel, Parallel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
+import {
+  AxisNotes,
+  JourneyFunnel,
+  Parallel,
+  RadialHistogram,
+  Scatter,
+  ScatterKey,
+  Sized,
+} from "@/showroom/forms";
 
 import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-data";
 import { DCard } from "./card";
 import { DDefs } from "./defs";
-import { Dumbbell, OutcomeFunnels, PunchCard, RadialHistogram } from "./forms";
+import { Dumbbell, OutcomeFunnels, PunchCard } from "./forms";
 import { BubbleLens } from "./bubble-lens";
 
 /**

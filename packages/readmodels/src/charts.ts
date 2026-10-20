@@ -105,6 +105,33 @@ export interface ActivityMatrix {
   } | null;
   readonly quietest: { readonly weekday: string; readonly meetings: number } | null;
   readonly meetingsCounted: number;
+  /**
+   * The same meetings by the hour each started, every day together and all
+   * twenty-four hours, in the project's own time zone: the radial dial. Counted
+   * in the grid's own pass, so the two cannot disagree; a meeting outside the
+   * grid's hours is counted here only.
+   */
+  readonly day: {
+    /** Twenty-four, from 00:00; `label` is "09:00". */
+    readonly hours: readonly {
+      readonly hour: number;
+      readonly label: string;
+      readonly count: number;
+    }[];
+    readonly peak: number;
+    /** Every meeting in the period: `SalesFlowView.meetingCount`. */
+    readonly total: number;
+    /** The busiest hour, every tied one named as a span ("09:00–10:00 and 13:00–14:00"); null with no meeting. */
+    readonly busiest: {
+      readonly display: string;
+      /** Meetings in each busiest hour. */
+      readonly count: number;
+      /** How many hours tie for it. */
+      readonly hours: number;
+    } | null;
+    /** Meetings that started outside the grid's hours: `total − meetingsCounted`. */
+    readonly outsideGrid: number;
+  };
 }
 
 /* --- what precedes a poor outcome -------------------------------------------- */

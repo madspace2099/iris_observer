@@ -449,6 +449,123 @@ export function ScatterKey({ data }: { readonly data: ScatterData }) {
   );
 }
 
+/* --- the day as a clock face: meetings by the hour each started -------------- */
+
+const TAU = Math.PI * 2;
+
+function polar(cx: number, cy: number, r: number, turn: number): readonly [number, number] {
+  const a = turn * TAU - Math.PI / 2;
+  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+}
+
+export interface RadialData {
+  readonly hours: readonly {
+    readonly hour: number;
+    readonly label: string;
+    readonly count: number;
+  }[];
+  readonly peak: number;
+  readonly total: number;
+}
+
+/*
+ * Two drawings: the kit's 430 box, 1:1 wherever it shows (a card of 34rem and
+ * up), with the hours named every three; and a 248 box for a phone's card,
+ * named every six in two digits, so no label falls under 12px.
+ */
+const RADIAL_SIZE = {
+  xl: { box: 430, r0: 60, r1: 164, every: 3, gap: 16 },
+  l: { box: 248, r0: 42, r1: 84, every: 6, gap: 14 },
+} as const;
+
+/**
+ * Twenty-four spokes, one per hour of the day, each bar's length its count
+ * against the busiest hour's. Only the busiest hour glows: on a project whose
+ * every hour is busy, a glow at half the peak would mark every bar and mean
+ * nothing.
+ */
+export function RadialHistogram({
+  data,
+  size,
+}: {
+  readonly data: RadialData;
+  readonly size: keyof typeof RADIAL_SIZE;
+}) {
+  const { box, r0, r1, every, gap } = RADIAL_SIZE[size];
+  const c = box / 2;
+  const peak = Math.max(1, data.peak);
+
+  return (
+    <svg
+      className="dld-radial"
+      viewBox={`0 0 ${box} ${box}`}
+      width={box}
+      height={box}
+      role="img"
+      aria-label={`Meetings by starting hour: ${data.hours
+        .filter((h) => h.count > 0)
+        .map((h) => `${h.label} ${h.count}`)
+        .join(", ")}`}
+    >
+      {data.hours.map((h) => {
+        const [sx, sy] = polar(c, c, r0, h.hour / 24);
+        const [ex, ey] = polar(c, c, r1, h.hour / 24);
+        return (
+          <line
+            key={`s${h.hour}`}
+            className="dld-radial-spoke"
+            x1={f(sx)}
+            y1={f(sy)}
+            x2={f(ex)}
+            y2={f(ey)}
+          />
+        );
+      })}
+      {data.hours.map((h) => {
+        if (h.count === 0) return null;
+        const v = h.count / peak;
+        const [sx, sy] = polar(c, c, r0, h.hour / 24);
+        const [ex, ey] = polar(c, c, r0 + (r1 - r0) * v, h.hour / 24);
+        return (
+          <line
+            key={`b${h.hour}`}
+            className="dld-radial-bar"
+            data-long={h.count === data.peak ? "true" : undefined}
+            x1={f(sx)}
+            y1={f(sy)}
+            x2={f(ex)}
+            y2={f(ey)}
+            style={{ "--v": v.toFixed(3) } as CSSProperties}
+          >
+            <title>{`${h.label}: ${h.count}`}</title>
+          </line>
+        );
+      })}
+      {Array.from({ length: 24 / every }, (_, i) => i * every).map((hour) => {
+        const [x, y] = polar(c, c, r1 + gap, hour / 24);
+        return (
+          <text
+            key={hour}
+            x={f(x)}
+            y={f(y)}
+            className="dld-axis-label"
+            textAnchor="middle"
+            dominantBaseline="middle"
+          >
+            {size === "xl" ? `${String(hour).padStart(2, "0")}:00` : String(hour).padStart(2, "0")}
+          </text>
+        );
+      })}
+      <text x={c} y={c + 2} textAnchor="middle" className="dld-centre-figure">
+        {data.total}
+      </text>
+      <text x={c} y={c + 20} textAnchor="middle" className="dld-centre-caption">
+        MEETINGS
+      </text>
+    </svg>
+  );
+}
+
 /* --- parallel coordinates: which parts of the showroom each agent uses ------- */
 
 export interface ParallelData {

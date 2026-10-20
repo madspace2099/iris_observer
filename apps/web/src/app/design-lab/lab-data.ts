@@ -1783,7 +1783,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
         figure(
           "Meetings in the busiest hour",
           n(radialPeak),
-          `${hourSpan(hourCounts.indexOf(radialPeak))}, every weekday together`,
+          `${hourSpan(hourCounts.indexOf(radialPeak))}, every day together`,
         ),
       ],
       rankingTitle: "Busiest hours",
@@ -1792,7 +1792,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
         (h) => h.count,
         (h) => ({ id: h.label, label: hourSpan(h.hour), value: meetings(h.count) }),
       ),
-      rankingNote: "Starting hour in the project's own time zone, every weekday together.",
+      rankingNote: "Starting hour in the project's own time zone, every day together.",
     },
   };
 
