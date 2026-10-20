@@ -13,12 +13,12 @@ import {
   TrendLine,
 } from "@/showroom/charts2";
 
-import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
+import { AxisNotes, JourneyFunnel, Parallel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
 
 import type { DHeatCard, DRadarCard, DWithheld, LabChartsD } from "../../lab-data";
 import { DCard } from "./card";
 import { DDefs } from "./defs";
-import { Dumbbell, OutcomeFunnels, Parallel, PunchCard, RadialHistogram } from "./forms";
+import { Dumbbell, OutcomeFunnels, PunchCard, RadialHistogram } from "./forms";
 import { BubbleLens } from "./bubble-lens";
 
 /**
@@ -53,33 +53,6 @@ function Withheld({ rows }: { readonly rows: readonly DWithheld[] }) {
         </li>
       ))}
     </ul>
-  );
-}
-
-/**
- * What each axis counts, in plain words: a shape with no definitions is a
- * decoration. An axis the build cannot answer prints why, in the product's
- * words for it, where its definition would have been the whole story.
- */
-function AxisNotes({
-  items,
-}: {
-  readonly items: readonly {
-    readonly label: string;
-    readonly note: string;
-    readonly missing: string | null;
-  }[];
-}) {
-  return (
-    <dl className="dld-axis-notes">
-      {items.map((item) => (
-        <div key={item.label} data-missing={item.missing === null ? undefined : "true"}>
-          <dt>{item.label}</dt>
-          <dd>{item.note}</dd>
-          {item.missing === null ? null : <dd className="dld-axis-missing">{item.missing}</dd>}
-        </div>
-      ))}
-    </dl>
   );
 }
 
@@ -402,6 +375,14 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
               xl={<Parallel data={data.parallel} size="xl" />}
               l={<Parallel data={data.parallel} size="l" />}
             />
+            <ul className="dld-key">
+              {data.parallel.lines.map((line) => (
+                <li key={line.id}>
+                  <i style={{ background: line.tone }} />
+                  {line.label}
+                </li>
+              ))}
+            </ul>
             <AxisNotes items={data.parallel.axes} />
             {data.parallel.cut === null ? null : (
               <p className="dld-note">

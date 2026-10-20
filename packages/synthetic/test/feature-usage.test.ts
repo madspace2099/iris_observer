@@ -231,3 +231,26 @@ describe("the feature-usage model rides on the agent charts, under the same floo
     expect(cleared?.note).toBeNull();
   });
 });
+
+describe("the feature-usage lines wear the radar's colours", () => {
+  it("gives each person the radar's seat colour, by id", () => {
+    const two = [
+      ...Array.from({ length: 3 }, (_, i) => ({ ...meeting(`a${i}`), agentId: "agt_one" })),
+      ...Array.from({ length: 3 }, (_, i) => ({ ...meeting(`b${i}`), agentId: "agt_two" })),
+    ];
+    const charts = buildAgentCharts(two, { tenantSlug: "alpha", projectSlug: "prj" }, LOCALE, "en");
+    const radarTone = new Map(charts.radar.profiles.map((p) => [p.id, p.tone]));
+    expect(charts.featureUsage.profiles.map((p) => [p.id, p.tone])).toEqual(
+      charts.featureUsage.profiles.map((p) => [p.id, radarTone.get(p.id)]),
+    );
+    /* Guards the guard: two people, two colours. */
+    expect(new Set(charts.featureUsage.profiles.map((p) => p.tone)).size).toBe(2);
+  });
+
+  it("names who is not drawn, the axes not measured, and that no line is drawn when nobody clears the floor", () => {
+    const usage = buildFeatureUsage([meeting("1")], LOCALE, "en");
+    expect(usage.summary).toContain("so no line is drawn");
+    expect(usage.summary).toContain(`Not drawn, under ${String(AGENT_MIN_SAMPLE)} meetings:`);
+    expect(usage.summary).toContain("Not measured: Exploring, Filtering and Walking.");
+  });
+});

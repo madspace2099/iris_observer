@@ -201,6 +201,8 @@ export interface FeatureUsageAxis {
 export interface FeatureUsageProfile {
   readonly id: string;
   readonly label: string;
+  /** The same seat colour `RadarProfile.tone` gives this person. */
+  readonly tone: string;
   readonly meetings: number;
   /**
    * One per axis, in the axes' order: the part of this agent's meetings that
@@ -216,6 +218,8 @@ export interface FeatureUsageProfile {
 export interface FeatureUsage {
   readonly axes: readonly FeatureUsageAxis[];
   readonly profiles: readonly FeatureUsageProfile[];
+  /** Every drawn line in words, the axes not measured, and who is not drawn and why. */
+  readonly summary: string;
 }
 
 /* --- an ordered list where the order is the finding ---------------------------- */

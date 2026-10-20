@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { DrawIn } from "./DrawIn";
 
@@ -101,6 +101,19 @@ export function ChartPaint() {
           <feMergeNode in="nearDown" />
           <feMergeNode in="SourceGraphic" />
         </feMerge>
+      </filter>
+
+      {/* The parallel lines' own shadow: black, 2 down, 85%, as the kit sets every polyline. */}
+      <filter
+        id="dld-lift"
+        filterUnits="userSpaceOnUse"
+        x="-400"
+        y="-400"
+        width="1600"
+        height="1600"
+        colorInterpolationFilters="sRGB"
+      >
+        <feDropShadow dx="0" dy="2" stdDeviation="1" floodColor="#000000" floodOpacity="0.85" />
       </filter>
     </>
   );
@@ -433,6 +446,160 @@ export function ScatterKey({ data }: { readonly data: ScatterData }) {
         );
       })}
     </div>
+  );
+}
+
+/* --- parallel coordinates: which parts of the showroom each agent uses ------- */
+
+export interface ParallelData {
+  readonly axes: readonly {
+    readonly id: string;
+    readonly label: string;
+    /** Why the build cannot answer this axis; null when it is measured. */
+    readonly missing: string | null;
+  }[];
+  readonly lines: readonly {
+    readonly id: string;
+    readonly label: string;
+    /** 0 to 1 on a measured axis; null on one the build cannot answer, which no line crosses. */
+    readonly values: readonly (number | null)[];
+    /** The agent's own colour, from the read model. */
+    readonly tone: string;
+  }[];
+}
+
+/* Each shown only where it renders at 1:1 or larger, as the scatter's: the Large one fits a phone's card. */
+const PARALLEL_SIZE = {
+  xl: { width: 720, height: 360 },
+  m: { width: 544, height: 300 },
+  l: { width: 248, height: 240 },
+} as const;
+
+/** A line's measured stretches: an axis the build cannot answer breaks it, so no line claims a value there. */
+export function measuredRuns(values: readonly (number | null)[]): (readonly [number, number])[][] {
+  const runs: (readonly [number, number])[][] = [];
+  let run: (readonly [number, number])[] = [];
+  values.forEach((v, axis) => {
+    if (v === null) {
+      if (run.length > 0) runs.push(run);
+      run = [];
+    } else {
+      run.push([axis, v]);
+    }
+  });
+  if (run.length > 0) runs.push(run);
+  return runs;
+}
+
+/**
+ * One line per agent across the showroom's tools, each at the share of their
+ * meetings that used it. The axes are shares already, so nothing is scaled to
+ * a strongest agent. No key: the caller draws the one that names and links.
+ */
+export function Parallel({
+  data,
+  size,
+}: {
+  readonly data: ParallelData;
+  readonly size: keyof typeof PARALLEL_SIZE;
+}) {
+  const { width, height } = PARALLEL_SIZE[size];
+  const pad = { top: 14, bottom: 14, left: size === "l" ? 34 : 40 };
+  const axes = data.axes.length;
+  const pitch = (width - pad.left) / Math.max(1, axes);
+  const x = (i: number) => pad.left + pitch * (i + 0.5);
+  const y = (v: number) =>
+    pad.top + (1 - Math.max(0, Math.min(1, v))) * (height - pad.top - pad.bottom);
+
+  return (
+    <div className="dld-parallel" style={{ maxWidth: width }}>
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width={width}
+        height={height}
+        role="img"
+        aria-label={`${data.lines.length} agents across ${data.axes.map((a) => a.label).join(", ")}`}
+      >
+        {[0, 0.5, 1].map((t) => (
+          <g key={t}>
+            <line className="dld-gridline" x1={pad.left} x2={width} y1={f(y(t))} y2={f(y(t))} />
+            <text
+              x={pad.left - 8}
+              y={f(y(t))}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="dld-axis-label"
+            >
+              {`${Math.round(t * 100)}%`}
+            </text>
+          </g>
+        ))}
+        {data.axes.map((axis, i) => (
+          <line
+            key={axis.id}
+            className="dld-parallel-axis"
+            data-missing={axis.missing === null ? undefined : "true"}
+            x1={f(x(i))}
+            x2={f(x(i))}
+            y1={pad.top}
+            y2={height - pad.bottom}
+          />
+        ))}
+        {data.lines.map((line) =>
+          measuredRuns(line.values).map((run) => (
+            <polyline
+              key={`${line.id}-${run[0]?.[0] ?? 0}`}
+              className="dld-parallel-line"
+              style={{ "--d-tone": line.tone } as CSSProperties}
+              points={run.map(([axis, v]) => `${f(x(axis))},${f(y(v))}`).join(" ")}
+            >
+              <title>{line.label}</title>
+            </polyline>
+          )),
+        )}
+      </svg>
+      <ol
+        className="dld-parallel-axes"
+        style={{
+          gridTemplateColumns: `repeat(${axes}, minmax(0, 1fr))`,
+          paddingLeft: `${((pad.left / width) * 100).toFixed(3)}%`,
+        }}
+      >
+        {data.axes.map((axis) => (
+          <li key={axis.id} data-missing={axis.missing === null ? undefined : "true"}>
+            {axis.label}
+            {axis.missing === null ? null : <em>not measured</em>}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+/**
+ * What each axis counts, in plain words: a shape with no definitions is a
+ * decoration. An axis the build cannot answer prints why, in the product's
+ * words for it, where its definition would have been the whole story.
+ */
+export function AxisNotes({
+  items,
+}: {
+  readonly items: readonly {
+    readonly label: string;
+    readonly note: string;
+    readonly missing: string | null;
+  }[];
+}) {
+  return (
+    <dl className="dld-axis-notes">
+      {items.map((item) => (
+        <div key={item.label} data-missing={item.missing === null ? undefined : "true"}>
+          <dt>{item.label}</dt>
+          <dd>{item.note}</dd>
+          {item.missing === null ? null : <dd className="dld-axis-missing">{item.missing}</dd>}
+        </div>
+      ))}
+    </dl>
   );
 }
 

@@ -2,22 +2,16 @@ import type * as React from "react";
 
 import { Band } from "@/showroom/forms";
 
-import type {
-  DDumbbellCard,
-  DOutcomeFunnelsCard,
-  DParallelCard,
-  DPunchCard,
-  DRadialCard,
-} from "../../lab-data";
+import type { DDumbbellCard, DOutcomeFunnelsCard, DPunchCard, DRadialCard } from "../../lab-data";
 
 /**
  * VARIANT D'S NEW FORMS.
  *
- * Drawings the product does not have: parallel coordinates, a radial histogram,
- * a punch card, a dumbbell, and a funnel per outcome (the product draws one
- * group's). The journey funnel and the attention × conversion scatter were
- * drawn here first and the product adopted them (ADR-0041): they live in
- * `@/showroom/forms` now, and the gallery imports them from there.
+ * Drawings the product does not have: a radial histogram, a punch card, a
+ * dumbbell, and a funnel per outcome (the product draws one group's). The
+ * journey funnel, the attention × conversion scatter and the parallel
+ * coordinates were drawn here first and the product adopted them (ADR-0041):
+ * they live in `@/showroom/forms` now, and the gallery imports them from there.
  *
  * ## These files draw; they do not count
  *
@@ -38,11 +32,6 @@ import type {
 export type DSize = "xl" | "l";
 
 const TAU = Math.PI * 2;
-
-/** The agent colours: the kit's series order, first two as its multiply radar pairs them. */
-export function seriesTone(index: number): string {
-  return `var(--d-series-${(index % 6) + 1})`;
-}
 
 function polar(cx: number, cy: number, r: number, turn: number): readonly [number, number] {
   const a = turn * TAU - Math.PI / 2;
@@ -214,114 +203,6 @@ export function PunchCard({ data, size }: { readonly data: DPunchCard; readonly 
         );
       })}
     </svg>
-  );
-}
-
-/* --- parallel coordinates: which parts of the showroom each agent uses ------------- */
-
-/** A line's measured stretches: an axis the build cannot answer breaks it, so no line claims a value there. */
-function measuredRuns(values: readonly (number | null)[]): (readonly [number, number])[][] {
-  const runs: (readonly [number, number])[][] = [];
-  let run: (readonly [number, number])[] = [];
-  values.forEach((v, axis) => {
-    if (v === null) {
-      if (run.length > 0) runs.push(run);
-      run = [];
-    } else {
-      run.push([axis, v]);
-    }
-  });
-  if (run.length > 0) runs.push(run);
-  return runs;
-}
-
-export function Parallel({ data, size }: { readonly data: DParallelCard; readonly size: DSize }) {
-  const width = size === "xl" ? 752 : 327;
-  const height = size === "xl" ? 260 : 220;
-  const pad = { top: 14, bottom: 14, left: size === "xl" ? 40 : 34 };
-  const axes = data.axes.length;
-  const pitch = (width - pad.left) / axes;
-  const x = (i: number) => pad.left + pitch * (i + 0.5);
-  const y = (v: number) =>
-    pad.top + (1 - Math.max(0, Math.min(1, v))) * (height - pad.top - pad.bottom);
-
-  return (
-    <div className="dld-parallel" style={{ maxWidth: width }}>
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        width={width}
-        height={height}
-        role="img"
-        aria-label={`${data.lines.length} agents across ${data.axes.map((a) => a.label).join(", ")}`}
-      >
-        <ellipse
-          className="dld-haze"
-          cx={(width + pad.left) / 2}
-          cy={height / 2}
-          rx={width * 0.34}
-          ry={height * 0.32}
-        />
-        {[0, 0.5, 1].map((t) => (
-          <g key={t}>
-            <line className="dld-gridline" x1={pad.left} x2={width} y1={f(y(t))} y2={f(y(t))} />
-            <text
-              x={pad.left - 8}
-              y={f(y(t))}
-              textAnchor="end"
-              dominantBaseline="middle"
-              className="dld-axis-label"
-            >
-              {`${Math.round(t * 100)}%`}
-            </text>
-          </g>
-        ))}
-        {data.axes.map((axis, i) => (
-          <line
-            key={axis.id}
-            className="dld-parallel-axis"
-            data-missing={axis.missing === null ? undefined : "true"}
-            x1={f(x(i))}
-            x2={f(x(i))}
-            y1={pad.top}
-            y2={height - pad.bottom}
-          />
-        ))}
-        {data.lines.map((line, i) =>
-          measuredRuns(line.values).map((run) => (
-            <polyline
-              key={`${line.id}-${run[0]?.[0] ?? 0}`}
-              className="dld-parallel-line"
-              style={{ "--d-tone": seriesTone(i) } as React.CSSProperties}
-              points={run.map(([axis, v]) => `${f(x(axis))},${f(y(v))}`).join(" ")}
-            >
-              <title>{line.label}</title>
-            </polyline>
-          )),
-        )}
-      </svg>
-      <ol
-        className="dld-parallel-axes"
-        style={{
-          gridTemplateColumns: `repeat(${axes}, minmax(0, 1fr))`,
-          paddingLeft: `${((pad.left / width) * 100).toFixed(3)}%`,
-        }}
-      >
-        {data.axes.map((axis) => (
-          <li key={axis.id} data-missing={axis.missing === null ? undefined : "true"}>
-            {axis.label}
-            {axis.missing === null ? null : <em>not measured</em>}
-          </li>
-        ))}
-      </ol>
-      <ul className="dld-key">
-        {data.lines.map((line, i) => (
-          <li key={line.id}>
-            <i style={{ background: seriesTone(i) }} />
-            {line.label}
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

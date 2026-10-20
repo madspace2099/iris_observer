@@ -772,7 +772,7 @@ const FEATURE_AXES: readonly {
   {
     id: "comparing",
     label: "Comparing",
-    note: "How many of their meetings put one apartment beside another in Compare. How long the comparison stayed open is not recorded.",
+    note: "How many of their meetings put one apartment beside another in Compare. How long the comparison stayed open is not recorded. The radar's Compare counts a meeting that reached the Compare section at all.",
     used: (s) => s.units.some((u) => u.comparedWith.length > 0),
     missing: null,
   },
@@ -841,25 +841,44 @@ export function buildFeatureUsage(
   locale: string,
   language: Language,
 ): FeatureUsage {
+  const profiles = presentersIn(sessions, language)
+    .filter((agent) => sessions.some((s) => s.agentId === agent.id))
+    .map((agent, seat) => {
+      const mine = sessions.filter((s) => s.agentId === agent.id);
+      const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
+      return {
+        id: agent.id,
+        label: agent.name,
+        /* The seat is counted over the same presenters the radar counts, so the colours match. */
+        tone: seatTone(seat),
+        meetings: mine.length,
+        values: FEATURE_AXES.map((axis) =>
+          axis.used === null ? null : share(mine.filter(axis.used).length, mine.length),
+        ),
+        belowMinimum,
+        note: belowMinimum ? suppressionNoteFor(mine.length, locale, "sentence", language) : null,
+      };
+    });
+  const drawn = profiles.filter((p) => !p.belowMinimum);
+  const notDrawn = profiles.filter((p) => p.belowMinimum).map((p) => p.label);
+  const floor = count(AGENT_MIN_SAMPLE, locale);
+  const measured = FEATURE_AXES.flatMap((axis, i) => (axis.used === null ? [] : [{ axis, i }]));
   return {
     axes: FEATURE_AXES.map(({ id, label, note, missing }) => ({ id, label, note, missing })),
-    profiles: presentersIn(sessions, language).flatMap((agent) => {
-      const mine = sessions.filter((s) => s.agentId === agent.id);
-      if (mine.length === 0) return [];
-      const belowMinimum = mine.length < AGENT_MIN_SAMPLE;
-      return [
-        {
-          id: agent.id,
-          label: agent.name,
-          meetings: mine.length,
-          values: FEATURE_AXES.map((axis) =>
-            axis.used === null ? null : share(mine.filter(axis.used).length, mine.length),
-          ),
-          belowMinimum,
-          note: belowMinimum ? suppressionNoteFor(mine.length, locale, "sentence", language) : null,
-        },
-      ];
-    }),
+    profiles,
+    summary: [
+      drawn.length === 0
+        ? `No agent reached ${floor} meetings in this period, so no line is drawn.`
+        : `${count(drawn.length, locale)} ${drawn.length === 1 ? "line" : "lines"}, one per agent, each the share of their meetings that used a tool at least once.`,
+      ...drawn.map(
+        (p) =>
+          `${p.label} · ${meetings(p.meetings, locale, language)}: ${AND.format(measured.map(({ axis, i }) => `${axis.label} ${percent(p.values[i] ?? 0, locale)}`))}.`,
+      ),
+      `Not measured: ${AND.format(FEATURE_AXES.filter((a) => a.used === null).map((a) => a.label))}.`,
+      ...(notDrawn.length === 0
+        ? []
+        : [`Not drawn, under ${floor} meetings: ${AND.format(notDrawn)}.`]),
+    ].join(" "),
   };
 }
 

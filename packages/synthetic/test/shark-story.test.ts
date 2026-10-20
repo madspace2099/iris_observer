@@ -78,6 +78,12 @@ describe("Shark Residence's agent colours", () => {
     ]);
   });
 
+  it("draw all five on the feature-use lines in the quarter, in the radar's colours", async () => {
+    const charts = await repo.getAgentCharts(SHARK);
+    const drawn = charts.featureUsage.profiles.filter((p) => !p.belowMinimum);
+    expect(drawn.map((p) => p.tone)).toEqual(charts.radar.profiles.map((p) => p.tone));
+  });
+
   it("name everyone not drawn in the last 28 days, where only Marek clears the floor", async () => {
     const charts = await repo.getAgentCharts({ ...SHARK, period: "last_28_days" });
     for (const name of ["Lena Fischer", "Oliver Grant", "Zsófia Bárány", "Iva Horváth"]) {

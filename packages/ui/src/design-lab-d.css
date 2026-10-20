@@ -1369,7 +1369,12 @@
   color: var(--d-ink-4);
 }
 
-/* --- parallel coordinates: 5px round lines, black lift, the kit's haze ----------- */
+/*
+ * --- parallel coordinates: 5px round lines, black lift ----------------------------
+ *
+ * The kit's pink haze behind the lines is not drawn: a blurred blob of colour
+ * is what the product's doctrine refuses (ADR-0041, amendment of 2026-10-20).
+ */
 
 .dld-parallel svg {
   display: block;
@@ -1377,25 +1382,19 @@
   height: auto;
 }
 
-.dld-root .dld-haze {
-  fill: #ff60dc;
-  opacity: 0.16;
-  filter: blur(40px);
-}
-
-.dld-root .dld-parallel-axis {
+:is(.dld-root, [data-charts="d"]) .dld-parallel-axis {
   stroke: var(--d-ink-4);
   stroke-opacity: 0.6;
   stroke-width: 1;
 }
 
 /* An axis the build cannot answer stands as a dashed rule, and no line crosses it. */
-.dld-root .dld-parallel-axis[data-missing="true"] {
+:is(.dld-root, [data-charts="d"]) .dld-parallel-axis[data-missing="true"] {
   stroke-dasharray: 2 5;
   stroke-opacity: 0.45;
 }
 
-.dld-root .dld-parallel-line {
+:is(.dld-root, [data-charts="d"]) .dld-parallel-line {
   fill: none;
   stroke: var(--d-tone);
   stroke-width: 5;
@@ -1425,7 +1424,7 @@
   align-content: start;
   gap: 2px;
   min-width: 0;
-  font-size: 11px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
@@ -1435,23 +1434,23 @@
 
 .dld-parallel-axes li em {
   font-family: var(--font-sans);
-  font-size: 10px;
+  font-size: 12px;
   font-style: normal;
   letter-spacing: 0.02em;
 }
 
 /*
- * On the phone's geometry ten names do not fit ten columns across, so each
- * stands on its end under its own axis, read upwards.
+ * On the phone's and the tablet's geometry ten names do not fit ten columns
+ * across, so each stands on its end under its own axis, read upwards.
  */
-.dld-size[data-size="l"] .dld-parallel-axes li {
+.dld-size:is([data-size="l"], [data-size="m"]) .dld-parallel-axes li {
   justify-items: end;
   writing-mode: vertical-rl;
   rotate: 180deg;
 }
 
 /* Stood on end, "not measured" would take a second column it does not have; the dashed axis and the list below say it. */
-.dld-size[data-size="l"] .dld-parallel-axes li em {
+.dld-size:is([data-size="l"], [data-size="m"]) .dld-parallel-axes li em {
   display: none;
 }
 

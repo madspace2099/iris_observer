@@ -444,6 +444,8 @@ export interface DParallelCard {
     readonly label: string;
     /** 0 to 1 on a measured axis; null on one the build cannot answer, which no line crosses. */
     readonly values: readonly (number | null)[];
+    /** The agent's seat colour, from the read model. */
+    readonly tone: string;
   }[];
   readonly withheld: readonly DWithheld[];
   /** Null when every eligible line is drawn. */
@@ -1063,6 +1065,7 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
     id: p.id,
     label: nameOf.get(p.id) ?? p.label,
     values: p.values,
+    tone: p.tone,
   }));
   const spread = measuredAxes.flatMap(({ axis, i }) => {
     const values = lines.flatMap((l) => {

@@ -109,19 +109,6 @@ export function DDefs() {
         {TINTS.map((tint) => (
           <TintSphere key={tint.id} {...tint} />
         ))}
-
-        {/* The parallel lines' own shadow: black, 2 down, 85%, as the kit sets every polyline. */}
-        <filter
-          id="dld-lift"
-          filterUnits="userSpaceOnUse"
-          x="-400"
-          y="-400"
-          width="1600"
-          height="1600"
-          colorInterpolationFilters="sRGB"
-        >
-          <feDropShadow dx="0" dy="2" stdDeviation="1" floodColor="#000000" floodOpacity="0.85" />
-        </filter>
       </defs>
     </svg>
   );
