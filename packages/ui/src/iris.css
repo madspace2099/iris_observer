@@ -159,7 +159,7 @@
  * and the block's own `--sv-step` and `--sv-total`. Each character is laid out
  * from the first paint and shown at its own delay, so nothing below moves; its
  * `::after` is the caret for exactly that step, and the last one blinks three
- * times and fades. The mark is the welcome's instrument at 52px (§12 of
+ * times and fades. The mark is the welcome's instrument at 56px (§12 of
  * `ask-iris.css`): hairline rings, a tick ring, one arc of the brand blue. It
  * speaks while the sentence types — the arc turns, a ring pings, five level
  * bars swing — and settles to a slow breathing ring. Transform and opacity
@@ -167,7 +167,7 @@
  */
 .iris-spoken {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr);
+  grid-template-columns: 56px minmax(0, 1fr);
   grid-template-areas:
     "mark by"
     "mark line";
@@ -234,8 +234,8 @@
 .iris-spoken-mark {
   grid-area: mark;
   display: block;
-  width: 52px;
-  height: 52px;
+  width: 56px;
+  height: 56px;
   overflow: visible;
 }
 
@@ -330,6 +330,11 @@
 
   .iris-spoken-by {
     align-self: center;
+  }
+
+  /* Past six lines Chrome stops balancing; `pretty` still keeps the last word company. */
+  .iris-spoken-line {
+    text-wrap: pretty;
   }
 }
 
