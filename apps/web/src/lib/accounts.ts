@@ -179,8 +179,10 @@ const DIRECTORY: readonly Account[] = Object.freeze([
   },
   /*
    * A member of Clara's company, so a recording can show what a member sees:
-   * Clara's capacity and grants under her own name, and the company key Clara
+   * Clara's static capacity under her own name, and the company key Clara
    * manages (ADR-0043). A second person on one capacity, not a new capacity.
+   * Grants made in MADSPACE administration follow the account id, so a
+   * project granted to Clara there is not Nora's until it is granted to her.
    */
   {
     accountId: "acct_nora",
@@ -323,7 +325,8 @@ export function accountById(accountId: string): Account | null {
 export async function viewerForAccount(account: Account): Promise<Viewer> {
   /*
    * The capacity is shared; the name is the account's. Two accounts on one
-   * capacity (Nora on Clara's) see the same grants and greet different people.
+   * capacity (Nora on Clara's) share its static tenants and projects and greet
+   * different people; administration grants follow the account id below.
    * ponytail: they also share the capacity's userId, so the Ask ceiling bucket
    * and audit subject are one; give Account its own userId when that matters.
    */

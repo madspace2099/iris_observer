@@ -41,14 +41,20 @@ machine.
    session, never the body's. Like ADR-0040, neither key consults the account's admission or budget
    ledger; the gate, ceilings, tool allowlist, guards and audit row are unchanged. The Ask composer
    names the model, and gives the Gate 1 notice, only where the route would spend a key: AI on, a
-   loopback request, a key present.
+   loopback request, a key present (`composerNotices`, unit-tested). The notice covers typed
+   questions and the live openings, which go to the same route; so do the dialog and the Settings
+   panel (`MODEL_WORDED`).
 4. **The popup.** After sign-in, `/welcome` shows the company's admin a dialog over the held welcome
-   sequence when the store is open and the company has no key: what the key is for and where it
-   lives, the Gate 1 sentence, an uncontrolled password field, Save key and Skip for now (a link to
-   the validated destination; Escape does the same). `?key=skip` plays the welcome without asking.
-   Members, and admins who skipped, see one line at the Ask composer saying the company has no key
-   and the answers come from the read models. `/settings/ai` carries the company key panel: the admin
-   connects, replaces and removes it; a member sees who manages it.
+   sequence when the store is open, the company has no key, and this request could spend one
+   (`demoKeysSpendable`: AI on, a loopback `Host`); a key asked for anywhere else would be probed,
+   paid for and never used. The dialog says what the key is for and where it lives, gives the Gate 1
+   sentence, an uncontrolled password field, Save key (disabled and saying so while the key is
+   checked) and Skip for now (a link to the validated destination; Escape does the same).
+   `?key=skip` plays the welcome without asking. Where no model answers at the Ask composer, members
+   and admins who skipped see one line saying the company has no key, or that its key is spent only
+   on localhost with the language model on. `/settings/ai` carries the company key panel: on a
+   spendable request the admin connects, replaces and removes it; elsewhere it reports the key and
+   says where it is spent; a member sees who manages it.
 5. **Where it is on.** `scripts/demo-start.mjs` sets `OBSERVER_DEMO_COMPANY_KEYS=1`. The browser
    suite blanks it (`playwright.config.ts`), so no admin's sign-in there meets the dialog.
 
@@ -61,6 +67,9 @@ machine.
   deployment markers, not a security boundary on its own.
 - The key is plaintext in process memory. The upgrade, when a company can own a row in the
   credential store, is to seal it with `envelope.ts` and delete this module in one piece;
-  `credentials.test.ts` names it as the one product file allowed on `globalThis` for that reason.
+  `credentials.test.ts` names it among the few product files allowed on `globalThis`, beside
+  `ai/limits.ts` and `sources/local-db.ts`, with this reason.
 - `Nora Lind` shares Clara's capacity, so she shares its user id: the Ask ceiling bucket and the
-  audit subject are Clara's. An account of her own is the fix when that matters.
+  audit subject are Clara's. She shares its static tenants and projects only: grants made in
+  MADSPACE administration follow the account id, so a project granted to Clara there is not Nora's.
+  An account of her own is the fix when that matters.
