@@ -14,22 +14,37 @@ import { signIn } from "./sign-in";
  * ink, which the earlier print block failed to give every child.
  */
 
-/** Relative luminance of the first opaque background at or above each match. */
+/* A dark ground; the graphite page is about 0.003, and white is 1. */
+const DARK = 0.05;
+
+/*
+ * Relative luminance of the first opaque background at or above each match.
+ * A light opaque stop in a background image counts as a light ground, and a
+ * walk that finds nothing opaque reports white: the browser's canvas, which
+ * is what a reader would see behind the text.
+ */
 async function groundsOf(page: Page, selector: string): Promise<number[]> {
-  return page.locator(selector).evaluateAll((elements) => {
+  return page.locator(selector).evaluateAll((elements, dark) => {
     const channel = (v: number) => {
       const c = v / 255;
       return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
     };
+    const lum = ([r = 0, g = 0, b = 0]: number[]) =>
+      0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
     const parse = (value: string) => (value.match(/[\d.]+/g) ?? []).map(Number);
     return elements.map((start) => {
       for (let el: Element | null = start; el !== null; el = el.parentElement) {
-        const [r = 0, g = 0, b = 0, a = 1] = parse(getComputedStyle(el).backgroundColor);
-        if (a > 0.5) return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+        const style = getComputedStyle(el);
+        for (const stop of style.backgroundImage.match(/rgba?\([^)]*\)/g) ?? []) {
+          const [r = 0, g = 0, b = 0, a = 1] = parse(stop);
+          if (a > 0.5 && lum([r, g, b]) >= dark) return lum([r, g, b]);
+        }
+        const [r = 0, g = 0, b = 0, a = 1] = parse(style.backgroundColor);
+        if (a > 0.5) return lum([r, g, b]);
       }
-      return 0;
+      return 1;
     });
-  });
+  }, DARK);
 }
 
 /** Relative luminance of each match's own text colour. */
@@ -47,9 +62,6 @@ async function inksOf(page: Page, selector: string): Promise<number[]> {
     });
   });
 }
-
-/* A dark ground; the graphite page is about 0.003, and white is 1. */
-const DARK = 0.05;
 
 test.describe("dark on screen", () => {
   test("the sign-in stands on a dark ground", async ({ page }) => {

@@ -2754,11 +2754,13 @@ button.mad-quiet {
 /* --- the scope band ------------------------------------------------------- */
 
 /*
- * Ink as a surface, for anything whose effect reaches past the current screen.
+ * A raised band, for anything whose effect reaches past the current screen.
  *
- * The surface change is the signal. It is not a warning and it is not styled
- * like one: it says "what follows is scoped wider than the page you are on",
- * names that scope in full words, and lists what it touches.
+ * The tint and the strongest edge are the signal. It is not a warning and it
+ * is not styled like one: it says "what follows is scoped wider than the page
+ * you are on", names that scope in full words, and lists what it touches. It
+ * was an ink fill; on graphite `--ink` is near-white, and the owner wants no
+ * light block on screen (ADR-0042).
  */
 .mad-scope-band {
   display: flex;
@@ -2766,9 +2768,9 @@ button.mad-quiet {
   gap: var(--rhythm-tight);
   padding: var(--rhythm-section) var(--rhythm-major);
   border-radius: var(--portal-radius);
-  background: var(--ink);
-  /* `--ink` is now light (ADR-0037); its opposite is `--text-inverse`, never a literal. */
-  color: var(--text-inverse);
+  border: 1px solid var(--border-hover);
+  background: var(--surface-tint);
+  color: var(--ink);
 }
 
 .mad-scope-band-kicker {
@@ -2776,7 +2778,7 @@ button.mad-quiet {
   letter-spacing: var(--track-micro);
   text-transform: uppercase;
   font-weight: var(--weight-semibold);
-  color: color-mix(in srgb, var(--text-inverse) 62%, transparent);
+  color: var(--ink-4);
 }
 
 .mad-scope-band-title {
@@ -2784,14 +2786,14 @@ button.mad-quiet {
   font-size: var(--text-heading-3);
   letter-spacing: var(--track-heading-3);
   font-weight: var(--weight-medium);
-  color: var(--text-inverse);
+  color: var(--ink);
 }
 
 .mad-scope-band-detail {
   margin: 0;
   font-size: var(--text-body);
   line-height: var(--lh-body);
-  color: color-mix(in srgb, var(--text-inverse) 78%, transparent);
+  color: var(--ink-2);
 }
 
 /* --- type, restated on the portal's scale --------------------------------- */

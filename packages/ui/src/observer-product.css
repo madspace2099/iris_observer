@@ -23,7 +23,8 @@
  * dark background, not white"), so ADR-0042 keeps the class names, the
  * `.ox-plate.ox-paper` markup and the paper values, and moves the values under
  * `@media print`, the precedent `madspace.css` set for ADR-0037. On screen
- * `.ox-paper` declares no token and a plate inherits the graphite around it.
+ * `.ox-paper` declares no `--ox-` token, only the chart-bridge names it shares
+ * with `.ox-graphite` (3b), which resolve to the graphite it inherits.
  *
  * Every rule below is written against the NAMES rather than against a colour,
  * so one component renders correctly on screen and on paper with no variant
@@ -1892,7 +1893,10 @@
   margin-left: -3.5px;
   border-radius: var(--ox-round);
   background: var(--ox-ink-3);
-  box-shadow: 0 0 0 3px var(--ox-panel);
+  /* A knock-out ring needs an opaque ground: on screen the graphite
+   * `--ox-panel` is a 5% lift the spine would show through. Print restores
+   * the paper panel below. */
+  box-shadow: 0 0 0 3px var(--iris-ground);
 }
 
 .ox-time-step[data-channel="webiris"] .ox-time-spine::before {
@@ -2981,5 +2985,9 @@
   .ox-report a {
     color: inherit;
     text-decoration: none;
+  }
+
+  .ox-time-spine::before {
+    box-shadow: 0 0 0 3px var(--ox-panel);
   }
 }
