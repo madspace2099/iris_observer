@@ -429,6 +429,22 @@ describe("the tools state each figure's own denominator", () => {
     expect(result.draft).not.toMatch(/most often|least/);
   });
 
+  it("names whoever shares the top share beside the presenter called most", async () => {
+    const original = repository.getAgentsView.bind(repository);
+    vi.spyOn(repository, "getAgentsView").mockImplementation(async (q) => {
+      const view = await original(q);
+      return {
+        ...view,
+        agents: view.agents.map((a, i) => ({
+          ...a,
+          ring: { ...a.ring, progressedShare: i < 2 ? 0.8 : 0.3 + i * 0.05 },
+        })),
+      };
+    });
+    const result = await run("compare_agent_outcomes");
+    expect(result.draft).toMatch(/most often \(80% of \d+ with an outcome, level with [^)]+\)/);
+  });
+
   it("states the cohorts and the placed sales against their totals", async () => {
     const cohorts = await run("compare_meeting_cohorts");
     for (const label of ["Progressed further", "Did not progress"]) {
@@ -440,6 +456,9 @@ describe("the tools state each figure's own denominator", () => {
       const fact = sales.facts.find((f) => f.label === label);
       expect(fact?.value).toMatch(new RegExp(`^\\d+ of ${sales.sampleSize} dated sales$`));
     }
+    /* The unplaced sales are counted beside the dated ones, so against both together. */
+    const unplaced = sales.facts.find((f) => f.label === "Sales that cannot be placed");
+    if (unplaced !== undefined) expect(unplaced.value).toMatch(/^\d+ of \d+ sales$/);
     /* Asked beside unit attention, the sales are said to be the project's, not a unit's. */
     expect(sales.caveats.join(" ")).toMatch(/whole project's dated sales/);
   });

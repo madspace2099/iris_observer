@@ -1335,7 +1335,8 @@ export async function* askStream(
 
   /* --- stage 4: compose, in a shape that can be checked --------------------- */
 
-  yield { type: "stage", label: "Checking the evidence behind it" };
+  /* Active in the trace while the model writes: the checks run on what it wrote. */
+  yield { type: "stage", label: "Wording the answer and checking its figures" };
 
   /*
    * Answer every call the model made, by the id it used.

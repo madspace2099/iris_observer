@@ -458,6 +458,13 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
       right: bottom.agentId,
     });
     const c = flows.comparison;
+    /* Anyone at the same printed share as an end shares its place, and is named beside it. */
+    const level = (a: (typeof ranked)[number]) => {
+      const peers = ranked
+        .filter((o) => o !== a && pct(o.ring.progressedShare) === pct(a.ring.progressedShare))
+        .map((o) => o.name);
+      return peers.length === 0 ? "" : `, level with ${peers.join(" and ")}`;
+    };
     const differences = c === null || c.verdictRefusal !== null ? [] : c.differences.slice(0, 3);
     const first = differences[0];
     const how =
@@ -498,7 +505,7 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
         href: `${root(context)}/presentation?mode=agents&left=${top.agentId}&right=${bottom.agentId}`,
       },
       draft:
-        `Of the ${ranked.length} presenters with enough recorded outcomes, ${top.name}'s meetings progressed most often (${pct(top.ring.progressedShare)} of ${top.ring.decidedMeetings} with an outcome) and ${bottom.name}'s least (${pct(bottom.ring.progressedShare)} of ${bottom.ring.decidedMeetings}). ${how}`.trim(),
+        `Of the ${ranked.length} presenters with enough recorded outcomes, ${top.name}'s meetings progressed most often (${pct(top.ring.progressedShare)} of ${top.ring.decidedMeetings} with an outcome${level(top)}) and ${bottom.name}'s least (${pct(bottom.ring.progressedShare)} of ${bottom.ring.decidedMeetings}${level(bottom)}). ${how}`.trim(),
     };
   },
 };
