@@ -77,6 +77,12 @@ export interface Account {
   readonly displayName: string;
   /** The capacity this account holds. Resolved here; never sent to the client. */
   readonly viewerKey: ViewerKey;
+  /**
+   * The account's standing inside its company (ADR-0043). A company is the
+   * capacity's `organisationName`; each has exactly one admin, who holds the
+   * company's OpenAI key on a local demonstration. Never a product role.
+   */
+  readonly companyRole: "admin" | "member";
 }
 
 /**
@@ -99,18 +105,21 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     email: "petra.novak@alpha-estates.example",
     displayName: VIEWERS.developer.displayName,
     viewerKey: "developer",
+    companyRole: "admin",
   },
   {
     accountId: "acct_tomas",
     email: "tomas.varga@meridian-sales.example",
     displayName: VIEWERS.agencyManager.displayName,
     viewerKey: "agencyManager",
+    companyRole: "admin",
   },
   {
     accountId: "acct_monika",
     email: "monika.kovacova@meridian-sales.example",
     displayName: VIEWERS.salesAgent.displayName,
     viewerKey: "salesAgent",
+    companyRole: "member",
   },
   /*
    * The same role as Monika, and a different answer, which is the point.
@@ -124,6 +133,7 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     email: "akhilesh.undev@meridian-sales.example",
     displayName: VIEWERS.salesAgentDual.displayName,
     viewerKey: "salesAgentDual",
+    companyRole: "member",
   },
   /*
    * The third sales agent, and the one the flagship project is reviewed
@@ -140,12 +150,14 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     email: "martin.kovac@meridian-sales.example",
     displayName: VIEWERS.salesAgentIster.displayName,
     viewerKey: "salesAgentIster",
+    companyRole: "member",
   },
   {
     accountId: "acct_madspace",
     email: "operations@madspace.example",
     displayName: VIEWERS.madspace.displayName,
     viewerKey: "madspace",
+    companyRole: "admin",
   },
   /*
    * Shark Residence, the demonstration project: its developer and the manager
@@ -156,12 +168,26 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     email: "clara.weiss@shark-developments.example",
     displayName: VIEWERS.developerShark.displayName,
     viewerKey: "developerShark",
+    companyRole: "admin",
   },
   {
     accountId: "acct_daniel",
     email: "daniel.hart@shark-sales.example",
     displayName: VIEWERS.managerShark.displayName,
     viewerKey: "managerShark",
+    companyRole: "admin",
+  },
+  /*
+   * A member of Clara's company, so a recording can show what a member sees:
+   * Clara's capacity and grants under her own name, and the company key Clara
+   * manages (ADR-0043). A second person on one capacity, not a new capacity.
+   */
+  {
+    accountId: "acct_nora",
+    email: "nora.lind@shark-developments.example",
+    displayName: "Nora Lind",
+    viewerKey: "developerShark",
+    companyRole: "member",
   },
 ]);
 
@@ -295,7 +321,36 @@ export function accountById(accountId: string): Account | null {
  * answer to "what may this account see" and it is computed on the server.
  */
 export async function viewerForAccount(account: Account): Promise<Viewer> {
-  return withDirectoryGrants(account.accountId, VIEWERS[account.viewerKey]);
+  /*
+   * The capacity is shared; the name is the account's. Two accounts on one
+   * capacity (Nora on Clara's) see the same grants and greet different people.
+   * ponytail: they also share the capacity's userId, so the Ask ceiling bucket
+   * and audit subject are one; give Account its own userId when that matters.
+   */
+  return withDirectoryGrants(account.accountId, {
+    ...VIEWERS[account.viewerKey],
+    displayName: account.displayName,
+  });
+}
+
+/** An account's company, its standing in it, and who holds the company's key. */
+export interface Company {
+  readonly name: string;
+  readonly role: Account["companyRole"];
+  readonly adminName: string;
+}
+
+/**
+ * The company an account belongs to (ADR-0043): the capacity's organisation.
+ * Every organisation has exactly one admin (`accounts.test.ts`); the name
+ * stands in for one only if that test is ever broken.
+ */
+export function companyOf(account: Account): Company {
+  const name = VIEWERS[account.viewerKey].organisationName;
+  const admin = DIRECTORY.find(
+    (a) => a.companyRole === "admin" && VIEWERS[a.viewerKey].organisationName === name,
+  );
+  return { name, role: account.companyRole, adminName: admin?.displayName ?? name };
 }
 
 /**
@@ -357,6 +412,8 @@ export interface DirectoryPerson {
   readonly email: string;
   readonly roleWord: string;
   readonly organisation: string;
+  /** "Admin" or "Member" of that organisation (ADR-0043). */
+  readonly companyRoleWord: "Admin" | "Member";
   readonly projects: readonly string[];
 }
 
@@ -421,6 +478,7 @@ export function directoryView(): DirectoryView {
     email: account.email,
     roleWord: ROLE_WORDS[viewer.role],
     organisation: viewer.organisationName,
+    companyRoleWord: account.companyRole === "admin" ? "Admin" : "Member",
     projects: viewer.projectIds.map(projectName),
   }));
 

@@ -114,3 +114,40 @@ describe("login attempt throttling", () => {
     }
   });
 });
+
+/**
+ * COMPANIES (ADR-0043).
+ *
+ * A company is the capacity's organisation, and each one has exactly one admin:
+ * the admin holds the company's key on a local demonstration and every member
+ * names that person when the key is missing. Zero admins would leave a company
+ * nobody can connect; two would leave the key's owner ambiguous.
+ */
+describe("company roles", () => {
+  it("gives every organisation exactly one admin", async () => {
+    const { directoryView } = await import("../src/lib/accounts");
+    const admins = new Map<string, number>();
+    for (const person of directoryView().people) {
+      admins.set(
+        person.organisation,
+        (admins.get(person.organisation) ?? 0) + (person.companyRoleWord === "Admin" ? 1 : 0),
+      );
+    }
+    for (const [organisation, count] of admins) expect(count, organisation).toBe(1);
+  });
+
+  it("names the admin for a member, under the member's own name", async () => {
+    const { accountById, companyOf, viewerForAccount } = await import("../src/lib/accounts");
+    const nora = accountById("acct_nora");
+    expect(nora).not.toBeNull();
+    if (nora === null) return;
+    expect(companyOf(nora)).toEqual({
+      name: "Shark Developments",
+      role: "member",
+      adminName: "Clara Weiss",
+    });
+    expect((await viewerForAccount(nora)).displayName).toBe("Nora Lind");
+    const monika = accountById("acct_monika");
+    if (monika !== null) expect(companyOf(monika).adminName).toBe("Tomáš Varga");
+  });
+});
