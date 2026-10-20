@@ -4,7 +4,6 @@ import type { Language, ReportScope, ReportScopeView, ReportSection } from "@obs
 
 import { Synthetic } from "@/components/product";
 import { LANGUAGE_NAMES } from "@/lib/language";
-import { periodRange } from "./figures";
 import { AGENT_REPORT_WORDS, REPORT_DOCUMENT_WORDS, REPORT_WORDS } from "./words";
 
 /**
@@ -86,11 +85,16 @@ function IrisMark() {
  * printed page after it), and says what the document is, whose, over which
  * days, in which language, for whom — "internal", ADR-0018 — and when it was
  * produced, then the verdict and the figures the page passed in.
+ *
+ * The period is its label alone: the bounds are the CSV's, and on the cover
+ * they set an exclusive end beside meetings the read model counts after it.
+ * A meeting's cover names no period at all — its title is the meeting's date.
  */
 export function ReportCover({
   report,
   subject,
   verdict,
+  verdictBase = null,
   figures,
   language,
 }: {
@@ -99,6 +103,11 @@ export function ReportCover({
   readonly subject: string;
   /** The sentence the screen's head states, as the read model wrote it. Null where it states none. */
   readonly verdict: string | null;
+  /**
+   * The meetings the verdict was read from, in words, where they are not the
+   * period's own (Sales Flow's `verdictMeetings`, ADR-0048). Never computed here.
+   */
+  readonly verdictBase?: string | null;
   readonly figures: readonly CoverFigure[];
   readonly language: Language;
 }) {
@@ -126,6 +135,9 @@ export function ReportCover({
           {subject}
         </h1>
         {verdict === null ? null : <p className="ox-cover-verdict">{verdict}</p>}
+        {verdict === null || verdictBase === null ? null : (
+          <p className="ox-cover-verdict-base">{verdictBase}</p>
+        )}
         {figures.length === 0 ? null : (
           <dl className="ox-cover-figures">
             {figures.map((figure) => (
@@ -143,13 +155,14 @@ export function ReportCover({
           <dt>{words.project}</dt>
           <dd>{project.name}</dd>
         </div>
-        <div>
-          <dt>{words.period}</dt>
-          <dd>
-            <span className="ox-cover-period">{report.periodLabel}</span>
-            <span className="ox-cover-range">{periodRange(report.context)}</span>
-          </dd>
-        </div>
+        {report.scope.kind === "meeting" ? null : (
+          <div>
+            <dt>{words.period}</dt>
+            <dd>
+              <span className="ox-cover-period">{report.periodLabel}</span>
+            </dd>
+          </div>
+        )}
         <div>
           <dt>{words.language}</dt>
           <dd>{LANGUAGE_NAMES[language]}</dd>

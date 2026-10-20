@@ -83,9 +83,9 @@ import { ReportPlane } from "./ReportPlane";
  *
  * What the screen has and this page does not is stated by the manifest, in
  * the presentation section's reason, and not silently: the week-by-week
- * series and the reading guide (the ring's slices print as one bar). The audience is
- * internal, like the rest of the report; a buyer-facing document is a
- * separate contract (ADR-0018) and none of this is it.
+ * series and the reading guide (the ring's slices print as one bar). The
+ * audience is internal, like the rest of the report; a buyer-facing document
+ * is a separate contract (ADR-0018) and none of this is it.
  *
  * The page's own words are `AGENT_REPORT_WORDS`, in the language the export
  * dialog chose; the read model writes the rest in the same language.
@@ -499,12 +499,25 @@ export async function AgentReport({
     "evidence-appendix": [words.appendixCaption],
   };
 
-  /* The cover's figures are the activity the summary opens with, each with its own base. */
-  const figures: readonly CoverFigure[] = view.activity.slice(0, 4).map((metric) => ({
-    key: metric.metricId,
-    label: metric.label,
-    value: <Figure value={metric} language={language} />,
-  }));
+  /*
+   * The cover's figures are the summary's headline across its sections, each
+   * with its own base: the presentations it is drawn from and how far those
+   * meetings reached — an outcome recorded, and progressed of recorded. Not
+   * section 01's row again, which the next page prints in full.
+   */
+  const reached = (id: string) => view.funnel.find((step) => step.metric.metricId === id)?.metric;
+  const figures: readonly CoverFigure[] = [
+    view.activity.find((metric) => metric.metricId === "agent.meetings"),
+    view.activity.find((metric) => metric.metricId === "agent.units"),
+    reached("agent.funnel.recorded"),
+    reached("agent.funnel.progressed"),
+  ]
+    .filter((metric) => metric !== undefined)
+    .map((metric) => ({
+      key: metric.metricId,
+      label: metric.label,
+      value: <Figure value={metric} language={language} />,
+    }));
   const answer = agentAnswer(view, language);
 
   return (

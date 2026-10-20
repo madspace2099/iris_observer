@@ -3403,6 +3403,15 @@
     color: var(--ox-ink-2);
   }
 
+  /* The verdict's own base, where it is not the period's meetings (ADR-0048). */
+  .ox-cover-verdict-base {
+    margin: 0;
+    font-size: 0.75rem;
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    color: var(--ox-ink-3);
+  }
+
   .ox-cover-figures {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3448,9 +3457,9 @@
   }
 
   .ox-cover-statement {
-    font-size: 1rem;
+    font-size: 1.5rem;
     font-weight: var(--weight-semibold);
-    line-height: 1.35;
+    line-height: 1.2;
     color: var(--ox-ink);
   }
 
@@ -3488,7 +3497,6 @@
     color: var(--ox-ink);
   }
 
-  .ox-cover-range,
   .ox-cover-marker {
     font-size: 0.75rem;
     color: var(--ox-ink-3);

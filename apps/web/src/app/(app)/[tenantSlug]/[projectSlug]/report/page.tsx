@@ -428,7 +428,8 @@ async function ProjectReport({
    * The cover's figures, each a field the page already reads with the base it
    * stands on: the meetings in the period, the ones the source could time, the
    * team's progression as Sales Flow writes it, and the meetings nobody
-   * recorded an outcome for.
+   * recorded an outcome for. The team's figure names its window, because the
+   * verdict above it may compare two recency buckets rather than the period.
    */
   const { ofMeetings } = AGENT_REPORT_WORDS[language];
   const unrecorded = flow.outcomes.find((slice) => slice.outcome === "skipped");
@@ -445,7 +446,7 @@ async function ProjectReport({
     },
     {
       key: "team",
-      label: REPORT_DOCUMENT_WORDS[language].team,
+      label: `${REPORT_DOCUMENT_WORDS[language].team} · ${report.periodLabel}`,
       value: (
         <span className="ox-value">
           <span className="ox-cover-statement">{flow.team.display}</span>
@@ -494,6 +495,7 @@ async function ProjectReport({
           report={report}
           subject={report.context.project.name}
           verdict={flow.verdict}
+          verdictBase={REPORT_DOCUMENT_WORDS[language].readFrom(flow.verdictMeetings)}
           figures={figures}
           language={language}
         />
@@ -633,16 +635,17 @@ async function MeetingReport({
     "meeting-summary": replay.gaps.length === 0 ? [] : [replay.gaps.join(" ")],
     "evidence-appendix": [words.sessionCaption],
   };
-  /* The cover's figures are the summary's own four facts, as the replay states them. */
+  /*
+   * The cover's figures are the summary's facts its title does not already
+   * state (the title is the start and the presenter), as the replay states them.
+   */
   const fact = (text: string) => (
     <span className="ox-value">
       <span className="ox-cover-statement">{text}</span>
     </span>
   );
   const figures: readonly CoverFigure[] = [
-    { key: "started", label: words.started, value: fact(replay.startedDisplay) },
     { key: "length", label: words.length, value: fact(replay.durationDisplay) },
-    { key: "agent", label: words.presentedBy, value: fact(replay.agentName) },
     { key: "outcome", label: words.recordedOutcome, value: fact(replay.outcomeLabel) },
   ];
   return (
@@ -686,7 +689,6 @@ async function MeetingReport({
         report.context.project.name,
         documentKind("meeting", language),
         replay.startedDisplay,
-        report.periodLabel,
       ]}
       statement={words.audience}
     >

@@ -269,6 +269,8 @@ export interface ReportDocumentWords {
   readonly timedEndToEnd: string;
   /** The project cover: the team's progression, as Sales Flow states it. */
   readonly team: string;
+  /** Under the project cover's verdict: the meetings Sales Flow read it from. */
+  readonly readFrom: (meetings: number) => string;
   /** The outcome chart's name to a screen reader: the shape, not a figure. */
   readonly outcomeChart: string;
 }
@@ -286,6 +288,7 @@ export const REPORT_DOCUMENT_WORDS: Readonly<Record<Language, ReportDocumentWord
       "The notes behind each section, numbered as the sections are: what a table counts, what it leaves out, and why.",
     timedEndToEnd: "Timed end to end",
     team: "The team",
+    readFrom: (n) => `Read from ${String(n)} ${n === 1 ? "meeting" : "meetings"}`,
     outcomeChart: "How the meetings ended, as parts of one whole",
   },
   sk: {
@@ -300,6 +303,7 @@ export const REPORT_DOCUMENT_WORDS: Readonly<Record<Language, ReportDocumentWord
       "Poznámky k jednotlivým sekciám, očíslované rovnako ako sekcie: čo tabuľka počíta, čo vynecháva a prečo.",
     timedEndToEnd: "S meraným časom od začiatku do konca",
     team: "Tím",
+    readFrom: (n) => `Na základe ${String(n)} ${n === 1 ? "stretnutia" : "stretnutí"}`,
     outcomeChart: "Ako sa stretnutia skončili, ako časti jedného celku",
   },
   hu: {
@@ -314,6 +318,7 @@ export const REPORT_DOCUMENT_WORDS: Readonly<Record<Language, ReportDocumentWord
       "Az egyes szakaszokhoz tartozó megjegyzések, a szakaszokkal azonos számozással: mit számol egy táblázat, mit hagy ki, és miért.",
     timedEndToEnd: "Elejétől végéig mért idejű",
     team: "A csapat",
+    readFrom: (n) => `${String(n)} találkozó alapján`,
     outcomeChart: "Hogyan zárultak a találkozók, egy egész részeiként",
   },
 };

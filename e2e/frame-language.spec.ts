@@ -420,6 +420,8 @@ for (const reading of READINGS) {
  * would sit above the full-bleed cover) no longer prints. Measured rather than
  * inferred: on every report, in each language, the cover's period is visible
  * on paper and is the word table's label for the period the address asks for.
+ * A meeting summary's cover names no period: its title is the meeting's date,
+ * and the window the address happens to carry says nothing about one meeting.
  */
 test("a printed report names its period in the report's language", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "the report's words do not vary with width");
@@ -439,6 +441,10 @@ test("a printed report names its period in the report's language", async ({ page
       await page.goto(withLanguage(path, language), { waitUntil: "networkidle" });
       await page.emulateMedia({ media: "print" });
       const value = page.locator(".ox-cover .ox-cover-period");
+      if (path.includes("meeting=")) {
+        await expect(value, `${key} ${language}: a meeting prints no period`).toHaveCount(0);
+        continue;
+      }
       await expect(value, `${key} ${language}: the period prints`).toBeVisible();
       await expect(value, `${key} ${language}`).toHaveText(
         readmodelWords.PERIOD_WORDS[language][period(path)].label,

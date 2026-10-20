@@ -7,7 +7,7 @@ import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 
 import { agentAnswer } from "@/components/agents/answer";
 import { cssString } from "@/components/report/ReportDocument";
-import { AGENT_REPORT_WORDS, REPORT_WORDS } from "@/components/report/words";
+import { AGENT_REPORT_WORDS, REPORT_DOCUMENT_WORDS, REPORT_WORDS } from "@/components/report/words";
 
 /**
  * THE PRINTED REPORT IS A DOCUMENT, AND ITS COVER IS THE READ MODEL'S (ADR-0049).
@@ -116,8 +116,18 @@ describe("the agent summary, as printed", async () => {
       `<h1 class="ox-cover-title" id="report-cover-title">${esc(view.name)}</h1>`,
     );
 
-    const figures = view.activity.slice(0, 4);
-    expect(figures.length, "the summary opens with its activity").toBeGreaterThanOrEqual(3);
+    /* The headline across the sections, not section 01's row again. */
+    const figures = [
+      ...view.activity.filter(
+        (m) => m.metricId === "agent.meetings" || m.metricId === "agent.units",
+      ),
+      ...view.funnel
+        .map((step) => step.metric)
+        .filter(
+          (m) => m.metricId === "agent.funnel.recorded" || m.metricId === "agent.funnel.progressed",
+        ),
+    ];
+    expect(figures.length, "the fixture has all four").toBe(4);
     expect(cover.split('<div class="ox-cover-figure"').length - 1).toBe(figures.length);
     for (const metric of figures) {
       expect(cover).toContain(`<dt>${esc(metric.label)}</dt>`);
@@ -129,8 +139,10 @@ describe("the agent summary, as printed", async () => {
         );
       }
     }
-    expect(cover).toContain(esc(report.periodLabel));
+    expect(cover).toContain(`<span class="ox-cover-period">${esc(report.periodLabel)}</span>`);
     expect(cover).toContain("Belső használatra — vevőknek nem");
+    /* The label alone: the bounds' exclusive end sat beside meetings counted after it. */
+    expect(cover).not.toContain("ox-cover-range");
   });
 
   it("numbers every section, in the manifest's order, in the headings and the contents", () => {
@@ -224,6 +236,11 @@ describe("the project report, as printed", async () => {
   it("carries Sales Flow's verdict and the figures the page reads, each with its base", () => {
     const cover = coverOf(html);
     expect(cover).toContain(`<p class="ox-cover-verdict">${esc(flow.verdict)}</p>`);
+    /* The verdict's own base, which on a running period is two buckets, not the period. */
+    expect(cover).toContain(
+      `<p class="ox-cover-verdict-base">${esc(REPORT_DOCUMENT_WORDS.en.readFrom(flow.verdictMeetings))}</p>`,
+    );
+    expect(cover).toContain(`<dt>The team · ${esc(flow.context.period.label)}</dt>`);
     expect(cover).toContain(
       `<span class="ox-figure">${String(flow.meetingCount)}</span><span class="ox-of">`,
     );
@@ -270,17 +287,22 @@ describe("the meeting summary, as printed", async () => {
   const html = await render({ meeting: meetingId, lang: "en" });
   const replay = await repo.getMeetingReplay({ ...query("en"), meetingId: meetingId as never });
 
-  it("carries the replay's headline and its four facts on the cover", () => {
+  it("carries the replay's headline and the facts its title does not state", () => {
     const cover = coverOf(html);
     expect(cover).toContain(`<p class="ox-cover-verdict">${esc(replay.headline)}</p>`);
-    for (const fact of [
-      replay.startedDisplay,
-      replay.durationDisplay,
-      replay.agentName,
-      replay.outcomeLabel,
-    ]) {
-      expect(cover).toContain(`<span class="ox-cover-statement">${esc(fact)}</span>`);
-    }
+    const statements = [...cover.matchAll(/<span class="ox-cover-statement">([^<]*)<\/span>/g)];
+    expect(statements.map((m) => m[1])).toEqual([
+      esc(replay.durationDisplay),
+      esc(replay.outcomeLabel),
+    ]);
+  });
+
+  it("names the meeting's date, not a period, on the cover and in the footer", () => {
+    expect(coverOf(html)).not.toContain("ox-cover-period");
+    const footer = ["IRIS Observer", "Shark Residence", "Meeting summary", replay.startedDisplay];
+    expect(html).toContain(
+      `@page report { @bottom-left { content: ${cssString(footer.join(" · "))}; } }`,
+    );
   });
 });
 
