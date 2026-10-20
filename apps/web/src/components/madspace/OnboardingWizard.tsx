@@ -403,12 +403,16 @@ export function OnboardingWizard({
             </div>
             <div className="mad-field">
               <label className="mad-field-label" htmlFor={id("client")}>
-                Client ID <span className="mad-wizard-required">*</span>
+                Client ID{" "}
+                <span className="mad-wizard-required" aria-hidden="true">
+                  *
+                </span>
               </label>
               <div className="mad-wizard-inline">
                 <input
                   className="mad-input mad-wizard-mono"
                   id={id("client")}
+                  required
                   type="text"
                   value={client}
                   placeholder="e.g. client-001"
@@ -461,11 +465,15 @@ export function OnboardingWizard({
             </div>
             <div className="mad-field">
               <label className="mad-field-label" htmlFor={id("project")}>
-                Project name <span className="mad-wizard-required">*</span>
+                Project name{" "}
+                <span className="mad-wizard-required" aria-hidden="true">
+                  *
+                </span>
               </label>
               <input
                 className="mad-input"
                 id={id("project")}
+                required
                 type="text"
                 value={projectName}
                 placeholder="e.g. Ister Tower"
@@ -480,11 +488,15 @@ export function OnboardingWizard({
             </div>
             <div className="mad-field">
               <label className="mad-field-label" htmlFor={id("domain")}>
-                Domain <span className="mad-wizard-required">*</span>
+                Domain{" "}
+                <span className="mad-wizard-required" aria-hidden="true">
+                  *
+                </span>
               </label>
               <input
                 className="mad-input mad-wizard-mono"
                 id={id("domain")}
+                required
                 type="text"
                 value={domain}
                 placeholder="ister-tower"
@@ -505,11 +517,15 @@ export function OnboardingWizard({
             <div className="mad-wizard-row">
               <div className="mad-field">
                 <label className="mad-field-label" htmlFor={id("currency")}>
-                  Currency <span className="mad-wizard-required">*</span>
+                  Currency{" "}
+                  <span className="mad-wizard-required" aria-hidden="true">
+                    *
+                  </span>
                 </label>
                 <select
                   className="mad-input"
                   id={id("currency")}
+                  required
                   value={currency}
                   onChange={(event) => setCurrency(event.target.value)}
                   {...invalid("currency")}
@@ -570,11 +586,15 @@ export function OnboardingWizard({
             </div>
             <div className="mad-field">
               <label className="mad-field-label" htmlFor={id("source")}>
-                Source name <span className="mad-wizard-required">*</span>
+                Source name{" "}
+                <span className="mad-wizard-required" aria-hidden="true">
+                  *
+                </span>
               </label>
               <input
                 className="mad-input"
                 id={id("source")}
+                required
                 type="text"
                 value={sourceLabel}
                 placeholder="e.g. Main PC, Kiosk 1"
@@ -599,7 +619,10 @@ export function OnboardingWizard({
             </div>
             <fieldset className="mad-fieldset">
               <legend className="mad-field-label">
-                Environment <span className="mad-wizard-required">*</span>
+                Environment{" "}
+                <span className="mad-wizard-required" aria-hidden="true">
+                  *
+                </span>
               </legend>
               <p className="mad-field-hint">
                 Authoritative for every event this machine sends. A build that reports another one
@@ -610,6 +633,7 @@ export function OnboardingWizard({
                   <label key={choice.value} className="mad-wizard-pill" data-radio="">
                     <input
                       type="radio"
+                      required
                       name={id("environment")}
                       id={
                         choice.value === ENVIRONMENT_CHOICES[0].value

@@ -3714,3 +3714,395 @@ button.mad-quiet {
   font-size: var(--text-value);
   color: var(--ink);
 }
+
+/* ============================================================================
+ * THE ONBOARDING WIZARD (ADR-0044)
+ *
+ * Akhilesh's "Client & Engine Onboarding" modal, as the page's main panel:
+ * centred at his 620px, on this surface's graphite tokens. IRIS blue, solid,
+ * marks the step in hand; the good state marks a step done. His gradients,
+ * glows and pulsing dots are not ported, and the panel carries no shadow
+ * because it does not float: it is the page.
+ * ========================================================================= */
+
+.mad-wizard {
+  width: 100%;
+  max-width: 38.75rem;
+  margin: var(--rhythm-major) auto;
+  border: 1px solid var(--border-panel);
+  border-radius: var(--portal-radius);
+  background: var(--surface-card);
+  color: var(--ink-2);
+  overflow: hidden;
+}
+
+.mad-wizard-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--rhythm-inner);
+  padding: var(--rhythm-section);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.mad-wizard-title {
+  margin: 0;
+  font-size: var(--text-value);
+  line-height: 1.25;
+  font-weight: 700;
+  letter-spacing: var(--track-heading-3);
+  color: var(--ink);
+}
+
+.mad-wizard-sub {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-caption);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
+.mad-wizard-close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--ink-3);
+  font-size: 1.375rem;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.mad-wizard-close:hover {
+  border-color: var(--border-field);
+  background: var(--surface-tint);
+  color: var(--ink);
+}
+
+/* --- the stepper: a track per step, so it wraps to two rows on a phone --- */
+
+.mad-wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.25rem, 1fr));
+  gap: var(--rhythm-inner);
+  margin: 0;
+  padding: var(--rhythm-inner) var(--rhythm-section);
+  list-style: none;
+  background: var(--surface-inset);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.mad-wizard-step {
+  padding-top: var(--rhythm-tight);
+  border-top: 2px solid var(--border-line);
+}
+
+.mad-wizard-step[data-state="active"] {
+  border-top-color: var(--iris-accent);
+}
+
+.mad-wizard-step[data-state="done"] {
+  border-top-color: var(--state-good-mark);
+}
+
+.mad-wizard-step > span,
+.mad-wizard-step > button {
+  display: flex;
+  align-items: center;
+  gap: var(--rhythm-tight);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+.mad-wizard-step > button {
+  cursor: pointer;
+}
+
+.mad-wizard-step > button:hover .mad-wizard-step-title {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.mad-wizard-num {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius-sm);
+  background: var(--surface-card);
+  color: var(--ink-3);
+  font-family: var(--mad-font-mono);
+  font-size: var(--text-micro);
+  font-weight: 700;
+}
+
+.mad-wizard-step[data-state="active"] .mad-wizard-num {
+  border-color: var(--iris-accent);
+  background: var(--iris-accent);
+  color: var(--text-inverse);
+}
+
+.mad-wizard-step[data-state="done"] .mad-wizard-num {
+  border-color: var(--state-good-mark);
+  background: var(--state-good-mark);
+  color: var(--text-inverse);
+}
+
+.mad-wizard-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mad-wizard-step-title {
+  font-size: var(--text-caption);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.mad-wizard-step[data-state="todo"] .mad-wizard-step-title {
+  color: var(--ink-3);
+}
+
+.mad-wizard-step-sub {
+  font-size: var(--text-micro);
+  line-height: 1.35;
+  color: var(--ink-4);
+}
+
+/* --- the panels ---------------------------------------------------------- */
+
+.mad-wizard-body {
+  padding: var(--rhythm-section);
+}
+
+.mad-wizard-body > .mad-form-problem {
+  margin-top: var(--rhythm-section);
+}
+
+.mad-wizard-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-section);
+}
+
+.mad-wizard-intro {
+  padding-bottom: var(--rhythm-inner);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.mad-wizard-intro h2 {
+  margin: 0;
+  font-size: var(--text-lead);
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.mad-wizard-intro p {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.mad-wizard-required {
+  color: var(--ink-4);
+}
+
+.mad-portal .mad-wizard .mad-wizard-mono {
+  font-family: var(--mad-font-mono);
+}
+
+.mad-wizard-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight);
+}
+
+.mad-wizard-inline > .mad-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.mad-wizard-inline > .mad-action {
+  min-height: 3rem;
+}
+
+.mad-wizard-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--rhythm-inner);
+}
+
+.mad-wizard-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight);
+}
+
+.mad-wizard-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--rhythm-tight);
+  min-height: 2.25rem;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  color: var(--ink-3);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+}
+
+.mad-wizard-pill:hover {
+  border-color: var(--border-hover);
+  color: var(--ink);
+}
+
+.mad-wizard-pill[aria-pressed="true"],
+.mad-wizard-pill:has(input:checked) {
+  border-color: var(--iris-accent);
+  background: color-mix(in srgb, var(--iris-accent) 12%, transparent);
+  color: var(--ink);
+}
+
+.mad-wizard-pill input {
+  margin: 0;
+  accent-color: var(--iris-accent);
+}
+
+/* --- the code ------------------------------------------------------------- */
+
+.mad-wizard-code {
+  display: flex;
+  flex-direction: column;
+  gap: var(--rhythm-inner);
+  padding: var(--rhythm-section);
+  border: 1px solid var(--border-panel);
+  border-top: 2px solid var(--iris-accent);
+  border-radius: var(--portal-radius);
+  background: var(--surface-inset);
+}
+
+.mad-wizard-code-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--rhythm-tight);
+}
+
+.mad-wizard-code-label {
+  font-family: var(--mad-font-mono);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  letter-spacing: var(--track-micro);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.mad-wizard-countdown {
+  padding: 0.1875rem 0.625rem;
+  border: 1px solid color-mix(in srgb, var(--state-good-mark) 45%, transparent);
+  border-radius: var(--portal-round);
+  background: var(--state-good-tint);
+  color: var(--state-good);
+  font-family: var(--mad-font-mono);
+  font-size: var(--text-micro);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mad-wizard-countdown[data-state="warning"] {
+  border-color: color-mix(in srgb, var(--state-wait-client-mark) 45%, transparent);
+  background: var(--state-wait-client-tint);
+  color: var(--state-wait-client);
+}
+
+.mad-wizard-countdown[data-state="expired"] {
+  border-color: color-mix(in srgb, var(--state-late-mark) 45%, transparent);
+  background: var(--state-late-tint);
+  color: var(--state-late);
+}
+
+.mad-wizard-code-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--rhythm-inner);
+}
+
+.mad-wizard-code-row > .mad-action {
+  min-height: 3rem;
+  min-width: 6rem;
+}
+
+@media (max-width: 30rem) {
+  .mad-wizard-code-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mad-wizard-status {
+  margin: 0;
+}
+
+.mad-wizard-hint {
+  padding: var(--rhythm-inner) var(--space-4);
+  border-left: 2px solid var(--iris-accent);
+  background: var(--surface-tint);
+  font-size: var(--text-caption);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.mad-wizard-hint strong {
+  color: var(--ink);
+}
+
+.mad-wizard-hint p {
+  margin: var(--space-1) 0 0;
+  overflow-wrap: anywhere;
+}
+
+.mad-wizard-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--rhythm-tight) var(--rhythm-section);
+}
+
+/* --- the footer ------------------------------------------------------------ */
+
+.mad-wizard-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--rhythm-tight);
+  padding: var(--space-4) var(--rhythm-section);
+  border-top: 1px solid var(--border-hairline);
+}
+
+.mad-wizard-foot > :first-child:not(:last-child) {
+  margin-right: auto;
+}
+
+.mad-wizard-foot .mad-button[aria-disabled="true"] {
+  cursor: progress;
+  color: var(--ink-4);
+}
