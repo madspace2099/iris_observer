@@ -43,6 +43,9 @@ test("the page states a rule about order, with denominators, and no cause", asyn
     await expect(main).toContainText(label);
   }
   await expect(main.getByText(/^\d+ of \d+$/).first()).toBeVisible();
+  /* Beside the figures: the card above counts another frame, and the demonstration CRM's 100% is made. */
+  await expect(main).toContainText("applies the same 72-hour rule to every dated deal");
+  await expect(main).toContainText("was shown in IRIS by construction");
 
   const info = page.locator("details.ir-led-info");
   await info.locator("summary").click();
@@ -99,6 +102,16 @@ test("Connect your CRM: the demonstration CRM is connected and offers no form", 
     await expect(main.getByRole("heading", { name: provider })).toBeVisible();
   }
   await expect(main).toContainText("does not read a live sheet");
+  await expect(main.locator('input[type="password"], input[type="file"]')).toHaveCount(0);
+  await expect(main.getByRole("link", { name: "Open IRIS-led sales for Shark Residence" })).toBeVisible();
+});
+
+test("Connect your CRM: an agency's admin reads the developer's CRM and gets no form", async ({
+  page,
+}) => {
+  await open(page, "Tomáš Varga", "/settings/crm");
+  const main = page.locator("main");
+  await expect(main).toContainText("This project's CRM belongs to Alpha Estates");
   await expect(main.locator('input[type="password"], input[type="file"]')).toHaveCount(0);
 });
 
