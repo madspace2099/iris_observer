@@ -85,7 +85,7 @@ export default async function MadspaceLayout({ children }: { children: ReactNode
   }
 
   return (
-    <div className="irs-shell ox-root ox-graphite mad-portal">
+    <div className="irs-shell ox-root ox-graphite mad-portal" data-surface="madspace">
       <MadspaceHeader
         operator={viewer.displayName.trim()}
         plane={plane}

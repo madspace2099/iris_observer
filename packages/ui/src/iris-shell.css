@@ -334,6 +334,16 @@
   }
 }
 
+/*
+ * MADSPACE's header carries three short sections, so from 1280px its
+ * operator's name and role are read in full rather than as "MADSPACE Ope…".
+ */
+@media (width >= 1280px) {
+  .irs-shell[data-surface="madspace"] .irs-header-end .irs-who {
+    max-width: none;
+  }
+}
+
 .irs-who-name {
   font-size: 13px;
   line-height: 1.2;
