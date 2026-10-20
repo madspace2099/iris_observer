@@ -103,6 +103,8 @@ export type DealLadder =
       readonly note: string;
       /** Open deals by time stuck, longest first. Empty is a result: nothing is stuck. */
       readonly stalled: readonly StalledDeal[];
+      /** Every open deal, dated or not: the stalled list's denominator. */
+      readonly open: number;
       /** Open deals with no stage date, which the list cannot place. */
       readonly undated: number;
       readonly stalledNote: string;

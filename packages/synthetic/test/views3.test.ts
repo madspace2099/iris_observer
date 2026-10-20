@@ -498,6 +498,24 @@ describe("the deal ladder's unit references follow the register's own contract",
     expect(byId.get("d-none")?.unitCode).toBeNull();
   });
 
+  /*
+   * Sales Flow prints "N of M open deals" under the list and the note behind
+   * an `i` (2026-10-20), so the count it prints is the note's own.
+   */
+  it("counts every open deal as the stalled list's denominator, an undated one included", () => {
+    const deals = {
+      connector: "realpad" as const,
+      fetchedAt: utc(2027, 0, 2).toISOString(),
+      deals: [deal("d-dated", null), { ...deal("d-undated", null), stageEnteredAt: null }],
+    };
+    const ladder = buildSalesFlow(DEAL_CONTEXT, [], utc(2027, 0, 10), [], deals).ladder;
+    if (ladder.source === "not_connected") throw new Error("expected a CRM-backed ladder");
+
+    expect(ladder.stalled.map((s) => s.externalId)).toEqual(["d-dated"]);
+    expect(ladder.open).toBe(2);
+    expect(ladder.stalledNote.startsWith("1 of 2 open deals,")).toBe(true);
+  });
+
   it("encodes a catalogue code that needs it, rather than dropping the character or leaving it raw in the path", () => {
     const spacedCode: RawUnit = {
       code: "A 4/02", // a space and a slash: neither is a valid raw path segment

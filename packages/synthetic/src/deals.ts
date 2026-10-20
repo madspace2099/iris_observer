@@ -459,10 +459,16 @@ export function syntheticDeals(
    */
   const held = new Set<string>();
   const holder = new Map<string, string | null>();
-  for (const session of [...sessions].sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))) {
+  for (const session of [...sessions].sort(
+    (a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt),
+  )) {
     const stage = OUTCOME_STAGE[session.outcome];
     if (stage !== "reservation" && stage !== "purchase") continue;
-    if (Date.parse(session.startedAt) + (STAGE_LAG_DAYS[stage] ?? 0) * DAY_MS > Date.parse(fetchedAt)) continue;
+    if (
+      Date.parse(session.startedAt) + (STAGE_LAG_DAYS[stage] ?? 0) * DAY_MS >
+      Date.parse(fetchedAt)
+    )
+      continue;
     const free = [...session.units]
       .sort((a, b) => b.dwellSeconds - a.dwellSeconds)
       .find((u) => !held.has(u.unitCode));
@@ -713,6 +719,7 @@ export function buildDealLadder(
     fetchedAt: deals.fetchedAt,
     note: words.join(" "),
     stalled,
+    open: open.length,
     undated,
     stalledNote,
   };
