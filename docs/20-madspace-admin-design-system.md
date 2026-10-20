@@ -18,6 +18,12 @@ the IRIS Spatial Intelligence identity in `docs/14-design-system.md`, and Ask IR
 review. MADSPACE administration has always been a separate surface — `iris-observer-product` §7 says
 so — and this is what that separation now looks like.
 
+**Since ADR-0047 (2026-10-20) the chrome is the product's own.** `/madspace` stands on the product
+shell (`irs-shell ox-root ox-graphite`) with the product header: the IRIS mark on the left, MADSPACE's
+sections centred, the account on the right. A plane is the product's dark card without its
+elevation, and a title takes the product's display scale. What follows still governs everything
+inside the main column: the status vocabulary, the marks, the disclosure, the language rule.
+
 ### Three adoption decisions
 
 **Greyscale-on-a-ground, colour means status.** The client-portal PDF specified warm paper; ADR-0037

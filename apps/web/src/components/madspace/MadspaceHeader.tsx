@@ -90,6 +90,12 @@ export function MadspaceHeader({
     };
   }, []);
 
+  /* A section chosen in the sheet navigates under a layout that stays mounted, so the sheet closes itself. */
+  useEffect(() => {
+    const details = barRef.current?.querySelector("details");
+    if (details?.open === true) details.open = false;
+  }, [pathname]);
+
   const name = operator === "" ? "Name not set" : operator;
   const links = (className: string) =>
     SECTIONS.map((section) => (
@@ -102,8 +108,11 @@ export function MadspaceHeader({
         {section.label}
       </Link>
     ));
-  const chip = (
-    <span className="mad-plane-chip" title={plane.sentence}>
+  const chip = (where: "header" | "sheet") => (
+    <span
+      className={where === "sheet" ? "mad-plane-chip mad-plane-chip--sheet" : "mad-plane-chip"}
+      title={plane.sentence}
+    >
       {plane.word}
     </span>
   );
@@ -124,7 +133,7 @@ export function MadspaceHeader({
           {links("irs-nav-item")}
         </nav>
         <div className="irs-header-end irs-header-end--wide">
-          {chip}
+          {chip("header")}
           <div className="irs-who">{who}</div>
           {account}
         </div>
@@ -157,7 +166,7 @@ export function MadspaceHeader({
               </nav>
               <div className="irs-mobile-who">
                 {who}
-                {chip}
+                {chip("sheet")}
               </div>
               <div className="irs-mobile-account">{account}</div>
             </div>

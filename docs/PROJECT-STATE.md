@@ -5327,9 +5327,12 @@ separate Tenants and Agencies.
 | Directory: one list of companies, each a `<details>` with its people; Add company                                                      | `app/madspace/directory/page.tsx`, `lib/madspace/companies.ts`                    |
 
 **Not verified on screen yet.** No dev server or Playwright ran in this stream (the lead runs
-them). Typecheck, lint and the unit suite are green; the screens need a real look at 1440 and 390 on
-the demo server: `/madspace`, `/madspace/diagnostics`, `/madspace/diagnostics/shark/shark-residence`,
-`/madspace/directory`, and the header's menu sheet below 1200px.
+them). Typecheck clean, lint clean on every changed file; vitest 253 files, 4827 passed, 1 skipped,
+2 failed: `collisions.test.ts` (an `irs-` selector in `madspace.css`, fixed and re-run green) and
+`no-secret-recipes.test.ts`, which needs a web build present (environmental). The screens need a
+real look at 1440 and 390 on the demo server: `/madspace`, `/madspace/diagnostics`,
+`/madspace/diagnostics/shark/shark-residence`, `/madspace/directory`, and the header's menu sheet
+below 1200px.
 
 **Next recommended action.** Build and start the demo, sign in as MADSPACE Operations, look at the
 four screens above at both widths, then run `madspace-screenshots` and `m10-acceptance` (both edited

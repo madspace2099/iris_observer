@@ -3553,7 +3553,7 @@ button.mad-quiet {
   white-space: nowrap;
 }
 
-.irs-mobile-who .mad-plane-chip {
+.mad-plane-chip--sheet {
   display: inline-block;
   margin-top: var(--rhythm-tight);
 }
