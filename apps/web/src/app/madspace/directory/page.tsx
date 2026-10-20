@@ -67,9 +67,8 @@ export default async function DirectoryPage() {
         <div className="mad-section-head">
           <h2 id="companies-heading">Companies</h2>
           <p>
-            A sales agency is a company of its own: it sells for developers, and each of its people
-            is granted one project at a time, so one agency can sell for two developers and see
-            neither whole.
+            A sales agency is a company of its own: it sells for one or more developers, and its
+            people see only the projects they have been given.
           </p>
           <p>
             The people are the demonstration directory&rsquo;s, the accounts the sign-in offers.
