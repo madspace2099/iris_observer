@@ -5400,3 +5400,49 @@ stream. Before the recording, look at:
 **Next recommended action.** Run the edited e2e specs (`p219-screens`, `quality`, `p221-meres`,
 `a11y-contract`, `period-travels`, `layout-integrity`, `dark-surfaces`), take the screenshots above and
 look at them, then cherry-pick the stream onto `feature/observer-shark-demo`.
+
+## 2026-10-20 — IRIS-led sales, and Connect your CRM (ADR-0049)
+
+Máté, recording on `/shark/shark-residence` with the demonstration CRM: the "IRIS LED SALES"
+analyses are missing — which sales the showroom contributed to — and a customer must be able to add
+their own CRM (Realpad, Monday.com, Google Sheet, others), so a flat's status change can be compared
+with how often it was shown before. Built, with the honesty boundary of ADR-0010/0011/0039: the page
+says the flat was **shown before** its status changed, never that the sale was thanks to IRIS.
+
+- **Read model** `getIrisLedSales` (`packages/readmodels/src/iris-led.ts`,
+  `packages/synthetic/src/iris-led.ts`): the period's sales — CRM reservations and purchases, and
+  catalogue availability changes a sync witnessed — each with every showing before the change (in
+  the period or before it), first and last, days from the last to the change, presenters, meetings,
+  and ADR-0039's 72-hour verdict as a column. Totals over their denominators; no share below 5 sales;
+  undated, flat-less and undated-catalogue sales counted beside. Registry metric
+  `flow.iris_led_sales`; the matrix regenerated.
+- **Catalogue witness**: `liveCatalogueSource` now hands `statusObservedAt` — the sync that first saw
+  a flat change onto the status it still holds — so a Realpad price list alone yields dated
+  availability changes from its second sync.
+- **Page** `/[tenant]/[project]/flow/iris-led`: IRIS's sentence (SpokenVerdict), four figures, a
+  per-sale timeline (dots by presenter, the gap to the change, the 72-hour band), the table, the
+  sales never shown, the source. Reached from one new line at the end of Sales Flow's IRIS-assisted
+  card ("Open IRIS-led sales"); the card's note is untouched. The caveat is a `<details>` disclosure
+  beside the definition (no InfoTip existed in this base).
+- **Settings** `/settings/crm`, beside AI and usage (a row naming both; the settings chrome moved to
+  `apps/web/src/app/settings/chrome.tsx` unchanged): per project, the CRM state, what it reads, when
+  last read, and Realpad / Monday.com / Google Sheets / CSV upload / Other tiles. Forms only for the
+  company admin, on a control-plane project, and for a credential only where a credential key exists;
+  Google Sheets says to download as CSV (no connector reads a live sheet). Shark shows the
+  demonstration CRM as connected and no form.
+
+**Shark, quarter to date:** 19 of 19 dated sales shown in IRIS before the change (the demonstration
+CRM derives each deal from a meeting), 8 of 19 within 72 hours, median 9 showings and 3 days.
+
+**Verified.** Typecheck clean; lint clean on every changed file; unit tests
+`iris-led-sales` (16), `catalogue-availability-witness`, `settings-crm` (7), `credentials` (new CRM
+guard), `surfaces`, `reference-parity`, `surface-authorisation`. Both pages rendered to static HTML
+on the product stylesheets and looked at in headless Chrome at 1440 and at 390 (inside a 390px
+frame): no sideways overflow, the figures four across and one column, the table stacked into records
+on a phone, the disclosure open over the figures. No dev server, build or Playwright was run:
+`e2e/iris-led.spec.ts` and the new `nav-reachability` case are written, not run.
+
+**Next recommended action.** On the demo build, open Sales Flow → "Open IRIS-led sales" as Daniel
+Hart (replay links) and as Clara Weiss (none), at 1440 and 390, and `/settings/crm` from it; then run
+`e2e/iris-led.spec.ts` and `nav-reachability`. A real CRM will have sales the showroom never showed —
+the first live connection is where that list is first seen.

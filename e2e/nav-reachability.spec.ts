@@ -341,6 +341,18 @@ test.describe("a meeting row is a link only for a reader who may open one", () =
     ).toHaveCount(0);
   });
 
+  /* ADR-0049: IRIS-led sales is reached from the IRIS-assisted card, and from nowhere else. */
+  test("on Sales Flow, the IRIS-assisted card opens IRIS-led sales", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto(`${NORTHGATE}/flow`);
+    const link = block(page, /^IRIS-assisted sales$/i).getByRole("link", {
+      name: "Open IRIS-led sales",
+    });
+    await expect(link, "no way from Sales Flow to IRIS-led sales").toBeVisible();
+    await link.click();
+    await page.waitForURL(/\/flow\/iris-led(\?|$)/);
+  });
+
   test("on Sales Flow, a manager's presentations and assisted sales open the replay", async ({ page }) => {
     await signInAs(page, "Tomáš Varga");
     await page.goto(`${NORTHGATE}/flow`);
