@@ -9,8 +9,10 @@ import { repository } from "@/lib/repository";
 import { HOME_SEGMENT } from "@/lib/routes";
 import { SESSION_COOKIE, destroySession, requireAccount, requireViewer } from "@/lib/session";
 import { safeReturnTo } from "@/portal/return-to";
+import { companyOf } from "@/lib/accounts";
+import { companyKeyState, type CompanyKeyState } from "@/lib/credentials/company-keys";
 import { connectionFor, type ConnectionMetadata } from "@/lib/credentials/service";
-import { describeFailure, type ConnectionFailure } from "@/lib/credentials/failure";
+import { ALL_FAILURES, describeFailure, type ConnectionFailure } from "@/lib/credentials/failure";
 import {
   CATALOGUE_VERSION,
   ESTIMATE_CAVEAT,
@@ -28,7 +30,15 @@ import {
 } from "@/lib/models/catalogue";
 import { preferencesFor } from "@/lib/models/preferences";
 import { budgetFor, typicalQuestionMicros } from "@/lib/budget/service";
-import { chooseBudget, chooseModels, connect, remove, test } from "./actions";
+import {
+  chooseBudget,
+  chooseModels,
+  connect,
+  connectCompanyKey,
+  remove,
+  removeCompanyKey,
+  test,
+} from "./actions";
 
 export const metadata: Metadata = { title: "AI and usage" };
 
@@ -120,13 +130,34 @@ export default async function AiSettings({
   }
 
   const done = first("done");
-  const failed = first("failed") as ConnectionFailure | undefined;
+  const failed = first("failed");
   const focused = first("p");
   const confirming = first("confirm");
   const replacing = first("mode") === "replace" ? focused : undefined;
-  const failure = failed === undefined ? null : describeFailure(failed);
+  /* A word from the query, so only one this page has a sentence for. */
+  const failure = ALL_FAILURES.includes(failed as ConnectionFailure)
+    ? describeFailure(failed as ConnectionFailure)
+    : null;
 
   const unavailable = storageFailure !== null;
+
+  /*
+   * THE COMPANY'S KEY, ON A LOCAL DEMONSTRATION (ADR-0043).
+   *
+   * Null wherever the company key store is closed, which is everywhere but a
+   * local recording. Where it is open and this server has no credential store,
+   * the account's own budget, model and keys could only say "storage
+   * unavailable", so they are left out and the lede says why in one line.
+   */
+  const company = companyKeyState(account);
+  const companyOnly = company !== null && unavailable;
+  const standing = companyOf(account);
+  const standingLine =
+    standing.role === "admin"
+      ? `Company admin, ${standing.name}`
+      : company === null
+        ? `Member, ${standing.name}`
+        : `Member, ${standing.name} · key managed by ${standing.adminName}`;
 
   async function signOut(): Promise<void> {
     "use server";
@@ -177,7 +208,7 @@ export default async function AiSettings({
         <div className="irs-header-end">
           <div className="irs-who">
             <div className="irs-who-name">{account.displayName}</div>
-            <div className="irs-who-role">{viewer.organisationName}</div>
+            <div className="irs-who-role">{standingLine}</div>
           </div>
           <Link className="ox-btn" data-weight="quiet" href={dynamicRoute("/projects")}>
             Projects
@@ -235,11 +266,19 @@ export default async function AiSettings({
             <div className="ox-head-text">
               <p className="ox-kicker">Account settings</p>
               <h1 className="ox-title">AI and usage</h1>
-              <p className="ox-lede">
-                These are your own provider accounts. Everything here belongs to{" "}
-                <strong>{account.email}</strong> and applies to every project you can open — never
-                to anybody else&rsquo;s.
-              </p>
+              {companyOnly ? (
+                <p className="ox-lede">
+                  On this local demonstration Ask IRIS answers with one OpenAI key per company, held
+                  in this server&rsquo;s memory. Keys, models and budgets of your own need the
+                  hosted credential store, which this server does not have.
+                </p>
+              ) : (
+                <p className="ox-lede">
+                  These are your own provider accounts. Everything here belongs to{" "}
+                  <strong>{account.email}</strong> and applies to every project you can open — never
+                  to anybody else&rsquo;s.
+                </p>
+              )}
             </div>
           </div>
 
@@ -252,26 +291,40 @@ export default async function AiSettings({
           {failure !== null && (
             <div className="os-flash" data-tone="bad" role="alert">
               <strong>{failure.title}</strong>
-              <span>{failure.detail}</span>
+              {/* A refused company key is never kept, whatever the category says of a connection. */}
+              <span>{focused === "company" ? "Nothing was saved." : failure.detail}</span>
             </div>
           )}
 
-          <BudgetPanel budget={budget} unavailable={unavailable} origin={origin.from} />
+          {company === null ? null : (
+            <CompanyKeyPanel
+              state={company}
+              replacing={replacing === "company"}
+              confirming={confirming === "company"}
+              origin={origin.from}
+            />
+          )}
 
-          <ModelPanel
-            preferences={preferences}
-            connections={connections}
-            unavailable={unavailable}
-            origin={origin.from}
-          />
+          {companyOnly ? null : (
+            <>
+              <BudgetPanel budget={budget} unavailable={unavailable} origin={origin.from} />
 
-          <ProviderPanel
-            connections={connections}
-            storageFailure={storageFailure}
-            replacing={replacing}
-            confirming={confirming}
-            origin={origin.from}
-          />
+              <ModelPanel
+                preferences={preferences}
+                connections={connections}
+                unavailable={unavailable}
+                origin={origin.from}
+              />
+
+              <ProviderPanel
+                connections={connections}
+                storageFailure={storageFailure}
+                replacing={replacing}
+                confirming={confirming}
+                origin={origin.from}
+              />
+            </>
+          )}
         </div>
       </main>
     </div>
@@ -463,6 +516,10 @@ const DONE: Readonly<Record<string, string>> = Object.freeze({
   removed: "Connection removed. The stored key has been deleted.",
   models: "Model choice saved.",
   budget: "Monthly budget saved.",
+  company_connected:
+    "Company key saved. Every member of your company asks with it until this server restarts.",
+  company_removed:
+    "Company key removed. Ask IRIS answers from the read models until a key is added again.",
 });
 
 /**
@@ -476,6 +533,150 @@ function here(origin: string, query: string): string {
   const carry = origin === "" ? "" : `from=${encodeURIComponent(origin)}`;
   const parts = [query, carry].filter((part) => part !== "");
   return parts.length === 0 ? "/settings/ai" : `/settings/ai?${parts.join("&")}`;
+}
+
+/* =============================================================== company key */
+
+/**
+ * THE COMPANY'S KEY (ADR-0043): the admin connects, replaces and removes it;
+ * a member sees who manages it and no form. Metadata only: the last four, who
+ * set it and when. The form is the provider form's twin, uncontrolled.
+ */
+function CompanyKeyPanel({
+  state,
+  replacing,
+  confirming,
+  origin,
+}: {
+  state: CompanyKeyState;
+  replacing: boolean;
+  confirming: boolean;
+  origin: string;
+}) {
+  const admin = state.role === "admin";
+  const key = state.key;
+
+  return (
+    <section className="ox-panel ox-panel-pad os-column" aria-labelledby="company-key">
+      <div className="ox-section-head">
+        <h2 className="ox-section-title" id="company-key">
+          Company key · {state.company}
+        </h2>
+      </div>
+
+      <p className="ox-section-note">
+        One OpenAI key for everyone at {state.company}, kept in this server&rsquo;s memory until it
+        restarts and never shown again. With it, typed questions in Ask IRIS are worded by a
+        language model from the figures Observer&rsquo;s read models compute; it writes no figure.
+      </p>
+
+      <div className="os-provider">
+        <div className="os-provider-head">
+          <h3 className="os-provider-name">OpenAI</h3>
+          {key !== null && !replacing ? (
+            <span className="os-provider-state">
+              <span className="os-dot" aria-hidden="true" />
+              Connected · <span className="os-mask">••••{key.lastFour}</span>
+            </span>
+          ) : (
+            <span className="os-provider-state" data-muted="true">
+              <span className="os-dot" aria-hidden="true" />
+              Not connected
+            </span>
+          )}
+        </div>
+
+        {key === null ? null : (
+          <p className="os-note">
+            Set by {key.setBy} on{" "}
+            <time dateTime={key.setAt}>
+              {new Date(key.setAt).toLocaleString("en-GB", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })}
+            </time>
+            .
+          </p>
+        )}
+
+        {!admin ? (
+          <p className="os-note">
+            Managed by {state.adminName}, the company&rsquo;s admin.
+            {key === null ? " No key has been added yet; answers come from the read models." : ""}
+          </p>
+        ) : key !== null && !replacing ? (
+          <>
+            <div className="ox-btn-row">
+              <Link className="ox-btn" href={dynamicRoute(here(origin, "mode=replace&p=company"))}>
+                Replace key
+              </Link>
+              {!confirming && (
+                <Link className="ox-btn" href={dynamicRoute(here(origin, "confirm=company"))}>
+                  Remove
+                </Link>
+              )}
+            </div>
+
+            {confirming && (
+              <div className="os-confirm" role="group" aria-labelledby="c-company">
+                <strong id="c-company">Remove the company key?</strong>
+                <p>
+                  Every member of {state.company} stops asking with it, and Ask IRIS answers from
+                  the read models until a key is added again.
+                </p>
+                <div className="ox-btn-row">
+                  <form action={removeCompanyKey}>
+                    <CarryOrigin origin={origin} />
+                    <button type="submit" className="ox-btn">
+                      Yes, remove it
+                    </button>
+                  </form>
+                  <Link className="ox-btn" href={dynamicRoute(here(origin, ""))}>
+                    Keep it
+                  </Link>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <form action={connectCompanyKey} className="os-column">
+            <CarryOrigin origin={origin} />
+            <label className="ox-field" htmlFor="key-company">
+              <span className="ox-field-label">OpenAI API key for {state.company}</span>
+              <input
+                className="ox-input"
+                id="key-company"
+                name="apiKey"
+                type="password"
+                autoComplete="off"
+                spellCheck={false}
+                autoCapitalize="off"
+                required
+                aria-describedby="help-company"
+              />
+            </label>
+            <p className="os-note" id="help-company">
+              Saving sends one small request to OpenAI to check the key, which may create a small
+              OpenAI API charge.
+            </p>
+            <div className="ox-btn-row">
+              <button type="submit" className="ox-btn" data-weight="primary">
+                Save and test
+              </button>
+            </div>
+            {replacing && (
+              <p className="os-note">
+                <Link className="os-link" href={dynamicRoute(here(origin, ""))}>
+                  Keep the current key instead
+                </Link>
+                ; nothing changes until a new key is accepted.
+              </p>
+            )}
+          </form>
+        )}
+      </div>
+    </section>
+  );
 }
 
 /* ==================================================================== budget */

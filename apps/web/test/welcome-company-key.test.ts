@@ -64,6 +64,7 @@ vi.mock("../src/components/product/Dialog", () => ({
 
 const { default: Welcome } = await import("../src/app/welcome/page");
 const { saveCompanyKey } = await import("../src/app/welcome/actions");
+const settings = await import("../src/app/settings/ai/actions");
 const { companyKeyState, resetCompanyKeys, setCompanyKey } =
   await import("../src/lib/credentials/company-keys");
 const { accountById } = await import("../src/lib/accounts");
@@ -194,5 +195,36 @@ describe("saving it", () => {
     const to = await save(KEY, "https://example.invalid/steal");
     expect(to.startsWith("/")).toBe(true);
     expect(to).not.toContain("example.invalid");
+  });
+});
+
+describe("the same key, from Settings", () => {
+  async function run(action: (form: FormData) => Promise<void>, apiKey = KEY): Promise<string> {
+    const form = new FormData();
+    form.set("apiKey", apiKey);
+    try {
+      await action(form);
+    } catch (error) {
+      if (error instanceof Redirected) return error.to;
+      throw error;
+    }
+    throw new Error("the action did not redirect");
+  }
+
+  it("connects and removes it for the admin, and says so in one word", async () => {
+    expect(await run(settings.connectCompanyKey)).toBe("/settings/ai?done=company_connected");
+    expect(companyKeyState(clara())?.key?.lastFour).toBe(KEY.slice(-4));
+    expect(await run(settings.removeCompanyKey)).toBe("/settings/ai?done=company_removed");
+    expect(companyKeyState(clara())?.key).toBeNull();
+  });
+
+  it("changes nothing for a member", async () => {
+    await setCompanyKey(clara(), KEY, async () => ({ ok: true }));
+    state.accountId = "acct_nora";
+    expect(await run(settings.connectCompanyKey, "sk-observer-test-other-0000")).toBe(
+      "/settings/ai?failed=forbidden&p=company",
+    );
+    expect(await run(settings.removeCompanyKey)).toBe("/settings/ai");
+    expect(companyKeyState(clara())?.key?.lastFour).toBe(KEY.slice(-4));
   });
 });

@@ -5,6 +5,10 @@ import { safeReturnTo } from "@/portal/return-to";
 
 import { dynamicRoute } from "@/lib/href";
 import { requireAccount } from "@/lib/session";
+import {
+  removeCompanyKey as forgetCompanyKey,
+  setCompanyKey,
+} from "@/lib/credentials/company-keys";
 import { probeFor } from "@/lib/credentials/probe";
 import { removeConnection, saveConnection, testConnection } from "@/lib/credentials/service";
 import {
@@ -30,7 +34,7 @@ import { setBudget } from "@/lib/budget/service";
  *
  * ## Every action re-authorises, and none takes an account
  *
- * `requireAccount()` runs first in all six, on every call. The account is never
+ * `requireAccount()` runs first in all eight, on every call. The account is never
  * a parameter and never read from a field — an account id that arrives from the
  * browser is an account id the browser chose. What the browser MAY choose is
  * which provider or which model, and both are validated against the catalogue
@@ -165,6 +169,31 @@ export async function remove(formData: FormData): Promise<void> {
         : backTo(formData, `failed=provider_unavailable&p=${provider}`),
     ),
   );
+}
+
+/**
+ * Saves the company's key, after one probe (ADR-0043). The company's admin
+ * only: `setCompanyKey` refuses anyone else and keeps nothing it refuses.
+ */
+export async function connectCompanyKey(formData: FormData): Promise<void> {
+  const account = await requireAccount();
+
+  /* Read, used, and out of scope when this returns. Never logged or echoed. */
+  const raw = String(formData.get("apiKey") ?? "");
+
+  const result = await setCompanyKey(account, raw, probeFor());
+  redirect(
+    dynamicRoute(
+      backTo(formData, result.ok ? "done=company_connected" : `failed=${result.failure}&p=company`),
+    ),
+  );
+}
+
+/** Forgets the company's key. The company's admin only. */
+export async function removeCompanyKey(formData: FormData): Promise<void> {
+  const account = await requireAccount();
+  const removed = forgetCompanyKey(account);
+  redirect(dynamicRoute(backTo(formData, removed ? "done=company_removed" : "")));
 }
 
 /**
