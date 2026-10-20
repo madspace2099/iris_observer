@@ -52,6 +52,15 @@
   gap: 0.125rem;
 }
 
+/*
+ * The sparkline keeps its own width. Its entry wrapper (`DrawIn`) is a flex
+ * item with no minimum, and shrank to nothing beside a long qualifier: the
+ * line was drawn out past the cell's edge.
+ */
+.iris-kpi-foot > .dld-draw {
+  flex: none;
+}
+
 .iris-kpi-delta {
   font-size: 0.8125rem;
   font-weight: 600;
@@ -689,6 +698,31 @@
 
   .iris-stacks-plot {
     height: 8rem;
+  }
+}
+
+/*
+ * A phone's card left the bars about 40px between the label column and the
+ * drop, every one at the bar's minimum, so the funnel stopped narrowing. Below
+ * 30rem of card the label stands above its bar and the bar has the width.
+ */
+@container (width < 30rem) {
+  .iris-funnel-step {
+    grid-template-columns: minmax(0, 1fr) 3rem;
+    grid-template-areas: "label label" "bar drop";
+    row-gap: 0.25rem;
+  }
+
+  .iris-funnel-label {
+    grid-area: label;
+  }
+
+  .iris-funnel-bar {
+    grid-area: bar;
+  }
+
+  .iris-funnel-drop {
+    grid-area: drop;
   }
 }
 

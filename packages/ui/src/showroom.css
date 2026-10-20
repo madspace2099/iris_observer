@@ -1061,6 +1061,23 @@
 }
 
 /*
+ * The transitions on a phone: 13rem of label and 5rem of figure are wider than
+ * the card. In a card under 30rem the two section names take a row of their
+ * own, wrapping rather than clipping, and the bar has the rest.
+ */
+@container (width < 30rem) {
+  .iris-bars[data-fraction="true"] .iris-bar {
+    grid-template-columns: minmax(0, 1fr) 5rem;
+    row-gap: 0.25rem;
+  }
+
+  .iris-bars[data-fraction="true"] .iris-bar-label {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
+/*
  * The same column in a band's side panel, which is 308px wide on a phone:
  * 13rem of label there leaves the bar 12px. So the panel is measured as a
  * container, the label column returns to the default width below the point
@@ -1946,6 +1963,22 @@
 
 .iris-parity-value[data-over="true"] {
   color: var(--accent);
+}
+
+/*
+ * A phone's chart card is about 250px inside, and the 14rem label column with
+ * the value beside it already overran it before the scale had any width. In a
+ * card under 30rem the label and its two shares take a row of their own.
+ */
+@container (width < 30rem) {
+  .iris-parity-row {
+    grid-template-columns: minmax(0, 1fr) 3.5rem;
+    row-gap: 0.25rem;
+  }
+
+  .iris-parity-label {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 60rem) {
