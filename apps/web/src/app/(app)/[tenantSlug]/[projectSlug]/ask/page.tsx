@@ -1,12 +1,14 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { currentAccount, requireViewer } from "@/lib/session";
 import { connectedProviders } from "@/lib/ai/admission";
-import { demoModelName, environment } from "@/lib/env";
+import { companyKeyState, companyModelName } from "@/lib/credentials/company-keys";
+import { demoModelName, environment, loopbackHost } from "@/lib/env";
 import { modelsForProviders } from "@/lib/models/catalogue";
 import { findAnswer } from "@/components/ask/questions";
 import {
@@ -154,21 +156,45 @@ export default async function AskPage({
   const models = modelsForProviders(connected).map((entry) => entry.label);
 
   /*
-   * WHETHER A LANGUAGE MODEL MAY WORD A TYPED QUESTION, SAID BEFORE IT IS ASKED.
+   * WHETHER A LANGUAGE MODEL MAY WORD A QUESTION, SAID BEFORE IT IS ASKED.
    *
    * Gate 1 puts the notice at the prompt box, in view before the first
-   * question. The demonstration key names its model (ADR-0040); an account's
-   * own connection is named by the answer it writes. Neither, and there is no
-   * notice to give: the answer is the read models' own.
+   * question. A demonstration key names its model: the company's (ADR-0043),
+   * else the owner's (ADR-0040), and either only where the stream route would
+   * spend it, which is with AI on and on a request addressed to this machine.
+   * An account's own connection is named by the answer it writes. None, and
+   * there is no notice to give: the answer is the read models' own.
+   *
+   * The live openings go to the same route as a typed question, so the notice
+   * names them too.
    */
-  const demoModel = demoModelName();
-  const modelNotice = !environment().ai.enabled
+  const aiEnabled = environment().ai.enabled;
+  const local = loopbackHost((await headers()).get("host"));
+  const demoModel =
+    aiEnabled && local
+      ? ((account === null ? null : companyModelName(account.accountId)) ?? demoModelName())
+      : null;
+  const asked = `Typed questions and the first ${LIVE_QUESTIONS.length} openings`;
+  const modelNotice = !aiEnabled
     ? null
     : demoModel !== null
-      ? `Typed questions are worded by ${demoModel}, a language model, from the figures Observer's read models compute. It writes no figure.`
+      ? `${asked} are worded by ${demoModel}, a language model, from the figures Observer's read models compute. It writes no figure.`
       : connected.length > 0
-        ? "Typed questions may be worded by the language model connected to this account, from the figures Observer's read models compute. It writes no figure."
+        ? `${asked} may be worded by the language model connected to this account, from the figures Observer's read models compute. It writes no figure.`
         : null;
+
+  /*
+   * A company with no key yet, said once at the composer (ADR-0043). Only where
+   * no model answers here at all; not the Gate 1 notice, which is about a model
+   * that does.
+   */
+  const company = account === null || demoModel !== null ? null : companyKeyState(account);
+  const keyNote =
+    company === null || company.key !== null
+      ? null
+      : company.role === "admin"
+        ? `You have not added an OpenAI key for ${company.company} yet; answers come from the read models. Add it in Settings.`
+        : `${company.adminName} has not added an OpenAI key for ${company.company} yet; answers come from the read models.`;
 
   const scope = parseAskScope(first(search, "scope"), every(search, "with"));
   const otherProjects = await otherProjectsFor(viewer, tenant.id, project.id);
@@ -186,6 +212,7 @@ export default async function AskPage({
       scope={scope}
       otherProjects={otherProjects}
       modelNotice={modelNotice}
+      keyNote={keyNote}
     >
       {demo === "thinking" ? (
         <AskThinkingPanel

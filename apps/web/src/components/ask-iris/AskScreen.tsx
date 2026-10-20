@@ -274,6 +274,7 @@ export function AskFrame({
   scope,
   otherProjects,
   modelNotice = null,
+  keyNote = null,
   children,
 }: {
   /**
@@ -282,6 +283,11 @@ export function AskFrame({
    * model can answer here.
    */
   readonly modelNotice?: string | null;
+  /**
+   * One quiet line when the reader's company has not added its OpenAI key yet
+   * (ADR-0043). Not a Gate 1 notice: it says no model answers here.
+   */
+  readonly keyNote?: string | null;
   readonly root: string;
   readonly periodParam: string;
   /** This project's own slug — the implicit member of every Compare set. */
@@ -400,7 +406,7 @@ export function AskFrame({
                       <p className="ask-menu-note">
                         {modelNotice === null
                           ? "Answers here are composed by Observer’s own read models, not written by a language model."
-                          : `${modelNotice} The prepared openings are the read models’ own words.`}
+                          : `${modelNotice} The other openings are answered in the read models’ own words.`}
                       </p>
                       <span className="ask-model-option" aria-current="true">
                         <span>{composerLabel}</span>
@@ -667,6 +673,7 @@ export function AskFrame({
             {modelNotice}
           </p>
         )}
+        {keyNote === null ? null : <p className="ask-hint">{keyNote}</p>}
 
         {children}
       </div>

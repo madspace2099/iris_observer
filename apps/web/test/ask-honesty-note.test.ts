@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 import type { Viewer } from "@observer/readmodels";
-import { AskConversationPanel } from "@/components/ask-iris/AskScreen";
+import { AskConversationPanel, AskFrame } from "@/components/ask-iris/AskScreen";
 import { AskLiveAnswer } from "@/components/ask-iris/AskLiveAnswer";
 
 /**
@@ -105,5 +105,52 @@ describe("the honesty note above an answer", () => {
   it("says none is connected only where none is", () => {
     expect(render(false)).toContain("none is connected to this account");
     expect(render(true)).not.toContain("none is connected");
+  });
+});
+
+/*
+ * THE COMPOSER'S TWO LINES (ADR-0040, ADR-0043).
+ *
+ * The Gate 1 notice names the model wherever one words an answer, live
+ * openings included; the key note says a company has no key yet, and is not a
+ * Gate 1 notice, so it never carries the marker.
+ */
+const renderFrame = (modelNotice: string | null, keyNote: string | null) =>
+  renderToStaticMarkup(
+    createElement(AskFrame, {
+      root: "/shark/shark-residence",
+      periodParam: "",
+      projectSlug: "shark-residence",
+      projectLabel: "Shark Residence",
+      question: "",
+      historyOpen: false,
+      composerLabel: "Read models",
+      models: [],
+      scope: { kind: "current" },
+      otherProjects: [],
+      modelNotice,
+      keyNote,
+      children: null,
+    }),
+  );
+
+describe("the composer's notices", () => {
+  const NOTE = "Clara Weiss has not added an OpenAI key for Shark Developments yet";
+
+  it("says a company has no key outside the AI notice", () => {
+    const html = renderFrame(null, `${NOTE}; answers come from the read models.`);
+    expect(html).toContain(`<p class="ask-hint">${NOTE}`);
+    expect(html).not.toContain("data-ai-notice");
+    expect(renderFrame(null, null)).not.toContain(NOTE);
+  });
+
+  it("does not call the live openings the read models' words where a model words them", () => {
+    const html = renderFrame(
+      "Typed questions and the first 4 openings are worded by gpt-5-mini.",
+      null,
+    );
+    expect(html).toContain("data-ai-notice");
+    expect(html).not.toContain("prepared openings are the read models");
+    expect(html).toContain("The other openings are answered in the read models");
   });
 });
