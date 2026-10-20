@@ -6,44 +6,33 @@
  * brand, the four-item navigation, the atmosphere, the sticky header. This owns
  * everything below it — every plane, figure, row, table, finding and control.
  *
- * ## The one idea: two grounds, one vocabulary, divided by CONTENT
+ * ## The one idea: one vocabulary, a dark screen, paper in print
  *
  * There is no second palette here and no theme switch. There is ONE set of
- * token names declared TWICE and applied BY REGION:
+ * token names declared TWICE:
  *
- *   `.ox-graphite`  what we CONCLUDE, and what a reader may DO about it.
- *                   Identity, scope, the verdict sentence, navigation,
- *                   controls, the attention list, an AI interpretation.
+ *   `.ox-graphite`  the screen. Every surface a reader sees, measured or
+ *                   concluded, stands on graphite.
  *
- *   `.ox-paper`     what was MEASURED. Every reading, every figure, every
- *                   date, every row of a table, every timeline step.
+ *   `.ox-paper`     the page. Declared ONLY under `@media print`, on the
+ *                   plates that wear the class and on a shell holding a
+ *                   report, so what a printer draws is dark ink on white.
+ *
+ * ADR-0034 put measured regions on a warm-paper plate on screen as well. The
+ * owner withdrew that on 2026-10-19 ("Everything in the system must have a
+ * dark background, not white"), so ADR-0042 keeps the class names, the
+ * `.ox-plate.ox-paper` markup and the paper values, and moves the values under
+ * `@media print`, the precedent `madspace.css` set for ADR-0037. On screen
+ * `.ox-paper` declares no token and a plate inherits the graphite around it.
  *
  * Every rule below is written against the NAMES rather than against a colour,
- * so one component renders correctly on both grounds with no variant code.
- * Applying a ground is `className="ox-paper"` and nothing else.
+ * so one component renders correctly on screen and on paper with no variant
+ * code.
  *
  * The mechanism is the one `docs/20-madspace-admin-design-system.md` §8
  * specifies and `design-lab-c.css` proves: a token swap on a class, NEVER a
  * filter on `body`. A filter makes `body` the containing block for every
  * `position: fixed` element and breaks the sticky header and every dialog.
- *
- * ## Why the paper ground exists at all, given the MADSPACE boundary
- *
- * `docs/20` §0 made warm paper the MADSPACE operations identity precisely so
- * that the operations surface and the product could be told apart, and
- * `PROJECT-STATE.md` recorded "Observer stays dark; the boundary is one class".
- * This file narrows that boundary, on the user's explicit instruction to adopt
- * a Hybrid Executive language for the product, and it protects what is left of
- * the boundary in three ways:
- *
- *   1. Observer's frame stays dark. Paper never touches the header, the
- *      navigation, the page title or the verdict — a reader always arrives on
- *      graphite and always returns to it.
- *   2. Paper is earned, not decorative. It appears only where a dense measured
- *      body genuinely reads better on it: tables, rows of readings, timelines,
- *      the unit register. A paragraph does not get a plate.
- *   3. The typefaces still differ. MADSPACE is Inter by its own specification;
- *      Observer is Manrope, brand-locked by ADR-0020, on both grounds.
  *
  * And critically: NONE of the token names below is one MADSPACE redeclares.
  * `madspace.css` owns `--ink`, `--ink-2`, `--ink-3`, `--surface-card` and the
@@ -55,7 +44,7 @@
  *
  * Manrope (ADR-0020). `#00a3ff` (ADR-0020, and ADR-0033 rejected the approved
  * artefact's own `#2f97ff` on the ground that "the brand is not ours to move").
- * The accent measures 2.6:1 on white, so on paper it is never text, never a
+ * The accent measures 2.6:1 on white, so in print it is never text, never a
  * border and never a focus ring — the dim step `--iris-accent-dim` at 5.3:1
  * carries those, exactly as `design-lab-c.css` established.
  *
@@ -214,14 +203,30 @@
 }
 
 /* ============================================================================
- * 3. THE PAPER GROUND — measurements.
+ * 3. THE PAPER GROUND — print only (ADR-0042).
  *
- * Warm off-white rather than pure white: a dense table on #ffffff inside a
- * near-black frame is a rectangle of glare, and the two grounds have to be
- * lookable-between for a whole working session.
+ * On screen nothing below applies: a `.ox-plate.ox-paper` region inherits the
+ * graphite tokens of the shell it stands in, because the owner asked for every
+ * on-screen surface to be dark (2026-10-19). A printer has one ground, white,
+ * so the paper values return there, on two selectors:
+ *
+ *   - `.ox-paper`, the plates, exactly as ADR-0034 drew them;
+ *   - `.ox-root:has(.ox-report)`, the shell around a report. The report's own
+ *     planes are graphite on screen and its context band (the period it
+ *     prints) sits in the shell, outside `.ox-report`. Declaring the paper
+ *     tokens there is what makes every `color: var(--ox-ink)` under it print
+ *     as dark ink; before this the print block below set `#111` on two
+ *     containers and every child that names a token printed graphite ink on
+ *     white. The bridge in 3b resolves against these values on the same
+ *     element, so a chart's `--ink` follows without being listed here.
+ *
+ * Warm off-white rather than pure white where a plate is printed with its
+ * background, which keeps the measured values ADR-0034 recorded.
  * ========================================================================= */
 
-.ox-paper {
+@media print {
+  .ox-root:has(.ox-report),
+  .ox-paper {
   --ox-ink: #14161a;
   --ox-ink-2: #45494f;
   --ox-ink-3: #575c63;
@@ -284,6 +289,7 @@
   color-scheme: light;
   background: var(--ox-page);
   color: var(--ox-ink);
+  }
 }
 
 /* ============================================================================
