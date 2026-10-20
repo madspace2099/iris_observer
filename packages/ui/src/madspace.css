@@ -4053,7 +4053,9 @@ button.mad-quiet {
   min-width: 6rem;
 }
 
+/* One column on a phone: the settings row, and the code above its Copy. */
 @media (max-width: 30rem) {
+  .mad-wizard-row,
   .mad-wizard-code-row {
     grid-template-columns: minmax(0, 1fr);
   }
