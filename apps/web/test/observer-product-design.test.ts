@@ -538,3 +538,19 @@ describe("every select style declares an opaque background", () => {
     expect(opaque(token(GRAPHITE, "--ox-field-solid"))).toBe(true);
   });
 });
+
+/*
+ * THE PDF KEEPS THE DATA DRAWN AS BACKGROUNDS (ADR-0045).
+ *
+ * Chrome's "Save as PDF" starts with background graphics off, and the ladder's
+ * bars and the status chips' marks are backgrounds. The report's print rules
+ * ask for those exactly, and only on paper.
+ */
+describe("the printed report keeps its bars and status marks", () => {
+  it("asks for them to be printed exactly, in the print rules only", () => {
+    expect(CODE).toMatch(
+      /\.ox-report \.ox-stage-bar,\s*\.ox-report \.ox-stage-fill,\s*\.ox-report \.ox-chip-mark\s*\{[^}]*\bprint-color-adjust:\s*exact/,
+    );
+    expect(screenOnly(CODE)).not.toContain("print-color-adjust");
+  });
+});

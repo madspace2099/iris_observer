@@ -3020,6 +3020,21 @@
     page-break-inside: avoid;
   }
 
+  /*
+   * Data drawn as a background: the ladder's and the funnel's bars and the
+   * status chips' marks. A browser drops backgrounds when it prints unless it
+   * is told otherwise, and Chrome's "Save as PDF" starts that way, so the
+   * export's PDF printed empty bar tracks and chips without their shape — the
+   * one channel that survives greyscale. Only these, so nothing else's ground
+   * comes back; the tokens they read are paper's here (ADR-0042).
+   */
+  .ox-report .ox-stage-bar,
+  .ox-report .ox-stage-fill,
+  .ox-report .ox-chip-mark {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
   .ox-report a {
     color: inherit;
     text-decoration: none;

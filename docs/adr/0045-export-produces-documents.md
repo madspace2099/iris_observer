@@ -42,13 +42,19 @@ own background and `.ox-select` used the translucent `--ox-panel` lift.
    `requireSurface` for the report, and for the meeting or the agent surface when the scope is one; a
    meeting or an agent the repository refuses is not found. It reads the same read models the page
    reads for that scope, period, language and omitted sections, and writes one row per figure the page
-   prints: section, figure, value as displayed, its denominator or the section's sample with its noun,
-   period, scope, sources. Nothing is computed in it. A section the read model writes only as a
-   sentence is that sentence, with an empty denominator; an absent figure is its word, never 0; below
-   the floor the shortfall travels with the figure. The agent register is written without its visitor
-   column: a file that leaves the room is not where the buyer-naming gate is decided again. UTF-8 with a
-   byte-order mark, RFC 4180 quoting, CRLF, a formula-injection guard on any cell starting with `=`,
-   `+`, `-`, `@`, a tab or a carriage return, and an ASCII file name such as
+   prints: section, figure, value as displayed, the base the read model states for that figure (an
+   agent's rate over their decided meetings, a team share over the timed ones; empty where none is
+   stated, and the section's sample on the section's State row only), the period with its bounds,
+   scope, sources. It opens with the cover's statements: the data-source marker the page wears, the
+   internal audience, and every section the reader left out, by name. A finding carries its so-what
+   and its caveat. Nothing is computed in it. A section the read model writes only as a sentence is
+   that sentence, with an empty denominator; an absent figure is its word, never 0; below the floor the
+   shortfall travels with the figure. The agent register is written without its visitor column: a file
+   that leaves the room is not where the buyer-naming gate is decided again. UTF-8 with a byte-order
+   mark; commas in English and semicolons in Slovak and Hungarian, the list separator Excel splits on
+   under those regional settings; RFC 4180 quoting of either separator, a quote or a line break; CRLF;
+   a formula-injection guard on `=`, `+`, `-`, `@`, a tab or a carriage return at the start of a cell
+   or straight after either separator inside one; and an ASCII file name such as
    `shark-residence_zsofia-barany_year-to-date_hu.csv`.
 3. **The section checkboxes and the language chips apply to all three formats**, because all three
    take the one address the dialog composes.
@@ -67,9 +73,13 @@ dialog.
 
 - The PDF depends on the reader's browser. Margins, headers and footers are the browser's print
   settings; the content is the report page.
-- A comma-separated file opened by double-click in a Slovak or Hungarian Excel, whose list separator is
-  the semicolon, lands in one column; Data → From Text/CSV reads it correctly. A semicolon variant, or
-  an `.xlsx`, is a later decision.
+- The separator follows the report's language, the one signal the server has; the reader's regional
+  settings are what Excel actually splits on. An English file double-clicked under Slovak or
+  Hungarian settings (or the reverse) lands in one column, and Data → From Text/CSV reads it
+  correctly. The formula guard holds under either separator. An `.xlsx` is a later decision.
+- Chrome's "Save as PDF" starts with background graphics off. The bars of the ladder and the funnel
+  and the status chips' marks are backgrounds, so the report's print rules ask for them to be printed
+  exactly (`print-color-adjust`), in the paper inks of ADR-0042.
 - `apps/web/test/report-csv.test.ts`, `report-csv-route.test.ts` and `export-dialog.test.ts` hold the
   writer, the rows, the refusals and the addresses; `e2e/agent-report.spec.ts` drives the dialog and
   the download.
