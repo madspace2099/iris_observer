@@ -3,8 +3,10 @@
 **Read this first in every session.** Then `.claude/skills/iris-observer-product/SKILL.md`, then
 whatever it points at. Update this file at the end of every meaningful session.
 
-**Last updated:** 2026-09-27 · **Branch:** `feature/observer-ux-overhaul-phase2`, **pushed to
-`origin`; the last code commit is `8cbda0e`, the last commit `7138e0e`** · Latest: **Máté's fifteen decisions of 2026-09-27,
+**Last updated:** 2026-10-19 · **Branch:** `feature/observer-shark-demo`, **pushed to `origin`** ·
+Latest: **the Shark Residence demo for Máté's recording** — dark on every screen (ADR-0042), a company
+admin asked for the company's OpenAI key after sign-in (ADR-0043), Akhilesh's Client & Engine Onboarding at
+`/madspace/projects/new` (ADR-0044), Ask IRIS in the question's language; see the last section. Before it: **Máté's fifteen decisions of 2026-09-27,
 built** — one attention index over the unsold stock on every surface (the gate's failing clause now
 holds), R04's two outcome checks, R12's unknown visitors, the Briefing's one window and no verdict
 below the sample, the report formatted by its language. **Phase 2 is still not accepted**
@@ -5211,3 +5213,64 @@ for decision 3). The brief's HEAD needs refreshing before "következő".
 **Next recommended action.** The block report `_review/blokk-0927b/report.md` and its seven
 questions — first the executive and agent overviews, which are fixed scenarios whose figures
 contradict Sales Flow's; then the measurement again before P2-21 is ticked.
+
+## 2026-10-19 — The Shark Residence demo: dark everywhere, company keys, Akhilesh's onboarding
+
+Branch **`feature/observer-shark-demo`** (cut from `feature/observer-veghajras1` at `da5255a`), pushed to
+`origin`. Máté is recording a demo video on a **local production build**: `pnpm build && node
+scripts/demo-start.mjs`, http://localhost:3400 (bound to 127.0.0.1; `.claude/launch.json` entry
+`observer-demo`). Every account's password is `observer-demo`.
+
+**What the demo is.** Sign-in (email + password) → a short welcome sequence (`/welcome`) → Ask IRIS.
+The demo project is **Shark Residence** (`/shark/shark-residence`, tenant Shark Developments): five
+presenters (Lena, Marek, Zsófia, Oliver, Iva), 275 meetings over three windows, a demonstration CRM,
+a 60-flat catalogue. Of their recorded outcomes in the quarter to date, Lena progressed 81%, Marek
+75%, Iva 42%, Zsófia 38%, Oliver 18%; `packages/synthetic/test/shark-story.test.ts` holds that spread,
+single holds per flat, the catalogue agreeing with the CRM and the four scatter points.
+
+**Decided by Máté on 2026-10-19 and built:**
+
+| Decision                                                                                     | Where                                    |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| Charts wear the design-lab D "Hyper kit" look, with motion; the Project page's sankey → funnel, quadrant lists → scatter | ADR-0041                                 |
+| "Everything must have a dark background, not white" — paper exists only in print             | ADR-0042 (supersedes ADR-0034 in part)   |
+| A company admin is asked for the company's OpenAI key after sign-in; one admin per company, the rest members | ADR-0043 (amends ADR-0030, ADR-0040)     |
+| MADSPACE adds a project the way Akhilesh designed it (Client & Engine Onboarding, four steps) | ADR-0044                                 |
+| Ask IRIS answers in the question's language when a model answers; screens stay English; the report prints in EN/SK/HU | agent.ts SYSTEM, ADR-0040                |
+
+**Keys on the demo.** The company key lives in the server's memory only (lost on restart, the popup
+then asks again). Alternatively `OBSERVER_DEMO_OPENAI_KEY=<key>` (and optionally
+`OBSERVER_DEMO_OPENAI_MODEL=<model>`) in `apps/web/.env.local` serves every company that has no key of
+its own. Either is spent only on a request to localhost while `OBSERVER_AI_ENABLED` is on.
+
+**The demo's local control plane** lives in `.observer-local/demo` (ADR-0044), never in the lab
+server's directory. `rm -rf .observer-local/demo` (server stopped) resets what the wizard created.
+
+**Integration note.** The four parallel streams were first merged, which broke
+`release-operation.test.ts`'s `git am` replay of `1ee5d2d..HEAD` (two streams edited the same lines of
+`scripts/demo-start.mjs`). The unpushed merges were replaced by the same commits cherry-picked in
+order; the tree was byte-identical (`backup/shark-demo-merges-c5c3f49` keeps the merge form locally).
+Integrate parallel streams by cherry-pick on this repository.
+
+**The charts after review.** Two reviews of the Hyper-kit charts found 21 defects; all were fixed
+(ADR-0041's amendments): the scatter's links out of its image (axe nested-interactive), the journey
+funnel without a Progressed band where no CRM exists, level sparklines drawn, butt ring ends so a small
+purchase slice shows, small stacked parts kept visible, neutral ranked bars (stalled deals amber, no
+glow), the deal ladder as one card on one scale, three drawings for the scatter and the trend so no
+label renders under 12 px. One more on screen: the ladder's fill was an inline span and never took
+its width (`31603f5`).
+
+**Verified on 2026-10-19/20.** Typecheck clean; lint 0 errors; vitest 251 files, 4823 passed, 1
+skipped (release suites included, on the linear history). Playwright, desktop: welcome, dark
+surfaces, sign-in baseline, account login, portal quality, no-foreign-prose, Ask compare and scope,
+quality, project denominators, p221, p219, frame language, a11y contract, layout integrity, the
+registers, agent report, observer-product — all passed after three fixes (`dc464dd`, `644cf54`).
+Mobile: the sign-in, welcome, layout, a11y, p219, denominators, quality and no-foreign-prose specs
+passed. Lab: `madspace-onboarding` passed (code issued, activated, Activated on screen). Screens
+looked at on the demo server at 1440 and 390: sign-in, the key dialog, Ask (admin and member),
+settings, every Shark page, the agent page Máté named, the wizard's four steps, the report in
+English, Slovak and Hungarian.
+
+**Next recommended action.** Máté records. Before recording: `pnpm build`, then `node
+scripts/demo-start.mjs` (or the `observer-demo` launch entry); sign in as Clara Weiss and add the
+OpenAI key in the dialog, or put `OBSERVER_DEMO_OPENAI_KEY` in `apps/web/.env.local` before starting.
