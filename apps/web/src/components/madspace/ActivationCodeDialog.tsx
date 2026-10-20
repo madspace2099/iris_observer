@@ -384,9 +384,11 @@ function ModalCode({
               </div>
             </dl>
 
+            {/* An ACT alias also waits in the wizard's recent list (ADR-0044, amended). */}
             <p className="mad-once">
-              This code is shown only once. Copy it now and enter it in the installation; once this
-              dialog is closed it cannot be shown again, and a replacement has to be issued.
+              {issued.code.startsWith("ACT-")
+                ? "Copy it now and enter it in the installation. Until it is used or expires it also waits under the recent activation codes in Client & Engine Onboarding."
+                : "This code is shown only once. Copy it now and enter it in the installation; once this dialog is closed it cannot be shown again, and a replacement has to be issued."}
             </p>
           </div>
 
