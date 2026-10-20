@@ -7,6 +7,7 @@ import type {
   WeatherPreset,
 } from "@observer/contracts";
 import type { ViewContext } from "./context";
+import type { AssistVerdict } from "./deal-source";
 import type { EvidenceRef, MetricValue } from "./metric-value";
 
 /**
@@ -455,6 +456,73 @@ export interface UnitAttentionView {
   readonly rows: readonly UnitAttentionRow[];
   readonly selected: UnitAttentionDetail | null;
   readonly findings: readonly ShowroomFinding[];
+  readonly evidence: EvidenceRef;
+}
+
+/* --- D2. What the most-opened flats share (ADR-0050) ------------------------- */
+
+/** One of the most-opened flats, with what the catalogue states about it. */
+export interface UnitPatternFlat {
+  readonly unitCode: string;
+  readonly href: string;
+  /** Distinct meetings of the period that opened it; `UnitAttentionPatterns.meetings` is the denominator. */
+  readonly meetings: number;
+  readonly favourites: number;
+  /** The catalogue's status, which is the status today. */
+  readonly status: "available" | "reserved" | "sold";
+  /** "2 rooms · 65 m² · facing S · floor 5 · block S · €218,000"; an unstated attribute says so. */
+  readonly attributesDisplay: string;
+  /** ADR-0039, for THIS flat: the CRM's dated sale placed against its last showing. Null when none is dated. */
+  readonly sale: {
+    readonly verdict: AssistVerdict;
+    readonly verdictLabel: string;
+    readonly stageLabel: string;
+    readonly stageDateDisplay: string;
+  } | null;
+}
+
+/**
+ * An attribute value the most-opened flats concentrate on, against the whole
+ * catalogue. A statistical association about the flats: never why they were opened.
+ */
+export interface UnitPatternLine {
+  readonly id: string;
+  /** "4 of the 5 most-opened flats face south, against 50% of the 60 flats in the catalogue." */
+  readonly statement: string;
+  /** How many of the most-opened flats, of `topTotal`. */
+  readonly topCount: number;
+  readonly topTotal: number;
+  /** How many catalogue flats, of `baseTotal` that state the attribute. */
+  readonly baseCount: number;
+  readonly baseTotal: number;
+  /** The most-opened flats it covers. */
+  readonly unitCodes: readonly string[];
+  readonly evidence: EvidenceRef;
+}
+
+export interface UnitAttentionPatterns {
+  readonly context: ViewContext;
+  /** `insufficient` below the sample floor: no pattern is looked for, and `note` says how far short. */
+  readonly state: "ok" | "insufficient";
+  /** The period's meetings: every flat's count is out of these. */
+  readonly meetings: number;
+  /** Flats opened in at least one meeting of the period. */
+  readonly opened: number;
+  readonly catalogueSize: number;
+  /** Most-opened first. */
+  readonly top: readonly UnitPatternFlat[];
+  /** "S-503 (29 of 150 meetings), S-403 (23), …" in rank order. */
+  readonly ranking: string;
+  /** How a tie in meetings was ordered; null when no tie touches the list. */
+  readonly tieNote: string | null;
+  readonly patterns: readonly UnitPatternLine[];
+  /** Where no band concentrates: the range the flats span, against the catalogue. */
+  readonly ranges: readonly string[];
+  /** Below the floor, or when nothing concentrates; null when a pattern was found. */
+  readonly note: string | null;
+  /** Reserved or sold now, and the per-flat ADR-0039 placement of their sales. */
+  readonly conversion: readonly string[];
+  readonly caveats: readonly string[];
   readonly evidence: EvidenceRef;
 }
 

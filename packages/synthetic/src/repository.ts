@@ -44,6 +44,7 @@ import type {
   ShowroomOverview,
   ShowroomSessionSlice,
   StorytellingIntelligence,
+  UnitAttentionPatterns,
   UnitAttentionView,
 } from "@observer/readmodels";
 import type {
@@ -69,7 +70,13 @@ import {
 } from "@observer/metrics";
 import { endOfDayIn, periodsAt, periodWords } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
-import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
+import {
+  DEMONSTRATION_CRM_SLUGS,
+  assistedSaleOf,
+  dealsFor,
+  provideDeals,
+  syntheticDeals,
+} from "./deals";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
 import { buildProjectPulse, catalogueFor, provideCatalogue } from "./pulse";
@@ -105,6 +112,7 @@ import {
   buildUnitAttention,
 } from "./showroom/project";
 import { buildAgentDetail, buildMeetings, buildUnitDetail } from "./showroom/screens";
+import { buildUnitAttentionPatterns } from "./showroom/unit-patterns";
 import { buildAttention } from "./showroom/attention";
 import { buildAskHistory, buildAskThread } from "./ask-history";
 import { buildAgentReportScope, buildReportScope } from "./reports";
@@ -837,6 +845,30 @@ export class SyntheticObserverRepository implements ObserverRepository {
   ): Promise<UnitAttentionView> {
     const { context, current, previous } = await this.slices(query);
     return buildUnitAttention(context, current, previous, unitCode);
+  }
+
+  async getUnitAttentionPatterns(query: OverviewQuery): Promise<UnitAttentionPatterns> {
+    const { context, current } = await this.slices(query);
+    const project = context.project.id as string;
+    const deals = dealsFor(project);
+    /* A showing in June belongs to a reservation in July: the whole project's meetings (ADR-0039). */
+    const history = sessionsForProject(project);
+    return buildUnitAttentionPatterns(context, current, {
+      connected: deals !== null,
+      demonstration: irisLedCatalogue(project).fromDemonstrationCrm,
+      windowHours: DEFAULT_IRIS_ASSIST_POLICY.windowHours,
+      saleOf: (unitCode) =>
+        assistedSaleOf(
+          unitCode,
+          deals,
+          history,
+          DEFAULT_IRIS_ASSIST_POLICY,
+          context.project.locale,
+          context.project.timeZone,
+          (meetingId) => replayHref(addressOf(context), meetingId),
+          context.language,
+        ),
+    });
   }
 
   async getStorytelling(query: OverviewQuery): Promise<StorytellingIntelligence> {
