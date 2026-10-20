@@ -28,6 +28,7 @@ import type {
   HomeFigure,
   OutcomeSlice,
   PlaceInterest,
+  ProgressedFigure,
   ProjectView,
   RepeatDistribution,
   SalesFlowView,
@@ -524,6 +525,69 @@ function outcomeSlices(sessions: readonly ShowroomSession[], language: Language)
     }));
 }
 
+/*
+ * THE OUTCOME ROW'S FIGURE (ADR-0041, outcome-rows amendment).
+ *
+ * The progressed share of a group's recorded meetings, with that count beside
+ * it, so the row's rate never stands on an unstated denominator. A presenter
+ * below the floor gets the shortfall instead of a rate; a team or a month does
+ * not stand under the agent floor. Slovak and Hungarian are drafts for review
+ * (P2-17), in the forms the floor's own sentence already uses.
+ */
+const PROGRESSED_WORDS: Readonly<
+  Record<
+    Language,
+    {
+      readonly rate: (share: string, progressed: number, decided: number, locale: string) => string;
+      readonly none: string;
+      readonly short: (short: string, minimum: number) => string;
+    }
+  >
+> = {
+  en: {
+    rate: (share, p, d, locale) =>
+      `${share} progressed · ${count(p, locale)} of ${count(d, locale)} recorded`,
+    none: "No outcome recorded, so no rate",
+    short: (short, minimum) => `No rate yet: ${short} short of the ${minimum} meetings needed`,
+  },
+  sk: {
+    rate: (share, p, d, locale) =>
+      `${share} pokročilo · ${count(p, locale)} ${slovakZForm(d)} ${count(d, locale)} zaznamenaných`,
+    none: "Bez zaznamenaného výsledku, miera sa neuvádza",
+    short: (short, minimum) =>
+      `Bez miery: chýba ${short} ${slovakZForm(minimum)} ${minimum} potrebných stretnutí`,
+  },
+  hu: {
+    rate: (share, p, d, locale) =>
+      `${share} lépett tovább · ${count(d, locale)} rögzítettből ${count(p, locale)}`,
+    none: "Nincs rögzített eredmény, így arány sincs",
+    short: (short, minimum) =>
+      `Nincs arány: ${hungarianInstrumental(short)} kevesebb a szükséges ${hungarianAdessive(String(minimum))}`,
+  },
+};
+
+export function progressedFigure(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+  language: Language,
+  /** A presenter's row stands under `AGENT_MIN_SAMPLE`; a team's or a month's does not. */
+  presenter: boolean,
+): ProgressedFigure {
+  const words = PROGRESSED_WORDS[language];
+  const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length;
+  const progressed = sessions.filter((s) => hasProgressed(s.outcome)).length;
+  const belowMinimum = presenter && sessions.length < AGENT_MIN_SAMPLE;
+  return {
+    meetingsDisplay: meetings(sessions.length, locale, language),
+    display: belowMinimum
+      ? words.short(count(AGENT_MIN_SAMPLE - sessions.length, locale), AGENT_MIN_SAMPLE)
+      : decided === 0
+        ? words.none
+        : words.rate(shareDisplay(progressed / decided, locale), progressed, decided, locale),
+    belowMinimum,
+  };
+}
+
 /**
  * A flag, not a score.
  *
@@ -616,6 +680,7 @@ function buildRing(
     decidedMeetings: decided.length,
     slices: outcomeSlices(session, language),
     progressedShare: share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length),
+    figure: progressedFigure(session, locale, language, true),
     flag: outcomeFlag(session, teamProgressed, locale, language),
     href: agentDetailHref(at, agentId),
   };
@@ -1106,6 +1171,7 @@ export function buildSalesFlow(
     periods,
     outcomes: outcomeSlices(sessions, context.language),
     rings,
+    team: progressedFigure(sessions, locale, context.language, false),
     findings,
     meetingCount: sessions.length,
     evidence: evidenceRef("sales-flow", "observed_sequence", `${base}/flow`, sessions.length),

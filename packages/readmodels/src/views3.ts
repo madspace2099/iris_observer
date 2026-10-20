@@ -140,6 +140,25 @@ export interface OutcomeSlice {
 }
 
 /**
+ * The one figure an outcome row states beside its bar (Sales Flow, ADR-0041's
+ * outcome-rows amendment): a group's meetings in words, and the progressed
+ * share of the ones with an outcome recorded, with that denominator. Written
+ * here so the row prints it and counts nothing.
+ */
+export interface ProgressedFigure {
+  /** Every meeting in the group: "39 meetings". */
+  readonly meetingsDisplay: string;
+  /**
+   * "81% progressed · 29 of 36 recorded". With no outcome recorded it says so
+   * rather than print a rate of nothing; for a presenter below
+   * `AGENT_MIN_SAMPLE` it states how far short and no rate.
+   */
+  readonly display: string;
+  /** True where `display` withholds a presenter's rate under the floor. */
+  readonly belowMinimum: boolean;
+}
+
+/**
  * A presenter's results, as a shape rather than a table.
  *
  * The doughnut is the requested form and the right one: outcome mix is parts of
@@ -163,6 +182,8 @@ export interface AgentOutcomeRing {
   readonly slices: readonly OutcomeSlice[];
   /** Of `decidedMeetings`. Nought where none was decided, which the screen must read as no rate. */
   readonly progressedShare: number;
+  /** The rate in words with its denominator, or the floor's shortfall; Sales Flow's outcome row. */
+  readonly figure: ProgressedFigure;
   /**
    * Set only when the pattern is worth a conversation, never as a score.
    *
@@ -192,6 +213,8 @@ export interface SalesFlowView {
   readonly periods: readonly FlowPeriod[];
   readonly outcomes: readonly OutcomeSlice[];
   readonly rings: readonly AgentOutcomeRing[];
+  /** The team's own row beside the rings: every meeting of the period, no floor. */
+  readonly team: ProgressedFigure;
   readonly findings: readonly ShowroomFinding[];
   readonly meetingCount: number;
   readonly evidence: EvidenceRef;

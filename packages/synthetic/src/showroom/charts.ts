@@ -56,7 +56,7 @@ import { endOfDayIn, monthKeyIn, startOfMonthIn, startOfWeekIn, zoneParts } from
 import { presenterName, presentersIn } from "./sessions";
 import { AGENT_MIN_SAMPLE, getMetric } from "@observer/metrics";
 import { showroomSaleCycleInputs } from "./sale-cycles";
-import { meetings, sliceSpan, suppressionNoteFor } from "./views3";
+import { meetings, progressedFigure, sliceSpan, suppressionNoteFor } from "./views3";
 
 /**
  * The figures behind the chart vocabulary.
@@ -871,6 +871,7 @@ export function buildComposition(
   timeZone: string,
   /** The period's slice (`sliceSpan`); without one, every month is taken as whole. */
   span: { readonly from: number; readonly to: number } = { from: -Infinity, to: Infinity },
+  language: Language = "en",
 ): OutcomeComposition {
   const months = new Map<string, ShowroomSession[]>();
   for (const s of sessions) {
@@ -914,6 +915,7 @@ export function buildComposition(
           parts: Object.fromEntries(
             order.map((o) => [o, xs.filter((s) => s.outcome === o).length]),
           ),
+          figure: progressedFigure(xs, locale, language, false),
         };
       }),
     keys: order.map((o) => ({ id: o, label: OUTCOME_LABELS[o], colour: OUTCOME_COLOURS[o] })),
@@ -1233,7 +1235,7 @@ export function buildFlowCharts(
     context,
     kpis: buildKpis(all, today, windowId, locale, timeZone, context.language, deals),
     activity: buildActivity(sessions, timeZone),
-    composition: buildComposition(sessions, locale, timeZone, monthSpan),
+    composition: buildComposition(sessions, locale, timeZone, monthSpan, context.language),
     trend: buildTrend(sessions, locale, timeZone, span),
     funnel: buildBehaviourFunnel(sessions, locale, context.language),
     rankedAgents: charts.ranked,

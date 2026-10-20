@@ -1,6 +1,7 @@
 import type { MeetingOutcome, SectionId } from "@observer/contracts";
 import type { ViewContext } from "./context";
 import type { EvidenceRef } from "./metric-value";
+import type { ProgressedFigure } from "./views3";
 
 /**
  * The data behind the chart vocabulary.
@@ -254,6 +255,8 @@ export interface StackedColumn {
   readonly label: string;
   readonly total: number;
   readonly parts: Readonly<Record<string, number>>;
+  /** The month's own progressed share of its recorded meetings, in words; no agent floor. */
+  readonly figure: ProgressedFigure;
 }
 
 export interface OutcomeComposition {
