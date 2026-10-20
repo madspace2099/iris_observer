@@ -32,7 +32,7 @@ import type { CSSProperties } from "react";
  *
  * The sentence is composed by Observer's read models, not by a language model,
  * so the label names IRIS and the meetings it read and nothing else: never
- * "AI", never a model. The count is the view's own `meetingCount`, passed in.
+ * "AI", never a model. The count is the view's own, passed in.
  *
  * `replay` is whatever should make IRIS say it again — the period, the summary
  * window. The block is keyed on it and on the sentence, so a change remounts it
@@ -65,7 +65,11 @@ export function SpokenVerdict({
 }: {
   /** The read model's verdict, word for word. */
   readonly sentence: string;
-  /** The period's meetings as the view counts them (`meetingCount`). Printed, never computed here. */
+  /**
+   * The meetings the sentence was read from, as the view counts them (Sales
+   * Flow's `verdictMeetings`, elsewhere `meetingCount`). Printed, never computed
+   * here; with none, the label is IRIS's name alone.
+   */
   readonly meetings: number;
   /** The project's locale, which formats the count. */
   readonly locale: string;
@@ -84,6 +88,13 @@ export function SpokenVerdict({
 
   return (
     <div className="iris-spoken" key={`${replay}|${sentence}`} style={style}>
+      {/* First in the DOM, as it is painted: above the sentence, on a desk and on a phone. */}
+      <p className="iris-spoken-by">
+        <span className="iris-spoken-name">IRIS</span>
+        {meetings > 0 &&
+          ` · read from ${new Intl.NumberFormat(locale).format(meetings)} ${meetings === 1 ? "meeting" : "meetings"}`}
+      </p>
+
       <h1 className="iris-section iris-spoken-line" aria-label={sentence}>
         <span aria-hidden="true">
           {characters.map((character, i) => (
@@ -127,11 +138,6 @@ export function SpokenVerdict({
           <circle className="iris-spoken-core" r="2.4" />
         </g>
       </svg>
-
-      <p className="iris-spoken-by">
-        <span className="iris-spoken-name">IRIS</span> · read from{" "}
-        {new Intl.NumberFormat(locale).format(meetings)} {meetings === 1 ? "meeting" : "meetings"}
-      </p>
     </div>
   );
 }

@@ -312,7 +312,10 @@ async function readingInversions(page: Page): Promise<string[]> {
       /* A chart is one image to a reader (role=img); its axis labels are drawn, not read. */
       if (el.closest("svg") !== null) return false;
       if (el.closest('[role="dialog"], dialog, details:not([open]) > :not(summary), [aria-hidden="true"]') !== null) return false;
-      const own = [...el.childNodes].some((c) => c.nodeType === 3 && (c.textContent ?? "").trim().length > 0);
+      /* A heading named by aria-label whose letters are aria-hidden (the spoken verdict, ADR-0048) still reads here. */
+      const own =
+        [...el.childNodes].some((c) => c.nodeType === 3 && (c.textContent ?? "").trim().length > 0) ||
+        (/^H[1-6]$/.test(el.tagName) && (el.getAttribute("aria-label") ?? "").trim().length > 0);
       const r = el.getBoundingClientRect();
       return own && r.width > 1 && r.height > 1;
     });

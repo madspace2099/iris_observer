@@ -52,6 +52,16 @@ describe("SpokenVerdict", () => {
     expect(render(712)).not.toMatch(/\bAI\b|GPT|model/i);
   });
 
+  it("names IRIS alone where the sentence was read from no meeting", () => {
+    expect(render(0)).toContain('<span class="iris-spoken-name">IRIS</span></p>');
+    expect(render(0)).not.toContain("read from");
+  });
+
+  it("puts the label before the heading, as it is painted", () => {
+    const html = render(712);
+    expect(html.indexOf('class="iris-spoken-by"')).toBeLessThan(html.indexOf("<h1"));
+  });
+
   it("keeps the mark out of the accessibility tree", () => {
     expect(render(712)).toMatch(/<svg class="iris-spoken-mark"[^>]*aria-hidden="true"/);
   });
