@@ -1804,9 +1804,14 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-@media (width >= 48rem) {
+/*
+ * Label, bar and figures on one line only where the bar keeps 8rem: from 48rem
+ * the figures' `auto` column took the width it wanted, and at 768px the bar
+ * collapsed to nothing. Below 64rem the figures stand under the bar.
+ */
+@media (width >= 64rem) {
   .ox-stage {
-    grid-template-columns: 12rem minmax(0, 1fr) auto;
+    grid-template-columns: 12rem minmax(8rem, 1fr) minmax(0, auto);
     align-items: center;
   }
 }

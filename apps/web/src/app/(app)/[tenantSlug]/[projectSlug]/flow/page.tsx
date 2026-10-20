@@ -238,8 +238,9 @@ export default async function FlowPage({
          * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
          * connector delivered, every rung verified because the CRM stated it,
          * and where none did the sentence says so rather than six rungs at zero.
+         * A chart region like the others on the page, so it wears their card.
          */}
-        <div>
+        <div className="d-card">
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
             The deal ladder, as the CRM states it
           </h2>

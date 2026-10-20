@@ -2905,6 +2905,17 @@
   color: var(--d-ink);
 }
 
+/* --- the deal ladder: its fill and its panel are the product's; its track is the kit's -- */
+
+/*
+ * The ladder's track was a 4% wash: on the dark card the rung had no visible
+ * end, so a short bar read as a label with nothing after it. The kit's track
+ * tone stands at 2.1:1 on the black card. `.ox-stage-fill` is not touched.
+ */
+[data-charts="d"] .d-card .ox-stage-bar {
+  background: var(--d-track);
+}
+
 /* --- the parity scale: type only; which side of parity a segment falls is a verdict -- */
 
 [data-charts="d"] .d-card .iris-parity-track {
