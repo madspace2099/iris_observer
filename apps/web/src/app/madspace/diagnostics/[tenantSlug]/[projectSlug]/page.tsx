@@ -8,7 +8,7 @@ import { requireViewer } from "@/lib/session";
 import { dynamicRoute } from "@/lib/href";
 import { controlPlane, HEALTH_LABEL, HEALTH_TONE } from "@/lib/sources/control-plane";
 import { diagnosticsEstate, type DiagnosticSource } from "@/lib/madspace/diagnostics";
-import { ageSince, count, instant } from "@/lib/madspace/format";
+import { ageSince, count, day, instant } from "@/lib/madspace/format";
 import { FEEDS, hoursAgo, portfolioProject } from "@/lib/madspace/portfolio";
 import { InfoNote } from "@/components/madspace/InfoNote";
 import { StatusChip } from "@/components/madspace/StatusMark";
@@ -41,11 +41,11 @@ export default async function ProjectDiagnosticsPage({
   const found = await portfolioProject(viewer, tenantSlug, projectSlug);
   if (found === null) notFound();
 
-  const { company, project } = found;
+  const { company, project, planeReadable } = found;
   const d = project.diagnostics;
   const root = `/${tenantSlug}/${projectSlug}`;
   const cp = project.controlPlaneId;
-  const plane = cp === null ? null : await controlPlane();
+  const plane = cp === null || !planeReadable ? null : await controlPlane();
   const now = new Date();
   const installations =
     cp === null || plane === null || !plane.ok
@@ -67,7 +67,7 @@ export default async function ProjectDiagnosticsPage({
           <p className="mad-lede">
             {d === null
               ? "Its diagnosis could not be read."
-              : `${project.status.word}, as of ${instant(d.asOf).text}, the day this project runs on.`}
+              : `${project.status.word}, counted to the end of ${day(d.asOf)}, the day this project runs on.`}
           </p>
           <div className="mad-idline">
             <StatusChip tone={project.status.tone}>{project.status.word}</StatusChip>
@@ -104,10 +104,10 @@ export default async function ProjectDiagnosticsPage({
         <div className="mad-section-head">
           <h2 id="installations-heading">Installations on the control plane</h2>
           <p>
-            {cp === null
-              ? "No installation is registered for this project on the control plane. Its feeds above are the demonstration's own."
-              : plane === null || !plane.ok
-                ? "The control plane did not answer, so its installations cannot be read."
+            {!planeReadable || (cp !== null && (plane === null || !plane.ok))
+              ? "The control plane did not answer or is not configured, so whether it holds an installation for this project cannot be read."
+              : cp === null
+                ? "No installation is registered for this project on the control plane. Its feeds above are the demonstration's own."
                 : "Activation and heartbeat, as the control plane persists them for each source."}
           </p>
         </div>
@@ -142,8 +142,12 @@ export default async function ProjectDiagnosticsPage({
 
 /* --- the sections ---------------------------------------------------------------------- */
 
+const NO_MEETING_FEED = "No showroom or WEB IRIS feed is connected, so no meeting can be counted.";
+
 function windowEvidence(w: DiagnosisWindow): string {
-  return `Counted from the ${figure(w.meetings)} meetings recorded in the ${w.period.label.toLowerCase()}.`;
+  return w.meetings === null
+    ? NO_MEETING_FEED
+    : `Counted from the ${figure(w.meetings)} meetings recorded in the ${w.period.label.toLowerCase()}.`;
 }
 
 function Presenters({ d }: { d: ProjectDiagnostics }) {
@@ -167,9 +171,11 @@ function Presenters({ d }: { d: ProjectDiagnostics }) {
         {d.windows.map((w) => (
           <li key={w.period.preset}>
             <strong>
-              {d.roster === null || w.rosterPresenting === null
-                ? `${figure(w.presenters)} presented in the ${w.period.label.toLowerCase()}`
-                : `${of(w.rosterPresenting, d.roster)} on the roster presented in the ${w.period.label.toLowerCase()}`}
+              {w.meetings === null
+                ? `No presenter can be counted in the ${w.period.label.toLowerCase()}`
+                : d.roster === null || w.rosterPresenting === null
+                  ? `${figure(w.presenters)} presented in the ${w.period.label.toLowerCase()}`
+                  : `${of(w.rosterPresenting, d.roster)} on the roster presented in the ${w.period.label.toLowerCase()}`}
               {w.offRoster !== null && w.offRoster > 0
                 ? `, and ${figure(w.offRoster)} not on the roster`
                 : ""}
@@ -205,7 +211,14 @@ function Meetings({ d }: { d: ProjectDiagnostics }) {
           </thead>
           <tbody>
             {d.windows.map((w) =>
-              w.meetings === 0 ? (
+              w.meetings === null ? (
+                <tr key={w.period.preset}>
+                  <th scope="row">{w.period.label}</th>
+                  <td colSpan={4} data-missing="true">
+                    {NO_MEETING_FEED}
+                  </td>
+                </tr>
+              ) : w.meetings === 0 ? (
                 <tr key={w.period.preset}>
                   <th scope="row">{w.period.label}</th>
                   <td className="mad-td-figure">{figure(0)}</td>
@@ -217,7 +230,11 @@ function Meetings({ d }: { d: ProjectDiagnostics }) {
                 <tr key={w.period.preset}>
                   <th scope="row">{w.period.label}</th>
                   <td className="mad-td-figure">{figure(w.meetings)}</td>
-                  <td>{of(w.outcomeRecorded, w.meetings)}</td>
+                  <td data-missing={w.outcomeRecorded === null}>
+                    {w.outcomeRecorded === null
+                      ? "No CRM connected"
+                      : of(w.outcomeRecorded, w.meetings)}
+                  </td>
                   <td>{of(w.timingUnavailable, w.meetings)}</td>
                   <td>{of(w.webiris, w.meetings)}</td>
                 </tr>
@@ -235,7 +252,11 @@ function Feeds({ d }: { d: ProjectDiagnostics }) {
     <section className="mad-plane" aria-labelledby="feeds-heading">
       <div className="mad-section-head">
         <h2 id="feeds-heading">Feeds</h2>
-        <p>Each feed&rsquo;s own last-seen record, against the day this project runs on.</p>
+        <p>
+          {d.sources.some((s) => !s.tracked)
+            ? "This demonstration project now runs on today's clock, and its feeds' records are the demonstration's fixed ones, so no age is taken from them. The control plane's heartbeat below is the reading."
+            : "Each feed's own last-seen record, against the day this project runs on."}
+        </p>
       </div>
       <TableWrap labelledBy="feeds-heading">
         <table className="mad-table">
@@ -249,7 +270,10 @@ function Feeds({ d }: { d: ProjectDiagnostics }) {
           </thead>
           <tbody>
             {d.sources.map((source) => {
-              const seen = instant(source.lastSeenAt, "Never seen");
+              const seen = instant(
+                source.lastSeenAt,
+                source.tracked ? "Never seen" : "Not tracked",
+              );
               const kind = FEEDS.find((f) => f.kind === source.kind)?.label ?? source.kind;
               return (
                 <tr key={`${source.kind}:${source.name}`}>
@@ -264,6 +288,8 @@ function Feeds({ d }: { d: ProjectDiagnostics }) {
                   <td>
                     {!source.connected ? (
                       <StatusChip tone="none">Not connected</StatusChip>
+                    ) : !source.tracked ? (
+                      <StatusChip tone="none">Connected, age not tracked</StatusChip>
                     ) : source.ageHours === null ? (
                       <StatusChip tone="await">Connected, never seen</StatusChip>
                     ) : source.stale ? (

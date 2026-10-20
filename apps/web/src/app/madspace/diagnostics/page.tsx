@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Kicker } from "@observer/ui";
+import type { DiagnosisWindow } from "@observer/readmodels";
 import { requireViewer } from "@/lib/session";
 import { dynamicRoute } from "@/lib/href";
 import { controlPlane, HEALTH_LABEL, HEALTH_TONE } from "@/lib/sources/control-plane";
@@ -10,6 +11,7 @@ import {
   ageSince,
   bytes,
   count,
+  day,
   environmentWord,
   instant,
   percent,
@@ -363,24 +365,33 @@ function ClientRow({ company, project }: { company: string; project: PortfolioPr
       </th>
       <td>
         <StatusChip tone={project.status.tone}>{project.status.word}</StatusChip>
+        <span className="mad-td-sub">Counted to {day(d.asOf)}</span>
       </td>
       <td>
-        {recent === undefined || d.roster === null || recent.rosterPresenting === null
-          ? "No roster kept"
-          : `${figure(recent.rosterPresenting)} of ${figure(d.roster)}`}
+        {recent === undefined || recent.meetings === null
+          ? NO_MEETING_FEED
+          : d.roster === null || recent.rosterPresenting === null
+            ? `${figure(recent.presenters)} presented, no roster kept`
+            : `${figure(recent.rosterPresenting)} of ${figure(d.roster)}`}
       </td>
-      <td className="mad-td-figure">{recent === undefined ? "" : figure(recent.meetings)}</td>
-      <td className="mad-td-figure">{quarter === undefined ? "" : figure(quarter.meetings)}</td>
+      <MeetingsCell window={recent} />
+      <MeetingsCell window={quarter} />
       <td>
-        {quarter === undefined || quarter.meetings === 0
-          ? "No meeting to record"
-          : `${figure(quarter.outcomeRecorded)} of ${figure(quarter.meetings)}`}
+        {quarter === undefined || quarter.meetings === null
+          ? NO_MEETING_FEED
+          : quarter.outcomeRecorded === null
+            ? "No CRM connected"
+            : quarter.meetings === 0
+              ? "No meeting to record"
+              : `${figure(quarter.outcomeRecorded)} of ${figure(quarter.meetings)}`}
       </td>
       <td data-missing={last.missing}>{last.text}</td>
       <td data-tone={feeds.stale > 0 ? "weak" : undefined}>
-        {feeds.connected === 0
-          ? "No feed connected"
-          : `${figure(feeds.stale)} of ${figure(feeds.connected)}`}
+        {feeds.connected > 0
+          ? `${figure(feeds.stale)} of ${figure(feeds.connected)}`
+          : d.sources.some((s) => s.connected)
+            ? "Age not tracked"
+            : "No feed connected"}
       </td>
       <td>
         {d.crm.deals !== null
@@ -390,6 +401,17 @@ function ClientRow({ company, project }: { company: string; project: PortfolioPr
             : "No CRM connected"}
       </td>
     </tr>
+  );
+}
+
+const NO_MEETING_FEED = "No showroom or WEB IRIS connected";
+
+function MeetingsCell({ window }: { window: DiagnosisWindow | undefined }) {
+  if (window === undefined) return <td />;
+  return window.meetings === null ? (
+    <td data-missing="true">{NO_MEETING_FEED}</td>
+  ) : (
+    <td className="mad-td-figure">{figure(window.meetings)}</td>
   );
 }
 

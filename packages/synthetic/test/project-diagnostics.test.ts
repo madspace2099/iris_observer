@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { DEFAULT_LANGUAGE, NotPermittedError, type Viewer } from "@observer/readmodels";
+import { ProjectIdSchema, TenantIdSchema, type ShowroomSession } from "@observer/contracts";
+import {
+  DEFAULT_LANGUAGE,
+  NotPermittedError,
+  type ProjectSummary,
+  type TenantSummary,
+  type Viewer,
+} from "@observer/readmodels";
 
 import { SyntheticObserverRepository } from "../src/repository";
 import { VIEWERS } from "../src/world";
@@ -35,8 +42,9 @@ describe("project diagnostics", () => {
         period: window.period.preset,
       });
       expect(window.meetings).toBe(slice.sessions.length);
-      expect(window.outcomeRecorded).toBeLessThanOrEqual(window.meetings);
-      expect(window.webiris).toBeLessThanOrEqual(window.meetings);
+      const meetings = window.meetings ?? Number.NaN;
+      expect(window.outcomeRecorded ?? Number.NaN).toBeLessThanOrEqual(meetings);
+      expect(window.webiris).toBeLessThanOrEqual(meetings);
       expect(window.rosterPresenting).not.toBeNull();
       /* Every synthetic presenter is on the roster. */
       expect(window.offRoster).toBe(0);
@@ -45,17 +53,104 @@ describe("project diagnostics", () => {
       expect(window.unitsOpened).toBeLessThanOrEqual(view.catalogueUnits ?? 0);
     }
     /* No window holds more meetings than were recorded to date. */
-    expect(view.windows.every((w) => w.meetings <= view.recorded)).toBe(true);
+    expect(view.windows.every((w) => w.meetings !== null && w.meetings <= view.recorded)).toBe(
+      true,
+    );
     expect(view.data).toBe("demonstration");
     expect(view.roster).toBeGreaterThan(0);
     expect(view.crm.connected).toBe(true);
     expect(view.crm.deals).toBeGreaterThan(0);
   });
 
-  it("states a missing CRM as absent, never as nought deals", async () => {
+  it("states a missing CRM as absent, never as nought deals or nought outcomes", async () => {
     const view = await repo.getProjectDiagnostics(query(madspace, "alpha", "riverside"));
     expect(view.crm.connected).toBe(false);
     expect(view.crm.deals).toBeNull();
+    for (const window of view.windows) {
+      expect(window.meetings).toBeGreaterThan(0);
+      expect(window.outcomeRecorded).toBeNull();
+    }
+  });
+
+  it("does not age a fixture's August feeds against the real clock once its showroom delivers", async () => {
+    const now = new Date("2026-10-20T10:00:00.000Z");
+    const meeting: ShowroomSession = {
+      sessionId: "7a1c9f6e-2c7a-4a4e-9b31-0000000000bb",
+      meetingId: "7a1c9f6e-2c7a-4a4e-9b31-0000000000bb",
+      projectId: "prj_akhileshdemo1",
+      agentId: "agent-guid",
+      channel: "showroom",
+      contactId: null,
+      startedAt: "2026-10-20T08:00:00.000Z",
+      endedAt: "2026-10-20T08:12:00.000Z",
+      durationSeconds: 720,
+      outcome: "interested",
+      steps: [],
+      units: [],
+      environment: [],
+      filters: [],
+      places: [],
+      screenshots: 0,
+      irisRating: null,
+      priorMeetings: 0,
+      timingUnavailable: true,
+    };
+    const delivering = new SyntheticObserverRepository({
+      now: () => now,
+      sessionSource: {
+        async sessionsFor(project) {
+          if ((project.id as string) !== meeting.projectId) return null;
+          return { connector: "ue5_events", sessions: [meeting], fetchedAt: now.toISOString() };
+        },
+      },
+    });
+    const view = await delivering.getProjectDiagnostics(
+      query(madspace, "madspace-integration", "akhilesh-demo-source"),
+    );
+    expect(view.data).toBe("delivered");
+    expect(view.asOf).toBe(now.toISOString());
+    expect(view.lastMeetingAt).toBe(meeting.startedAt);
+    expect(view.sources.length).toBeGreaterThan(0);
+    for (const source of view.sources) {
+      expect(source.tracked).toBe(false);
+      expect(source.lastSeenAt).toBeNull();
+      expect(source.ageHours).toBeNull();
+      expect(source.stale).toBe(false);
+    }
+  });
+
+  it("states meetings as absent where no feed could deliver one", async () => {
+    const tenant: TenantSummary = {
+      id: TenantIdSchema.parse("tnt_0123456789abcdef0123456789abcdef"),
+      slug: "alder-homes",
+      name: "Alder Homes",
+    };
+    const project: ProjectSummary = {
+      id: ProjectIdSchema.parse("prj_fedcba9876543210fedcba9876543210"),
+      tenantId: tenant.id,
+      slug: "alder-court",
+      name: "Alder Court",
+      currency: "EUR",
+      locale: "sk-SK",
+      timeZone: "Europe/Bratislava",
+      connectedSources: [],
+      sources: [],
+    };
+    const own = new SyntheticObserverRepository({
+      now: () => new Date("2026-10-20T10:00:00.000Z"),
+      projectDirectory: { entries: async () => ({ tenants: [tenant], projects: [project] }) },
+    });
+    const viewer: Viewer = {
+      ...madspace,
+      tenantIds: [...madspace.tenantIds, tenant.id],
+      projectIds: [...madspace.projectIds, project.id],
+    };
+    const view = await own.getProjectDiagnostics(query(viewer, tenant.slug, project.slug));
+    expect(view.data).toBe("own");
+    for (const window of view.windows) {
+      expect(window.meetings).toBeNull();
+      expect(window.outcomeRecorded).toBeNull();
+    }
   });
 
   it("flags a feed last seen more than a day before the project's today", async () => {

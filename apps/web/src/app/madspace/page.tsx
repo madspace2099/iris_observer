@@ -5,7 +5,7 @@ import { Kicker } from "@observer/ui";
 
 import { requireViewer } from "@/lib/session";
 import { dynamicRoute } from "@/lib/href";
-import { count } from "@/lib/madspace/format";
+import { count, day } from "@/lib/madspace/format";
 import {
   feedsOf,
   portfolio,
@@ -101,6 +101,9 @@ function ProjectRow({ project }: { project: PortfolioProject }) {
         <div className="mad-idline">
           <StatusChip tone={project.status.tone}>{project.status.word}</StatusChip>
         </div>
+        {diagnostics === null ? null : (
+          <span className="mad-note">Counted to {day(diagnostics.asOf)}</span>
+        )}
       </div>
 
       {diagnostics === null ? (
@@ -142,7 +145,11 @@ function ProjectRow({ project }: { project: PortfolioProject }) {
           {diagnostics.windows.map((window) => (
             <div key={window.period.preset}>
               <dt>Meetings, {window.period.label}</dt>
-              <dd className="mad-facts-figure">{count(window.meetings).text}</dd>
+              {window.meetings === null ? (
+                <dd data-missing="true">No showroom or WEB IRIS connected</dd>
+              ) : (
+                <dd className="mad-facts-figure">{count(window.meetings).text}</dd>
+              )}
             </div>
           ))}
         </dl>

@@ -115,12 +115,15 @@ function plural(n: number, one: string, other: string): string {
   return `${count(n).text} ${n === 1 ? one : other}`;
 }
 
-/** Connected feeds last heard from more than 24 hours before the project's today. */
+/**
+ * Connected feeds last heard from more than 24 hours before the project's today,
+ * of the connected feeds whose last sighting is tracked on that day's clock.
+ */
 export function staleFeeds(diagnostics: ProjectDiagnostics): {
   readonly stale: number;
   readonly connected: number;
 } {
-  const connected = diagnostics.sources.filter((s) => s.connected);
+  const connected = diagnostics.sources.filter((s) => s.connected && s.tracked);
   return { stale: connected.filter((s) => s.stale).length, connected: connected.length };
 }
 
@@ -147,6 +150,9 @@ export function feedsOf(
   return FEEDS.map(({ kind, label }) => {
     const connected = diagnostics.sources.filter((s) => s.kind === kind && s.connected);
     if (connected.length === 0) return { label, text: "not connected", tone: "none" as const };
+    if (connected.every((s) => !s.tracked)) {
+      return { label, text: "connected, age not tracked", tone: "none" as const };
+    }
     const seen = connected.filter((s) => s.ageHours !== null);
     const freshest = seen.reduce<(typeof seen)[number] | null>(
       (best, s) => (best === null || (s.ageHours ?? 0) < (best.ageHours ?? 0) ? s : best),
@@ -275,7 +281,12 @@ export async function portfolioProject(
   viewer: Viewer,
   tenantSlug: string,
   projectSlug: string,
-): Promise<{ readonly company: string; readonly project: PortfolioProject } | null> {
+): Promise<{
+  readonly company: string;
+  readonly project: PortfolioProject;
+  /** False when no control plane answered, so whether it holds an installation is unknown. */
+  readonly planeReadable: boolean;
+} | null> {
   let resolved;
   try {
     resolved = await repository.resolveProject(viewer, tenantSlug, projectSlug);
@@ -288,6 +299,7 @@ export async function portfolioProject(
   ]);
   return {
     company: resolved.tenant.name,
+    planeReadable: plane.readable,
     project: {
       key: resolved.project.id as string,
       name: resolved.project.name,

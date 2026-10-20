@@ -44,18 +44,32 @@ export function buildProjectDiagnostics(
   const catalogue = new Set(input.catalogueCodes);
   const roster = input.roster === null ? null : new Set(input.roster);
 
+  /*
+   * A fixture whose showroom delivers runs on the real clock, but its feeds are
+   * still the world's fixed August records. Aged against today every one of
+   * them reads weeks stale beside a meeting held this morning, so they are not
+   * aged at all: the control plane's heartbeat is the reading for such a feed.
+   */
+  const tracked = !(context.sessionsDelivered && !context.ownDataOnly);
   const sources: DiagnosedSource[] = project.sources.map((source) => {
-    const seen = source.lastSeenAt === null ? Number.NaN : Date.parse(source.lastSeenAt);
+    const lastSeenAt = tracked ? source.lastSeenAt : null;
+    const seen = lastSeenAt === null ? Number.NaN : Date.parse(lastSeenAt);
     const age = Number.isFinite(seen) ? Math.max(0, now - seen) : null;
     return {
       name: source.displayName,
       kind: source.kind,
       connected: source.connected,
-      lastSeenAt: source.lastSeenAt,
+      tracked,
+      lastSeenAt,
       ageHours: age === null ? null : Math.floor(age / HOUR_MS),
       stale: age !== null && age > STALE_AFTER_HOURS * HOUR_MS,
     };
   });
+
+  const crmConnected = project.connectedSources.includes("crm");
+  const catalogueConnected = project.connectedSources.includes("catalogue");
+  /* A feed that can deliver a meeting. Without one, an empty window is absent, not nought. */
+  const meetingFed = project.connectedSources.some((k) => k === "showroom" || k === "webiris");
 
   const windows: DiagnosisWindow[] = input.windows.map(({ period, sessions }) => {
     const presenters = new Set(sessions.map((s) => s.agentId));
@@ -63,21 +77,19 @@ export function buildProjectDiagnostics(
     const opened = new Set(
       sessions.flatMap((s) => s.units.map((u) => u.unitCode)).filter((code) => catalogue.has(code)),
     );
+    const outcomes = sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length;
     return {
       period,
-      meetings: sessions.length,
+      meetings: sessions.length === 0 && !meetingFed ? null : sessions.length,
       presenters: presenters.size,
       rosterPresenting: onRoster,
       offRoster: onRoster === null ? null : presenters.size - onRoster,
-      outcomeRecorded: sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
+      outcomeRecorded: outcomes === 0 && !crmConnected ? null : outcomes,
       timingUnavailable: sessions.filter((s) => s.timingUnavailable).length,
       webiris: sessions.filter((s) => s.channel === "webiris").length,
       unitsOpened: opened.size,
     };
   });
-
-  const crmConnected = project.connectedSources.includes("crm");
-  const catalogueConnected = project.connectedSources.includes("catalogue");
 
   return {
     asOf,

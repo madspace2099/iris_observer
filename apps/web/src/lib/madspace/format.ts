@@ -105,6 +105,12 @@ export function instant(value: string | null, whenAbsent = "Never"): Reading {
   );
 }
 
+/** The UTC day of an instant: the date part of {@link instant}. */
+export function day(value: string): string {
+  const reading = instant(value);
+  return reading.missing ? reading.text : reading.text.slice(0, 10);
+}
+
 /** How long ago, in words. Null when there is no instant to measure from. */
 export function ageSince(value: string | null, now: Date): string | null {
   if (value === null) return null;
