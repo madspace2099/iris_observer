@@ -174,11 +174,15 @@ const SPOKEN_DECIDED_BY_MATE: readonly Rule[] = [
   { line: "title: Dictation is not enabled in this build", why: "the prompt bar's dictation button" },
 ];
 
-/** The same homonym as on screen: the project switcher is not the buyers table's column. */
+/** Homonyms, as on screen: a switcher's spoken name is not the report's word that shares its spelling. */
 const SPOKEN_NOT_PROOF: readonly Rule[] = [
   {
     line: "aria-label: Project",
     why: "The agent report's buyers-table column (`buyersColumns[3]`), not the project switcher.",
+  },
+  {
+    line: "aria-label: Period",
+    why: "The printed cover's label (`REPORT_DOCUMENT_WORDS.period`), not the period switcher.",
   },
 ];
 
