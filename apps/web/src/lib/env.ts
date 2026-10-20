@@ -214,11 +214,44 @@ export function demoModelAccess(
 ): DemoModelAccess | null {
   const apiKey = source["OBSERVER_DEMO_OPENAI_KEY"]?.trim() ?? "";
   if (apiKey.length === 0 || demoKeyRefusal(source) !== null) return null;
+  return { apiKey, model: demoWireModel(source) };
+}
+
+/**
+ * Whether this server is a local demonstration: ADR-0040's three conditions,
+ * without asking whether any key is set. The company key store (ADR-0043)
+ * opens only where this holds.
+ */
+export function localDemonstration(
+  source: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  return demoKeyRefusal(source) === null;
+}
+
+/**
+ * The vendor's model name a demonstration key answers with: the one asked for
+ * when it is shaped like a model name, otherwise the catalogue's recommended one.
+ */
+export function demoWireModel(
+  source: Readonly<Record<string, string | undefined>> = process.env,
+): string {
   const asked = source["OBSERVER_DEMO_OPENAI_MODEL"]?.trim() ?? "";
-  const model = ModelId.safeParse(asked).success
-    ? asked
-    : modelEntry(RECOMMENDED_DEFAULT).apiIdentifier;
-  return { apiKey, model };
+  return ModelId.safeParse(asked).success ? asked : modelEntry(RECOMMENDED_DEFAULT).apiIdentifier;
+}
+
+/**
+ * Whether a request's `Host` names this machine: localhost, 127.0.0.1 or
+ * [::1], on any port.
+ *
+ * The POSITIVE local signal ADR-0043 adds to ADR-0040's denylist of deployment
+ * markers: a demonstration key is spent only on a request addressed to the
+ * loopback, so a server that is reachable by name never spends one. Read from
+ * the request's own header, never from anything in its body.
+ */
+export function loopbackHost(host: string | null): boolean {
+  if (host === null) return false;
+  const name = host.trim().toLowerCase().replace(/:\d+$/, "");
+  return name === "localhost" || name === "127.0.0.1" || name === "[::1]";
 }
 
 /** The model the demonstration key answers with, for the screen. Never the key. */

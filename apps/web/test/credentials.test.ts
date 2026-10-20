@@ -775,7 +775,7 @@ describe("the source cannot grow a client-side secret path", () => {
   });
 
   it("keeps every credential module server-only", () => {
-    for (const name of ["envelope.ts", "store.ts", "service.ts", "probe.ts"]) {
+    for (const name of ["envelope.ts", "store.ts", "service.ts", "probe.ts", "company-keys.ts"]) {
       const source = read(join(src, "lib", "credentials", name));
       expect(source.startsWith('import "server-only";'), name).toBe(true);
     }
@@ -784,7 +784,7 @@ describe("the source cannot grow a client-side secret path", () => {
   it("lets no client component import the credential service", () => {
     const offenders = files
       .filter((f) => read(f).includes('"use client"'))
-      .filter((f) => /credentials\/(service|store|envelope|probe)/.test(read(f)))
+      .filter((f) => /credentials\/(service|store|envelope|probe|company-keys)/.test(read(f)))
       .map(rel);
     expect(offenders).toEqual([]);
   });
@@ -1032,12 +1032,20 @@ describe("the test store is not a development convenience", () => {
      * to be one per process, and `globalThis` is the only thing that spans
      * bundles. It is DEVELOPMENT-ONLY and never evaluated in production.
      *
-     * A sixth entry appearing here means somebody reached for process-global
+     * `credentials/company-keys.ts` is the sixth (ADR-0043): a company's key on
+     * a local demonstration is saved by a server action and spent by the
+     * stream route, two bundles, so a module-level Map would be two Maps. It
+     * opens only with its own flag on a local demonstration, holds process
+     * memory only, and is deleted in one piece when a company can own a row
+     * in the real credential store.
+     *
+     * A seventh entry appearing here means somebody reached for process-global
      * state in the product itself, which is what this list exists to catch.
      */
     expect(offenders.sort()).toEqual([
       "/lib/ai/limits.ts",
       "/lib/budget/test-ledger.ts",
+      "/lib/credentials/company-keys.ts",
       "/lib/credentials/test-store.ts",
       "/lib/models/test-preferences.ts",
       "/lib/sources/local-db.ts",
@@ -1045,11 +1053,15 @@ describe("the test store is not a development convenience", () => {
 
     /*
      * The three harness files are test stores, by name and by isolation. The
-     * other two are named exceptions with their reasons above, and listing them
+     * other three are named exceptions with their reasons above, and listing them
      * here rather than loosening the pattern keeps the shape check meaningful
      * for everything else.
      */
-    const NAMED_EXCEPTIONS = ["/lib/ai/limits.ts", "/lib/sources/local-db.ts"];
+    const NAMED_EXCEPTIONS = [
+      "/lib/ai/limits.ts",
+      "/lib/credentials/company-keys.ts",
+      "/lib/sources/local-db.ts",
+    ];
     for (const harness of offenders.filter((f) => !NAMED_EXCEPTIONS.includes(f))) {
       expect(harness, harness).toMatch(/test-(store|ledger|preferences).ts$/);
     }
