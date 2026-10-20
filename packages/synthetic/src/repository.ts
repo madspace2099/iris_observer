@@ -11,6 +11,7 @@ import type {
   AskSession,
   PreMeetingBriefView,
   ProjectPulse,
+  ProjectDiagnostics,
   ProjectSummary,
   TenantSummary,
   ViewContext,
@@ -59,16 +60,18 @@ import type {
   ShowroomSessionSource,
 } from "@observer/readmodels";
 import { DEFAULT_ATTRIBUTION_POLICY, comparisonRefusalReason } from "@observer/metrics";
-import { periodsAt, periodWords } from "./time";
+import { endOfDayIn, periodsAt, periodWords } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import { DEMONSTRATION_CRM_SLUGS, dealsFor, provideDeals, syntheticDeals } from "./deals";
 import { buildExecutiveOverview } from "./overview";
 import { buildAgentOverview, buildPreMeetingBrief } from "./agent";
-import { buildProjectPulse, provideCatalogue } from "./pulse";
+import { buildProjectPulse, catalogueFor, provideCatalogue } from "./pulse";
+import { buildProjectDiagnostics } from "./diagnostics";
 import { buildDeliveredAskSession } from "./ask-computed";
 import { rawUnitsFromCatalogue } from "./catalogue-overlay";
 import {
   presentersIn,
+  rosterOf,
   provideAgentNames,
   provideSessions,
   sessionById,
@@ -816,6 +819,45 @@ export class SyntheticObserverRepository implements ObserverRepository {
     void viewer;
     throw new NotFoundError(`Evidence "${evidenceId}"`);
   }
+
+  /**
+   * One project, diagnosed for MADSPACE, over the last 28 days and the quarter
+   * to date. Each window is sliced the way `slices()` slices a period, on the
+   * clock the project runs on, so a figure here is the figure its own screens
+   * count for the same window.
+   */
+  async getProjectDiagnostics(query: OverviewQuery): Promise<ProjectDiagnostics> {
+    if (query.viewer.role !== "madspace_admin") {
+      throw new NotPermittedError("project diagnostics");
+    }
+    const context = await this.context(query);
+    const project = context.project.id as string;
+    const today = new Date(context.generatedAt);
+    const real = context.sessionsDelivered || context.ownDataOnly;
+    const windows = DIAGNOSIS_WINDOWS.map((preset) => {
+      const period = this.periodFor(context.project, preset, real ? today : null, query.language);
+      const span = sliceSpan({ ...context, period }, today);
+      return {
+        period,
+        sessions: sessionsInPeriod(project, period.from, new Date(span.to).toISOString()),
+      };
+    });
+    return buildProjectDiagnostics(context, {
+      windows,
+      /* Through the end of the project's today, the horizon its running windows count to. */
+      history: sessionsInPeriod(
+        project,
+        new Date(0).toISOString(),
+        endOfDayIn(today, context.project.timeZone).toISOString(),
+      ),
+      roster: rosterOf(project, context.sessionsDelivered),
+      deals: dealsFor(project),
+      catalogueCodes: catalogueFor(project).map((unit) => unit.code),
+    });
+  }
 }
+
+/** The two windows a diagnosis is read over, in the order a reader meets them. */
+const DIAGNOSIS_WINDOWS: readonly PeriodPreset[] = ["last_28_days", "quarter_to_date"];
 
 export const syntheticRepository: ObserverRepository = new SyntheticObserverRepository();

@@ -443,6 +443,18 @@ export function presentersIn(
   ];
 }
 
+/**
+ * The ids a project knows its presenters by: the names its own directory holds
+ * when a source delivers its meetings, else the synthetic roster. Null when it
+ * keeps neither, which is not a roster of nobody.
+ */
+export function rosterOf(projectId: string, delivered: boolean): readonly string[] | null {
+  const ids = delivered
+    ? [...(providedNames.get(projectId)?.keys() ?? [])]
+    : agentsForProject(projectId).map((a) => a.id);
+  return ids.length === 0 ? null : ids;
+}
+
 /** The people who present on one project. Never the whole roster. */
 export function agentsForProject(projectId: string): readonly SyntheticAgent[] {
   const dataset = PROJECT_DATASETS.find((d) => d.projectId === projectId);

@@ -28,3 +28,4 @@ export * from "./language";
 export * from "./sentence";
 export * from "./duration";
 export * from "./routes";
+export * from "./diagnostics";

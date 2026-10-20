@@ -1,6 +1,7 @@
 import type { Evidence, MeetingId, ProjectId, TenantId } from "@observer/contracts";
 import type { Period, PeriodPreset, ProjectSummary, TenantSummary, Viewer } from "./context";
 import type { Language } from "./language";
+import type { ProjectDiagnostics } from "./diagnostics";
 import type { AgentOverview, ExecutiveOverview, PreMeetingBriefView } from "./views";
 import type { AskHistoryView, AskSession, AskThread, ProjectPulse } from "./pulse";
 import type { ReportScopeSelector, ReportScopeView } from "./report";
@@ -282,4 +283,12 @@ export interface ObserverRepository {
 
   /** Resolves an evidence reference for the drill-down panel. */
   getEvidence(viewer: Viewer, evidenceId: string): Promise<Evidence>;
+
+  /**
+   * What MADSPACE needs to diagnose one client project: its feeds, its roster
+   * against who presented, its meetings in the last 28 days and the quarter to
+   * date. The query's period is not read; both windows are always returned.
+   * `madspace_admin` only.
+   */
+  getProjectDiagnostics(query: OverviewQuery): Promise<ProjectDiagnostics>;
 }
