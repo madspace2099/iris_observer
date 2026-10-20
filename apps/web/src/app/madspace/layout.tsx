@@ -48,10 +48,14 @@ function controlPlaneReading(
         };
   }
 
+  /* Under `next start` the local plane opens only for the recorded demo (ADR-0044). */
   return local
     ? {
         word: "Local control plane",
-        sentence: "Local control plane, a development database running inside this dev server.",
+        sentence:
+          process.env.NODE_ENV === "production"
+            ? "Local control plane, a demonstration database running inside this server."
+            : "Local control plane, a development database running inside this dev server.",
       }
     : {
         word: "Hosted control plane",

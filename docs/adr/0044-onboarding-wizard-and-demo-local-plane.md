@@ -52,7 +52,9 @@ said "Control plane not configured" and the wizard would have had nowhere to wri
    together. `demo-start.mjs` uses `.observer-local/demo`: two processes on one PGlite
    directory corrupt it and the browser suite's lab server holds `.observer-local`. It also sets
    two demo-only activation peppers in the subject pepper's style; `describePepper` refuses them
-   wherever the harness flag is absent.
+   wherever the harness flag is absent. It binds `next start` to 127.0.0.1: the plane is
+   writable, its peppers are public constants and its sign-in is a scenario selector, so nobody
+   else on the network may reach it.
 
 ## What was deliberately not ported
 
@@ -70,7 +72,13 @@ said "Control plane not configured" and the wizard would have had nowhere to wri
 
 - On the demo server `/madspace` reads a real, initially empty estate. The ISTER TOWER synthetic
   pages are unchanged by it: a control-plane project changes a synthetic one only as its
-  incomplete twin with delivered sessions, and the wizard only ever makes complete projects.
+  incomplete twin with delivered sessions. The wizard makes complete projects, with one exception:
+  when a write after `createProject` is refused or raises, the project stays registered without
+  its settings, and the wizard says so and sends the operator to Projects to finish it. Locale and
+  time zone are held to the table's CHECK shapes before the first write, so a value Intl accepts
+  and the table refuses (`en-US-u-hc-h23`, `+01:00`) is not one of those writes. An unfinished
+  project whose domain is a fixture's slug would be that fixture's twin; the placeholders name no
+  fixture.
 - The other routes behind the same gate open on the demo server too: `/design-lab`, `/lab`, the
   projects list's Build the estate button and Source Detail's lifecycle driver, all for MADSPACE
   administrators only. Pressing Build the estate there creates the ISTER TOWER twin, as it does on

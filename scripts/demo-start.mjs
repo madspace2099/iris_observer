@@ -49,7 +49,12 @@ const DEMO_ENV = {
 const env = { ...process.env };
 for (const [name, value] of Object.entries(DEMO_ENV)) env[name] ??= value;
 
-const child = spawn(`pnpm --filter @observer/web start --port ${PORT}`, {
+/*
+ * Loopback only. `next start` binds every interface by default, and this server
+ * holds a writable control plane whose peppers are public constants and whose
+ * sign-in is a scenario selector: nobody else on the network may reach it.
+ */
+const child = spawn(`pnpm --filter @observer/web start --port ${PORT} --hostname 127.0.0.1`, {
   env,
   stdio: "inherit",
   shell: true,
