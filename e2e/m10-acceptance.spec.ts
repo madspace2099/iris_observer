@@ -274,13 +274,12 @@ test.describe.serial("M10 acceptance", () => {
   }) => {
     watch(page);
     await signIn(page, "MADSPACE Operations");
-    await page.goto("/madspace/projects");
-    const card = page.getByRole("link", { name: /Open project/ }).filter({ hasText: "" });
-    /* The project by name: its heading sits in the same article as its link. */
-    const article = page.locator("article, section, li").filter({ hasText: PROJECT_NAME }).first();
+    /* The MADSPACE home lists every project by company (ADR-0047); its row links to Integrations. */
+    await page.goto("/madspace");
+    /* The project by name: its heading sits in the same article as its links. */
+    const article = page.locator("article").filter({ hasText: PROJECT_NAME }).first();
     await expect(article).toBeVisible({ timeout: 60_000 });
-    await article.getByRole("link", { name: /Open project/ }).first().click();
-    await page.getByRole("link", { name: "Integrations" }).click();
+    await article.getByRole("link", { name: /^Integrations/ }).first().click();
     await expect(page.getByRole("heading", { level: 1, name: PROJECT_NAME })).toBeVisible({
       timeout: 90_000,
     });
@@ -289,7 +288,6 @@ test.describe.serial("M10 acceptance", () => {
     for (const kind of ["realpad", "lomnio", "monday", "csv"]) {
       await expect(page.locator(`section[aria-labelledby="${kind}-heading"]`)).toBeVisible();
     }
-    void card;
     record("sign-in and integrations", integrations);
   });
 

@@ -125,9 +125,10 @@ async function shoot(page: Page, name: string, viewport: string): Promise<void> 
  * source it leaves behind has never been activated.
  */
 async function ensureEstate(page: Page): Promise<void> {
-  await page.goto("/madspace/projects");
+  /* The MADSPACE home is the projects list (ADR-0047); a control-plane project's row links to its Sources. */
+  await page.goto("/madspace");
 
-  const open = page.getByRole("link", { name: /open project/i });
+  const open = page.getByRole("link", { name: /^Sources/ });
   if ((await open.count()) > 0) return;
 
   await page.getByRole("button", { name: /build the estate/i }).click();
@@ -136,7 +137,7 @@ async function ensureEstate(page: Page): Promise<void> {
 
 async function openProject(page: Page): Promise<void> {
   await ensureEstate(page);
-  await page.getByRole("link", { name: /open project/i }).first().click();
+  await page.getByRole("link", { name: /^Sources/ }).first().click();
   await page.waitForURL(/\/madspace\/projects\/[0-9a-f-]{36}/);
 }
 

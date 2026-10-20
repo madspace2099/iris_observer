@@ -91,7 +91,7 @@ export default async function MadspaceHome() {
 function ProjectRow({ project }: { project: PortfolioProject }) {
   const { address, diagnostics, controlPlaneId } = project;
   const root = address === null ? null : `/${address.tenantSlug}/${address.projectSlug}`;
-  const named = <span className="ox-sr"> {project.name}</span>;
+  const named = <span className="ox-sr">, {project.name}</span>;
 
   return (
     <article className="mad-row mad-row--portfolio">

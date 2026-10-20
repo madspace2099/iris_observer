@@ -11,7 +11,7 @@ import Link from "next/link";
  * debugging something.
  *
  * Wrapped by `madspace/layout.tsx` the same way every operations page is —
- * the header, `OpsNav` and the scope band are already the ones the operator
+ * the header and its sections are already the ones the operator
  * was looking at — so this fills the `<main>` alone, on `.mad-*`.
  */
 export default function NotFound() {
@@ -26,7 +26,7 @@ export default function NotFound() {
         </span>
       </div>
 
-      <Link className="mad-action" href="/madspace/projects">
+      <Link className="mad-action" href="/madspace">
         Back to Projects
       </Link>
     </div>
