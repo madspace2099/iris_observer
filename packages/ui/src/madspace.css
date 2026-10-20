@@ -4213,7 +4213,8 @@ button.mad-quiet {
   animation: mad-wizard-pulse 1.5s ease-in-out infinite;
 }
 
-.mad-wizard-countdown[data-state="expired"] .mad-wizard-pulse {
+/* Expired, or used ("done", in the good colours): the clock has stopped. */
+.mad-wizard-countdown:is([data-state="expired"], [data-state="done"]) .mad-wizard-pulse {
   animation: none;
 }
 
@@ -4253,6 +4254,11 @@ button.mad-quiet {
   text-align: center;
   overflow-wrap: anywhere;
   user-select: all;
+}
+
+/* His short code is read and typed: one line, never broken inside a group. */
+.mad-wizard-code[data-shape="short"] {
+  white-space: nowrap;
 }
 
 /* The real code on a hosted plane: seventy characters, broken anywhere. */
@@ -4295,11 +4301,6 @@ button.mad-quiet {
   background: var(--surface-inset);
   color: var(--mark-disabled);
   cursor: default;
-}
-
-/* The copy announcement takes no row of the card until it has something to say. */
-.mad-wizard-card > .mad-copy-said:empty {
-  position: absolute;
 }
 
 .mad-wizard-status-row {
@@ -4494,6 +4495,11 @@ button.mad-quiet {
   .mad-wizard-row,
   .mad-wizard-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 13 symbols at 24px need 225px; a 375px phone leaves the well 220. 5.4vw fits it to 320px. */
+  .mad-wizard-code[data-shape="short"] {
+    font-size: clamp(1rem, 5.4vw, 1.5rem);
   }
 }
 

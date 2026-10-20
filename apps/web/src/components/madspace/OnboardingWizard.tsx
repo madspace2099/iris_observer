@@ -189,7 +189,6 @@ export function OnboardingWizard({
 
   const [recentOpen, setRecentOpen] = useState(false);
   const [recent, setRecent] = useState<Recent | null>(null);
-  const [listedAt, setListedAt] = useState(0);
 
   const panel = useRef<HTMLDivElement>(null);
   const moved = useRef(false);
@@ -219,17 +218,23 @@ export function OnboardingWizard({
   }, [step]);
 
   const expiresAt = issued === null ? Number.NaN : Date.parse(issued.expiresAt);
+  /* Rounded up, so this page never calls a code expired before the server does. */
   const remaining = Number.isFinite(expiresAt)
-    ? Math.max(0, Math.round((expiresAt - now) / 1000))
+    ? Math.max(0, Math.ceil((expiresAt - now) / 1000))
     : 0;
   const live = issued !== null && !activated && remaining > 0;
+  /* A row of the open list still counting down, on any step. */
+  const listCounting =
+    recentOpen &&
+    recent?.ok === true &&
+    recent.codes.some((row) => row.status === "active" && Date.parse(row.expiresAt) > now);
 
-  /* The countdown's clock: one tick a second while the code can still be used. */
+  /* The clock: one tick a second while the card's code or a listed one can still be used. */
   useEffect(() => {
-    if (!live) return undefined;
+    if (!live && !listCounting) return undefined;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [live]);
+  }, [live, listCounting]);
 
   /* His four-second claim poll, against the credential the exchange mints. */
   const sourceId = issued?.sourceId ?? null;
@@ -274,7 +279,7 @@ export function OnboardingWizard({
       .then((answer) => {
         if (!current) return;
         setRecent(answer);
-        setListedAt(Date.now());
+        setNow(Date.now());
       })
       .catch(() => {
         if (current) setRecent({ ok: false, problem: "The list could not be read. Try again." });
@@ -416,7 +421,11 @@ export function OnboardingWizard({
       setCopied(code);
       setSaid("Activation code copied to the clipboard.");
     } catch {
-      setSaid("The clipboard is unavailable here. Select the code and copy it.");
+      setProblem({
+        step,
+        field: null,
+        text: "The clipboard is unavailable here. Select the code and copy it.",
+      });
     }
   }
 
@@ -440,8 +449,13 @@ export function OnboardingWizard({
 
   const intro = STEPS[step - 1];
   const short = issued !== null && issued.code.startsWith("ACT-");
+  const environment =
+    issued === null
+      ? ""
+      : (ENVIRONMENT_CHOICES.find((choice) => choice.value === issued.environment)?.name ??
+        issued.environment);
   const countdown = activated
-    ? "good"
+    ? "done"
     : remaining === 0
       ? "expired"
       : remaining <= WARNING_SECONDS
@@ -773,10 +787,6 @@ export function OnboardingWizard({
                   {copied === issued.code ? "Copied" : "Copy Code"}
                 </button>
               </div>
-              <span className="mad-copy-said" role="status" aria-live="polite">
-                {said}
-              </span>
-
               <div className="mad-wizard-status-row">
                 <p className="mad-wizard-status" role="status">
                   {activated ? (
@@ -817,10 +827,7 @@ export function OnboardingWizard({
                 </div>
                 <div>
                   <dt>Environment</dt>
-                  <dd>
-                    {ENVIRONMENT_CHOICES.find((choice) => choice.value === issued.environment)
-                      ?.name ?? issued.environment}
-                  </dd>
+                  <dd>{environment}</dd>
                 </div>
               </dl>
             </div>
@@ -834,7 +841,8 @@ export function OnboardingWizard({
                 Copy this activation code and paste it into the IRIS Observer plugin in Unreal
                 Engine. The engine presents it to{" "}
                 <span className="mad-wizard-mono">{origin}/functions/v1/observer-activate</span> and
-                begins streaming analytics.{" "}
+                begins streaming analytics. Set the plugin&rsquo;s environment to {environment}; any
+                other activates with an environment mismatch.{" "}
                 {short
                   ? "Until it is used or expires it also waits under the recent activation codes below."
                   : "Leaving this page drops the code; another is issued from the source’s page."}
@@ -856,6 +864,10 @@ export function OnboardingWizard({
             {shown.text}
           </p>
         )}
+        {/* Always present, so it is announced; sighted readers have the button's Copied. */}
+        <span className="obs-sr" role="status" aria-live="polite">
+          {said}
+        </span>
 
         <div className="mad-wizard-recent">
           <button
@@ -881,26 +893,28 @@ export function OnboardingWizard({
               <ul>
                 {recent.codes.map((row) => {
                   const named = [row.client, row.project, row.source].filter(Boolean).join(" · ");
-                  const stillValid = Math.round((Date.parse(row.expiresAt) - listedAt) / 1000);
+                  const stillValid = Math.ceil((Date.parse(row.expiresAt) - now) / 1000);
+                  /* Listed active, run out since: Expired and masked here, as the server will say. */
+                  const status =
+                    row.status === "active" && stillValid <= 0 ? "expired" : row.status;
+                  const code = status === row.status ? row.code : `${row.code.slice(0, 9)}••••`;
                   return (
                     <li key={`${row.issuedAt}${row.code}`} className="mad-wizard-recent-row">
                       <div className="mad-wizard-recent-info">
-                        <code className="mad-wizard-recent-code">{row.code}</code>
+                        <code className="mad-wizard-recent-code">{code}</code>
                         <span className="mad-wizard-recent-meta">
-                          {named === "" ? "" : `${named} · `}issued {ago(row.issuedAt, listedAt)}
+                          {named === "" ? "" : `${named} · `}issued {ago(row.issuedAt, now)}
                         </span>
                       </div>
                       <div className="mad-wizard-recent-side">
-                        {row.status === "active" ? (
-                          <StatusChip tone="await">
-                            {`Active, ${left(Math.max(0, stillValid))} left`}
-                          </StatusChip>
-                        ) : row.status === "activated" ? (
+                        {status === "active" ? (
+                          <StatusChip tone="await">{`Active, ${left(stillValid)} left`}</StatusChip>
+                        ) : status === "activated" ? (
                           <StatusChip tone="good">Activated</StatusChip>
                         ) : (
                           <StatusChip tone="wrong">Expired</StatusChip>
                         )}
-                        {row.status === "active" ? (
+                        {status === "active" ? (
                           <button
                             className="mad-action"
                             type="button"
