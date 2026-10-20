@@ -26,3 +26,29 @@ describe("the trend line's x labels", () => {
     expect(anchors.slice(0, -1).every((a) => a.endsWith(":middle"))).toBe(true);
   });
 });
+
+/*
+ * A level series is a path with a box of no height, and the D sheet's gradient
+ * stroke is sized to that box: it painted nothing, so the line vanished. The
+ * path says it is level, and the sheet strokes it in one colour.
+ */
+describe("a level line", () => {
+  const level = (html: string) =>
+    [...html.matchAll(/class="iris-trend-line"[^>]*/g)].map((m) => m[0]);
+
+  it("is marked when every point has one value", () => {
+    const flat = points.map((p) => ({ ...p, value: 4 }));
+    const html = renderToStaticMarkup(
+      createElement(TrendLine, { points: flat, valueLabel: "Meetings per week" }),
+    );
+    expect(level(html).length).toBeGreaterThan(0);
+    expect(level(html).every((tag) => tag.includes('data-level="true"'))).toBe(true);
+  });
+
+  it("is not marked when the series moves", () => {
+    const html = renderToStaticMarkup(
+      createElement(TrendLine, { points, valueLabel: "Meetings per week" }),
+    );
+    expect(level(html).some((tag) => tag.includes("data-level"))).toBe(false);
+  });
+});

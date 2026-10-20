@@ -28,6 +28,16 @@ import { DrawIn } from "./DrawIn";
 
 /* --- a figure with its history -------------------------------------------- */
 
+/*
+ * A level series draws a path with a box of no height, and a gradient sized to
+ * its box paints nothing there (SVG's objectBoundingBox): the line vanished.
+ * The mark says so, and a stylesheet that strokes with a gradient gives a
+ * level line a plain colour instead.
+ */
+function level(values: readonly number[]): "true" | undefined {
+  return values.every((v) => v === values[0]) ? "true" : undefined;
+}
+
 export function Sparkline({
   points,
   width = 96,
@@ -59,7 +69,7 @@ export function Sparkline({
         aria-label={label ?? `Recent trend, latest ${last}`}
       >
         <path d={`${d} L ${width} ${height} L 0 ${height} Z`} className="iris-spark-fill" />
-        <path d={d} className="iris-spark-line" />
+        <path d={d} className="iris-spark-line" data-level={level(points)} />
         <circle cx={width} cy={y(last)} r="2.5" className="iris-spark-tip" />
       </svg>
     </DrawIn>
@@ -174,7 +184,7 @@ export function TrendLine({
           d={`${line} L ${x(points.length - 1)} ${pad.top + innerH} L ${x(0)} ${pad.top + innerH} Z`}
           className="iris-trend-fill"
         />
-        <path d={line} className="iris-trend-line" />
+        <path d={line} className="iris-trend-line" data-level={level(points.map((p) => p.value))} />
 
         {points.map((p, i) => (
           <circle key={p.label} cx={x(i)} cy={y(p.value)} r="2.5" className="iris-trend-dot">

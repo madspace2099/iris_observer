@@ -717,6 +717,12 @@
   filter: url(#dld-glow);
 }
 
+/* A level line has no height for the gradient to span, and would paint nothing (`level()`, charts2.tsx). */
+.dld-root .iris-spark-line[data-level="true"],
+.dld-root .iris-trend-line[data-level="true"] {
+  stroke: var(--d-accent-2);
+}
+
 .dld-root .iris-spark-fill,
 .dld-root .iris-trend-fill {
   fill: url(#dld-dots);
@@ -2378,6 +2384,12 @@
   stroke: url(#dld-line);
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+/* A level line: no height for the gradient to span, so one colour rather than nothing. */
+[data-charts="d"] .d-card .iris-spark-line[data-level="true"],
+[data-charts="d"] .d-card .iris-trend-line[data-level="true"] {
+  stroke: var(--d-accent-2);
 }
 
 [data-charts="d"] .d-card .iris-spark-line {
