@@ -1217,4 +1217,21 @@
     background: #fff !important;
     color: #111 !important;
   }
+
+  /*
+   * A printed report is a document with its own page box (`@page report`,
+   * observer-product.css): the column gives up its screen width and padding
+   * so the cover can bleed to the sheet's edge and the pages after it keep
+   * their own margins.
+   */
+  .irs-shell:has(.ox-report) {
+    display: block;
+    min-height: 0;
+  }
+
+  .irs-main:has(.ox-report) {
+    width: auto;
+    margin: 0;
+    padding: 0;
+  }
 }

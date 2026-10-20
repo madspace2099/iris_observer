@@ -2810,6 +2810,12 @@
  * Not a narrower desktop. Below 48rem the tables become records, every dense
  * grid becomes one column, and the two-line label reservation is RELEASED —
  * keeping it in a stacked group leaves a hole above every value.
+ *
+ * Those two steps are for SCREENS. An A4 page less its margins is 182mm,
+ * about 43rem, so in print the phone layout applied to every table: the
+ * owner's exported agent summary was fourteen pages of one-cell-per-line
+ * records (ADR-0049). Paper is a desk width with small type, and the print
+ * rules at the end of this sheet lay it out as one.
  * ========================================================================= */
 
 @media (width <= 78rem) {
@@ -2834,7 +2840,7 @@
   }
 }
 
-@media (width <= 48rem) {
+@media screen and (width <= 48rem) {
   .ox-root {
     --ox-gutter: 1rem;
     --ox-pad: 1.25rem;
@@ -2947,7 +2953,7 @@
   }
 }
 
-@media (width <= 30rem) {
+@media screen and (width <= 30rem) {
   .ox-tally {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2976,48 +2982,847 @@
 /* --- the report page: a document drawn on the product's own planes ------- */
 
 /*
- * The contents list on the cover is a list of anchors, set as running text
- * rather than a table: a table of two words per row is the kind of
- * scaffolding this system refuses. The ladder inside the outcomes section
- * keeps the funnel's own rhythm and only gains the plane's vertical seam.
+ * THE REPORT AS A DOCUMENT (ADR-0049). One structure on screen and on paper:
+ * numbered contents, numbered sections that keep one line of provenance, and
+ * "How to read this report" at the back holding every note a section used to
+ * carry beneath it. The cover is paper's alone — on screen the page head says
+ * the same — and the rest of the document's print layout is the print block
+ * below.
+ *
+ * The contents are a list of anchors set as rows of number, name and state,
+ * with the manifest's one line beneath: not a table, because a table of two
+ * words per row is the kind of scaffolding this system refuses.
  */
+.ox-cover {
+  display: none;
+}
+
+.ox-report-num {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink-4);
+}
+
 .ox-report-contents {
   margin: 0;
-  padding: 0 0 0 1.25em;
+  padding: 0;
+  list-style: none;
   display: grid;
-  gap: 0.25rem;
   font-size: var(--ox-body);
+}
+
+.ox-report-contents li {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  gap: 0.125rem var(--ox-inner);
+  align-items: baseline;
+  padding: var(--ox-tight) 0;
+  box-shadow: 0 -1px 0 var(--ox-line-hair);
+}
+
+.ox-report-contents li[data-left-out="true"] {
+  color: var(--ox-ink-4);
+}
+
+.ox-toc-label {
+  color: var(--ox-ink);
+  font-weight: var(--weight-medium);
+}
+
+.ox-toc-state {
+  font-size: var(--ox-micro);
+  color: var(--ox-ink-4);
+  white-space: nowrap;
+}
+
+.ox-toc-summary {
+  grid-column: 2 / -1;
+  font-size: var(--ox-caption);
+  line-height: 1.45;
+  color: var(--ox-ink-3);
+  max-width: 72ch;
+}
+
+/*
+ * A table's caption in the report is its accessible name, and the sentence it
+ * holds is printed once, under the section's number in "How to read this
+ * report"; the section itself keeps the figures.
+ */
+.ox-report .ox-table caption {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.ox-report-foot {
+  margin-top: 0;
 }
 
 .ox-report-ladder {
   display: grid;
   gap: 0.75rem;
-  margin-top: 1.25rem;
+}
+
+.ox-report-chart {
+  display: grid;
+  gap: var(--ox-inner);
+}
+
+.ox-report-steps {
+  margin: 0;
+  padding: 0 0 0 1.75rem;
+  display: grid;
+  gap: 0.25rem;
+  font-size: var(--ox-body);
+  color: var(--ox-ink-2);
+}
+
+/* "How to read this report": each entry under its section's number. */
+.ox-notes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--ox-section);
+}
+
+.ox-notes-entry {
+  display: grid;
+  gap: var(--ox-tight);
+}
+
+.ox-notes-head {
+  margin: 0;
+  font-size: var(--ox-body);
+  font-weight: var(--weight-semibold);
+  color: var(--ox-ink);
+}
+
+.ox-notes-text {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--ox-caption);
+  line-height: 1.5;
+  color: var(--ox-ink-3);
 }
 
 /*
- * PRINT: the page is the document. The print control leaves; the planes stop
- * floating on graphite and sit on white with dark ink, because a printed page
- * has one ground; a plane is kept whole across a page break where the browser
- * can manage it. The shell's own chrome and the Ask dock leave too, in the
- * sheets that own them (iris-shell.css, ask-iris.css): a sheet never claims a
- * name another sheet owns.
+ * THE CHARTS (`ReportCharts.tsx`). The outcome mix is one 100% bar; its parts
+ * take the outcome's meaning in greyscale-safe steps — the progressed
+ * outcomes one green at four strengths, "not interested" the poor mark,
+ * "presentation only" grey, and no outcome recorded a hatch, because it is an
+ * absence. A bar in a table cell is a single mark in the accent beside the
+ * figure the cell prints.
  */
+.ox-mix {
+  display: block;
+  overflow: visible;
+}
+
+.ox-mix-part {
+  stroke: var(--ox-panel);
+  stroke-width: 1;
+}
+
+.ox-mix-part[data-outcome="purchase"] {
+  fill: var(--ox-good-mark);
+}
+
+.ox-mix-part[data-outcome="reservation"] {
+  fill: var(--ox-good-mark);
+  fill-opacity: 0.78;
+}
+
+.ox-mix-part[data-outcome="interested"] {
+  fill: var(--ox-good-mark);
+  fill-opacity: 0.55;
+}
+
+.ox-mix-part[data-outcome="follow_up_needed"] {
+  fill: var(--ox-good-mark);
+  fill-opacity: 0.34;
+}
+
+.ox-mix-part[data-outcome="presentation_only"] {
+  fill: var(--ox-ink-4);
+  fill-opacity: 0.4;
+}
+
+.ox-mix-part[data-outcome="not_interested"] {
+  fill: var(--ox-poor-mark);
+}
+
+.ox-mix-hatch-ground {
+  fill: var(--ox-panel);
+}
+
+.ox-mix-hatch-line {
+  stroke: var(--ox-ink-4);
+  stroke-width: 1.5;
+}
+
+.ox-mix-count {
+  font-size: var(--ox-micro);
+  font-weight: var(--weight-semibold);
+  fill: var(--ox-ink);
+}
+
+.ox-mix-count[data-outcome="purchase"],
+.ox-mix-count[data-outcome="reservation"],
+.ox-mix-count[data-outcome="not_interested"] {
+  fill: #ffffff;
+}
+
+.ox-mix-swatch {
+  flex: none;
+}
+
+.ox-swatched {
+  display: inline-flex;
+  gap: var(--ox-tight);
+  align-items: center;
+}
+
+.ox-bar-value {
+  display: inline-flex;
+  gap: var(--ox-tight);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.ox-cell-bar-track {
+  fill: var(--ox-inset-fill);
+}
+
+.ox-cell-bar-fill {
+  fill: var(--accent);
+}
+
+/*
+ * PRINT: the page is the document (ADR-0049). An A4 sheet — 16mm above, 14mm
+ * at the sides, 18mm below for the running footer — on the named page
+ * `report`, so these margins and the bare first page reach a printed report
+ * and nothing else the product prints. The footer is the margin boxes': the
+ * product, project, document and period on the left in the report's language
+ * (the page writes those words into the same rule), "page / pages" on the
+ * right. A browser without margin boxes prints no footer and nothing else
+ * changes.
+ *
+ * The cover is page one, full bleed on the graphite ground in the brand's
+ * ink; every page after it is paper (ADR-0042). Sections flow: nothing here
+ * keeps a whole section on one page — that is what left the half-empty pages
+ * — only a heading with what follows it, a figure tile, a chart, a finding,
+ * a table row. Tables repeat their head on every page they cross. The notes
+ * appendix starts a page of its own, and nothing else does.
+ *
+ * The shell's own chrome and the Ask dock leave in the sheets that own them
+ * (iris-shell.css, ask-iris.css): a sheet never claims a name another sheet
+ * owns.
+ */
+@page report {
+  size: A4;
+  margin: 16mm 14mm 18mm;
+
+  @bottom-left {
+    content: "IRIS Observer";
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    color: #575c63;
+    vertical-align: top;
+    padding-top: 5mm;
+  }
+
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: #575c63;
+    vertical-align: top;
+    padding-top: 5mm;
+  }
+}
+
+@page report:first {
+  margin: 0;
+
+  @bottom-left {
+    content: none;
+  }
+
+  @bottom-right {
+    content: none;
+  }
+}
+
 @media print {
   .ox-report .ox-btn {
     display: none !important;
   }
 
-  .ox-report,
-  .ox-report .ox-plane {
-    background: #fff !important;
-    color: #111 !important;
-    box-shadow: none !important;
+  /*
+   * The type and the rhythm, a step down for paper: a desk reads 13px at arm's
+   * length, and twelve is still the floor.
+   */
+  .ox-root:has(.ox-report) {
+    --ox-display-2: 1.75rem;
+    --ox-heading-3: 1.125rem;
+    --ox-value: 1.125rem;
+    --ox-lead: 0.875rem;
+    --ox-body: 0.8125rem;
+    --ox-caption: 0.75rem;
+    --ox-micro: 0.75rem;
+    --ox-tight: 0.5rem;
+    --ox-inner: 0.5rem;
+    --ox-section: 0.75rem;
+    --ox-major: 1.25rem;
+
+    min-height: 0;
   }
 
+  .ox-root:has(.ox-report)::before {
+    content: none;
+  }
+
+  /* The context band's period and project are the cover's; the band would sit above it. */
+  .ox-root:has(.ox-report) .ox-context,
+  .ox-root:has(.ox-report) .ox-tabs {
+    display: none !important;
+  }
+
+  .ox-report {
+    page: report;
+    display: block;
+    padding: 0;
+    background: #fff !important;
+    color: var(--ox-ink);
+  }
+
+  .ox-report > .ox-head {
+    display: none;
+  }
+
+  .ox-report .ox-body {
+    display: block;
+    padding: 0;
+  }
+
+  /* --- the cover ---------------------------------------------------------- */
+
+  .ox-report .ox-cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: var(--ox-major);
+    box-sizing: border-box;
+    width: 210mm;
+    /* A hair under the sheet, so rounding never spills a sliver onto page two. */
+    height: 296.5mm;
+    overflow: hidden;
+    padding: 16mm 18mm 15mm;
+    /* A plan's grid, at the faintest hairline: the ground of a drawing, not data. */
+    background-color: var(--iris-ground);
+    background-image:
+      linear-gradient(var(--ox-line-hair) 1px, transparent 1px),
+      linear-gradient(90deg, var(--ox-line-hair) 1px, transparent 1px);
+    background-size: 12mm 12mm;
+    background-position: 18mm 16mm;
+    color: var(--ox-ink);
+    break-after: page;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .ox-cover-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--ox-section);
+    padding-bottom: var(--ox-section);
+    border-bottom: 1px solid var(--ox-line);
+  }
+
+  .ox-cover-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--ox-inner);
+  }
+
+  .ox-cover-mark {
+    width: 4.5rem;
+    height: auto;
+    color: var(--ox-ink);
+  }
+
+  .ox-cover-product {
+    font-size: 0.75rem;
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    color: var(--ox-ink-3);
+    padding-left: var(--ox-inner);
+    border-left: 1px solid var(--ox-line);
+  }
+
+  .ox-cover-internal {
+    font-size: 0.75rem;
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    color: var(--ox-ink);
+    padding: 0.25rem 0.625rem;
+    border: 1px solid var(--accent);
+    border-radius: var(--ox-radius-sm);
+  }
+
+  .ox-cover-main {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ox-section);
+    padding-left: var(--ox-major);
+    border-left: 2px solid var(--accent);
+  }
+
+  .ox-cover-kind {
+    margin: 0;
+    font-size: 0.875rem;
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .ox-cover-title {
+    margin: 0;
+    font-size: 3rem;
+    font-weight: var(--weight-medium);
+    line-height: var(--ox-lh-display);
+    letter-spacing: var(--ox-track-display);
+    color: var(--ox-ink);
+  }
+
+  .ox-cover-verdict {
+    margin: 0;
+    max-width: 38em;
+    font-size: 1.125rem;
+    line-height: 1.45;
+    color: var(--ox-ink-2);
+  }
+
+  .ox-cover-figures {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ox-major) 10mm;
+    margin: var(--ox-major) 0 0;
+  }
+
+  .ox-cover-figure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ox-tight);
+    padding-top: var(--ox-inner);
+    border-top: 2px solid var(--accent);
+    min-width: 0;
+  }
+
+  .ox-cover-figure dt {
+    font-size: 0.75rem;
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    line-height: 1.35;
+    color: var(--ox-ink-3);
+  }
+
+  .ox-cover-figure dd {
+    margin: 0;
+  }
+
+  .ox-cover-figure .ox-value,
+  .ox-cover-figure .ox-insufficient {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .ox-cover-figure .ox-figure {
+    font-size: 2.25rem;
+    font-weight: var(--weight-semibold);
+    line-height: 1.05;
+    letter-spacing: var(--ox-track-display-2);
+  }
+
+  .ox-cover-statement {
+    font-size: 1rem;
+    font-weight: var(--weight-semibold);
+    line-height: 1.35;
+    color: var(--ox-ink);
+  }
+
+  .ox-cover-figure .ox-of,
+  .ox-cover-figure .ox-shortfall {
+    font-size: 0.75rem;
+    font-weight: 400;
+    line-height: 1.4;
+    color: var(--ox-ink-3);
+  }
+
+  .ox-cover-meta {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: var(--ox-section);
+    margin: 0;
+    padding-top: var(--ox-section);
+    border-top: 1px solid var(--ox-line);
+  }
+
+  .ox-cover-meta dt {
+    font-size: 0.75rem;
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    color: var(--ox-ink-4);
+  }
+
+  .ox-cover-meta dd {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.25rem 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    color: var(--ox-ink);
+  }
+
+  .ox-cover-range,
+  .ox-cover-marker {
+    font-size: 0.75rem;
+    color: var(--ox-ink-3);
+  }
+
+  /* --- the contents, the sections, the notes --------------------------- */
+
+  /*
+   * Block flow, not a flex column: Chrome keeps a heading with what follows
+   * it between blocks, and left "06" alone at the foot of a page when the
+   * plane was a column of flex items.
+   */
   .ox-report .ox-plane {
+    display: block;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .ox-report .ox-plane > * + * {
+    margin-top: var(--ox-tight);
+  }
+
+  .ox-report .ox-section-head {
+    break-after: avoid;
+    padding-top: var(--ox-inner);
+    border-top: 1px solid var(--ox-line);
+  }
+
+  .ox-report .ox-section-title {
+    break-after: avoid;
+  }
+
+  .ox-report .ox-report-num {
+    color: var(--iris-accent-dim);
+    margin-right: 0.25rem;
+  }
+
+  .ox-report .ox-section-note {
+    max-width: none;
+  }
+
+  .ox-report-toc {
+    margin-bottom: var(--ox-major);
+  }
+
+  /* Two columns, read down: the contents and their one-line descriptions fit half a page. */
+  .ox-report-contents {
+    display: block;
+    columns: 2;
+    column-gap: 8mm;
+  }
+
+  .ox-report-contents li {
+    padding: 0.25rem 0;
     break-inside: avoid;
-    page-break-inside: avoid;
+  }
+
+  .ox-report-section {
+    margin-top: var(--ox-major);
+  }
+
+  .ox-report-foot {
+    gap: var(--ox-tight) var(--ox-inner);
+  }
+
+  .ox-report .ox-src {
+    padding: 0;
+    background: none;
+  }
+
+  /*
+   * The notes appendix follows on, its heading kept with its first entry. A
+   * page of its own was tried and measured: it left the page before it half
+   * empty in every scope, and the meeting summary's last page held six lines.
+   */
+  .ox-report-notes {
+    margin-top: var(--ox-major);
+  }
+
+  .ox-report-notes > .ox-section-head,
+  .ox-report-notes > .ox-section-note {
+    break-after: avoid;
+  }
+
+  .ox-report-notes .ox-notes {
+    display: block;
+    columns: 2;
+    column-gap: 8mm;
+  }
+
+  /* Blocks, not grids: a grid fragmented across columns and pages overlapped its own lines. */
+  .ox-report-notes .ox-notes-entry {
+    display: block;
+    margin-bottom: var(--ox-section);
+  }
+
+  .ox-report-notes .ox-notes-text {
+    margin-top: 0.25rem;
+  }
+
+  .ox-report-notes .ox-notes-head {
+    break-after: avoid;
+  }
+
+  /* --- figures, findings, tables: small blocks that stay whole ---------- */
+
+  .ox-report .ox-tally {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-radius: 0;
+    overflow: visible;
+    break-inside: avoid;
+  }
+
+  .ox-report .ox-tally-item {
+    padding: var(--ox-tight) var(--ox-inner);
+  }
+
+  /* A tile's denominator under its figure, across the tile, not squeezed beside it. */
+  .ox-report .ox-tally-item .ox-value,
+  .ox-report .ox-tally-item .ox-insufficient {
+    flex-wrap: wrap;
+  }
+
+  .ox-report .ox-tally-item .ox-of {
+    flex-basis: 100%;
+  }
+
+  /*
+   * A state on paper is its mark and its word: the pill's padding and edge
+   * would cost a register a line on every row.
+   */
+  .ox-report .ox-chip {
+    padding: 0;
+    border: 0;
+    background: none;
+    font-size: 0.75rem;
+  }
+
+  .ox-report .ox-findings,
+  .ox-report .ox-funnel,
+  .ox-report .ox-list,
+  .ox-report .ox-table-wrap {
+    border-radius: 0;
+    overflow: visible;
+  }
+
+  /* A printed table is rules between rows, not a box. */
+  .ox-report .ox-table-wrap {
+    border: 0;
+  }
+
+  /*
+   * A finding stays whole, except the first: it may start at the foot of a
+   * page so its section's heading never stands there alone over an empty box.
+   */
+  .ox-report .ox-findings {
+    gap: 0;
+    border: 0;
+    border-top: 1px solid var(--ox-line-panel);
+  }
+
+  .ox-report .ox-finding {
+    gap: 0.25rem;
+    padding: var(--ox-tight) 0;
+    box-shadow: none;
+    border-bottom: 1px solid var(--ox-line-panel);
+  }
+
+  .ox-report .ox-finding + .ox-finding {
+    break-inside: avoid;
+  }
+
+  .ox-report .ox-finding-statement {
+    font-size: 0.875rem;
+  }
+
+  .ox-report .ox-finding-baseline,
+  .ox-report .ox-finding-so-what,
+  .ox-report .ox-finding-caveat {
+    font-size: 0.75rem;
+  }
+
+  .ox-report .ox-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    padding: var(--ox-tight) var(--ox-inner);
+  }
+
+  .ox-report .ox-unavailable {
+    break-inside: avoid;
+  }
+
+  /*
+   * A scroller is one unbreakable box in print: the table would be pushed
+   * whole onto the next page, or cut. On paper it is a table again, which
+   * breaks between rows and repeats its head.
+   */
+  .ox-report .ox-table-scroll {
+    overflow: visible;
+  }
+
+  .ox-report .ox-table {
+    font-size: 0.75rem;
+  }
+
+  .ox-report .ox-table thead {
+    display: table-header-group;
+  }
+
+  .ox-report .ox-table tr {
+    break-inside: avoid;
+  }
+
+  /*
+   * A head is never the last line of a page: it goes over with its first row,
+   * and the outcome bar goes with the table that is its legend.
+   */
+  .ox-report .ox-table thead,
+  .ox-report .ox-mix {
+    break-after: avoid;
+  }
+
+  .ox-report .ox-table tbody tr:first-child {
+    break-before: avoid;
+  }
+
+  .ox-report .ox-table th,
+  .ox-report .ox-table td {
+    padding: 0.25rem 0.375rem;
+    box-shadow: none;
+    border-bottom: 1px solid var(--ox-line-hair);
+  }
+
+  /* Sentence case, untracked: an eight-column register's heads fit the page. */
+  .ox-report .ox-table thead th {
+    border-bottom: 1px solid var(--ox-line-field);
+    text-transform: none;
+    letter-spacing: 0;
+    vertical-align: bottom;
+  }
+
+  /*
+   * Nothing in a printed table may refuse to wrap, except a figure with its
+   * bar and a status chip, which are short. One register row with an
+   * unbroken visitor label and a chip measured 862px against the page's
+   * 688, and Chrome answers a page that overflows by shrinking EVERY page —
+   * the cover included — to fit it.
+   */
+  .ox-report .ox-table th,
+  .ox-report .ox-table td,
+  .ox-report .ox-table td * {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
+  .ox-report .ox-table .ox-bar-value,
+  .ox-report .ox-table .ox-chip {
+    white-space: nowrap;
+  }
+
+  .ox-report .ox-table .ox-value,
+  .ox-report .ox-table .ox-insufficient {
+    font-size: inherit;
+    gap: 0.3125rem;
+  }
+
+  .ox-report .ox-table .ox-figure {
+    font-size: inherit;
+  }
+
+  .ox-report .ox-table .ox-of,
+  .ox-report .ox-table .ox-shortfall {
+    font-size: 0.75rem;
+    font-weight: 400;
+  }
+
+  /* A meeting's sequence reads down two columns, as the contents do. */
+  .ox-report .ox-report-steps {
+    display: block;
+    columns: 2;
+    column-gap: 8mm;
+  }
+
+  .ox-report .ox-report-steps li {
+    break-inside: avoid;
+    margin-bottom: 0.25rem;
+  }
+
+  /* The outcome bar stays with the head of the table that is its legend (above). */
+  .ox-report-chart {
+    gap: var(--ox-tight);
+  }
+
+  .ox-report .ox-subhead {
+    break-after: avoid;
+  }
+
+  /*
+   * The funnel and the CRM ladder, compact: a stage per line — its name, its
+   * bar centred on the line so the stages narrow like the funnel they are, and
+   * its figures — rather than a stack of padded rows.
+   */
+  .ox-report .ox-funnel {
+    gap: 0;
+    break-inside: avoid;
+  }
+
+  .ox-report .ox-stage {
+    grid-template-columns: 11rem minmax(0, 1fr) 14rem;
+    align-items: center;
+    gap: var(--ox-inner);
+    padding: 0.3125rem var(--ox-inner);
+  }
+
+  .ox-report .ox-stage-bar {
+    display: flex;
+    justify-content: center;
+    height: 14px;
+    background: none;
+  }
+
+  .ox-report .ox-stage-figures .ox-value {
+    font-size: 0.875rem;
   }
 
   /*
