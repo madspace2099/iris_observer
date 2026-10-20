@@ -117,3 +117,39 @@ test("Generate document opens the PDF to print and downloads the figures as CSV"
   );
   expect((await response.body()).subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
 });
+
+/*
+ * `?print=1` asks for the print dialog once. The router keeps a page's tree
+ * for back and forward, so `PrintPage` reads the request from the address,
+ * which has lost the parameter by the time the reader comes back.
+ */
+test("the PDF's print request is asked once, and not again on a return to the page", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const counted = window as unknown as { printed: number };
+    counted.printed = 0;
+    window.print = () => {
+      counted.printed += 1;
+    };
+  });
+  const printed = () => page.evaluate(() => (window as unknown as { printed: number }).printed);
+  /* The page's effect waits for the fonts, then a task: so must the check that it did not fire. */
+  const settled = () =>
+    page.evaluate(() =>
+      document.fonts.ready.then(() => new Promise((resolve) => setTimeout(resolve, 0))),
+    );
+
+  await signIn(page, "Petra Novák");
+  await page.goto(`${ISTER}/report?agent=agt_luciahorvath&print=1`);
+  await expect.poll(printed).toBe(1);
+  await expect(page).not.toHaveURL(/print=1/);
+
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Sales Agents" }).click();
+  await page.waitForURL(/\/agents(\?|$)/);
+  await page.goBack();
+  await page.waitForURL(/\/report\?agent=agt_luciahorvath$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await settled();
+  expect(await printed()).toBe(1);
+});
