@@ -86,17 +86,22 @@ conflict.
    (upper case, dashes and spaces optional), swaps it for the real code and hands the body to the
    frozen `handleActivate`; the wire contract allows any 8 to 64 character code and says the prefix
    is not semantic. The alias is removed on success, expires with the real code, and an unknown,
-   spent or expired alias reaches the handler untouched, so it gets the unknown code's 401 byte for
-   byte. **Why memory only:** the alias exists to be read aloud for fifteen minutes; nothing about
+   spent or expired alias is replaced by a well-formed code nobody was issued, so it gets the
+   unknown code's 401 byte for byte and pays the same database round trip; a value longer than the
+   handler's 128 character wire bound is not read as an alias at all, so padding one gets the same
+   400 whether it is known or not. **Why memory only:** the alias exists to be read aloud for fifteen minutes; nothing about
    it is worth a migration, and a restart loses only codes that are reissued from the source's page
    anyway. **Why local only:** a hosted plane runs several instances, and an alias minted on one
    would be unknown on the next, so there no alias is minted and the long code is shown as before.
    **Threat model:** 40 bits, live 15 minutes, single use. The endpoint is unauthenticated and the
-   frozen handler applies no rate limit, so alias lookups are capped at ten per address per minute
-   through the handler's own `rateLimit` seam (its 429). The address is the first
-   `x-forwarded-for` entry, which a caller can set; the cap only slows a careless loop, and the
-   defence is the entropy: a million guesses inside one code's lifetime find it with odds of about
-   one in a million, on a plane `demo-start.mjs` binds to 127.0.0.1. The alias store holds the real
+   frozen handler applies no rate limit, so alias lookups are capped at thirty a minute for the
+   whole plane through the handler's own `rateLimit` seam (its 429). One budget, not one per
+   address: a route handler cannot see the socket, and Next keeps an `x-forwarded-for` the caller
+   sent, so a per-address key would be the guesser's choice. The price is that a flood holds up a
+   real engine's alias for the rest of that minute. At the cap a code's fifteen minutes allow 450
+   guesses against 2^40, about one chance in two billion. `demo-start.mjs` binds the demo plane to
+   127.0.0.1, but `pnpm dev` and the e2e lab bind every interface and mint aliases too, so there the
+   cap and the entropy are the guard, not the bind. The alias store holds the real
    code in plaintext while the alias lives, as `company-keys.ts` holds a company key: process
    memory, never disk, never a log, never a response.
 2. **His recent codes, from the server.** "View recent activation codes" under the steps reads
@@ -107,8 +112,11 @@ conflict.
    the store. The real code is never listed. A hosted plane keeps no list and says so.
 3. **No environment question.** Step 1.3 asks for the source name only. The server decides: the
    local demonstration plane registers the source as `demo`, any other plane as `production`
-   (`onboardAction`). Step 1.4's summary states it read only. A machine that is neither is
-   registered from the project's New source form, which still asks.
+   (`onboardAction`). Step 1.4's summary states it read only, and its Step 2.1 hint tells the
+   operator to set the plugin's environment to the same, because the handler compares the build's
+   `reported_environment` with the source's and a plugin left on `development` (the handoff's own
+   example) activates with `environment_mismatch`, a red chip on the project page and Source Detail.
+   A machine that is neither is registered from the project's New source form, which still asks.
 4. **His look, in our tokens.** Header with an icon badge, the stepper joined by lines, a tile and
    one line of his text beside each step's intro (without "Supabase"), the activation card under a
    3px rule, "Unreal Engine onboarding code", the countdown pill with a pulse that stops for reduced

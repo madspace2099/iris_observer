@@ -6,6 +6,7 @@ import {
   ACTIVATION_REQUEST_BYTE_CEILING,
   bodyWithinCeiling,
   handleActivate,
+  SOURCE_TOKEN_PREFIX,
   type HandlerDeps,
 } from "@observer/sources";
 
@@ -30,7 +31,8 @@ import { resolveServerSupabase } from "@/lib/supabase-env";
  *
  * Eight symbols from a 32 symbol alphabet: 40 bits, live for the real code's 15
  * minutes, single use, and every unknown alias gets the unknown code's 401 byte
- * for byte, because it IS that request: the body goes to the handler untouched.
+ * for byte, because it becomes that request: a well-formed code nobody was
+ * issued takes its place, database round trip and all.
  *
  * ON `globalThis` for the reason `company-keys.ts` gives: the server action that
  * mints and the route that resolves are different bundles.
@@ -50,9 +52,17 @@ const SHAPE = /^ACT-?([2-9A-HJ-NP-Z]{4})-?([2-9A-HJ-NP-Z]{4})$/;
 /** How many codes the recent list keeps once they can no longer be used. */
 const KEEP = 15;
 
-/** Alias lookups one address may make in a window, before the handler's own 429. */
-const ATTEMPTS = 10;
+/**
+ * Alias lookups the whole plane may make in a window, before the handler's own
+ * 429. One budget, not one per address: a route handler cannot see the socket,
+ * and Next keeps an `x-forwarded-for` the caller sent, so a per-address key is
+ * one the guesser chooses. The plane serves one operator and a few engines.
+ */
+const LOOKUPS = 30;
 const WINDOW_MS = 60_000;
+
+/** The frozen handler's wire bound on `activation_code`; longer is its 400, alias or not. */
+const WIRE_MAX = 128;
 
 export type AliasStatus = "active" | "activated" | "expired";
 
@@ -72,7 +82,7 @@ interface Issue {
 
 interface Store {
   readonly issues: Map<string, Issue>;
-  readonly attempts: Map<string, { start: number; count: number }>;
+  readonly budget: { start: number; count: number };
 }
 
 const BACKING = Symbol.for("observer.madspace.activation-aliases");
@@ -81,7 +91,7 @@ function store(): Store {
   const host = globalThis as unknown as Record<symbol, Store | undefined>;
   const existing = host[BACKING];
   if (existing !== undefined) return existing;
-  const created: Store = { issues: new Map(), attempts: new Map() };
+  const created: Store = { issues: new Map(), budget: { start: 0, count: 0 } };
   host[BACKING] = created;
   return created;
 }
@@ -177,27 +187,26 @@ export function recentCodes(now: number = Date.now()): readonly RecentCode[] {
 }
 
 /**
- * Counts one alias lookup from `address`: null while it is allowed, else the
- * seconds until its window reopens.
+ * Counts one alias lookup: null while the plane's budget allows it, else the
+ * seconds until the window reopens.
  *
- * ponytail: keyed on the first `x-forwarded-for` entry, which `next start`
- * fills from the socket but a caller can also set. The plane is bound to
- * loopback (ADR-0044) and the 40 bits are the defence; this only slows a
- * careless loop. Upgrade: ADR-0028's shared ceiling once activation has one.
+ * ponytail: one budget for everybody, so a flood also holds up a real engine's
+ * alias for the rest of the minute; it caps guessing at 30 a minute, which is
+ * the point. Upgrade: ADR-0028's shared ceiling once activation has one.
  */
-function retryAfter(address: string, now: number): number | null {
-  const { attempts } = store();
-  if (attempts.size > 1_000) {
-    for (const [key, held] of attempts) if (now - held.start >= WINDOW_MS) attempts.delete(key);
+function retryAfter(now: number): number | null {
+  const { budget } = store();
+  if (now - budget.start >= WINDOW_MS) {
+    budget.start = now;
+    budget.count = 0;
   }
-  const held = attempts.get(address);
-  if (held === undefined || now - held.start >= WINDOW_MS) {
-    attempts.set(address, { start: now, count: 1 });
-    return null;
-  }
-  held.count += 1;
-  return held.count <= ATTEMPTS ? null : Math.ceil((held.start + WINDOW_MS - now) / 1000);
+  budget.count += 1;
+  return budget.count <= LOOKUPS ? null : Math.ceil((budget.start + WINDOW_MS - now) / 1000);
 }
+
+/** A well-formed code nobody was issued: the issuer's shape, never stored. */
+const neverIssued = (): string =>
+  `${SOURCE_TOKEN_PREFIX}.${randomBytes(16).toString("base64url")}.${randomBytes(32).toString("base64url")}`;
 
 /**
  * The activation endpoint on the local plane: an alias becomes its real code,
@@ -219,17 +228,19 @@ export async function activateWithAliases(
     typeof payload === "object" && payload !== null
       ? (payload as Record<string, unknown>)["activation_code"]
       : undefined;
-  const alias = typeof presented === "string" ? normaliseAlias(presented) : null;
+  /* Only a value the handler's schema would take: past its bound it is the 400, known or not. */
+  const alias =
+    typeof presented === "string" && presented.length <= WIRE_MAX
+      ? normaliseAlias(presented)
+      : null;
   if (alias === null) return handleActivate(request, deps);
 
-  const address = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  const wait = retryAfter(address, now);
+  const wait = retryAfter(now);
   /* The handler's own 429, through the seam it was written with. */
   if (wait !== null) return handleActivate(request, { ...deps, rateLimit: async () => wait });
 
   const held = sweep(now).get(digest(alias));
-  /* Unknown, spent or expired: the untouched body, so the unknown code's answer. */
-  if (held === undefined || held.code === null) return handleActivate(request, deps);
+  const live = held?.code ?? null;
 
   const headers = new Headers(request.headers);
   headers.delete("content-length");
@@ -237,11 +248,12 @@ export async function activateWithAliases(
     new Request(request.url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ ...(payload as object), activation_code: held.code }),
+      /* Unknown, spent or expired: a code nobody was issued, so the unknown code's answer. */
+      body: JSON.stringify({ ...(payload as object), activation_code: live ?? neverIssued() }),
     }),
     deps,
   );
-  if (answer.ok) {
+  if (answer.ok && held !== undefined && live !== null) {
     held.activated = true;
     held.alias = null;
     held.code = null;
@@ -249,8 +261,8 @@ export async function activateWithAliases(
   return answer;
 }
 
-/** Forgets every alias and attempt. For test setup only. */
+/** Forgets every alias and the lookup budget. For test setup only. */
 export function resetAliases(): void {
   store().issues.clear();
-  store().attempts.clear();
+  Object.assign(store().budget, { start: 0, count: 0 });
 }

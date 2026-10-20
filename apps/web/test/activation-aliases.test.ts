@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,13 +12,19 @@ import {
   resetAliases,
 } from "../src/lib/madspace/activation-aliases";
 
+/* `randomBytes` as itself, until a test asks it to repeat. */
+vi.mock("node:crypto", async (original) => {
+  const actual = await original<{ randomBytes: typeof randomBytes }>();
+  return { ...actual, randomBytes: vi.fn(actual.randomBytes) };
+});
+
 /**
  * THE SHORT ACTIVATION CODE (ADR-0044, amended).
  *
  * `ACT-XXXX-XXXX` stands in for the real `obs.<selector>.<secret>` on the local
  * plane. What this proves: the alias reaches the frozen handler as the real
  * code, once; an unknown, spent or expired alias gets the unknown code's answer
- * byte for byte; lookups are limited per address; and the recent list never
+ * byte for byte; lookups share one budget; and the recent list never
  * carries the real code. The handler is the real one, over a port that
  * consumes a code exactly once, as the database does.
  */
@@ -106,6 +112,18 @@ describe("an alias", () => {
     expect(new Set(minted).size).toBe(200);
   });
 
+  it("draws again when the bytes repeat a live alias", () => {
+    const same = Buffer.alloc(8);
+    vi.mocked(randomBytes)
+      .mockReturnValueOnce(same as never)
+      .mockReturnValueOnce(same as never);
+    const first = mintAlias(issued.plaintext, ABOUT, DURING);
+    const second = mintAlias(issued.plaintext, ABOUT, DURING);
+    expect(first).toBe("ACT-2222-2222");
+    expect(second).not.toBe(first);
+    expect(recentCodes(DURING).map((row) => row.code)).toEqual([second, first]);
+  });
+
   it.each([
     ["act-66sv-j9rj", "ACT-66SV-J9RJ"],
     ["ACT66SVJ9RJ", "ACT-66SV-J9RJ"],
@@ -139,7 +157,9 @@ describe("the activation endpoint on the local plane", () => {
     db.activationConsume.mockClear();
     const again = await activateWithAliases(post(alias), deps, DURING);
     expect(again.status).toBe(401);
-    expect(db.activationConsume).not.toHaveBeenCalled();
+    expect(db.activationConsume).not.toHaveBeenCalledWith(
+      expect.objectContaining({ codeSelector: issued.selector }),
+    );
     expect(recentCodes(DURING)).toEqual([
       expect.objectContaining({ status: "activated", code: `${alias.slice(0, 9)}••••` }),
     ]);
@@ -151,12 +171,29 @@ describe("the activation endpoint on the local plane", () => {
     );
     const unknownAlias = await seen(await activateWithAliases(post("ACT-22AA-33BB"), deps, DURING));
 
-    const expiring = mintAlias(issued.plaintext, ABOUT, DURING);
+    const spending = mintAlias(issued.plaintext, ABOUT, DURING);
+    expect((await activateWithAliases(post(spending), deps, DURING)).status).toBe(200);
+    const spent = await seen(await activateWithAliases(post(spending), deps, DURING));
+
+    const expiring = mintAlias(issueActivationCode(process.env).plaintext, ABOUT, DURING);
     const expired = await seen(await activateWithAliases(post(expiring), deps, AFTER));
 
     expect(JSON.parse(unknownCode)[0]).toBe(401);
     expect(unknownAlias).toBe(unknownCode);
+    expect(spent).toBe(unknownCode);
     expect(expired).toBe(unknownCode);
+    /* And each paid the database round trip an unknown code pays: no timing tell. */
+    expect(db.activationConsume).toHaveBeenCalledTimes(5);
+  });
+
+  it("answers a padded alias, known or not, with the handler's own 400", async () => {
+    const known = mintAlias(issued.plaintext, ABOUT, DURING);
+    const pad = " ".repeat(140);
+    const padded = await seen(await activateWithAliases(post(known + pad), deps, DURING));
+    expect(JSON.parse(padded)[0]).toBe(400);
+    expect(await seen(await activateWithAliases(post("ACT-22AA-33BB" + pad), deps, DURING))).toBe(
+      padded,
+    );
     expect(consumed).toBe(false);
   });
 
@@ -165,18 +202,18 @@ describe("the activation endpoint on the local plane", () => {
     expect(answer.status).toBe(200);
   });
 
-  it("limits alias lookups per address with the handler's own 429, and counts nothing else", async () => {
-    for (let n = 0; n < 10; n += 1) {
-      expect((await activateWithAliases(post("ACT-22AA-33BB"), deps, DURING)).status).toBe(401);
+  it("limits alias lookups with one budget a forwarded address cannot dodge, and counts nothing else", async () => {
+    for (let n = 0; n < 30; n += 1) {
+      const from = `198.51.100.${n}`;
+      expect((await activateWithAliases(post("ACT-22AA-33BB", from), deps, DURING)).status).toBe(
+        401,
+      );
     }
-    const limited = await activateWithAliases(post("ACT-22AA-33BB"), deps, DURING);
+    const limited = await activateWithAliases(post("ACT-22AA-33BB", "192.0.2.99"), deps, DURING);
     expect(limited.status).toBe(429);
     expect(Number(limited.headers.get("retry-after"))).toBeGreaterThan(0);
 
-    /* Another address, and a real code from this one, are not held up. */
-    expect(
-      (await activateWithAliases(post("ACT-22AA-33BB", "198.51.100.4"), deps, DURING)).status,
-    ).toBe(401);
+    /* A real code is not held up. */
     expect((await activateWithAliases(post(issued.plaintext), deps, DURING)).status).toBe(200);
     /* The window reopens. */
     const later = DURING + 61_000;
@@ -203,8 +240,14 @@ describe("the recent list", () => {
     expect(text).not.toContain(issued.selector);
   });
 
-  it("keeps the fifteen most recent once they are closed", () => {
+  it("forgets all but the fifteen most recent once they are closed", () => {
+    const held = (globalThis as unknown as Record<symbol, { issues: Map<string, unknown> }>)[
+      Symbol.for("observer.madspace.activation-aliases")
+    ];
     for (let n = 0; n < 20; n += 1) mintAlias(issued.plaintext, ABOUT, DURING);
+    expect(held?.issues.size).toBe(20);
     expect(recentCodes(AFTER)).toHaveLength(15);
+    /* Gone from the store itself, not only cut from the list. */
+    expect(held?.issues.size).toBe(15);
   });
 });
