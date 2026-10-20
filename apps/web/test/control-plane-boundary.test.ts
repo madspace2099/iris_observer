@@ -28,7 +28,8 @@ import { localControlPlaneEnabled, observerLocalDirectory } from "../src/lib/sou
  *     static import is resolved and bundled whatever the runtime guards say;
  *   - `next.config.ts` lists it as server-external, so it is never considered
  *     for the browser bundle at all;
- *   - the gate requires a non-production `NODE_ENV` **and** an explicit opt-in.
+ *   - the gate requires an explicit opt-in **and** a non-production `NODE_ENV`,
+ *     except on the loopback demonstration ADR-0044 describes, asserted below.
  *
  * None of these is redundant. The first three are about where the code goes and
  * the fourth is about whether it runs, and a file can pass any three while
