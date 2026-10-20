@@ -92,14 +92,11 @@ export async function GET(
   }
 
   const filename = csvFilename([projectSlug, figures.subject, period, language]);
-  return new Response(
-    toCsv(language, figures.report.periodLabel, figures.report.scope.label, figures.rows),
-    {
-      headers: {
-        "Content-Type": "text/csv; charset=utf-8",
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "private, no-store",
-      },
+  return new Response(toCsv(language, figures.period, figures.report.scope.label, figures.rows), {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Cache-Control": "private, no-store",
     },
-  );
+  });
 }

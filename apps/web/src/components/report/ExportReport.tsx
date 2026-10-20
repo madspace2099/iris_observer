@@ -125,7 +125,7 @@ const FORMATS = [
   {
     id: "csv",
     label: "Figures as CSV",
-    note: "Downloads every figure the report prints, one row each, with its denominator or sample, period, scope and sources. UTF-8, so Excel opens Slovak and Hungarian correctly.",
+    note: "Downloads every figure the report prints, one row each, with its own base where the report states one, the period’s dates, scope and sources. Separated by commas in English and by semicolons in Slovak and Hungarian, the separator Excel expects under those regional settings.",
   },
 ] as const;
 

@@ -218,8 +218,8 @@ export default async function ReportPage({
           cells: {
             segment: segment.label,
             units: String(segment.availableUnits),
-            stock: pct(segment.stockShare),
-            attention: pct(segment.attentionShare),
+            stock: segment.stockShareDisplay,
+            attention: segment.attentionShareDisplay,
             favourites: pct(segment.favouriteShare),
             compares: pct(segment.compareShare),
           },

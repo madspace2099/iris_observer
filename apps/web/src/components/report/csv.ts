@@ -9,16 +9,23 @@ import type { Language } from "@observer/readmodels";
  * The rows are `figures.ts`'s; this file only writes them, and computes
  * nothing.
  *
- * Three things a spreadsheet needs and a naive join gets wrong:
+ * Four things a spreadsheet needs and a naive join gets wrong:
  *
  *   - a byte-order mark, so Excel reads UTF-8 and "Zsófia" and "stretnutí"
  *     arrive intact rather than as mojibake;
- *   - RFC 4180 quoting: a cell holding a comma, a quote or a line break is
- *     quoted and its quotes doubled, and lines end in CRLF;
- *   - a formula guard: a cell that begins with `=`, `+`, `-`, `@`, a tab or a
- *     carriage return is prefixed with an apostrophe, so a delta like "+18%"
+ *   - the separator Excel splits on, which is the list separator of the
+ *     reader's regional settings: a comma in English, a semicolon in Slovak
+ *     and Hungarian, where the comma is the decimal mark. A comma file
+ *     double-clicked in a Hungarian Excel lands in one column. The report's
+ *     language is the one signal the server has, so it chooses (`CSV_SEPARATOR`);
+ *   - RFC 4180 quoting: a cell holding either separator, a quote or a line
+ *     break is quoted and its quotes doubled, and lines end in CRLF;
+ *   - a formula guard: `=`, `+`, `-`, `@`, a tab or a carriage return at the
+ *     start of a cell is prefixed with an apostrophe, so a delta like "+18%"
  *     or a label somebody typed cannot run as a formula when the file is
- *     opened (CSV injection).
+ *     opened (CSV injection). The same goes for one straight after a comma or
+ *     a semicolon inside a cell: a spreadsheet that splits on the OTHER
+ *     separator ignores the quotes and starts a cell there.
  */
 
 export interface FigureRow {
@@ -62,10 +69,13 @@ export const CSV_WORDS: Readonly<Record<Language, CsvWords>> = {
   },
 };
 
+/** What Excel splits a row on under the regional settings that write each language. */
+export const CSV_SEPARATOR: Readonly<Record<Language, "," | ";">> = { en: ",", sk: ";", hu: ";" };
+
 /** One cell: guarded against formula injection, then quoted where RFC 4180 requires it. */
 export function csvCell(value: string): string {
-  const guarded = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
-  return /[",\r\n]/.test(guarded) ? `"${guarded.replaceAll('"', '""')}"` : guarded;
+  const guarded = value.replace(/(^|[,;])([=+\-@\t\r])/g, "$1'$2");
+  return /[",;\r\n]/.test(guarded) ? `"${guarded.replaceAll('"', '""')}"` : guarded;
 }
 
 /** The whole file: BOM, the heads in the report's language, then every row with its period and scope. */
@@ -87,7 +97,8 @@ export function toCsv(
       row.sources,
     ]),
   ];
-  return `\uFEFF${lines.map((line) => line.map(csvCell).join(",")).join("\r\n")}\r\n`;
+  const separator = CSV_SEPARATOR[language];
+  return `\uFEFF${lines.map((line) => line.map(csvCell).join(separator)).join("\r\n")}\r\n`;
 }
 
 /** "Zsófia Barány" → "zsofia-barany": accents folded, anything else a hyphen. */

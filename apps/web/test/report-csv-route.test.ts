@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Viewer } from "@observer/readmodels";
+import { DATA_SOURCE_MARKER_WORDS, type Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
+
+import { REPORT_WORDS } from "@/components/report/words";
 
 /**
  * THE CSV ROUTE REFUSES WHAT THE REPORT PAGE REFUSES (ADR-0045).
@@ -131,9 +133,13 @@ describe("the CSV route downloads what the report page prints", () => {
     /* The UTF-8 byte-order mark, as bytes: what tells Excel the file is UTF-8. */
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const body = new TextDecoder("utf-8", { ignoreBOM: true }).decode(bytes);
-    expect(body.startsWith("\uFEFFSzakasz,Adat,Érték,")).toBe(true);
+    expect(body.startsWith("\uFEFFSzakasz;Adat;Érték;")).toBe(true);
     expect(body).toContain(scope.periodLabel);
-    expect(body).not.toContain(omitted?.label ?? "");
+    /* The page's "Demo data", whole: a forwarded file must not pass for real sales records. */
+    expect(body).toContain(DATA_SOURCE_MARKER_WORDS.hu.synthetic.full);
+    /* Named once, on the cover, as left out; never framed as a section of its own. */
+    expect(body).toContain(`${omitted?.label ?? ""};${REPORT_WORDS.hu.leftOut}`);
+    expect(body).not.toContain(`${omitted?.label ?? ""};Állapot;`);
   });
 
   it("writes one agent's summary under the agent's name", async () => {

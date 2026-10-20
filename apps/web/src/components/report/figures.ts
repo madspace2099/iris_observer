@@ -1,6 +1,7 @@
 import type { InsightSource, MeetingId } from "@observer/contracts";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import {
+  DATA_SOURCE_MARKER_WORDS,
   MEETINGS,
   plural,
   sentence,
@@ -26,6 +27,7 @@ import { printedSections } from "./omit";
 import {
   AGENT_REPORT_WORDS,
   REPORT_COVERAGE_CAPTION,
+  REPORT_LEFT_OUT_SECTIONS,
   REPORT_MEETINGS_NEEDED,
   REPORT_WORDS,
 } from "./words";
@@ -40,14 +42,22 @@ import {
  * by section in the page's order, the figures the page prints with the words
  * the page prints beside them:
  *
+ *   - first, the cover's statements: whose data it is (the demonstration
+ *     marker the page wears), the internal audience, and which sections the
+ *     reader left out — a file that silently lacks a section tells the same
+ *     lie as a zero;
  *   - each section's state and sample, and its reason where it has one; a
  *     blank section is its state and reason and nothing else, as on paper;
  *   - every figure in its displayed form (`MetricValue.display`, the project
- *     locale's percentage, the read model's duration), with its own
- *     denominator where the page prints one and the section's sample where it
- *     does not;
+ *     locale's percentage, the read model's duration), with the base the read
+ *     model states for THAT figure — an agent's rate over their decided
+ *     meetings, a team share over the timed ones — and an empty cell where
+ *     the read model states none. The section's sample stays on its State
+ *     row: in a column headed "denominator" it would read as every figure's
+ *     base, and for most of them it is not;
  *   - a sentence where the page has only a sentence, with an empty
- *     denominator rather than an invented number.
+ *     denominator rather than an invented number; a finding with the so-what
+ *     and the caveat the page prints under it.
  *
  * It computes nothing: nothing is summed, joined or ranked (ADR-0012). An
  * absent value is written as the word the page prints, never as 0. Below the
@@ -64,7 +74,7 @@ import {
 type Put = (
   figure: string,
   value: string,
-  /** Omitted: the section's sample. Empty: a sentence, which has none. */
+  /** The figure's own base, as the read model states it. Omitted: none is stated. */
   denominator?: string,
   sources?: readonly InsightSource[],
 ) => FigureRow;
@@ -76,13 +86,85 @@ export interface ReportFigures {
   readonly report: ReportScopeView;
   /** Whose report, for the file's name: the agent, the meeting, or the project. */
   readonly subject: string;
+  /** The period's name and its bounds, so a saved file still says which days it covers. */
+  readonly period: string;
   readonly rows: readonly FigureRow[];
 }
 
 const joined = (...parts: readonly (string | null | undefined)[]): string =>
   parts.filter((part): part is string => typeof part === "string" && part.length > 0).join(" · ");
 
-/** The sections the page prints, each framed as `ReportPlane` frames it, with the page's body inside. */
+/** "n = 14 meetings", as `Sample` prints it: English says "meetings" whatever the count. */
+const sampleOf = (n: number, language: Language): string =>
+  `n = ${n} ${language === "en" ? "meetings" : plural(language, n, MEETINGS)}`;
+
+/**
+ * "Year to date (1 Jan 2026, 00:00 – 24 Aug 2026, 00:00)": the read model's
+ * bounds, formatted in the project's locale and time zone. Both are instants
+ * and the end is exclusive, so the times are written rather than implied.
+ */
+function periodCell(report: ReportScopeView): string {
+  const { period, project } = report.context;
+  const range = new Intl.DateTimeFormat(project.locale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: project.timeZone,
+  }).formatRange(new Date(period.from), new Date(period.to));
+  return `${report.periodLabel} (${range})`;
+}
+
+/**
+ * The cover's statements, as the page prints them above the sections: the
+ * data-source marker its head wears (`Synthetic`, decided from the same two
+ * facts the project layout reads), the audience, and the sections the reader
+ * left out, each named.
+ */
+function cover(
+  report: ReportScopeView,
+  omitted: ReadonlySet<string>,
+  language: Language,
+): readonly FigureRow[] {
+  const words = REPORT_WORDS[language];
+  const note = (figure: string, value: string): FigureRow => ({
+    section: report.scope.label,
+    figure,
+    value,
+    denominator: "",
+    sources: "",
+  });
+  const { ownDataOnly, sessionsDelivered } = report.context;
+  const marker = DATA_SOURCE_MARKER_WORDS[language];
+  const printed = printedSections(report.sections, omitted);
+  const leftOut = report.sections.filter((section) => !printed.includes(section));
+  const total = report.sections.length;
+  return [
+    ...(ownDataOnly
+      ? []
+      : [
+          note(
+            CSV_WORDS[language].note,
+            sessionsDelivered ? marker.delivered.full : marker.synthetic.full,
+          ),
+        ]),
+    note(CSV_WORDS[language].note, words.audience),
+    ...(leftOut.length === 0
+      ? []
+      : [
+          note(
+            CSV_WORDS[language].note,
+            sentence(language, REPORT_LEFT_OUT_SECTIONS, {
+              count: String(leftOut.length),
+              total: String(total),
+              from: slovakZForm(total),
+              n: leftOut.length,
+            }),
+          ),
+          ...leftOut.map((section) => note(section.label, words.leftOut)),
+        ]),
+  ];
+}
+
+/** The cover, then the sections the page prints, each framed as `ReportPlane` frames it. */
 function framed(
   report: ReportScopeView,
   omitted: ReadonlySet<string>,
@@ -90,25 +172,29 @@ function framed(
   bodies: Readonly<Record<string, Body>>,
 ): readonly FigureRow[] {
   const words = REPORT_WORDS[language];
-  return printedSections(report.sections, omitted).flatMap((section) => {
-    const sample =
-      section.sampleSize === null ? "" : `n = ${section.sampleSize} ${section.sampleNoun}`;
-    const put: Put = (figure, value, denominator, sources) => ({
-      section: section.label,
-      figure,
-      value,
-      denominator: denominator ?? sample,
-      sources: (sources ?? section.sources)
-        .map((source) => SOURCE_WORDS[language][source])
-        .join(" · "),
-    });
-    const body = bodies[section.id];
-    return [
-      put(words.appendixColumns[1], words.availability[section.availability]),
-      ...(section.reason === null ? [] : [put(CSV_WORDS[language].reason, section.reason, "")]),
-      ...(section.availability === "unavailable" || body === undefined ? [] : body(put)),
-    ];
-  });
+  return [
+    ...cover(report, omitted, language),
+    ...printedSections(report.sections, omitted).flatMap((section) => {
+      const sample =
+        section.sampleSize === null ? "" : `n = ${section.sampleSize} ${section.sampleNoun}`;
+      const put: Put = (figure, value, denominator, sources) => ({
+        section: section.label,
+        figure,
+        value,
+        denominator: denominator ?? "",
+        sources: (sources ?? section.sources)
+          .map((source) => SOURCE_WORDS[language][source])
+          .join(" · "),
+      });
+      const body = bodies[section.id];
+      return [
+        /* The section's sample, once, where the page's plane footer prints it. */
+        put(words.appendixColumns[1], words.availability[section.availability], sample),
+        ...(section.reason === null ? [] : [put(CSV_WORDS[language].reason, section.reason)]),
+        ...(section.availability === "unavailable" || body === undefined ? [] : body(put)),
+      ];
+    }),
+  ];
 }
 
 /** One `MetricValue`, in whichever of its five states, as `Figure` prints it. */
@@ -147,7 +233,12 @@ function metric(
   }
 }
 
-/** The findings `FindingList` prints, each with its own sample and sources. */
+/**
+ * The findings `FindingList` prints, each with its own sample and sources, and
+ * with the so-what and the caveat the page prints under the statement: the
+ * caveat is the hedge against reading an association as an account, and a
+ * file without it states the claim bare.
+ */
 function findings(
   put: Put,
   list: readonly ShowroomFinding[],
@@ -155,15 +246,20 @@ function findings(
 ): readonly FigureRow[] {
   const words = FINDING_WORDS[language];
   const label = CSV_WORDS[language].finding;
-  if (list.length === 0) return [put(label, words.empty, "")];
-  const noun = (n: number) => (language === "en" ? "meetings" : plural(language, n, MEETINGS));
+  if (list.length === 0) return [put(label, words.empty)];
   return list.map((finding) =>
     put(
       label,
-      finding.baseline === null
-        ? finding.statement
-        : `${finding.statement} — ${words.against} ${finding.baseline}`,
-      `n = ${finding.sampleSize} ${noun(finding.sampleSize)}`,
+      [
+        finding.baseline === null
+          ? finding.statement
+          : `${finding.statement} — ${words.against} ${finding.baseline}`,
+        finding.soWhat,
+        finding.caveat,
+      ]
+        .filter((part): part is string => part !== null && part.length > 0)
+        .join(" "),
+      sampleOf(finding.sampleSize, language),
       finding.sources,
     ),
   );
@@ -213,8 +309,9 @@ async function projectFigures(
     maximumFractionDigits: 0,
   });
   const pct = (share: number) => percent.format(share);
+  const { ofMeetings, ofTimed } = AGENT_REPORT_WORDS[language];
   /* An outcome's share is of the period's meetings, which the read model counts. */
-  const ofPeriod = AGENT_REPORT_WORDS[language].ofMeetings(flow.meetingCount);
+  const ofPeriod = ofMeetings(flow.meetingCount);
 
   const bodies: Readonly<Record<string, Body>> = {
     "period-summary": (put) => [
@@ -244,16 +341,22 @@ async function projectFigures(
               "",
             ),
             ...agents.teamSections.flatMap((section) => [
-              put(cell(section.label, words.coverageColumns[1]), pct(section.teamShare)),
+              /* The set the read model says a team share stands on (`AgentsView.timedMeetingCount`). */
+              put(
+                cell(section.label, words.coverageColumns[1]),
+                pct(section.teamShare),
+                ofTimed(agents.timedMeetingCount),
+              ),
               put(cell(section.label, words.coverageColumns[2]), section.teamDwellDisplay),
             ]),
           ],
+    /* Units and shares of stock, not meetings: no base is stated beyond the caption's. */
     "unit-demand": (put) => [
       put(note, words.unitDemandCaption, ""),
       ...project.segments.flatMap((segment) => [
         put(cell(segment.label, words.unitDemandColumns[1]), String(segment.availableUnits)),
-        put(cell(segment.label, words.unitDemandColumns[2]), pct(segment.stockShare)),
-        put(cell(segment.label, words.unitDemandColumns[3]), pct(segment.attentionShare)),
+        put(cell(segment.label, words.unitDemandColumns[2]), segment.stockShareDisplay),
+        put(cell(segment.label, words.unitDemandColumns[3]), segment.attentionShareDisplay),
         put(cell(segment.label, words.unitDemandColumns[4]), pct(segment.favouriteShare)),
         put(cell(segment.label, words.unitDemandColumns[5]), pct(segment.compareShare)),
       ]),
@@ -262,23 +365,30 @@ async function projectFigures(
       put(note, words.agentsCaption, ""),
       ...agents.agents.flatMap((agent) => [
         put(cell(agent.name, words.agentsColumns[1]), String(agent.meetings)),
-        put(
-          cell(agent.name, words.agentsColumns[2]),
-          agent.belowMinimum
-            ? sentence(language, REPORT_MEETINGS_NEEDED, {
+        agent.belowMinimum
+          ? put(
+              cell(agent.name, words.agentsColumns[2]),
+              sentence(language, REPORT_MEETINGS_NEEDED, {
                 count: String(agent.meetings),
                 minimum: String(AGENT_MIN_SAMPLE),
-              })
-            : agent.medianDurationDisplay,
-        ),
-        put(
-          cell(agent.name, words.agentsColumns[3]),
-          agent.belowMinimum
-            ? (agent.suppressionNote ?? words.belowSample)
-            : agent.ring.decidedMeetings === 0
-              ? words.noOutcome
-              : pct(agent.ring.progressedShare),
-        ),
+              }),
+            )
+          : put(
+              cell(agent.name, words.agentsColumns[2]),
+              agent.medianDurationDisplay,
+              sampleOf(agent.meetings, language),
+            ),
+        /* The rate stands on the meetings with an outcome, not on all of theirs (`decidedMeetings`). */
+        agent.belowMinimum || agent.ring.decidedMeetings === 0
+          ? put(
+              cell(agent.name, words.agentsColumns[3]),
+              agent.belowMinimum ? (agent.suppressionNote ?? words.belowSample) : words.noOutcome,
+            )
+          : put(
+              cell(agent.name, words.agentsColumns[3]),
+              pct(agent.ring.progressedShare),
+              ofMeetings(agent.ring.decidedMeetings),
+            ),
       ]),
     ],
     outcomes: (put) => {
@@ -332,7 +442,12 @@ async function projectFigures(
     ],
   };
 
-  return { report, subject: "project", rows: framed(report, omitted, language, bodies) };
+  return {
+    report,
+    subject: "project",
+    period: periodCell(report),
+    rows: framed(report, omitted, language, bodies),
+  };
 }
 
 async function meetingFigures(
@@ -376,6 +491,7 @@ async function meetingFigures(
   return {
     report,
     subject: `meeting-${meetingId}`,
+    period: periodCell(report),
     rows: framed(report, omitted, language, bodies),
   };
 }
@@ -549,7 +665,12 @@ async function agentFigures(
     ],
   };
 
-  return { report, subject: view.name, rows: framed(report, omitted, language, bodies) };
+  return {
+    report,
+    subject: view.name,
+    period: periodCell(report),
+    rows: framed(report, omitted, language, bodies),
+  };
 }
 
 /**
