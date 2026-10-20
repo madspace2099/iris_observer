@@ -5,6 +5,7 @@ import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 import type { Viewer } from "@observer/readmodels";
 import { AskConversationPanel, AskFrame } from "@/components/ask-iris/AskScreen";
 import { AskLiveAnswer } from "@/components/ask-iris/AskLiveAnswer";
+import { composerNotices } from "@/components/ask-iris/live-questions";
 
 /**
  * THE NOTE ABOVE AN ANSWER SAYS WHAT IS TRUE OF THIS ACCOUNT (NIGHT2, P2-01).
@@ -152,5 +153,88 @@ describe("the composer's notices", () => {
     expect(html).toContain("data-ai-notice");
     expect(html).not.toContain("prepared openings are the read models");
     expect(html).toContain("The other openings are answered in the read models");
+  });
+});
+
+/*
+ * WHICH MODEL THE COMPOSER NAMES (ADR-0040, ADR-0043).
+ *
+ * A demonstration key is named only where the stream route would spend it:
+ * AI on and a loopback request. The key note appears only where no model
+ * answers, so it can never sit beside a Gate 1 notice.
+ */
+describe("composerNotices", () => {
+  const SHARK = {
+    company: "Shark Developments",
+    role: "member" as const,
+    adminName: "Clara Weiss",
+    key: null,
+  };
+  const KEYED = {
+    ...SHARK,
+    key: { lastFour: "1111", setAt: "2026-10-19T09:00:00Z", setBy: "Clara Weiss" },
+  };
+  const base = {
+    aiEnabled: true,
+    local: true,
+    companyModel: null,
+    demoModel: null,
+    connected: false,
+    company: null,
+  };
+
+  it("names the company's model before the owner's, on a loopback request with AI on", () => {
+    const notes = composerNotices({
+      ...base,
+      companyModel: "gpt-5-mini",
+      demoModel: "gpt-5",
+      company: KEYED,
+    });
+    expect(notes.model).toBe("gpt-5-mini");
+    expect(notes.modelNotice).toContain("worded by gpt-5-mini");
+    expect(notes.modelNotice).toContain("first 4 openings");
+    expect(notes.keyNote).toBeNull();
+    expect(composerNotices({ ...base, demoModel: "gpt-5" }).model).toBe("gpt-5");
+  });
+
+  it("names no model with AI off, and says nothing a model would word", () => {
+    const notes = composerNotices({
+      ...base,
+      aiEnabled: false,
+      companyModel: "gpt-5-mini",
+      connected: true,
+      company: KEYED,
+    });
+    expect(notes.model).toBeNull();
+    expect(notes.modelNotice).toBeNull();
+    expect(notes.keyNote).toContain("only on requests to localhost");
+  });
+
+  it("names no demonstration model on a request addressed to a name", () => {
+    const notes = composerNotices({
+      ...base,
+      local: false,
+      companyModel: "gpt-5-mini",
+      demoModel: "gpt-5",
+      company: KEYED,
+    });
+    expect(notes.model).toBeNull();
+    expect(notes.modelNotice).toBeNull();
+    expect(notes.keyNote).toContain("only on requests to localhost");
+  });
+
+  it("says the company has no key only where no model answers", () => {
+    expect(composerNotices({ ...base, company: SHARK }).keyNote).toBe(
+      "Clara Weiss has not added an OpenAI key for Shark Developments yet; answers come from the read models.",
+    );
+    expect(composerNotices({ ...base, company: { ...SHARK, role: "admin" } }).keyNote).toContain(
+      "You have not added",
+    );
+    /* The account's own connection answers: a Gate 1 notice, and no key note beside it. */
+    const own = composerNotices({ ...base, connected: true, company: SHARK });
+    expect(own.modelNotice).toContain("connected to this account");
+    expect(own.keyNote).toBeNull();
+    /* The owner's key answers. */
+    expect(composerNotices({ ...base, demoModel: "gpt-5", company: SHARK }).keyNote).toBeNull();
   });
 });

@@ -23,7 +23,7 @@ import {
   type AskScopeProject,
 } from "@/components/ask-iris/AskScreen";
 import { AskLiveAnswer } from "@/components/ask-iris/AskLiveAnswer";
-import { LIVE_QUESTIONS } from "@/components/ask-iris/live-questions";
+import { LIVE_QUESTIONS, composerNotices } from "@/components/ask-iris/live-questions";
 import {
   NotFoundError,
   NotPermittedError,
@@ -159,42 +159,22 @@ export default async function AskPage({
    * WHETHER A LANGUAGE MODEL MAY WORD A QUESTION, SAID BEFORE IT IS ASKED.
    *
    * Gate 1 puts the notice at the prompt box, in view before the first
-   * question. A demonstration key names its model: the company's (ADR-0043),
-   * else the owner's (ADR-0040), and either only where the stream route would
-   * spend it, which is with AI on and on a request addressed to this machine.
-   * An account's own connection is named by the answer it writes. None, and
-   * there is no notice to give: the answer is the read models' own.
-   *
-   * The live openings go to the same route as a typed question, so the notice
-   * names them too.
+   * question. `composerNotices` names a demonstration key's model only where
+   * the stream route would spend it, and says in one line when a company's key
+   * is missing or cannot be spent here (ADR-0043).
    */
-  const aiEnabled = environment().ai.enabled;
-  const local = loopbackHost((await headers()).get("host"));
-  const demoModel =
-    aiEnabled && local
-      ? ((account === null ? null : companyModelName(account.accountId)) ?? demoModelName())
-      : null;
-  const asked = `Typed questions and the first ${LIVE_QUESTIONS.length} openings`;
-  const modelNotice = !aiEnabled
-    ? null
-    : demoModel !== null
-      ? `${asked} are worded by ${demoModel}, a language model, from the figures Observer's read models compute. It writes no figure.`
-      : connected.length > 0
-        ? `${asked} may be worded by the language model connected to this account, from the figures Observer's read models compute. It writes no figure.`
-        : null;
-
-  /*
-   * A company with no key yet, said once at the composer (ADR-0043). Only where
-   * no model answers here at all; not the Gate 1 notice, which is about a model
-   * that does.
-   */
-  const company = account === null || demoModel !== null ? null : companyKeyState(account);
-  const keyNote =
-    company === null || company.key !== null
-      ? null
-      : company.role === "admin"
-        ? `You have not added an OpenAI key for ${company.company} yet; answers come from the read models. Add it in Settings.`
-        : `${company.adminName} has not added an OpenAI key for ${company.company} yet; answers come from the read models.`;
+  const {
+    model: demoModel,
+    modelNotice,
+    keyNote,
+  } = composerNotices({
+    aiEnabled: environment().ai.enabled,
+    local: loopbackHost((await headers()).get("host")),
+    companyModel: account === null ? null : companyModelName(account.accountId),
+    demoModel: demoModelName(),
+    connected: connected.length > 0,
+    company: account === null ? null : companyKeyState(account),
+  });
 
   const scope = parseAskScope(first(search, "scope"), every(search, "with"));
   const otherProjects = await otherProjectsFor(viewer, tenant.id, project.id);
