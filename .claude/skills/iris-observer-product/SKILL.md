@@ -112,7 +112,7 @@ a gaming HUD · a science-fiction film screen · a marketing landing page.
 - **Typography** is Manrope, locked by brand and Figma. Build character through scale, weight,
   tabular numerals, tracking, line length and editorial composition — never by swapping the font. A
   self-hosted monospace may carry unit codes, timestamps and evidence references.
-- **Colour** is graphite black, warm off-white, IRIS blue `#00A3FF`, restrained semantics. No purple
+- **Colour** is graphite black, IRIS blue `#00A3FF`, restrained semantics; warm off-white is the print page only. No purple
   gradients, aurora, neon outlines, multicolour accents or glowing blobs. **Every on-screen surface
   is dark**; a light ground exists only in print (the owner, 2026-10-19, ADR-0042).
 - **Composition** favours continuous information planes, asymmetric but disciplined grids,

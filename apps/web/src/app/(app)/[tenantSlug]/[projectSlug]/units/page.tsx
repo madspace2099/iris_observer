@@ -227,11 +227,11 @@ export default async function UnitsPage({
         />
 
         {/*
-         * THE PLATE. The one paper region on this screen, and the reason for it.
+         * THE PLATE. The one measured region on this screen, and the reason for it.
          *
-         * A dense body of measurement reads better on warm paper inside a dark
-         * frame, and the seam says which is which without a label: above it
-         * what we conclude, below it what was measured. Nothing above this
+         * On screen it stands on the frame's graphite inside a hairline, and it
+         * prints on paper (ADR-0042). The seam says which is which without a
+         * label: above it what we conclude, below it what was measured. Nothing above this
          * point is a reading and nothing inside it is a verdict.
          */}
         {/*

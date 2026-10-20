@@ -33,7 +33,7 @@ export const metadata: Metadata = { title: "Sign in" };
  *
  * The composition is the MADSPACE Client Portal sign-in, transcribed from the
  * reference build: two equal columns, a 48px inset, the four-stage scrim, a
- * 360px form on the warm off-white. The reference's anatomy is all still here
+ * 360px form on the graphite ground (ADR-0042). The reference's anatomy is all still here
  * — eyebrow, heading, work email, password, password sign-in, company single
  * sign-on, invitation, protocol note — reordered on 2026-10-19 so the password
  * path leads and the rest sits quieter beneath it (see the form below).

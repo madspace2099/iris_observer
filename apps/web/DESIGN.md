@@ -1,6 +1,6 @@
 ---
 name: IRIS Observer
-description: A dark, evidence-driven sales-intelligence product for property developers and their sales agencies, with a deliberately separate light operational surface for MADSPACE.
+description: A dark, evidence-driven sales-intelligence product for property developers and their sales agencies, with a deliberately separate operational surface for MADSPACE. Every on-screen surface is dark; paper is print only (ADR-0042).
 colors:
   primary: "#00a3ff"
   primary-dim: "#0b6fae"
@@ -11,10 +11,10 @@ colors:
   graphite-ink: "#f4f7fc"
   graphite-ink-2: "rgb(244 247 252 / 74%)"
   graphite-ink-3: "#98a4b8"
-  paper-page: "#f5f4f1"
-  paper-panel: "#ffffff"
-  paper-ink: "#14161a"
-  paper-ink-2: "#45494f"
+  paper-page: "#f5f4f1" # print only (ADR-0042)
+  paper-panel: "#ffffff" # print only (ADR-0042)
+  paper-ink: "#14161a" # print only (ADR-0042)
+  paper-ink-2: "#45494f" # print only (ADR-0042)
   status-good: "#3ecf8e"
   status-watch: "#e8b339"
   status-poor: "#f0616d"
@@ -77,8 +77,8 @@ Derived entirely from the shipped repository — CSS in `packages/ui/src`, the l
 - **Manrope is the product font, self-hosted, brand-locked.** ADR-0020: loaded from `@fontsource-variable/manrope`, never from Google Fonts, with a metric-matched `"Manrope Fallback"` face (`ascent-override: 100%`, `descent-override: 25%`) so the swap from fallback to Manrope never reflows a layout (`packages/ui/src/tokens.css:20-31`). Three ADRs (0020, 0033, 0034) independently reject substituting it, most explicitly ADR-0033 rejecting the approved Ask IRIS reference's own `Anthropic Sans`/`Inter` in favor of Manrope.
 - **IRIS blue is `#00a3ff`, exactly, everywhere it is brand.** `--iris-accent` in `tokens.css:35`, reused as `--ox-human-mark`, `--ask-accent`. ADR-0033 explicitly rejected the approved Ask IRIS reference's own `#2f97ff`, calling the brand "not ours to move." ADR-0034 explicitly rejected inventing a second accent for the light (paper) ground.
 - **Premium enterprise / PropTech / architectural character**, stated directly in `docs/14-design-system.md`'s thesis: _"A building, and what buyers are doing to it."_ The product's job is evidence a developer, agency or agent can act on about a real physical asset — not a generic analytics dashboard.
-- **The customer-facing product is dark by default and, as of ADR-0034, dark-primary with light used deliberately.** `tokens.css:165-170` states outright: _"A light theme is not defined yet, on purpose. The brand is dark, every reference screen is dark."_ ADR-0034 (2026-09-04) is the one exception: it introduces a paper ground (`.ox-paper`) for dense measured content (tables, timelines), but the frame — header, navigation, page title, verdict — never leaves graphite. A reader always arrives on graphite and always returns to it.
-- **MADSPACE Admin is a deliberately separate operational surface, both visually and organisationally.** `docs/20-madspace-admin-design-system.md` §0: _"MADSPACE administration has always been a separate surface... this is what that separation now looks like."_ It is light by default (warm paper, `#F6F5F3`), typeset in Inter, and governs only `/madspace/*`. This is not an oversight to unify — ADR-0034 explicitly calls adopting MADSPACE's paper into Observer "narrowing a boundary that was drawn deliberately," and did so only partially and only by rule (dense-content regions), not wholesale.
+- **The customer-facing product is dark by default and, as of ADR-0034, dark-primary with light used deliberately.** `tokens.css:165-170` states outright: _"A light theme is not defined yet, on purpose. The brand is dark, every reference screen is dark."_ ADR-0034 (2026-09-04) is the one exception: it introduces a paper ground (`.ox-paper`) for dense measured content (tables, timelines), but the frame — header, navigation, page title, verdict — never leaves graphite. A reader always arrives on graphite and always returns to it. **ADR-0042 (2026-10-19) withdrew the paper ground from the screen** on the owner's instruction, "Everything in the system must have a dark background, not white": every on-screen surface is graphite, and `.ox-paper` declares its paper values only under `@media print`.
+- **MADSPACE Admin is a deliberately separate operational surface, both visually and organisationally.** `docs/20-madspace-admin-design-system.md` §0: _"MADSPACE administration has always been a separate surface... this is what that separation now looks like."_ It was drawn light (warm paper, `#F6F5F3`) and governs only `/madspace/*`; since ADR-0037 it is graphite and Manrope on screen, with the paper kept for print. This is not an oversight to unify — ADR-0034 explicitly calls adopting MADSPACE's paper into Observer "narrowing a boundary that was drawn deliberately," and did so only partially and only by rule (dense-content regions), not wholesale.
 
 ## Visual principles
 
@@ -258,9 +258,9 @@ This is a deliberate distinction, not a simplification of it:
 ## Color / status semantics
 
 - **Primary accent**: `#00a3ff` (`--iris-accent`). On graphite it measures **7.10:1** on a panel and is used for exactly two things: the focus ring, and the mark meaning _"a person decided this, and a person can change it."_ It is not a decorative accent, and using it as one purely to add color is a misuse.
-- **On the paper ground, `#00a3ff` is unusable as text, a border or a focus ring** — it measures only **2.73:1** on white. `--iris-accent-dim` (`#0b6fae`, **5.39:1**) carries those roles there instead. This is a measured, tested constraint (`apps/web/test/observer-product-design.test.ts`), not a style preference.
+- **On the paper ground (print only since ADR-0042), `#00a3ff` is unusable as text, a border or a focus ring** — it measures only **2.73:1** on white. `--iris-accent-dim` (`#0b6fae`, **5.39:1**) carries those roles there instead. This is a measured, tested constraint (`apps/web/test/observer-product-design.test.ts`), not a style preference.
 - **Neutral graphite hierarchy** (`.ox-graphite`, ADR-0034's measured table): ink 18.08:1, ink-2 9.98:1, ink-3 7.71:1, ink-4 6.17:1 (the floor) — all on a translucent panel composited over the shell ground, measured, not estimated.
-- **Neutral paper hierarchy** (`.ox-paper`): ink 18.11:1, ink-2 9.06:1, ink-3 6.74:1, ink-4 4.80:1 — the single tightest value in the entire system, "the number to watch if the plate is ever darkened."
+- **Neutral paper hierarchy** (`.ox-paper`, print only since ADR-0042): ink 18.11:1, ink-2 9.06:1, ink-3 6.74:1, ink-4 4.80:1 — the single tightest value in the entire system, "the number to watch if the plate is ever darkened."
 - **Status colors, three semantic states plus neutral**, deliberately not four: good (`#3ecf8e` base / `#8ad9b0` on graphite / `#0f5c39` on paper), watch (`#e8b339` / `#e6c07a` / `#7d4a00`), poor/weak (`#f0616d` / `#f0a49e` / `#a92019`). `tokens.css`'s own comment: _"A four-state scale invites a middle nobody can define."_
 - **Evidence/provenance is a second, orthogonal axis from status — never merged.** ADR-0010 defines four claim tiers (`observed_sequence`, `attributed_conversion`, `statistical_association`, `causal_claim`) that describe _how sure the product is_, entirely separate from _what the figure says_ (good/watch/poor). The product's schema and its metric-registry validator both reject the fourth tier outright — Observer is structurally incapable of stating a causal claim, not merely discouraged from it.
 - **Status must never rely on color alone, structurally, not by convention.** ADR-0034's own rule: a missing value changes size, weight, colour _and_ a leading bar mark — never fewer than that, because three of the four already reads as "a small number" to a reader scanning a column.
