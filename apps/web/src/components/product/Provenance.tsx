@@ -124,7 +124,7 @@ const TIER_MEANING_WORDS: Readonly<
   },
 };
 
-const SOURCE_WORDS: Readonly<Record<Language, Readonly<Record<InsightSource, string>>>> = {
+export const SOURCE_WORDS: Readonly<Record<Language, Readonly<Record<InsightSource, string>>>> = {
   en: INSIGHT_SOURCE_LABELS,
   sk: {
     IRIS_SHOWROOM_OBSERVED: "IRIS – pozorované",
@@ -246,6 +246,16 @@ export const PROVENANCE_RECORDS: PluralForms = {
   hu: { one: "bejegyzés", other: "bejegyzés" },
 };
 
+/** The words `Evidence` prints — "12 records · Observed", or "No evidence" — for a page and a CSV alike. */
+export function evidenceText(evidence: EvidenceRef | null, language: Language): string {
+  if (evidence === null) return NO_EVIDENCE[language];
+  const tier = isProducibleTier(evidence.tier) ? TIER_WORDS[language][evidence.tier] : null;
+  const noun = plural(language, evidence.observationCount, PROVENANCE_RECORDS);
+  return tier === null
+    ? `${evidence.observationCount} ${noun}`
+    : `${evidence.observationCount} ${noun} · ${tier}`;
+}
+
 export function Evidence({
   evidence,
   period,
@@ -256,16 +266,10 @@ export function Evidence({
   /** The words' language; the page passes the reader's once there is a choice. */
   readonly language: Language;
 }) {
+  const words = evidenceText(evidence, language);
   if (evidence === null) {
-    return <span className="ox-n">{NO_EVIDENCE[language]}</span>;
+    return <span className="ox-n">{words}</span>;
   }
-
-  const tier = isProducibleTier(evidence.tier) ? TIER_WORDS[language][evidence.tier] : null;
-  const noun = plural(language, evidence.observationCount, PROVENANCE_RECORDS);
-  const words =
-    tier === null
-      ? `${evidence.observationCount} ${noun}`
-      : `${evidence.observationCount} ${noun} · ${tier}`;
 
   if (evidence.href.length === 0) {
     return <span className="ox-evidence">{words}</span>;

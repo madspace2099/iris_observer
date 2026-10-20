@@ -67,7 +67,7 @@ interface LadderWords {
   readonly lost: (lost: number, label: string) => string;
 }
 
-const LADDER_WORDS: Readonly<Record<Language, LadderWords>> = {
+export const LADDER_WORDS: Readonly<Record<Language, LadderWords>> = {
   en: {
     summary: (noun, stages) => `${noun} at each step, in order. ${stages}.`,
     of: (top, noun) => `of ${top} ${noun}`,

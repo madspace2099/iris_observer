@@ -58,7 +58,7 @@ import { Evidence, Sample, Sources } from "./Provenance";
  * the words this file always printed; Slovak and Hungarian are drafts for
  * review (P2-17).
  */
-const FINDING_WORDS: Readonly<
+export const FINDING_WORDS: Readonly<
   Record<Language, { readonly against: string; readonly empty: string }>
 > = {
   en: {

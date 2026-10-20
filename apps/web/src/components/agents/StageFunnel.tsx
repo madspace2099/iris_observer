@@ -43,7 +43,7 @@ import { Evidence, Figure } from "@/components/product";
  * connected.
  */
 /* "of 14" beside a stage whose figure carries no denominator of its own. */
-const FROM: Readonly<Record<Language, (n: number) => string>> = {
+export const FUNNEL_FROM: Readonly<Record<Language, (n: number) => string>> = {
   en: (n) => `of ${String(n)}`,
   sk: (n) => `${slovakZForm(n)} ${String(n)}`,
   hu: (n) => `${String(n)} közül`,
@@ -124,7 +124,7 @@ export function StageFunnel({
                * metric came back empty.
                */}
               {step.metric.qualifier === null && step.fromCount !== null ? (
-                <span className="ox-stage-drop">{FROM[language](step.fromCount)}</span>
+                <span className="ox-stage-drop">{FUNNEL_FROM[language](step.fromCount)}</span>
               ) : null}
 
               {/*

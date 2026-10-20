@@ -11,7 +11,7 @@ import {
  * screens are English; a printed report passes the reader's language. Slovak
  * and Hungarian are drafts for review (P2-17).
  */
-const FIGURE_WORDS: Readonly<
+export const FIGURE_WORDS: Readonly<
   Record<
     Language,
     {

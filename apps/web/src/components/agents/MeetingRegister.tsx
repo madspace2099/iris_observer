@@ -59,7 +59,7 @@ interface RegisterWords {
   readonly notOpenable: string;
 }
 
-const REGISTER_WORDS: Readonly<Record<Language, RegisterWords>> = {
+export const REGISTER_WORDS: Readonly<Record<Language, RegisterWords>> = {
   en: {
     columns: [
       "Meeting",

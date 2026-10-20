@@ -6,7 +6,7 @@ import { slovakZForm, type Language } from "@observer/readmodels";
  * a report can be printed in; the noun is the caller's in English. Drafts for
  * review in Slovak and Hungarian (P2-17).
  */
-const SHORTFALL: Readonly<Record<Language, (n: number, minimum: number, noun: string) => string>> =
+export const SHORTFALL: Readonly<Record<Language, (n: number, minimum: number, noun: string) => string>> =
   {
     en: (n, minimum, noun) => `${String(n)} of ${String(minimum)} ${noun} needed`,
     sk: (n, minimum) =>
