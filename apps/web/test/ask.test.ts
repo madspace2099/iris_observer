@@ -413,7 +413,28 @@ describe("the tools state each figure's own denominator", () => {
     });
     const result = await run("compare_agent_outcomes");
     expect(result.facts.some((f) => (f.note ?? "").endsWith("· Timed meetings only."))).toBe(true);
+    /* The narrowed count is not the presenter's meetings, and the sentence says so. */
+    expect(result.draft).toMatch(
+      / in \d+% of the \d+ of their meetings that could answer it, where /,
+    );
   });
+
+  it.each(["compare_agent_flows", "compare_meeting_cohorts"])(
+    "gives every behaviour row in %s its own two counts",
+    async (name) => {
+      const tool = TOOLS.find((t) => t.name === name);
+      const roster = await rosterOf("shark", "shark-residence");
+      const args =
+        name === "compare_agent_flows"
+          ? { leftAgentId: roster[0]?.agentId, rightAgentId: roster[1]?.agentId }
+          : {};
+      if (tool === undefined) throw new Error(`no tool ${name}`);
+      const result = await tool.run(SHARK, args);
+      const rates = result.facts.filter((f) => / vs /.test(f.value));
+      expect(rates.length).toBeGreaterThan(0);
+      for (const fact of rates) expect(fact.note ?? "").toMatch(/^of \d+ and \d+ meetings/);
+    },
+  );
 
   it("calls presenters at the same share a tie, not a most and a least", async () => {
     const original = repository.getAgentsView.bind(repository);
@@ -425,7 +446,9 @@ describe("the tools state each figure's own denominator", () => {
       };
     });
     const result = await run("compare_agent_outcomes");
-    expect(result.draft).toMatch(/same share of their meetings, 50% each/);
+    expect(result.draft).toMatch(
+      /same share of their meetings with a recorded outcome: [^.]+ 50% of \d+(, [^.]+ 50% of \d+)+\. None ranks/,
+    );
     expect(result.draft).not.toMatch(/most often|least/);
   });
 

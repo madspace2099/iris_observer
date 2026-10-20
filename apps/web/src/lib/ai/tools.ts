@@ -107,6 +107,7 @@ interface PresentationDifferenceLike {
   readonly rightDisplay: string;
   readonly sampleLeft: number;
   readonly sampleRight: number;
+  readonly note: string | null;
 }
 
 /**
@@ -117,12 +118,26 @@ interface PresentationDifferenceLike {
  * written in the third person singular for exactly this reason. The count is
  * the behaviour's own sample, which can be narrower than the presenter's
  * meetings and is never the outcome count a sentence stated just before it.
+ * A behaviour with a note excludes the meetings that cannot answer it, so its
+ * count is said to be those, not every meeting the presenter held.
  */
 function describe(d: PresentationDifferenceLike, side: "left" | "right"): string {
   const rate = side === "left" ? d.leftDisplay : d.rightDisplay;
   const n = side === "left" ? d.sampleLeft : d.sampleRight;
   const clause = d.behaviour.charAt(0).toLowerCase() + d.behaviour.slice(1);
-  return `${clause} in ${rate} of their ${n} meeting${n === 1 ? "" : "s"}`;
+  const meetings = `meeting${n === 1 ? "" : "s"}`;
+  return d.note === null
+    ? `${clause} in ${rate} of their ${n} ${meetings}`
+    : `${clause} in ${rate} of the ${n} of their ${meetings} that could answer it`;
+}
+
+/** A behaviour row: both rates, and the count each stands on beside the read model's own note. */
+function behaviourFact(d: PresentationDifferenceLike, prefix = "") {
+  return {
+    label: d.behaviour,
+    value: `${d.leftDisplay} vs ${d.rightDisplay}`,
+    note: `${prefix}of ${d.sampleLeft} and ${d.sampleRight} meetings${d.note === null ? "" : ` · ${d.note}`}`,
+  };
 }
 
 const NO_CAUSATION =
@@ -260,11 +275,7 @@ const compareAgentFlows: ToolDefinition<
           value: String(c.right.meetingCount),
           note: `${pct(c.right.coverage)} core coverage`,
         },
-        ...top.map((d) => ({
-          label: d.behaviour,
-          value: `${d.leftDisplay} vs ${d.rightDisplay}`,
-          note: d.note,
-        })),
+        ...top.map((d) => behaviourFact(d)),
       ],
       sources: DERIVED,
       evidence: c.evidence,
@@ -353,11 +364,7 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
           value: `${c.right.meetingCount} of ${decided} with an outcome`,
           note: "presentation only or not interested",
         },
-        ...top.map((d) => ({
-          label: d.behaviour,
-          value: `${d.leftDisplay} vs ${d.rightDisplay}`,
-          note: d.note,
-        })),
+        ...top.map((d) => behaviourFact(d)),
       ],
       sources: WITH_OUTCOME,
       evidence: c.evidence,
@@ -439,7 +446,7 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
           ? "No presenter's meetings in this period carry enough recorded outcomes to be ranked."
           : top === bottom
             ? `Only ${top.name} has enough recorded outcomes in this period to be read, so there is nobody to rank against.`
-            : `The ${ranked.length} presenters with enough recorded outcomes progressed in the same share of their meetings, ${pct(top.ring.progressedShare)} each, so none ranks above another.`;
+            : `The ${ranked.length} presenters with enough recorded outcomes progressed in the same share of their meetings with a recorded outcome: ${ranked.map((a) => `${a.name} ${pct(a.ring.progressedShare)} of ${a.ring.decidedMeetings}`).join(", ")}. None ranks above another.`;
       return {
         tool: "compare_agent_outcomes",
         facts: ranked.map(progressed),
@@ -482,13 +489,7 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
          * rates count every meeting the presenter held (or fewer, where the
          * note says so), never the outcome count in the row above.
          */
-        ...differences.map((d) => ({
-          label: d.behaviour,
-          value: `${d.leftDisplay} vs ${d.rightDisplay}`,
-          note: `${top.name} against ${bottom.name}, of ${d.sampleLeft} and ${d.sampleRight} meetings${
-            d.note === null ? "" : ` · ${d.note}`
-          }`,
-        })),
+        ...differences.map((d) => behaviourFact(d, `${top.name} against ${bottom.name}, `)),
         ...ranked.slice(1, -1).map(progressed),
       ],
       sources: WITH_OUTCOME,
