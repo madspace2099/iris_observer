@@ -4,6 +4,7 @@
 **Date:** 2026-08-29
 **Branch:** `feature/observer-reference-parity`
 **Implemented by:** `1dd8f9f`
+**Amended by:** ADR-0040 and ADR-0043 (two local-demonstration keys that belong to no account)
 
 ## Context
 

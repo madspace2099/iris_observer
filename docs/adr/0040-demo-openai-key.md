@@ -2,6 +2,7 @@
 
 **Status:** accepted · **Date:** 2026-10-19
 **Amends:** ADR-0030 (keys belong to accounts) for one local case
+**Amended by:** ADR-0043 (the key is spent only on a request whose `Host` is the loopback)
 **Keeps:** ADR-0024 and ADR-0033 (the screen names what wrote the words), ADR-0026 (store=false,
 no hosted tools), ADR-0022 (the sign-in is a demonstration, not authentication)
 

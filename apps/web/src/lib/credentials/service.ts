@@ -57,6 +57,12 @@ import {
  * lookup, no inheritance and no fallback, because a fallback that silently
  * charges somebody else's OpenAI project is exactly the behaviour a "bring your
  * own key" feature must not have.
+ *
+ * The one organisation credential that exists is a demonstration carve-out
+ * outside this service: `company-keys.ts` (ADR-0043), in process memory, open
+ * only on a local demonstration with its own flag, and spent only on a request
+ * addressed to the loopback. It is not a fallback for this store; nothing here
+ * reads it.
  */
 
 /** What a screen may know about a connection. Never the key. */
