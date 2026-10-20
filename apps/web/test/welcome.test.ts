@@ -62,12 +62,13 @@ describe("welcomeLines", () => {
   const base: WelcomeFacts = {
     displayName: "Clara Weiss",
     organisationName: "Shark Developments",
+    destination: "/shark/shark-residence/ask",
     project: PROJECT,
   };
 
   it("types the five lines, every figure from the facts", () => {
     expect(welcomeLines(base)).toEqual([
-      "Identity confirmed · Clara Weiss, Shark Developments",
+      "Signed in · Clara Weiss, Shark Developments",
       "Connecting Shark Residence · showroom, WEB IRIS, CRM, catalogue",
       "Reading 1,520 presentations · quarter to date",
       "5 agents · latest meeting 23 Aug",
@@ -98,10 +99,21 @@ describe("welcomeLines", () => {
   });
 
   it("opens the picker in words, with no project figure", () => {
-    expect(welcomeLines({ ...base, project: null })).toEqual([
-      "Identity confirmed · Clara Weiss, Shark Developments",
+    expect(welcomeLines({ ...base, destination: "/projects", project: null })).toEqual([
+      "Signed in · Clara Weiss, Shark Developments",
       "Opening your projects",
       "Ready",
     ]);
+  });
+
+  it("names what it opens by the destination, not always the projects", () => {
+    const line = (destination: string) => welcomeLines({ ...base, destination, project: null })[1];
+    expect(line("/madspace")).toBe("Opening MADSPACE administration");
+    expect(line("/shark/shark-residence/ask")).toBe("Opening Ask IRIS");
+  });
+
+  /* ADR-0022: the sign-in selects a scenario; it confirms nobody's identity. */
+  it("says signed in, never that an identity was confirmed", () => {
+    expect(welcomeLines(base).join(" ")).not.toMatch(/identity|confirmed|verified/i);
   });
 });

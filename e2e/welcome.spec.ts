@@ -28,7 +28,7 @@ async function signInAsClara(page: Page): Promise<void> {
 }
 
 test.describe("the welcome, played", () => {
-  test.use({ reducedMotion: "no-preference" });
+  test.use({ contextOptions: { reducedMotion: "no-preference" } });
 
   test("states the account, the project and its presentations, then opens Ask IRIS", async ({
     page,
@@ -37,7 +37,7 @@ test.describe("the welcome, played", () => {
     await page.waitForURL((url) => url.pathname === "/welcome");
 
     const lines = page.locator(".welcome-lines");
-    await expect(lines).toContainText("Identity confirmed · Clara Weiss, Shark Developments");
+    await expect(lines).toContainText("Signed in · Clara Weiss, Shark Developments");
     await expect(lines).toContainText("Shark Residence");
     await expect(lines).toContainText(/Reading [\d,]+ presentations? · quarter to date/);
     await expect(lines).toContainText("Briefing ready");
@@ -50,21 +50,34 @@ test.describe("the welcome, played", () => {
   test("hands over at once when Skip is pressed", async ({ page }) => {
     await signInAsClara(page);
     await page.waitForURL((url) => url.pathname === "/welcome");
+    /*
+     * Before the sequence's own hand-over at 4.2s could explain an arrival:
+     * Skip is pressed at once and the landing must follow within a second.
+     */
+    const skip = page.getByRole("link", { name: /Skip/ });
+    await skip.waitFor();
     const pressed = Date.now();
-    await page.getByRole("link", { name: /Skip/ }).click();
-    await page.waitForURL(LANDING, { timeout: 10_000 });
-    expect(Date.now() - pressed).toBeLessThan(4_000);
+    await skip.click();
+    await page.waitForURL(LANDING, { timeout: 4_000 });
+    expect(Date.now() - pressed).toBeLessThan(1_000);
   });
 });
 
 test.describe("the welcome, under reduced motion", () => {
-  test.use({ reducedMotion: "reduce" });
+  test.use({ contextOptions: { reducedMotion: "reduce" } });
 
-  test("lands on Ask IRIS within a few seconds", async ({ page }) => {
+  test("holds the finished frame, then lands on Ask IRIS well before the full sequence", async ({
+    page,
+  }) => {
     await signInAsClara(page);
-    const started = Date.now();
+    await page.waitForURL((url) => url.pathname === "/welcome");
+    const arrived = Date.now();
+    /* The lines stand complete from the first frame: readable, not a flash. */
+    await expect(page.locator(".welcome-lines")).toContainText("Briefing ready");
     await page.waitForURL(LANDING, { timeout: 8_000 });
-    expect(Date.now() - started).toBeLessThan(8_000);
+    const held = Date.now() - arrived;
+    expect(held).toBeGreaterThan(1_000);
+    expect(held).toBeLessThan(2_500);
     await expect(page.locator(".ask-hero").first()).toBeVisible();
   });
 

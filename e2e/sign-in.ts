@@ -85,7 +85,7 @@ export async function signIn(page: Page, name: string): Promise<void> {
  * HANDS THE WELCOME OVER AT ONCE, IF THE SIGN-IN LANDED ON IT.
  *
  * A password sign-in with no `returnTo` goes by way of `/welcome`, which hands
- * the reader on by itself — after 400ms under reduced motion, after about four
+ * the reader on by itself — after 1.5s under reduced motion, after about four
  * seconds otherwise. Every spec that is not about the welcome presses its Skip
  * link, which is what a reader in a hurry does, so the front door still costs
  * nothing per test. Skip is a real link to the same destination; if the

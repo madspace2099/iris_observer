@@ -18,14 +18,20 @@ import { dynamicRoute } from "@/lib/href";
  *
  * Every line is a sentence the server composed from the repository
  * (`lib/welcome.ts`); nothing here invents a figure. Under reduced motion the
- * lines stand complete from the first frame and the hand-over comes after
- * 400ms. The Skip link is a real link to the same destination, so it works
+ * lines stand complete from the first frame, long enough to be read, and fade
+ * out before the hand-over: a 400ms frame was a full-screen flash, not a
+ * welcome. The Skip link is a real link to the same destination, so it works
  * before this script has even loaded.
+ *
+ * `hold` keeps the reader here: no timer and no Enter or Escape, because a
+ * dialog over the sequence (the company key, ADR-0043) owns those keys, and
+ * Enter in its field would otherwise hand over with the key unsaved.
  */
 
 /** When the hand-over happens, after the rings have begun to contract. */
 const HAND_OVER_MS = 4200;
-const HAND_OVER_REDUCED_MS = 400;
+/** The finished frame, held; `ask-iris.css` fades it out over its last 300ms. */
+const HAND_OVER_REDUCED_MS = 1500;
 
 /** The typing schedule: lines start half a second apart from 0.8s. */
 const FIRST_LINE_S = 0.8;
@@ -38,11 +44,14 @@ export function WelcomeSequence({
   to,
   lines,
   heading,
+  hold = false,
 }: {
   /** Already validated on the server: an internal path this reader may open. */
   readonly to: string;
   readonly lines: readonly string[];
   readonly heading: string;
+  /** Stay on the finished frame: no hand-over timer, no Enter or Escape. */
+  readonly hold?: boolean;
 }) {
   const router = useRouter();
   const gone = useRef(false);
@@ -55,6 +64,7 @@ export function WelcomeSequence({
 
   useEffect(() => {
     router.prefetch(dynamicRoute(to));
+    if (hold) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(handOver, reduced ? HAND_OVER_REDUCED_MS : HAND_OVER_MS);
     const onKey = (event: KeyboardEvent) => {
@@ -67,10 +77,10 @@ export function WelcomeSequence({
       window.clearTimeout(timer);
       window.removeEventListener("keydown", onKey);
     };
-  }, [handOver, router, to]);
+  }, [handOver, hold, router, to]);
 
   return (
-    <main className="welcome" id="main" tabIndex={-1}>
+    <main className="welcome" id="main" tabIndex={-1} data-hold={hold ? "true" : undefined}>
       <h1 className="ask-sr">{heading}</h1>
 
       <div className="welcome-stage">

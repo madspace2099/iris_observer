@@ -40,12 +40,18 @@ export interface WelcomeProject {
 export interface WelcomeFacts {
   readonly displayName: string;
   readonly organisationName: string;
+  /** Where the welcome hands the reader on to, already validated. */
+  readonly destination: string;
   readonly project: WelcomeProject | null;
 }
 
 /** The facts behind the welcome, for the destination it hands the reader on to. */
 export async function welcomeFacts(viewer: Viewer, destination: string): Promise<WelcomeFacts> {
-  const identity = { displayName: viewer.displayName, organisationName: viewer.organisationName };
+  const identity = {
+    displayName: viewer.displayName,
+    organisationName: viewer.organisationName,
+    destination,
+  };
   const [, tenantSlug = "", projectSlug = ""] = destination.split("/");
   if (tenantSlug === "projects" || tenantSlug === "madspace" || projectSlug === "") {
     return { ...identity, project: null };
@@ -91,11 +97,23 @@ export async function welcomeFacts(viewer: Viewer, destination: string): Promise
   }
 }
 
+/** What the welcome says it opens, when it opens no one project. */
+function opening(destination: string): string {
+  const [, first = "", , surface = ""] = destination.split("/");
+  if (first === "madspace") return "Opening MADSPACE administration";
+  if (first === "projects") return "Opening your projects";
+  return surface === "ask" ? "Opening Ask IRIS" : "Opening Observer";
+}
+
 /** The status lines, in the order the welcome types them. */
 export function welcomeLines(facts: WelcomeFacts): readonly string[] {
-  const identity = `Identity confirmed · ${facts.displayName}, ${facts.organisationName}`;
+  /*
+   * "Signed in", not "identity confirmed": the demonstration sign-in selects a
+   * scenario and proves nobody's identity (ADR-0022).
+   */
+  const identity = `Signed in · ${facts.displayName}, ${facts.organisationName}`;
   const project = facts.project;
-  if (project === null) return [identity, "Opening your projects", "Ready"];
+  if (project === null) return [identity, opening(facts.destination), "Ready"];
 
   const count = (n: number) => new Intl.NumberFormat(project.locale).format(n);
   const connecting =
