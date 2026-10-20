@@ -13,7 +13,8 @@ import { useEffect } from "react";
  * `auto` is the export dialog's "PDF document" (ADR-0045): the dialog opens
  * the report it composed in a new tab with `?print=1`, and the page asks for
  * the print dialog once, after the document and its fonts have loaded, so the
- * PDF is not taken from a half-drawn page in a fallback face. Without that
+ * PDF is not taken from a half-drawn page in a fallback face, and takes the
+ * parameter off the address so a reload does not ask again. Without that
  * parameter nothing prints by itself.
  */
 export function PrintPage({
@@ -37,7 +38,12 @@ export function PrintPage({
     void loaded
       .then(() => document.fonts.ready)
       .then(() => {
-        if (!cancelled) window.print();
+        if (cancelled) return;
+        /* Asked once: a reload or a period change on this page must not print again. */
+        const url = new URL(window.location.href);
+        url.searchParams.delete("print");
+        window.history.replaceState(null, "", url.toString());
+        window.print();
       });
     /* A remount (Strict Mode, a fast refresh) must not print twice. */
     return () => {
