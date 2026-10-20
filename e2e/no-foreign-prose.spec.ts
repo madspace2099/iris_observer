@@ -56,6 +56,14 @@ const REFUSAL = "That is not a question Observer can answer from this project’
  */
 const SETTLED = '.ask-trace[data-settled="true"]';
 const UNIT_CODE = /^[A-Z]-\d{3}$/;
+/*
+ * A settled trace is also what a refusal leaves behind, so "answered" is the
+ * answer itself on screen and none of the client's failure sentences
+ * (`useObserver`'s `failure`, and the panel's own fallback line).
+ */
+const ANSWERED = ".ask-live-answer";
+const FAILED =
+  /could not reach its interpretation layer|could not complete this answer|ended before it was complete|session has expired|could not answer this from the read models/;
 
 /*
  * Northgate is on the list too since its own script was retired (R01-2, Máté
@@ -92,6 +100,8 @@ for (const { who, root, name } of ELSEWHERE) {
       await page.goto(`${root}/ask?q=${encodeURIComponent(question)}`);
       const main = page.locator("main");
       await expect(main.locator(SETTLED)).toBeVisible({ timeout: 20_000 });
+      await expect(main.locator(ANSWERED)).toBeVisible();
+      await expect(main.getByText(FAILED)).toHaveCount(0);
       await expect(main.getByText(REFUSAL)).toHaveCount(0);
       /* The page echoes the question back; those are the reader's words, not the project's. */
       const served = (await main.innerText()).split(question).join(" ");

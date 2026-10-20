@@ -266,7 +266,7 @@ describe("the live questions reach their analyses without a model", () => {
     expect(routes(LIVE_QUESTIONS[1] as string)).toEqual(["compare_agent_outcomes"]);
   });
 
-  it("reads where presentations lose buyers from the cohorts and the sections reached", () => {
+  it("reads the sections reached beside how the meetings that did not progress differ", () => {
     expect(routes(LIVE_QUESTIONS[2] as string)).toEqual([
       "compare_meeting_cohorts",
       "analyze_feature_usage",

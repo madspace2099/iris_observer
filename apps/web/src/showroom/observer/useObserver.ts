@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { OrbState } from "../orb/profile";
 import type { AskOutcome, ObserverContext } from "./types";
@@ -31,8 +31,13 @@ export interface ObserverSession {
   readonly outcome: AskOutcome | null;
   /** What the tool layer is doing, in words, while it does it. Real stages. */
   readonly progress: string | null;
-  /** Every stage the server has named this turn, in order. The last is `progress` while it runs. */
-  readonly stages: readonly string[];
+  /**
+   * Every stage the server named and every analysis that ran this turn, in the
+   * one order they arrived: the last is the one in progress while the turn
+   * runs. Two lists joined afterwards put the composing stage before the
+   * analyses it follows.
+   */
+  readonly steps: readonly { readonly kind: "stage" | "tool"; readonly name: string }[];
   /** Analyses that have actually run this turn. */
   readonly tools: readonly string[];
   /** Provisional streamed prose. Replaced by the validated answer. */
@@ -85,12 +90,29 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
   const [state, setState] = useState<OrbState>("idle");
   const [outcome, setOutcome] = useState<AskOutcome | null>(null);
   const [progress, setProgress] = useState<string | null>(null);
-  const [stages, setStages] = useState<readonly string[]>([]);
+  const [steps, setSteps] = useState<ObserverSession["steps"]>([]);
   const [tools, setTools] = useState<readonly string[]>([]);
   const [draft, setDraft] = useState<{ answer: string; interpretation: string } | null>(null);
   const [lastQuestion, setLastQuestion] = useState<string | null>(null);
   const [lastDepth, setLastDepth] = useState<"standard" | "deep">("standard");
   const abort = useRef<AbortController | null>(null);
+  const leaving = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /*
+   * A reader who leaves mid-answer takes the request with them.
+   *
+   * The abort waits a tick: React's development double-mount unmounts and
+   * remounts at once, and a caller that asks on mount (`AskLiveAnswer`) sends
+   * exactly one request across it. The remount cancels the pending abort; a
+   * real unmount lets it run.
+   */
+  useEffect(() => {
+    if (leaving.current !== null) clearTimeout(leaving.current);
+    leaving.current = null;
+    return () => {
+      leaving.current = setTimeout(() => abort.current?.abort(), 0);
+    };
+  }, []);
 
   const cancel = useCallback(() => {
     abort.current?.abort();
@@ -104,6 +126,7 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
     setOutcome(null);
     setDraft(null);
     setTools([]);
+    setSteps([]);
     setState("idle");
   }, []);
 
@@ -119,7 +142,7 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
       abort.current = controller;
       setState("thinking");
       setProgress("Choosing the analysis");
-      setStages([]);
+      setSteps([]);
       setTools([]);
       setDraft(null);
       setLastQuestion(question);
@@ -220,12 +243,21 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
                 {
                   const label = (payload as { label: string }).label;
                   setProgress(label);
-                  setStages((current) => (current.includes(label) ? current : [...current, label]));
+                  setSteps((current) =>
+                    current.some((s) => s.kind === "stage" && s.name === label)
+                      ? current
+                      : [...current, { kind: "stage", name: label }],
+                  );
                 }
                 break;
               case "tool": {
                 const name = (payload as { name: string }).name;
                 setTools((current) => (current.includes(name) ? current : [...current, name]));
+                setSteps((current) =>
+                  current.some((s) => s.kind === "tool" && s.name === name)
+                    ? current
+                    : [...current, { kind: "tool", name }],
+                );
                 break;
               }
               case "delta": {
@@ -313,7 +345,7 @@ export function useObserver(context: ObserverContext, onInsight?: () => void): O
     busy: state === "thinking" || state === "speaking",
     outcome,
     progress,
-    stages,
+    steps,
     tools,
     draft,
     lastQuestion,

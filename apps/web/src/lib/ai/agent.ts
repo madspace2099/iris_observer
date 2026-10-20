@@ -598,9 +598,13 @@ export function routeQuestion(
    *
    * Nothing records a buyer leaving; what is measured is how the meetings
    * that did not progress were presented against those that did, and which
-   * sections a presentation reaches at all. Both, in that order.
+   * sections a presentation reaches at all. Both, in that order. Asked
+   * without the premise, it is the sections reached beside how the meetings
+   * that did not progress differ.
    */
-  if (/\blos(e|es|ing|t)\b|drop(s|ped)? off|drop-off|abandon|\bstall/.test(q)) {
+  if (
+    /\blos(e|es|ing|t)\b|drop(s|ped)? off|drop-off|abandon|\bstall|\bsections?\b.*\breach/.test(q)
+  ) {
     return [
       { tool: "compare_meeting_cohorts", args: {} },
       { tool: "analyze_feature_usage", args: {} },

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 
+import { sampleWords, toolOfBundle } from "@/lib/ai/sample-units";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { useObserver } from "@/showroom/observer/useObserver";
@@ -25,6 +26,8 @@ import { Info, Sparkle } from "./icons";
  * The page keys this component by the question, so a new question is a new
  * instance. React's development double-mount runs the effect twice on the same
  * instance; the ref below survives that and lets exactly one request through.
+ * Leaving the page aborts the request (`useObserver`), after a tick, so the
+ * double-mount's rehearsal unmount does not abort the one request it let through.
  *
  * ## Who wrote it, said in words (ADR-0024, ADR-0033, Gate 1)
  *
@@ -102,17 +105,18 @@ export function AskLiveAnswer({
   const settled = outcome !== null && !session.busy;
 
   /*
-   * The trace: every stage the server named, then every analysis that ran, in
-   * the order they arrived. While a request is open the last row is the one in
-   * progress; once the outcome is in, every row is done.
+   * The trace: every stage the server named and every analysis that ran, in
+   * the one order they arrived, so the stage that words the answer follows the
+   * analyses it words. While a request is open the last row is the one in
+   * progress; once the outcome is in, every row is done, including the lone
+   * "Sending the question" of a request refused before any stage.
    */
-  const trace = [
-    ...session.stages.map((label) => ({ key: `s:${label}`, label })),
-    ...(outcome?.toolsUsed ?? session.tools).map((tool) => ({
-      key: `t:${tool}`,
-      label: ANALYSIS_WORDS[tool] ?? tool,
-    })),
-  ];
+  const arrived = session.steps.map((step) =>
+    step.kind === "stage"
+      ? { key: `s:${step.name}`, label: step.name }
+      : { key: `t:${step.name}`, label: ANALYSIS_WORDS[step.name] ?? step.name },
+  );
+  const trace = arrived.length > 0 ? arrived : [{ key: "send", label: "Sending the question" }];
 
   const followUps =
     answer !== null && answer.followUpQuestions.length > 0
@@ -139,7 +143,7 @@ export function AskLiveAnswer({
         <span>
           {settled && answer !== null
             ? live
-              ? `Worded by ${author}, a language model, from figures Observer's read models computed for ${context.projectLabel}, ${periodLabel.toLowerCase()}. Every figure is the read models'; the model wrote none of them.`
+              ? `Worded by ${author}, a language model, from figures Observer's read models computed for ${context.projectLabel}, ${periodLabel.toLowerCase()}. Every figure in it was checked against the read models' results before it was shown.`
               : `Composed by Observer's read models for ${context.projectLabel}, ${periodLabel.toLowerCase()}. No language model wrote any of this.`
             : (modelNotice ??
               "Answered by Observer's analysis tools from this project's read models. No language model is connected here, so the wording is the read models' own.")}
@@ -173,27 +177,20 @@ export function AskLiveAnswer({
               <span className="ask-msg-who">{settled ? author : "Observer"}</span>
 
               <ol className="ask-trace" aria-label="What Observer did" data-settled={settled}>
-                {trace.length === 0 ? (
-                  <li className="ask-trace-step" data-state="active">
-                    <span className="ask-trace-mark" aria-hidden="true" />
-                    Sending the question
+                {trace.map((step, index) => (
+                  <li
+                    key={step.key}
+                    className="ask-trace-step"
+                    data-state={!settled && index === trace.length - 1 ? "active" : "done"}
+                  >
+                    <span className="ask-trace-mark" aria-hidden="true">
+                      <svg viewBox="0 0 12 12" width="12" height="12">
+                        <path d="M2.5 6.4 5 8.8 9.6 3.6" />
+                      </svg>
+                    </span>
+                    {step.label}
                   </li>
-                ) : (
-                  trace.map((step, index) => (
-                    <li
-                      key={step.key}
-                      className="ask-trace-step"
-                      data-state={!settled && index === trace.length - 1 ? "active" : "done"}
-                    >
-                      <span className="ask-trace-mark" aria-hidden="true">
-                        <svg viewBox="0 0 12 12" width="12" height="12">
-                          <path d="M2.5 6.4 5 8.8 9.6 3.6" />
-                        </svg>
-                      </span>
-                      {step.label}
-                    </li>
-                  ))
-                )}
+                ))}
               </ol>
 
               {session.draft !== null && session.draft.answer.length > 0 ? (
@@ -254,9 +251,11 @@ export function AskLiveAnswer({
                     {evidence.length > 0 || answer.recommendedActions.length > 0 ? (
                       <ul className="ask-evidence">
                         {evidence.map((bundle) => {
-                          const words = `${bundle.sampleSize.toLocaleString("en-GB")} ${
-                            bundle.sampleSize === 1 ? "meeting" : "meetings"
-                          } · ${LEVEL_WORDS[bundle.evidenceLevel] ?? bundle.evidenceLevel}`;
+                          /* In the unit the bundle's own analysis counts: dated sales, not meetings. */
+                          const words = `${sampleWords(
+                            toolOfBundle(bundle.bundleId),
+                            bundle.sampleSize,
+                          )} · ${LEVEL_WORDS[bundle.evidenceLevel] ?? bundle.evidenceLevel}`;
                           return (
                             <li key={bundle.bundleId}>
                               {bundle.href === null ? (

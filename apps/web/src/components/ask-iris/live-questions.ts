@@ -9,6 +9,8 @@ import type { CompanyKeyState } from "@/lib/credentials/company-keys";
  * `/api/ask/stream`, and is worded by a language model only where one is
  * connected. They are generic on purpose: nothing here names a project, a unit
  * or a person, so every project is asked the same four things of its own data.
+ * Nor does any carry a cause in its premise: "where do presentations lose
+ * buyers" assumed the presentation lost them, which nothing measured can say.
  *
  * The keyword router in `lib/ai/agent.ts` sends each of them to its analyses
  * without a model; `apps/web/test/ask.test.ts` holds that routing in place.
@@ -16,7 +18,7 @@ import type { CompanyKeyState } from "@/lib/credentials/company-keys";
 export const LIVE_QUESTIONS: readonly string[] = Object.freeze([
   "What separates meetings that progressed from those that did not?",
   "Which agent's presentations progressed most, and how did they present?",
-  "Where do presentations lose buyers?",
+  "Which sections do presentations reach, and how do meetings that did not progress differ?",
   "Which units draw the most attention, and do they convert?",
 ]);
 
