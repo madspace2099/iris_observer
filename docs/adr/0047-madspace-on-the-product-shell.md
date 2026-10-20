@@ -105,4 +105,23 @@ tables: Tenants, Agencies, People.
   Integrations link instead of "Open project".
 - `madspace-design-system.test.ts` still holds: no dash in front of a reader, no hand-drawn mark in
   the MADSPACE files (the mark and the menu icon come from `Shell.tsx`), the 12px floor, no shadow
-  on a plane.
+  on a plane. The header's role line is raised to 12px inside MADSPACE; the mark's 7px "by MADSPACE"
+  is the logotype shared with the product, not text, and is the one exception to the floor.
+
+## Amended after review (same day)
+
+- **Absent is not nought, in three more places.** A window's `meetings` is null where no showroom or
+  WEB IRIS feed is connected and none was counted; `outcomeRecorded` is null where no CRM is
+  connected and no meeting carries an outcome. The screens say "No showroom or WEB IRIS connected"
+  and "No CRM connected" instead of 0.
+- **One clock per figure.** A fixture whose showroom delivers runs on the real clock, but its feeds
+  are the world's fixed August records. They are no longer aged against today: each is
+  `tracked: false`, with no last-seen and no stale flag, and the drill-down points to the control
+  plane's heartbeat. Meetings are counted through the end of the project's day, so the drill-down
+  states the day it counted to rather than an instant a later meeting would contradict, and every
+  row names that day beside its status.
+- **The sandbox is MADSPACE's everywhere.** Projects and Diagnostics group the integration sandbox
+  under MADSPACE, by the same rule the Directory uses (`madspaceOwner`).
+- A second control-plane twin of one Observer project is listed on its own instead of overwriting
+  the first, and the drill-down says the control plane did not answer when it did not, rather than
+  that no installation is registered.
