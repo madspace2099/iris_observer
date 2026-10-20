@@ -87,3 +87,8 @@ executed with restraint.
 - **The scatter is a picture of its key.** Its SVG is hidden from assistive technology with the
   reading as a sentence beside it; the points stay pointer links out of the tab order, and the key's
   links are the keyboard's route.
+
+**2026-10-19, after the second review.** The deal ladder wears the card the other chart regions wear,
+so inside a `.d-card` its `.ox-funnel` panel gives up its edge, tint and radius: one card, not a box
+in a box. Its fill and its rows' hairlines are not touched. The glow left on two outcome marks, the
+"progressed" part of the period steps and the units sold against the plan, is gone.
