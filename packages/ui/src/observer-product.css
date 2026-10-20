@@ -1829,7 +1829,9 @@
   overflow: hidden;
 }
 
+/* A span inside a span: inline unless it says otherwise, and an inline box takes no width or height. */
 .ox-stage-fill {
+  display: block;
   height: 100%;
   background: var(--ox-ink-3);
   border-radius: inherit;
