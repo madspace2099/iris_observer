@@ -855,6 +855,29 @@ describe("the source cannot grow a client-side secret path", () => {
     expect(page).not.toContain("navigator.clipboard");
     expect(page).not.toMatch(/>\s*(Reveal|Show key|Copy)\b/);
   });
+
+  it("keeps the CRM forms uncontrolled, and their action silent about what it was handed", () => {
+    /* ADR-0049: a company admin types a CRM login or token; it goes to a server action and nowhere else. */
+    const dir = join(src, "app", "settings", "crm");
+    const page = read(join(dir, "page.tsx"));
+    const form = read(join(dir, "CrmForm.tsx"));
+    const actions = executable(read(join(dir, "actions.ts")));
+    expect(page).toContain('type="password"');
+    for (const source of [page, form]) {
+      expect(source).not.toContain("useState(");
+      expect(source).not.toContain("navigator.clipboard");
+      expect(source).not.toMatch(/>\s*(Reveal|Show key|Copy)\b/);
+    }
+    /* A password field is never pre-filled from what is stored. */
+    expect(page).toMatch(/defaultValue=\{type === "password" \? undefined/);
+    expect(actions.startsWith('"use server";')).toBe(true);
+    expect(actions).not.toMatch(/console\./);
+    /* What an action answers is a sentence, and no sentence is written from a credential. */
+    expect(actions).toMatch(
+      /interface CrmActionState \{\s*readonly ok: boolean \| null;\s*readonly message: string \| null;\s*\}/,
+    );
+    expect(actions).not.toMatch(/(message:|refused\()[^;]*\b(password|token|login)\b/);
+  });
 });
 
 describe("the boot diagnostic and the store agree", () => {

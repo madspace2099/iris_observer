@@ -242,6 +242,11 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
    * IRIS-assisted card; deliberately not a nav item.
    */
   "/[tenantSlug]/[projectSlug]/flow/iris-led",
+  /*
+   * Connect your CRM (ADR-0049) — account settings beside AI and usage, where
+   * a company admin connects the CRM IRIS-led sales are read from.
+   */
+  "/settings/crm",
 ];
 
 describe("every route the reference served is still served", () => {

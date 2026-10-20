@@ -41,6 +41,16 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
+  /*
+   * The company's CRM, beside AI and usage (ADR-0049). Every signed-in role
+   * reads it; only the company's admin acts (ADR-0043), which the page and each
+   * server action decide from the account, never from this list.
+   */
+  {
+    route: "/settings/crm",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
 
   /*
    * The welcome after a password sign-in: a few seconds between the account

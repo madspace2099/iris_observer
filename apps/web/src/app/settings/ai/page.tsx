@@ -1,15 +1,11 @@
 import Link from "next/link";
-import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 
-import type { Viewer } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
-import { repository } from "@/lib/repository";
-import { HOME_SEGMENT } from "@/lib/routes";
-import { SESSION_COOKIE, destroySession, requireAccount, requireViewer } from "@/lib/session";
-import { safeReturnTo } from "@/portal/return-to";
+import { requireAccount, requireViewer } from "@/lib/session";
 import { companyOf } from "@/lib/accounts";
+import { SettingsFrame, originFrom } from "../chrome";
 import { companyKeyState, type CompanyKeyState } from "@/lib/credentials/company-keys";
 import { connectionFor, type ConnectionMetadata } from "@/lib/credentials/service";
 import { ALL_FAILURES, describeFailure, type ConnectionFailure } from "@/lib/credentials/failure";
@@ -166,324 +162,81 @@ export default async function AiSettings({
         ? `Member, ${standing.name}`
         : `Member, ${standing.name} · key managed by ${standing.adminName}`;
 
-  async function signOut(): Promise<void> {
-    "use server";
-    const store = await cookies();
-    destroySession(store.get(SESSION_COOKIE)?.value);
-    store.delete(SESSION_COOKIE);
-    redirect("/sign-in");
-  }
-
   return (
-    /*
-     * No skip link here: `app/layout.tsx` renders the one for the whole
-     * application, and `<main id="main">` below is the target it has always
-     * pointed at. A second one was not merely redundant — `.irs-shell > *`
-     * forces `position: relative` on every child, which took the duplicate out
-     * of absolute positioning, stretched it across the flex column and pushed
-     * 16px off the right edge of a 1920 viewport.
-     */
-    <div className="irs-shell ox-root ox-graphite">
-      <header className="irs-header">
-        {/*
-         * THE WORDMARK, AND WHERE IT GOES.
-         *
-         * On a project surface it is inert, because the four sections sit
-         * beside it. Here there is no nav, so it becomes the way back into the
-         * product — to Ask IRIS for the project the reader came from, or for
-         * the first project they can open if they arrived here cold.
-         *
-         * `aria-label` rather than the image's `alt` alone: a link whose only
-         * text is a logo announces as "IRIS", which says what it IS and not
-         * where it GOES. An account with no project at all gets no link, since
-         * an entry leading to a refusal is worse than no entry.
-         */}
-        {origin.ask === null ? (
-          <Brand />
-        ) : (
-          <Link
-            className="irs-brand os-brand-link"
-            href={dynamicRoute(origin.ask)}
-            aria-label={`IRIS Observer — open Ask IRIS for ${origin.projectLabel ?? "your project"}`}
-          >
-            <BrandParts />
-          </Link>
-        )}
-
-        <p className="os-header-title">Account settings</p>
-
-        <div className="irs-header-end">
-          <div className="irs-who">
-            <div className="irs-who-name">{account.displayName}</div>
-            {/* The shell's role slot holds a word, not a sentence; the panel below names the company and who holds its key. */}
-            <div className="irs-who-role" title={standingLine}>
-              {standing.role === "admin" ? "Company admin" : "Member"}
-            </div>
-          </div>
-          <Link className="ox-btn" data-weight="quiet" href={dynamicRoute("/projects")}>
-            Projects
-          </Link>
-          <form action={signOut}>
-            <button className="ox-btn" data-weight="quiet" type="submit">
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
-
-      <main className="irs-main" id="main" tabIndex={-1}>
-        <div className="os-column">
-          {/*
-           * BACK, NAMING ITS DESTINATION.
-           *
-           * "← Sales Flow" rather than "← Back". The page knows where the
-           * reader came from — it was told, and it checked — so saying it is
-           * free, and a control that names its destination is one a reader can
-           * trust without trying it. When nothing valid was supplied it says
-           * "Projects", which is true rather than a guess at a project page.
-           */}
-          {/*
-           * The arrow is decorative and hidden, so without a label this link
-           * announces as just "Projects" — the same name as the one in the
-           * header, going to the same place. A reader on a screen reader would
-           * hear the destination twice and the RELATIONSHIP never. The label
-           * carries the direction; the visible text stays the destination.
-           */}
-          <Link
-            className="os-back"
-            href={dynamicRoute(origin.back)}
-            aria-label={`Back to ${origin.backLabel}`}
-          >
-            <svg
-              className="os-back-arrow"
-              aria-hidden="true"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M19 12H5" />
-              <path d="m12 19-7-7 7-7" />
-            </svg>
-            {origin.backLabel}
-          </Link>
-
-          <div className="ox-head">
-            <div className="ox-head-text">
-              <p className="ox-kicker">Account settings</p>
-              <h1 className="ox-title">AI and usage</h1>
-              {companyOnly ? (
-                <p className="ox-lede">
-                  On this local demonstration Ask IRIS answers with one OpenAI key per company, held
-                  in this server&rsquo;s memory. Keys, models and budgets of your own need the
-                  hosted credential store, which this server does not have.
-                </p>
-              ) : (
-                <p className="ox-lede">
-                  These are your own provider accounts. Everything here belongs to{" "}
-                  <strong>{account.email}</strong> and applies to every project you can open — never
-                  to anybody else&rsquo;s.
-                </p>
-              )}
-            </div>
-          </div>
-
-          {done !== undefined && (
-            <p className="os-flash" data-tone="ok" role="status">
-              {DONE[done] ?? "Saved."}
+    <SettingsFrame
+      displayName={account.displayName}
+      /* The shell's role slot holds a word, not a sentence; the panel below names the company and who holds its key. */
+      roleWord={standing.role === "admin" ? "Company admin" : "Member"}
+      roleTitle={standingLine}
+      origin={origin}
+      current="ai"
+    >
+      <div className="ox-head">
+        <div className="ox-head-text">
+          <p className="ox-kicker">Account settings</p>
+          <h1 className="ox-title">AI and usage</h1>
+          {companyOnly ? (
+            <p className="ox-lede">
+              On this local demonstration Ask IRIS answers with one OpenAI key per company, held in
+              this server&rsquo;s memory. Keys, models and budgets of your own need the hosted
+              credential store, which this server does not have.
+            </p>
+          ) : (
+            <p className="ox-lede">
+              These are your own provider accounts. Everything here belongs to{" "}
+              <strong>{account.email}</strong> and applies to every project you can open — never to
+              anybody else&rsquo;s.
             </p>
           )}
-
-          {failure !== null && (
-            <div className="os-flash" data-tone="bad" role="alert">
-              <strong>{failure.title}</strong>
-              {/* A refused company key is never kept, whatever the category says of a connection. */}
-              <span>{focused === "company" ? "Nothing was saved." : failure.detail}</span>
-            </div>
-          )}
-
-          {company === null ? null : (
-            <CompanyKeyPanel
-              state={company}
-              spendable={spendable}
-              replacing={replacing === "company"}
-              confirming={confirming === "company"}
-              origin={origin.from}
-            />
-          )}
-
-          {companyOnly ? null : (
-            <>
-              <BudgetPanel budget={budget} unavailable={unavailable} origin={origin.from} />
-
-              <ModelPanel
-                preferences={preferences}
-                connections={connections}
-                unavailable={unavailable}
-                origin={origin.from}
-              />
-
-              <ProviderPanel
-                connections={connections}
-                storageFailure={storageFailure}
-                replacing={replacing}
-                confirming={confirming}
-                origin={origin.from}
-              />
-            </>
-          )}
         </div>
-      </main>
-    </div>
+      </div>
+
+      {done !== undefined && (
+        <p className="os-flash" data-tone="ok" role="status">
+          {DONE[done] ?? "Saved."}
+        </p>
+      )}
+
+      {failure !== null && (
+        <div className="os-flash" data-tone="bad" role="alert">
+          <strong>{failure.title}</strong>
+          {/* A refused company key is never kept, whatever the category says of a connection. */}
+          <span>{focused === "company" ? "Nothing was saved." : failure.detail}</span>
+        </div>
+      )}
+
+      {company === null ? null : (
+        <CompanyKeyPanel
+          state={company}
+          spendable={spendable}
+          replacing={replacing === "company"}
+          confirming={confirming === "company"}
+          origin={origin.from}
+        />
+      )}
+
+      {companyOnly ? null : (
+        <>
+          <BudgetPanel budget={budget} unavailable={unavailable} origin={origin.from} />
+
+          <ModelPanel
+            preferences={preferences}
+            connections={connections}
+            unavailable={unavailable}
+            origin={origin.from}
+          />
+
+          <ProviderPanel
+            connections={connections}
+            storageFailure={storageFailure}
+            replacing={replacing}
+            confirming={confirming}
+            origin={origin.from}
+          />
+        </>
+      )}
+    </SettingsFrame>
   );
-}
-
-/* ===================================================================== brand */
-
-function BrandParts() {
-  return (
-    <>
-      {/*
-       * A plain `img`, not `next/image` — the same 1.2KB vector the shell
-       * draws, at the same fixed 21px height, so there is nothing to optimise
-       * and a loader in front of it would only add a request.
-       */}
-      <img className="irs-brand-mark" src="/brand/iris-wordmark.svg" alt="" />
-      <span className="irs-brand-sub">by MADSPACE</span>
-    </>
-  );
-}
-
-function Brand() {
-  return (
-    <div className="irs-brand">
-      <img className="irs-brand-mark" src="/brand/iris-wordmark.svg" alt="IRIS" />
-      <span className="irs-brand-sub" aria-label="by MADSPACE">
-        by MADSPACE
-      </span>
-    </div>
-  );
-}
-
-/* ==================================================================== origin */
-
-/**
- * WHERE THE READER CAME FROM, AND WHERE THE WORDMARK GOES.
- *
- * One parameter answers both, so the two can never disagree — which they would
- * within a week if Back read `from` while the wordmark guessed at the first
- * project.
- *
- * Two checks, and they prove different things:
- *
- *   `safeReturnTo` proves the SHAPE. It is an allow-list of route families on
- *   this origin, written for exactly this hazard: a value the browser controls,
- *   handed to a link. A scheme, a protocol-relative `//host`, a backslash, a
- *   query, a fragment or a route this application does not serve all resolve to
- *   null, which means "use the default" and never "use it anyway".
- *
- *   `resolveProject` proves the GRANT. A reader can hand-edit
- *   `?from=/rival/tower/ask` — a perfectly well-shaped path — and the allow-list
- *   has no opinion on whether they may open it. Only the repository does. It
- *   refuses identically for forbidden and missing, so this cannot be used to
- *   discover that a project exists.
- */
-type Origin = {
-  /** The validated `from`, for carrying through a form. Empty when there is none. */
-  readonly from: string;
-  /** Where Back goes. Always a real destination. */
-  readonly back: string;
-  /** What Back is called. Names the destination rather than saying "Back". */
-  readonly backLabel: string;
-  /** Ask IRIS for the project in context, or null if the account holds none. */
-  readonly ask: string | null;
-  readonly projectLabel: string | null;
-};
-
-const SECTION_LABEL: Readonly<Record<string, string>> = Object.freeze({
-  ask: "Ask IRIS",
-  flow: "Sales Flow",
-  project: "Project",
-  agents: "Sales Agents",
-  showroom: "Briefing",
-  units: "Units",
-  meetings: "Meetings",
-  attention: "Unit Attention",
-  features: "Features",
-  presentation: "Presentation DNA",
-  storytelling: "Storytelling",
-  audience: "Audience",
-  people: "People",
-  overview: "Overview",
-});
-
-async function originFrom(viewer: Viewer, raw: string | undefined): Promise<Origin> {
-  const from = safeReturnTo(raw);
-
-  if (from === "/projects") {
-    const fallback = await firstProject(viewer);
-    return {
-      from,
-      back: "/projects",
-      backLabel: "Projects",
-      ask: fallback?.ask ?? null,
-      projectLabel: fallback?.label ?? null,
-    };
-  }
-
-  if (from !== null) {
-    /* `/tenant/project/section…` — the allow-list guarantees at least three. */
-    const [, tenantSlug = "", projectSlug = "", section = ""] = from.split("/");
-    try {
-      const { tenant, project } = await repository.resolveProject(viewer, tenantSlug, projectSlug);
-      return {
-        from,
-        back: from,
-        backLabel: SECTION_LABEL[section] ?? project.name,
-        ask: `/${tenant.slug}/${project.slug}/${HOME_SEGMENT}`,
-        projectLabel: project.name,
-      };
-    } catch {
-      /*
-       * Well-formed and not theirs. Fall through to the default rather than
-       * refusing: the reader asked for their settings, which they may have, and
-       * the only thing that failed is a hint about where they had been.
-       */
-    }
-  }
-
-  const fallback = await firstProject(viewer);
-  return {
-    from: "",
-    back: "/projects",
-    backLabel: "Projects",
-    ask: fallback?.ask ?? null,
-    projectLabel: fallback?.label ?? null,
-  };
-}
-
-/**
- * The first project this account may open, or null.
- *
- * Asked of the repository so the wordmark is a grant rather than a guess, and
- * so an account with none simply does not get the link — an entry leading to a
- * refusal is worse than no entry.
- */
-async function firstProject(viewer: Viewer): Promise<{ ask: string; label: string } | null> {
-  const tenants = await repository.listTenants(viewer);
-  for (const tenant of tenants) {
-    const projects = await repository.listProjects(viewer, tenant.id);
-    const project = projects[0];
-    // The home segment, not a named screen — ADR-0033 owns which one that is.
-    if (project !== undefined) {
-      return { ask: `/${tenant.slug}/${project.slug}/${HOME_SEGMENT}`, label: project.name };
-    }
-  }
-  return null;
 }
 
 /**
