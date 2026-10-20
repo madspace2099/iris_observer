@@ -2558,7 +2558,7 @@
   fill: var(--d-ink-2);
 }
 
-/* --- ranked rows and CSS bars: the kit's segmented track, on in green -------------- */
+/* --- ranked rows and CSS bars: the kit's segmented track, neutral unless named ----- */
 
 [data-charts="d"] .d-card .iris-ranked li,
 [data-charts="d"] .d-card .iris-diff-row,
@@ -2587,19 +2587,48 @@
   background: repeating-linear-gradient(90deg, var(--d-track) 0 22px, transparent 22px 24px);
 }
 
+/*
+ * The fill is neutral, and nothing glows at rest: every list on a page in the
+ * kit's green, glowing, read as one wall. A list may name its tone
+ * (`RankedBars`' `tone`): the kit's green for a plain count of work, the watch
+ * colour for deals stalled on their rung, which is a verdict and never glows.
+ */
 [data-charts="d"] .d-card .iris-ranked-track i,
 [data-charts="d"] .d-card .iris-bar-track i {
-  background: repeating-linear-gradient(90deg, var(--d-accent) 0 22px, transparent 22px 24px);
-  filter: drop-shadow(0 3px 8px rgb(99 255 59 / 0.35));
+  background: repeating-linear-gradient(
+    90deg,
+    var(--d-rank-tone, var(--d-ink-3)) 0 22px,
+    transparent 22px 24px
+  );
 }
 
-/* A row that opens something says so under the pointer and the keyboard. */
+[data-charts="d"] .d-card .iris-ranked[data-tone="volume"] {
+  --d-rank-tone: var(--d-accent);
+}
+
+[data-charts="d"] .d-card .iris-ranked[data-tone="late"] {
+  --d-rank-tone: var(--watch);
+}
+
+/* A row that opens something says so under the pointer and the keyboard: the one glow. */
 [data-charts="d"] .d-card .iris-ranked li:has(a):is(:hover, :focus-within) .iris-ranked-name {
   color: var(--d-ink);
 }
 
 [data-charts="d"] .d-card .iris-ranked li:has(a):is(:hover, :focus-within) .iris-ranked-track i {
-  filter: drop-shadow(0 3px 8px rgb(99 255 59 / 0.55)) brightness(1.15);
+  filter: drop-shadow(
+      0 3px 8px color-mix(in oklab, var(--d-rank-tone, var(--d-ink-3)) 50%, transparent)
+    )
+    brightness(1.15);
+}
+
+[data-charts="d"]
+  .d-card
+  .iris-ranked[data-tone="late"]
+  li:has(a):is(:hover, :focus-within)
+  .iris-ranked-track
+  i {
+  filter: brightness(1.15);
 }
 
 /* The gap between two lanes, as the kit's 6px bar. */

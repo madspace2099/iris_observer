@@ -283,7 +283,7 @@ export default async function AgentsPage({
                 <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
                   Presentations given
                 </p>
-                <RankedBars rows={charts.ranked} period={period} />
+                <RankedBars rows={charts.ranked} period={period} tone="volume" />
                 <p className="iris-meta" style={{ marginTop: ".5rem" }}>
                   How many, and how long they typically ran. This list is ordered by workload. It is
                   not ordered by outcome, and there is no list here that is.

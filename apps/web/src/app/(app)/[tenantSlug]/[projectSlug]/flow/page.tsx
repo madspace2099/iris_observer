@@ -295,6 +295,7 @@ export default async function FlowPage({
                     measured
                     // R05 item 8. No row carries a denominator; the count sits in the note below.
                     collapseAfter={5}
+                    tone="late"
                   />
                   <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
                     {view.ladder.stalledNote}
@@ -571,7 +572,7 @@ export default async function FlowPage({
               Presentations given
             </h2>
             {/* Never collapsed: every row carries its own denominator, "N of M meetings". */}
-            <RankedBars period={query.period} rows={charts.rankedAgents} measured />
+            <RankedBars period={query.period} rows={charts.rankedAgents} measured tone="volume" />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.
             </p>

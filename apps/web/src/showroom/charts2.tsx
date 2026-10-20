@@ -690,6 +690,7 @@ export function RankedBars({
   measured = false,
   peak: scale,
   collapseAfter,
+  tone,
 }: {
   rows: readonly {
     readonly id: string;
@@ -729,6 +730,12 @@ export function RankedBars({
    * screen. Absent, every row is drawn as before.
    */
   collapseAfter?: number;
+  /**
+   * The bars' colour in a chart card, when it says something (design-lab-d.css):
+   * "volume" for a plain count of work, "late" for time stalled, a verdict.
+   * Absent, the bars are neutral.
+   */
+  tone?: "volume" | "late";
 }) {
   const peak = scale ?? Math.max(1, ...rows.map((r) => r.value));
   const className = `iris-ranked${measured ? " iris-ranked-measured" : ""}`;
@@ -760,11 +767,13 @@ export function RankedBars({
 
   return (
     <DrawIn kind="sweep">
-      <ol className={className}>{rows.slice(0, cut).map((r, i) => item(r, i + 1))}</ol>
+      <ol className={className} data-tone={tone}>
+        {rows.slice(0, cut).map((r, i) => item(r, i + 1))}
+      </ol>
       {cut === rows.length ? null : (
         <details className="iris-ranked-more">
           <summary className="iris-action">Show all</summary>
-          <ol className={className} start={cut + 1}>
+          <ol className={className} data-tone={tone} start={cut + 1}>
             {rows.slice(cut).map((r, i) => item(r, cut + i + 1))}
           </ol>
         </details>

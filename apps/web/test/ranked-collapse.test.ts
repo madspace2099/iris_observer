@@ -56,3 +56,27 @@ describe("a ranked list, five rows and Show all", () => {
     expect(render(5, ROWS.slice(0, 5))).toBe(render(undefined, ROWS.slice(0, 5)));
   });
 });
+
+/*
+ * Every list in the kit's green, glowing, read as one wall (the owner's lead,
+ * on screen). The bars are neutral unless a list names its tone, and a list
+ * that names one carries it on both halves, so "Show all" opens in the same
+ * colour.
+ */
+describe("a ranked list's tone", () => {
+  it("is absent unless the list names one", () => {
+    expect(render(5)).not.toContain("data-tone");
+  });
+
+  it("is on both halves of a collapsed list", () => {
+    const html = renderToStaticMarkup(
+      createElement(RankedBars, {
+        rows: ROWS,
+        period: "quarter_to_date",
+        collapseAfter: 5,
+        tone: "late",
+      }),
+    );
+    expect([...html.matchAll(/<ol class="iris-ranked" data-tone="late"/g)]).toHaveLength(2);
+  });
+});
