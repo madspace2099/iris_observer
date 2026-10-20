@@ -6,13 +6,17 @@
  * same synthetic-harness environment the browser suite starts it with
  * (playwright.config.ts, HARNESS_ENV): the synthetic account directory, so the
  * visible sign-in has accounts to check; the harness pepper, so Ask answers;
- * and roomier Ask limits, so a recording session is not throttled.
+ * and roomier Ask limits, so a recording session is not throttled. Unlike the
+ * browser suite, it also opens the company key store (ADR-0043): a company's
+ * admin is asked for the company's OpenAI key after signing in, the key stays
+ * in this process's memory, and every member asks with it.
  *
  * Nothing here is a secret and nothing here can reach a deployment: the
  * harness pepper is refused wherever OBSERVER_SYNTHETIC_HARNESS is absent, and
  * every value below is a local default that an explicit environment overrides.
- * An owner's own OpenAI key for the recording goes in apps/web/.env.local
- * (ADR-0040), never here.
+ * An owner's own OpenAI key for the recording is pasted into that dialog, or
+ * goes in apps/web/.env.local (ADR-0040); never here. Either is spent only on
+ * a request to localhost.
  *
  *   pnpm build && node scripts/demo-start.mjs        # http://localhost:3400
  */
@@ -27,6 +31,7 @@ const DEMO_ENV = {
   OBSERVER_ASK_PER_MINUTE: "60",
   OBSERVER_ASK_PER_VIEWER_PER_DAY: "2000",
   OBSERVER_ASK_PER_INSTANCE_PER_DAY: "20000",
+  OBSERVER_DEMO_COMPANY_KEYS: "1",
 };
 
 const env = { ...process.env };

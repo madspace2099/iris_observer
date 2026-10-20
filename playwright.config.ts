@@ -171,6 +171,11 @@ const HARNESS_ENV = {
    * process already carries.
    */
   OBSERVER_DEMO_OPENAI_KEY: "",
+  /*
+   * The company key store (ADR-0043), closed. `scripts/demo-start.mjs` opens it
+   * for a recording; here every admin's sign-in would meet its dialog.
+   */
+  OBSERVER_DEMO_COMPANY_KEYS: "",
 
   /*
    * THE CREDENTIAL HARNESS, WITH ALL FOUR OF ITS CONDITIONS.
