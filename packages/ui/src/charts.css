@@ -451,8 +451,13 @@
   color: var(--d-ink-3, var(--ink-3));
 }
 
-/* A narrow card: the name and its count above the bar, the figure under it. */
-@container (width < 36rem) {
+/*
+ * Below 56rem the name and its count go above the bar and the figure under
+ * it, so the bar takes the card's whole width. Three columns at a tablet's
+ * 614px card left the bar narrower than the figure beside it, and a phone's
+ * bar wider than a tablet's; a count needs about 26px of part to show.
+ */
+@container (width < 56rem) {
   .iris-orows-list {
     grid-template-columns: minmax(0, 1fr);
     row-gap: 1.125rem;
