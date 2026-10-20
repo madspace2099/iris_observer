@@ -415,10 +415,13 @@ export default async function FlowPage({
               What changed since {view.context.period.baselineLabel}
             </h2>
             <InfoTip id="what-changed" label="what changed">
-              <p>
-                Both periods measured under attribution policy {view.context.attribution.version},
-                effective {view.context.attribution.effectiveFrom.slice(0, 10)}.
-              </p>
+              {/* Only true when nothing was refused; a refusal states its own reason. */}
+              {view.context.attribution.comparisonRefusal === null ? (
+                <p>
+                  Both periods measured under attribution policy {view.context.attribution.version},
+                  effective {view.context.attribution.effectiveFrom.slice(0, 10)}.
+                </p>
+              ) : null}
               <p>
                 How the presentations were run, not how many there were. A direction compares two
                 periods at the stated sample size — it is not a trend, and not a cause.
@@ -546,16 +549,14 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured">
               How each agent&rsquo;s meetings end
             </h2>
-            {view.meetingCount === 0 ? null : (
-              <InfoTip id="agents" label="how each agent’s meetings end">
-                Every row is its own whole, its parts in ladder order from purchase on the left, so
-                a share in one row compares with the same share in any other, presenter to presenter
-                and against the team. The hatched part is meetings with no outcome recorded; every
-                rate stands on the recorded ones only. Presenters keep the roster&rsquo;s order, not
-                a ranking, and a row with fewer than {AGENT_MIN_SAMPLE} recorded meetings states no
-                rate.
-              </InfoTip>
-            )}
+            <InfoTip id="agents" label="how each agent’s meetings end">
+              Every row is its own whole, its parts in ladder order from purchase on the left, so a
+              share in one row compares with the same share in any other, presenter to presenter and
+              against the team. The hatched part is meetings with no outcome recorded; every rate
+              stands on the recorded ones only. Presenters keep the roster&rsquo;s order, not a
+              ranking, and a row with fewer than {AGENT_MIN_SAMPLE} recorded meetings states no
+              rate.
+            </InfoTip>
           </header>
           {view.meetingCount === 0 ? (
             <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
