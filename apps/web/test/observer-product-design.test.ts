@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
@@ -456,5 +456,85 @@ describe("the Hybrid Executive token system", () => {
 
     expect(CODE).not.toContain("#2f97ff");
     expect(CODE).not.toMatch(/Inter|Anthropic Sans|fonts\.googleapis/);
+  });
+});
+
+/*
+ * A NATIVE SELECT OPENS ON AN OPAQUE GROUND (the owner, 2026-10-20).
+ *
+ * Chrome on Windows paints a select's open list from the select's own
+ * background. A translucent one — `--ox-panel` is a 5% lift — is painted over
+ * white, and the light ink of the options vanished into it: the export dialog's
+ * format list read as blank rows. So every class a `<select>` wears in the
+ * application must end its cascade on an opaque background, resolved through
+ * the tokens it names. The classes are read from the components, not listed
+ * here, so a new select with a new class is checked the day it appears.
+ */
+describe("every select style declares an opaque background", () => {
+  const SRC = join(dirname(fileURLToPath(import.meta.url)), "..", "src");
+  const files = (dir: string): string[] =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((entry) =>
+      entry.isDirectory()
+        ? files(join(dir, entry.name))
+        : entry.name.endsWith(".tsx")
+          ? [join(dir, entry.name)]
+          : [],
+    );
+  const classes = new Set(
+    files(SRC).flatMap((file) =>
+      [...readFileSync(file, "utf8").matchAll(/<select\b[^>]*?className="([^"]+)"/g)].flatMap((m) =>
+        (m[1] ?? "").split(/\s+/),
+      ),
+    ),
+  );
+  const ALL = readdirSync(UI)
+    .filter((name) => name.endsWith(".css"))
+    .sort()
+    .map((name) => screenOnly(executable(readFileSync(join(UI, name), "utf8"))))
+    .join("\n");
+
+  /* Every value a custom property is declared with, anywhere a screen reads it. */
+  const declared = (name: string): string[] =>
+    [...ALL.matchAll(new RegExp(`${name}:\\s*([^;]+);`, "g"))].map((m) => (m[1] ?? "").trim());
+
+  const opaque = (value: string, depth = 0): boolean => {
+    const reference = /^var\((--[\w-]+)\)$/.exec(value);
+    if (reference !== null) {
+      const values = declared(reference[1] ?? "");
+      return depth < 8 && values.length > 0 && values.every((each) => opaque(each, depth + 1));
+    }
+    if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value)) return true;
+    return /^rgb\(\s*[\d.]+\s+[\d.]+\s+[\d.]+\s*\)$/.test(value);
+  };
+
+  it("finds the selects it is about to check", () => {
+    expect([...classes]).toEqual(
+      expect.arrayContaining(["mad-filter-select", "mad-input", "ox-select"]),
+    );
+  });
+
+  it.each([...classes].sort())(".%s ends its cascade on an opaque background", (name) => {
+    const backgrounds = [...ALL.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+      .filter((rule) =>
+        (rule[1] ?? "")
+          .split(",")
+          .map((selector) => selector.trim())
+          .includes(`.${name}`),
+      )
+      .flatMap((rule) =>
+        [...(rule[2] ?? "").matchAll(/background(?:-color)?:\s*([^;]+);/g)].map((m) =>
+          (m[1] ?? "").trim(),
+        ),
+      );
+    expect(backgrounds.length, `.${name} declares no background`).toBeGreaterThan(0);
+    const last = backgrounds[backgrounds.length - 1] ?? "";
+    expect(opaque(last), `.${name} ends on ${last}`).toBe(true);
+  });
+
+  it("gives the options the same opaque ground as their select", () => {
+    expect(CODE).toMatch(
+      /\.ox-select,\s*\.ox-select option,\s*\.ox-select optgroup\s*\{[^}]*background-color:\s*var\(--ox-field-solid\)/,
+    );
+    expect(opaque(token(GRAPHITE, "--ox-field-solid"))).toBe(true);
   });
 });

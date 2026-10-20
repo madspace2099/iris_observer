@@ -149,6 +149,12 @@
   --ox-panel: rgb(140 165 205 / 5%);
   --ox-panel-2: rgb(140 165 205 / 8%);
   --ox-inset-fill: rgb(140 165 205 / 4%);
+  /*
+   * The one OPAQUE field ground: a native select's open list is painted by the
+   * operating system from the select's own background, and a translucent lift
+   * there is painted over white (the menu panel's value, `.ox-menu-panel`).
+   */
+  --ox-field-solid: #0b111b;
 
   /* One ink, six alphas. Every division in the system comes from this ramp. */
   --ox-line-hair: rgb(130 150 185 / 9%);
@@ -238,6 +244,7 @@
     --ox-panel: #ffffff;
     --ox-panel-2: #edece8;
     --ox-inset-fill: rgb(20 22 26 / 4%);
+    --ox-field-solid: #ffffff;
 
     --ox-line-hair: rgb(20 22 26 / 7%);
     --ox-line-panel: rgb(20 22 26 / 10%);
@@ -2142,6 +2149,24 @@
 
 .ox-input::placeholder {
   color: var(--ox-ink-disabled);
+}
+
+/*
+ * A NATIVE SELECT OPENS ON AN OPAQUE GROUND.
+ *
+ * The closed field can be translucent; the open list cannot. Chrome on Windows
+ * paints the list from the select's own background, and `--ox-panel` is a 5%
+ * lift, so the list landed on white while the options kept the light ink — the
+ * format list in the export dialog read as blank rows (the owner, 2026-10-20).
+ * The field and its options take the opaque field ground and the light ink;
+ * `color-scheme: dark` still comes from `.ox-root`, and the focus ring from
+ * `.ox-root :focus-visible`.
+ */
+.ox-select,
+.ox-select option,
+.ox-select optgroup {
+  background-color: var(--ox-field-solid);
+  color: var(--ox-ink);
 }
 
 .ox-filters {

@@ -627,8 +627,10 @@
   max-width: 12rem;
 }
 
+/* Opaque, because the operating system paints the open list from it (see `.ox-select`). */
 .obs-model-select {
   cursor: pointer;
+  background-color: var(--void);
 }
 
 .obs-model-select:hover {
