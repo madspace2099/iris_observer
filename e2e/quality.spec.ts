@@ -269,6 +269,30 @@ test.describe("the chart vocabulary", () => {
     }
   });
 
+  /*
+   * Sales Flow's outcome mixes are rows since 2026-10-20 (ADR-0041): the owner
+   * could not read the stacked columns. The team row leads, and every row is
+   * named with its meetings and the read model's figure for it.
+   */
+  test("the outcome rows lead with the team and name every row's figure", async ({ page }) => {
+    await signInAs(page, "Petra Novák");
+    await page.goto("/alpha/northgate/flow");
+    const rows = page
+      .getByRole("list", { name: "How each agent’s meetings end, the team first" })
+      .getByRole("listitem");
+    expect(await rows.count()).toBeGreaterThan(2);
+    await expect(rows.first()).toHaveAttribute("aria-label", /^Team: [\d,]+ meetings, /);
+
+    const labels = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
+    for (const label of labels) {
+      expect(label).toMatch(
+        /: [\d,]+ meetings?, (<?\d+% progressed · [\d,]+ of [\d,]+ recorded|No rate yet: |No outcome recorded)/,
+      );
+    }
+    await expect(page.locator(".iris-orows-list")).toHaveCount(2);
+    await expect(page.locator(".iris-stacks")).toHaveCount(0);
+  });
+
   test("one agent has one meeting count on Sales Agents and its Coaching tab", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/agents");
