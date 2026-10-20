@@ -159,7 +159,10 @@ describe("the agent summary, as printed", async () => {
       words.unitsCaption(view.name, view.context.period.label),
       words.projectsNote,
       words.appendixCaption,
+      `${view.followUp.completed.label} — ${view.followUp.completed.message ?? words.noFollowUpSource}`,
     ];
+    /* The follow-up gap is the tile's "not available" and its note, not a box beneath the tile. */
+    expect(split(html).body).not.toContain('class="ox-unavailable"');
     /* Every caption is the sr-only class layout-integrity knows, so none is drawn or reads as clipped. */
     expect(html).not.toMatch(/<caption(?! class="ox-sr")/);
     for (const note of moved) {

@@ -769,7 +769,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
         "Every section of this summary with its state, its sample in its own noun, and the reference that resolves to the records underneath it.",
     },
     notCarried:
-      "Not in this document: the week-by-week series of their presentations, because a line is read as a direction whatever is written beneath it and paper cannot say otherwise; the outcome ring as a shape, whose slices are printed as a table under What it met; and the screen's reading guide. Everything else on their screen is here, from the same read model.",
+      "Not in this document: the week-by-week series of their presentations, because a line is read as a direction whatever is written beneath it and paper cannot say otherwise; and the screen's reading guide. The outcome ring's slices are drawn here as one bar, under What it met. Everything else on their screen is here, from the same read model.",
     noUnits: "No meeting of theirs in the period opened an apartment in the catalogue.",
     registerKept:
       "Kept for the sales team: the rows of this register are the meeting drill-down's own material, which this account does not open. Every one of these meetings is counted in the sections above.",
@@ -825,7 +825,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
         "Každá sekcia tohto zhrnutia so stavom, vzorkou vo vlastnom podstatnom mene a odkazom na záznamy pod ňou.",
     },
     notCarried:
-      "V tomto dokumente chýba týždenný priebeh prezentácií: čiaru čitateľ vníma ako smer vývoja bez ohľadu na text pod ňou a na papieri sa to nedá vysvetliť inak. Chýba aj grafický prstenec výsledkov, hoci jeho výseky sú vytlačené v tabuľke pod nadpisom Kupujúci a výsledky, a návod na čítanie obrazovky. Všetko ostatné z maklérovej obrazovky tu je, z rovnakého dátového modelu.",
+      "V tomto dokumente chýba týždenný priebeh prezentácií: čiaru čitateľ vníma ako smer vývoja bez ohľadu na text pod ňou a na papieri sa to nedá vysvetliť inak. Chýba aj návod na čítanie obrazovky. Výseky prstenca výsledkov sú tu nakreslené ako jeden pruh pod nadpisom Kupujúci a výsledky. Všetko ostatné z maklérovej obrazovky tu je, z rovnakého dátového modelu.",
     noUnits: "Žiadne stretnutie v tomto období neotvorilo byt z katalógu.",
     registerKept:
       "Vyhradené pre obchodný tím: riadky tohto registra patria k detailu stretnutia, ktorý toto konto neotvára. Každé z týchto stretnutí je započítané v sekciách vyššie.",
@@ -892,7 +892,7 @@ const AGENT_SCOPE_WORDS: Readonly<Record<Language, AgentScopeWords>> = {
         "Az összefoglaló minden szakasza az állapotával, a mintájával a saját főnevében, és a hivatkozással az alatta lévő rekordokra.",
     },
     notCarried:
-      "Ebben a dokumentumban nincs benne a bemutatók heti idősora: a vonalat az ember akkor is irányként értelmezi, ha más magyarázat áll alatta, és ezt nyomtatásban nem lehet felülírni. Az eredménygyűrű ábrája sem szerepel, de a szeletei táblázatban láthatók a Vevők és eredmények szakaszban; a képernyő értelmezési útmutatója is kimarad. A képernyő összes többi adata ugyanabból az adatmodellből szerepel itt.",
+      "Ebben a dokumentumban nincs benne a bemutatók heti idősora: a vonalat az ember akkor is irányként értelmezi, ha más magyarázat áll alatta, és ezt nyomtatásban nem lehet felülírni. A képernyő értelmezési útmutatója is kimarad. Az eredménygyűrű szeletei itt egyetlen sávként szerepelnek a Vevők és eredmények szakaszban. A képernyő összes többi adata ugyanabból az adatmodellből szerepel itt.",
     noUnits: "Egyetlen találkozója sem nyitott meg katalógusbeli lakást az időszakban.",
     registerKept:
       "Az értékesítői csapatnak fenntartva: a lista sorai a találkozó részletnézetéhez tartoznak, amelyet ez a fiók nem nyit meg. Mindegyik találkozó szerepel a fenti szakaszok számaiban.",

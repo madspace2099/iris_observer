@@ -37,7 +37,6 @@ import {
   Tally,
   TallyItem,
   Tier,
-  Unavailable,
   type DataColumn,
   type DataRow,
 } from "@/components/product";
@@ -84,7 +83,7 @@ import { ReportPlane } from "./ReportPlane";
  *
  * What the screen has and this page does not is stated by the manifest, in
  * the presentation section's reason, and not silently: the week-by-week
- * series, the outcome ring as a shape, the reading guide. The audience is
+ * series and the reading guide (the ring's slices print as one bar). The audience is
  * internal, like the rest of the report; a buyer-facing document is a
  * separate contract (ADR-0018) and none of this is it.
  *
@@ -213,12 +212,6 @@ export async function AgentReport({
             value={<Figure value={view.followUp.completed} language={language} />}
           />
         </Tally>
-        <Unavailable
-          what={view.followUp.completed.label}
-          why={view.followUp.completed.message ?? words.noFollowUpSource}
-          action={null}
-          period={period}
-        />
 
         <p className="ox-subhead">{words.outcomesTheyRecorded}</p>
         <Tally>
@@ -470,12 +463,18 @@ export async function AgentReport({
   /*
    * Every sentence that qualified a section on the page, for "How to read
    * this report", in the order the section printed them: the tables'
-   * captions (still each table's accessible caption), the follow-up note, the
-   * recorded-outcome note, the scope of the project list, and the register's
-   * link to every meeting it is taken from.
+   * captions (still each table's accessible caption), the follow-up note and
+   * why no follow-up can be counted as done (its tile says "not available";
+   * the reason sat beneath it in a box of its own), the recorded-outcome note,
+   * the scope of the project list, and the register's link to every meeting
+   * it is taken from.
    */
   const notes: SectionNotes = {
-    "agent-activity": [view.followUp.note, words.recordedNote(view.name)],
+    "agent-activity": [
+      view.followUp.note,
+      `${view.followUp.completed.label} — ${view.followUp.completed.message ?? words.noFollowUpSource}`,
+      words.recordedNote(view.name),
+    ],
     "agent-presentation": [
       words.presentationCaption(
         view.name,
