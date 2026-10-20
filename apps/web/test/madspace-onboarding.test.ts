@@ -35,6 +35,11 @@ const db = {
   sourceCreate: vi.fn(async () => (calls.push("sourceCreate"), SOURCE)),
   activationIssue: vi.fn(async () => (calls.push("activationIssue"), true)),
   credentialStatus: vi.fn(async () => credential),
+  /* What Source Detail's issue reads to name a code in the recent list. */
+  projectDirectory: vi.fn(async () => [
+    { project_id: PROJECT, name: "Riverside Gardens", tenant_slug: "client-482" },
+  ]),
+  sourceStatus: vi.fn(async () => [{ source_id: SOURCE, display_label: "Kiosk 1" }]),
 };
 const deps = { db: db as unknown as ObserverDb, env: process.env, now: () => new Date() };
 
@@ -57,7 +62,7 @@ vi.mock("../src/lib/repository", () => ({
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 const { onboardAction } = await import("../src/lib/madspace/create-actions");
-const { activationClaimedAction, recentActivationCodesAction } =
+const { activationClaimedAction, issueActivationCodeAction, recentActivationCodesAction } =
   await import("../src/lib/madspace/source-actions");
 const { resetAliases } = await import("../src/lib/madspace/activation-aliases");
 
@@ -270,6 +275,30 @@ describe("the recent activation codes", () => {
 
   it("are not kept by a hosted plane, and it says so", async () => {
     expect(await recentActivationCodesAction()).toMatchObject({ ok: false });
+  });
+
+  it("include a code from Source Detail, as an alias named by the directory", async () => {
+    localPlane();
+    const answer = await issueActivationCodeAction(SOURCE);
+    if (!answer.ok) throw new Error(answer.problem);
+    expect(answer.code).toMatch(/^ACT-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
+
+    const listed = await recentActivationCodesAction();
+    if (!listed.ok) throw new Error(listed.problem);
+    expect(listed.codes).toEqual([
+      expect.objectContaining({
+        code: answer.code,
+        client: "client-482",
+        project: "Riverside Gardens",
+        source: "Kiosk 1",
+      }),
+    ]);
+  });
+
+  it("leave Source Detail's code whole off the local plane", async () => {
+    const answer = await issueActivationCodeAction(SOURCE);
+    if (!answer.ok) throw new Error(answer.problem);
+    expect(answer.code).toMatch(/^obs\./);
   });
 });
 
