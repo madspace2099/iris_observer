@@ -2466,45 +2466,10 @@
   font-family: var(--d-font-numeric);
 }
 
-/* --- stacked columns: the kit's pills, the outcome colours kept ------------------- */
-
 /*
- * Rounded at the top only: a full pill's radius cut a small part off the foot
- * of the column, where the first outcome stands.
+ * No stacked columns on a product card: Sales Flow's outcome mixes are
+ * `OutcomeRows` (`charts.css`), and `StackedBars` is the gallery's alone.
  */
-[data-charts="d"] .d-card .iris-stacks-column {
-  width: 14px;
-  min-width: 14px;
-  border-radius: 7px 7px 0 0;
-}
-
-/*
- * Every part that counts something stays visible: at least 3px of colour. The
- * parts are drawn foot first (`column-reverse`), so the 2px black seam sits at
- * the foot of every part but the first, between two parts and never under the
- * column; a seam rather than a gap, which would add to the column's height.
- */
-[data-charts="d"] .d-card .iris-stacks-column > span {
-  min-height: 3px;
-}
-
-[data-charts="d"] .d-card .iris-stacks-column > span + span {
-  min-height: 5px;
-  box-shadow: inset 0 -2px 0 var(--d-card);
-}
-
-[data-charts="d"] .d-card .iris-stacks-column > span:hover {
-  filter: brightness(1.2);
-}
-
-[data-charts="d"] .d-card .iris-stacks-total {
-  font-family: var(--d-font-numeric);
-  color: var(--d-ink);
-}
-
-[data-charts="d"] .d-card .iris-stacks-label {
-  color: var(--d-ink-3);
-}
 
 /* --- keys -------------------------------------------------------------------------------- */
 
