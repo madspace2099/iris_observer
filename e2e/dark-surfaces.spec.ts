@@ -91,15 +91,28 @@ test.describe("dark on screen", () => {
   });
 });
 
-test("the printed report is dark ink, the period band included", async ({ page }) => {
+/*
+ * ADR-0049: the printed report opens on a cover on the graphite ground, in the
+ * brand's light ink, and every page after it is paper. The context band no
+ * longer prints (the cover states the project and the period), so the ink is
+ * measured on the document's own text: headings, the contents, the notes.
+ */
+test("the printed report is dark ink after its graphite cover", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop", "print does not vary with width");
   await signIn(page, "Petra Novák");
   await page.goto("/alpha/ister-tower/report?agent=agt_martinkovac", { waitUntil: "networkidle" });
   await page.emulateMedia({ media: "print" });
   const inks = await inksOf(
     page,
-    ".ox-report .ox-section-title, .ox-report .ox-section-note, .ox-context .ox-menu-value",
+    ".ox-report .ox-section-title, .ox-report .ox-section-note, .ox-report .ox-toc-label, .ox-report .ox-notes-text",
   );
   expect(inks.length, "the report has text to measure").toBeGreaterThan(0);
   expect(inks.filter((l) => l >= 0.2), "light ink on the printed page").toEqual([]);
+
+  await expect(page.locator(".ox-cover"), "the cover prints").toBeVisible();
+  const [ground] = await groundsOf(page, ".ox-cover-title");
+  expect(ground, "the cover's ground").toBeLessThan(DARK);
+  const [title] = await inksOf(page, ".ox-cover-title");
+  expect(title, "the cover's title ink").toBeGreaterThan(0.6);
+  await expect(page.locator(".ox-context"), "the context band stays off paper").toBeHidden();
 });

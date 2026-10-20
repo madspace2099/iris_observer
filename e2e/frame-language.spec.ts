@@ -100,13 +100,18 @@ const NOT_PROOF: readonly Rule[] = [
 
 /*
  * THE PRINTED REPORT (NYOMTAT1). The print stylesheet hides the header and the
- * mobile bar, so most of the screen's frame is not on paper; the context band
- * (developer, project, period) and the page itself are. These lists hold only
- * what the printed render showed on 2026-10-01.
+ * mobile bar, so most of the screen's frame is not on paper; since ADR-0049 the
+ * context band does not print either, and the cover states the project and the
+ * period in the report's language. These lists hold what the printed render
+ * showed on 2026-10-01, and the cover's product name since 2026-10-20.
  */
 
 /** (a) on the printed report. */
 const PRINT_ALLOWED: readonly Rule[] = [
+  {
+    line: "IRIS OBSERVER",
+    why: "The product's name beside the wordmark on the printed cover (set in capitals by the sheet).",
+  },
   {
     line: "Skip to content",
     why: "In `innerText`, never on paper: `.obs-skip` stands above the page edge until focused.",
@@ -406,10 +411,11 @@ for (const reading of READINGS) {
 }
 
 /*
- * THE PERIOD ON PAPER (NYOMTAT1). The print stylesheet hides the header, not the
- * context band, so the period switcher's value prints. Measured rather than
- * inferred: on every report, in each language, the printed value is visible and
- * is the word table's label for the period the address asks for.
+ * THE PERIOD ON PAPER (NYOMTAT1). Since ADR-0049 the printed report opens on a
+ * cover that states the project and the period, and the context band (which
+ * would sit above the full-bleed cover) no longer prints. Measured rather than
+ * inferred: on every report, in each language, the cover's period is visible
+ * on paper and is the word table's label for the period the address asks for.
  */
 test("a printed report names its period in the report's language", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop", "the report's words do not vary with width");
@@ -428,8 +434,7 @@ test("a printed report names its period in the report's language", async ({ page
     for (const language of LANGUAGES) {
       await page.goto(withLanguage(path, language), { waitUntil: "networkidle" });
       await page.emulateMedia({ media: "print" });
-      /* The mobile menu holds a second switcher; the one on paper is the visible one. */
-      const value = page.locator('summary[aria-label="Period"] .ox-menu-value').filter({ visible: true });
+      const value = page.locator(".ox-cover .ox-cover-period");
       await expect(value, `${key} ${language}: the period prints`).toBeVisible();
       await expect(value, `${key} ${language}`).toHaveText(
         readmodelWords.PERIOD_WORDS[language][period(path)].label,
