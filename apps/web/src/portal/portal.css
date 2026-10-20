@@ -1,64 +1,71 @@
 /*
- * THE MADSPACE CLIENT PORTAL SURFACES: SIGN IN, AND PROJECTS.
+ * THE MADSPACE CLIENT PORTAL SURFACES: SIGN IN, AND THE ROOT 404.
  *
  * Everything here is scoped under `.mp` so it cannot reach the Observer
- * analytics screens, which are frozen (docs/observer-visual-baseline.md). Two
- * surfaces live in this layer and nothing else: the account sign-in and the
- * project selector a reader lands on afterwards.
+ * analytics screens. Two pages use this layer today: the account sign-in and
+ * the root not-found page. The project selector and the AI settings page that
+ * once lived here moved onto the product's own `ox-` system; their rules below
+ * are kept until somebody removes them on purpose.
  *
  * ## Where the values come from
  *
- * The token block below is transcribed from the Client Portal reference build
- * (`Klient Portál.zip`) rather than approximated: the same six border levels,
- * the same surface ramp, the same type scale, the same 12px radius. It is the
- * same system the Observer screens already use — the design-system document
- * describes one product family, and these two pages are the family's front
- * door.
+ * The NAMES are transcribed from the Client Portal reference build
+ * (`Klient Portál.zip`): the same border levels, the same surface ramp, the
+ * same type scale, the same 12px radius. The reference drew them light.
  *
- * ## Light first, dark by token swap
+ * ## Graphite on screen (ADR-0042)
  *
- * The portal is a light surface; the Observer application behind it is dark.
- * The inverse theme is a redeclaration of the same names, never a filter on
- * `body` — a filter makes body the containing block for `position: fixed` and
- * breaks every overlay in the product. That is the reference's own note, and it
- * is right.
+ * The owner, 2026-10-19: "Everything in the system must have a dark
+ * background, not white." The values are therefore the Observer graphite that
+ * `/madspace` adopted in ADR-0037 (`madspace.css`, `.mad-portal`), which is
+ * `.ox-graphite` restated: the same inks, the same surface ramp, the same one
+ * ink at rising alphas for every border. Nothing here prints, so no paper
+ * values are kept for print. The hero keeps its own dark photograph values.
+ *
+ * Still a token swap on a class, never a filter on `body`: a filter makes body
+ * the containing block for `position: fixed` and breaks every overlay.
  */
 
 .mp {
-  /* ---------------------------------------------------------------- ink */
-  --ink: #111111;
-  --ink-900: #1e1e1e;
-  --ink-800: #2a2a2a;
-  --ink-700: #3a3a3a;
-  --ink-2: #4a4a4a;
-  --ink-3: #5c5c5c;
-  --ink-4: #6b6b6b;
-  --ink-5: #767676;
+  /*
+   * ---------------------------------------------------------------- ink
+   * `.ox-graphite`'s own values, measured on the page (#07090c) and the card
+   * (#0d1117): 18.56 / 17.62, 10.13 / 9.83, 7.91 / 7.51, 6.34 / 6.01. `--ink-5`
+   * was #767676 (4.39:1 on this page) and takes the floor value instead.
+   */
+  --ink: #f4f7fc;
+  --ink-900: #dfe5ee;
+  --ink-800: #d0d7e2;
+  --ink-700: #bcc5d3;
+  --ink-2: rgb(244 247 252 / 74%);
+  --ink-3: #98a4b8;
+  --ink-4: #8592a8;
+  --ink-5: #8592a8;
   --ink-deep: #0b0b0b;
   --ink-on-dark: #ffffff;
 
   /* ----------------------------------------------------------- surfaces */
-  --surface-page: #f6f5f3;
-  --surface-card: #ffffff;
-  --surface-raised: #fafaf9;
-  --surface-tint: #edebe7;
-  --surface-inset: rgb(17 17 17 / 4%);
-  --surface-chip: rgb(17 17 17 / 7%);
-  --surface-ph-1: #e9e7e3;
-  --surface-ph-2: #e0ddd8;
-  --surface-ph-3: #d3cfc9;
+  --surface-page: #07090c;
+  --surface-card: #0d1117;
+  --surface-raised: #0d1117;
+  --surface-tint: rgb(140 165 205 / 8%);
+  --surface-inset: rgb(140 165 205 / 4%);
+  --surface-chip: rgb(140 165 205 / 7%);
+  --surface-ph-1: #121821;
+  --surface-ph-2: #18202b;
+  --surface-ph-3: #1f2835;
 
-  /* ------------------------------------------- borders, the six levels */
-  --border-hairline: rgb(17 17 17 / 6%);
-  --border-subtle: rgb(17 17 17 / 8%);
-  --border-panel: rgb(17 17 17 / 9%);
-  --border-track: rgb(17 17 17 / 10%);
-  --border-line: rgb(17 17 17 / 12%);
-  --border-field: rgb(17 17 17 / 16%);
-  --border-emphasis: rgb(17 17 17 / 20%);
-  --border-dashed: rgb(17 17 17 / 24%);
-  --border-dashed-strong: rgb(17 17 17 / 28%);
-  --border-hover: rgb(17 17 17 / 35%);
+  /* ---------------------------------- borders, one ink at rising alphas */
+  --border-hairline: rgb(130 150 185 / 9%);
+  --border-subtle: rgb(130 150 185 / 11%);
+  --border-panel: rgb(130 150 185 / 13%);
+  --border-track: rgb(130 150 185 / 15%);
+  --border-line: rgb(130 150 185 / 18%);
+  --border-field: rgb(130 150 185 / 24%);
+  --border-emphasis: rgb(130 150 185 / 28%);
+  --border-dashed: rgb(130 150 185 / 32%);
+  --border-dashed-strong: rgb(130 150 185 / 38%);
+  --border-hover: rgb(130 150 185 / 46%);
 
   /* --------------------------------------------------------------- type */
   --text-display-1: clamp(30px, 4.4vw, 44px);
@@ -75,12 +82,19 @@
   --radius: 12px;
   --radius-sm: 8px;
 
-  /* --------------------------------------------------------- accents */
-  --link: #0f6fd0;
-  --link-hover: #0e6fcb;
-  --status-critical: #b3261e;
-  --status-critical-border-2: rgb(179 38 30 / 28%);
-  --status-critical-bg-2: rgb(179 38 30 / 5%);
+  /*
+   * --------------------------------------------------------- accents
+   * The brand accent is the link on graphite (7.29:1 on the page); the studio
+   * blue #0f6fd0 it replaces measured 3.99:1 here. Critical and approved are
+   * `.ox-graphite`'s poor and good pairs: the light value carries the words
+   * (9.98:1 and 11.99:1), the alpha of the saturated mark carries the edge and
+   * the wash. #b3261e, the light-ground critical, measured 3.05:1.
+   */
+  --link: var(--iris-accent);
+  --link-hover: var(--iris-accent-strong);
+  --status-critical: #f0a49e;
+  --status-critical-border-2: rgb(224 122 114 / 32%);
+  --status-critical-bg-2: rgb(224 122 114 / 8%);
 
   /*
    * Approved, from the design system's own value.
@@ -89,9 +103,9 @@
    * carries the meaning. Colour is never the only channel: remove the dot and
    * the panel still says connected, in text, at full contrast.
    */
-  --status-approved: #2f8f5b;
-  --status-approved-bg: rgb(47 143 91 / 8%);
-  --status-approved-border: rgb(47 143 91 / 26%);
+  --status-approved: #8ad9b0;
+  --status-approved-bg: rgb(79 191 136 / 12%);
+  --status-approved-border: rgb(79 191 136 / 30%);
 
   /*
    * THE HERO SCRIM, four stages.
@@ -113,6 +127,7 @@
   --gutter: 40px;
 
   min-height: 100vh;
+  color-scheme: dark;
   background: var(--surface-page);
   color: var(--ink);
   /*
@@ -162,8 +177,9 @@
   top: -60px;
   z-index: 200;
   padding: 11px 18px;
+  /* The light ink is the fill on graphite, so the page colour is the text (18.56:1). */
   background: var(--ink);
-  color: var(--ink-on-dark);
+  color: var(--surface-page);
   font-size: var(--text-body);
   font-weight: 500;
   border-radius: var(--radius);
