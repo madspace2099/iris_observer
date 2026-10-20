@@ -127,6 +127,13 @@ persisted state (settings, activated, connected, ingestion verified, catalogue, 
 the address once complete, and who can see it with grant and revoke. `docs/20` governs the look;
 real screenshots, desktop and mobile.
 
+Since 2026-10-19 the creation screens are one wizard at `/madspace/projects/new`, Akhilesh's
+"Client & Engine Onboarding" (ADR-0044): client ID (the developer's address), project name, domain
+(the project's address, prefilled from the name, fixed once created), currency, locale and time
+zone, then the source and its environment, and one press that writes them all and shows the
+activation code. Directory, the Customer dashboard screen and New source remain for every change
+after that first day.
+
 **3. The directory seam and the grant merge (M).** The port, the repository's merged lookups
 (`listTenants`, `listProjects`, `resolveProject`, `resolvePeriod`, `getAgentDetail`), the real clock
 rule, the live adapter with the 30-second memo the other sources use and a `forget` for the

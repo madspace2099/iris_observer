@@ -25,7 +25,7 @@ export const metadata: Metadata = { title: "New project" };
  * source and the code dialog) now happens here in order, and those screens
  * stay for everything after the first day.
  *
- * The control plane is checked before the wizard is offered, because a wizard
+ * The control plane is checked before the wizard is offered: a wizard
  * whose last press can only fail is worse than a stated absence. The role
  * check is repeated from the layout deliberately: a layout is not a security
  * boundary, and this page renders a control that writes.

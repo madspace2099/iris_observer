@@ -207,7 +207,7 @@ function sourceRefusal(refusal: AdminRefusal): {
 /**
  * What the onboarding wizard sends: the four steps' fields, as typed.
  *
- * Plain strings rather than a form, because the wizard holds them across four
+ * Plain strings rather than a form: the wizard holds them across four
  * panels and posts once. Every one is validated here again: the wizard is not
  * a gate, and this is an HTTP endpoint.
  */

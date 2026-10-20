@@ -3721,8 +3721,8 @@ button.mad-quiet {
  * Akhilesh's "Client & Engine Onboarding" modal, as the page's main panel:
  * centred at his 620px, on this surface's graphite tokens. IRIS blue, solid,
  * marks the step in hand; the good state marks a step done. His gradients,
- * glows and pulsing dots are not ported, and the panel carries no shadow
- * because it does not float: it is the page.
+ * glows and pulsing dots are not ported. The panel carries no shadow, as
+ * it does not float: it is the page.
  * ========================================================================= */
 
 .mad-wizard {
