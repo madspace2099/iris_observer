@@ -61,6 +61,13 @@ Still no database work. The physical schema follows the read models once every s
 | **M10** | CRM connectors                  | Canonical model with REALPAD, Monday, Lomnio and manual adapters — shape and verified API facts in ADR-0036                    |
 | **M11** | AI layer                        | MCP server over the metric registry, deterministic insight detectors, report composer, ask bar                                 |
 
+**M4, what is already done (ADR-0045, 2026-10-20).** The internal report is a page (`/report`, project,
+meeting and agent scopes, in English, Slovak and Hungarian), and its export dialog produces documents:
+"PDF document" opens the composed page and the browser's print dialog ("Save as PDF", on paper per
+ADR-0042), and "Figures as CSV" downloads every figure the page prints from `report/csv`, authorised
+like the page. **Still M4:** a server-side PDF renderer (the "real vector PDF" above), scheduled or
+e-mailed sends, and the buyer-facing meeting report, a separate sanitised contract (ADR-0018).
+
 The ordering rule: **anything that hardens a shape comes after the shape stops moving.** The database
 follows the read models; the event catalogues follow the facts; the Unreal specification follows both.
 
