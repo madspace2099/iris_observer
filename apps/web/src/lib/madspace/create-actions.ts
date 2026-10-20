@@ -19,6 +19,7 @@ import {
 } from "@observer/sources";
 
 import { forgetDirectoryMemo } from "@/lib/directory/live";
+import { localeFits, timeZoneFits } from "@/lib/madspace/slug";
 import { isSyntheticTenantSlug } from "@/lib/repository";
 import { currentViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT, controlPlane } from "@/lib/sources/control-plane";
@@ -303,10 +304,10 @@ export async function onboardAction(input: OnboardInput): Promise<
     );
   }
   if (!isCurrency(currency)) return refuse("Choose the currency the project's prices are in.", 2);
-  if (!isLocale(locale)) {
+  if (!isLocale(locale) || !localeFits(locale)) {
     return refuse("That is not a locale this server can format with. Use a form such as sk-SK.", 2);
   }
-  if (!isTimeZone(timeZone)) {
+  if (!isTimeZone(timeZone) || !timeZoneFits(timeZone)) {
     return refuse("That is not a time zone. Use a form such as Europe/Bratislava.", 2);
   }
   if (sourceLabel.length === 0) return refuse("Give the machine a source name.", 3);
@@ -353,6 +354,7 @@ export async function onboardAction(input: OnboardInput): Promise<
 
   /* --- writes, in dependency order --- */
   let tenantId = tenants.value.find((row) => row.slug === client)?.tenant_id ?? null;
+  const newClient = tenantId === null;
   if (tenantId === null) {
     try {
       const created = await directory.createTenant({
@@ -375,7 +377,14 @@ export async function onboardAction(input: OnboardInput): Promise<
       name: projectName,
       slug: projectSlug,
     });
-    if (!created.ok) return refuse(UNEXPECTED, 2);
+    if (!created.ok) {
+      return refuse(
+        newClient
+          ? `The client ${client} was registered, but its project was refused. Run the onboarding again with the same client ID to add the project.`
+          : UNEXPECTED,
+        2,
+      );
+    }
     projectId = created.value;
   } catch {
     /* The unique violation of the narrow race. Nothing of the driver's message is shown. */
@@ -383,38 +392,54 @@ export async function onboardAction(input: OnboardInput): Promise<
   }
 
   /*
-   * From here a refusal leaves a registered project behind, so the sentence
-   * says where to finish it rather than pretending nothing happened.
+   * From here a refusal or a raise leaves a registered project behind, so the
+   * sentence says where to finish it rather than pretending nothing happened,
+   * and names the step whose fields it was writing.
    */
-  const unfinished = `The project ${projectName} was registered, but this step was refused. Open it from Projects to finish it there.`;
+  const unfinished = (step: OnboardStep) =>
+    refuse(
+      `The project ${projectName} was registered, but this step was refused. Open it from Projects to finish it there.`,
+      step,
+    );
 
-  const settled = await directory.setProjectSettings({
-    account: CONTROL_PLANE_ACCOUNT,
-    project: projectId,
-    tenant: tenantId,
-    slug: projectSlug,
-    currency,
-    locale,
-    timeZone,
-  });
-  if (!settled.ok) return refuse(unfinished, 2);
-
-  const source = await opened.admin.createSource({
-    account: CONTROL_PLANE_ACCOUNT,
-    project: projectId,
-    type: REGISTRABLE_SOURCE_TYPE,
-    environment: environment as (typeof ENVIRONMENTS)[number],
-    label: sourceLabel,
-  });
-  if (!source.ok) return refuse(unfinished, 3);
-
+  let sourceId: string;
+  let issued: { readonly plaintext: string; readonly expiresAt: string };
   const issuedAt = new Date().toISOString();
-  const issued = await opened.admin.issueActivationCode({
-    account: CONTROL_PLANE_ACCOUNT,
-    source: source.value,
-    purpose: "activation",
-  });
-  if (!issued.ok) return refuse(unfinished, 3);
+  let at: OnboardStep = 2;
+  try {
+    const settled = await directory.setProjectSettings({
+      account: CONTROL_PLANE_ACCOUNT,
+      project: projectId,
+      tenant: tenantId,
+      slug: projectSlug,
+      currency,
+      locale,
+      timeZone,
+    });
+    if (!settled.ok) return unfinished(2);
+
+    at = 3;
+    const source = await opened.admin.createSource({
+      account: CONTROL_PLANE_ACCOUNT,
+      project: projectId,
+      type: REGISTRABLE_SOURCE_TYPE,
+      environment: environment as (typeof ENVIRONMENTS)[number],
+      label: sourceLabel,
+    });
+    if (!source.ok) return unfinished(3);
+    sourceId = source.value;
+
+    const minted = await opened.admin.issueActivationCode({
+      account: CONTROL_PLANE_ACCOUNT,
+      source: sourceId,
+      purpose: "activation",
+    });
+    if (!minted.ok) return unfinished(3);
+    issued = minted.value;
+  } catch {
+    /* Nothing of the driver's message is shown. */
+    return unfinished(at);
+  }
 
   forgetDirectoryMemo();
   revalidatePath(OPERATIONS_SURFACE, "layout");
@@ -422,11 +447,11 @@ export async function onboardAction(input: OnboardInput): Promise<
   /* The plaintext's one journey, read straight out of the receipt. */
   return {
     ok: true,
-    code: issued.value.plaintext,
+    code: issued.plaintext,
     issuedAt,
-    expiresAt: issued.value.expiresAt,
+    expiresAt: issued.expiresAt,
     projectId,
-    sourceId: source.value,
+    sourceId,
     tenantSlug: client,
     projectSlug,
   };

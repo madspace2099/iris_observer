@@ -19,6 +19,7 @@ import { forgetCatalogueMemo } from "@/lib/connectors/catalogue-source";
 import { forgetDealMemo } from "@/lib/connectors/deal-source";
 import { forgetSessionMemo } from "@/lib/connectors/session-source";
 import { forgetDirectoryMemo } from "@/lib/directory/live";
+import { localeFits, timeZoneFits } from "@/lib/madspace/slug";
 import { isSyntheticTenantSlug } from "@/lib/repository";
 import { currentViewer } from "@/lib/session";
 import { CONTROL_PLANE_ACCOUNT } from "@/lib/sources/control-plane";
@@ -177,13 +178,13 @@ export async function setProjectSettingsAction(
   if (!isCurrency(currency)) {
     return refuse("That is not a currency code. Use the three letters, such as EUR.", "currency");
   }
-  if (!isLocale(locale)) {
+  if (!isLocale(locale) || !localeFits(locale)) {
     return refuse(
       "That is not a locale this server can format with. Use a form such as sk-SK.",
       "locale",
     );
   }
-  if (!isTimeZone(timeZone)) {
+  if (!isTimeZone(timeZone) || !timeZoneFits(timeZone)) {
     return refuse("That is not a time zone. Use a form such as Europe/Bratislava.", "timeZone");
   }
 

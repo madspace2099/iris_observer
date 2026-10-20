@@ -140,7 +140,10 @@ describe("onboarding a client", () => {
     ["currency", "", 2],
     ["currency", "XYZ", 2],
     ["locale", "not a locale at all", 2],
+    /* Intl formats these two; the projects table's CHECK shapes refuse them. */
+    ["locale", "en-US-u-hc-h23", 2],
     ["timeZone", "Mars/Olympus_Mons", 2],
+    ["timeZone", "+01:00", 2],
     ["sourceLabel", "", 3],
     ["environment", "", 3],
     ["environment", "lab", 3],
@@ -187,6 +190,25 @@ describe("onboarding a client", () => {
     if (!answer.ok) expect(answer.problem).not.toContain("duplicate key");
     expect(calls).not.toContain("sourceCreate");
   });
+
+  it.each([
+    ["projectSettingsSet", 2, "sourceCreate"],
+    ["sourceCreate", 3, "activationIssue"],
+    ["activationIssue", 3, null],
+  ] as const)(
+    "answers a raise in %s after the project exists in words, at step %i, and stops",
+    async (port, step, never) => {
+      db[port].mockImplementationOnce(async () => {
+        throw new Error('new row violates check constraint "projects_locale_shape"');
+      });
+      const answer = await onboardAction(INPUT);
+      expect(answer).toMatchObject({ ok: false, step });
+      if (answer.ok) return;
+      expect(answer.problem).toContain("Riverside Gardens was registered");
+      expect(answer.problem).not.toContain("check constraint");
+      if (never !== null) expect(calls).not.toContain(never);
+    },
+  );
 
   it("refuses anyone who is not a MADSPACE administrator, touching nothing", async () => {
     role = "developer_exec";
