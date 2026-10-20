@@ -128,6 +128,14 @@ describe("which sales followed a showing", () => {
     expect([...bySale.keys()].sort()).toEqual(["R-1", "R-2", "R-3", "R-4", "R-5"]);
   });
 
+  /* Sales Flow prints this beside the rows while the note stands behind an `i` (ADR-0039 §6). */
+  it("states the sales it cannot place on their own, as the note's own sentence", () => {
+    expect(view.unplacedNote).toBe(
+      "2 sales carry no stage date Observer could use or name no unit, and cannot be placed.",
+    );
+    expect(view.note.endsWith(view.unplacedNote ?? "")).toBe(true);
+  });
+
   it("measures from the LAST showing before the date, not the first", () => {
     /* A-1 was opened on 1 Aug and again on 8 Sep; the sale is dated 10 Sep 10:00. 48 hours. */
     const sale = bySale.get("R-1");

@@ -911,6 +911,11 @@ export function buildAssistedSales(
         ? `${String(assisted)} of ${String(datedSales)} dated sales (${percent(assisted / datedSales, locale)}) followed an IRIS showing of the unit within ${window}.`
         : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${sentence(language, DEAL_SALES_NEEDED_SENTENCE, { count: policy.minimumSales - datedSales, sales: String(policy.minimumSales - datedSales) })}`;
 
+  const unplacedNote =
+    unplaced === 0
+      ? null
+      : sentence(language, DEAL_UNPLACED_SENTENCE, { count: unplaced, sales: String(unplaced) });
+
   /* A duration is read by its median, never its mean. */
   const earlierMedian = median(earlier.map((s) => (s.lagHours ?? 0) / 24));
   const note = [
@@ -930,9 +935,7 @@ export function buildAssistedSales(
     observedCount === 0
       ? null
       : `${String(observedCount)} of these carry no date in the CRM and are placed by the sync that first saw the change, up to one sync after it happened, so their lag reads longer than it was and never shorter.`,
-    unplaced === 0
-      ? null
-      : sentence(language, DEAL_UNPLACED_SENTENCE, { count: unplaced, sales: String(unplaced) }),
+    unplacedNote,
   ]
     .filter((w): w is string => w !== null)
     .join(" ");
@@ -950,6 +953,7 @@ export function buildAssistedSales(
     shareDisplay: enough && datedSales > 0 ? percent(assisted / datedSales, locale) : null,
     headline,
     note,
+    unplacedNote,
     sales: [...sales]
       /* Soonest after a showing first, so the assisted sales lead; never shown last; then newest. */
       .sort(

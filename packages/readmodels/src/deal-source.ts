@@ -184,6 +184,12 @@ export type AssistedSales =
       readonly shareDisplay: string | null;
       readonly headline: string;
       readonly note: string;
+      /**
+       * The note's sentence about `unplaced`, on its own; null when every sale
+       * is placed. Printed beside the rows (ADR-0039 §6) while the note stands
+       * behind an `i`, so a headline's small denominator never goes unexplained.
+       */
+      readonly unplacedNote: string | null;
       /** Soonest after a showing first, never-shown last. At most twelve; the counts above cover all. */
       readonly sales: readonly AssistedSale[];
     }

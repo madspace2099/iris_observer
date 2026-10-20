@@ -329,10 +329,16 @@ export default async function FlowPage({
                     collapseAfter={5}
                     tone="late"
                   />
-                  {/* The list's denominator stays in view; the rest is behind the `i`. */}
+                  {/*
+                   * The list's denominator stays in view, and so do the open
+                   * deals it cannot place; the rest is behind the `i`.
+                   */}
                   <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
                     {view.ladder.stalled.length} of {view.ladder.open} open{" "}
                     {view.ladder.open === 1 ? "deal" : "deals"}
+                    {view.ladder.undated === 0
+                      ? null
+                      : ` · ${String(view.ladder.undated)} with no stage date`}
                   </p>
                   <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
                 </>

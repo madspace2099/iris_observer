@@ -38,7 +38,8 @@ export function AssistedSales({
     <div className="d-card">
       {/*
        * The rule and what it does not say stand behind the `i` (the owner,
-       * 2026-10-20); the headline below keeps the count and its denominator.
+       * 2026-10-20); the headline below keeps the count and its denominator,
+       * and the sales it cannot place stay beside the rows.
        */}
       <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
         <h2 className="iris-kicker iris-kicker-measured">IRIS-assisted sales</h2>
@@ -68,6 +69,12 @@ export function AssistedSales({
           // R05 item 8. The denominator, "N of M dated sales", is in the headline.
           collapseAfter={5}
         />
+      )}
+      {/* What the denominator leaves out stays in view (ADR-0039 §6). */}
+      {assisted.unplacedNote === null ? null : (
+        <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+          {assisted.unplacedNote}
+        </p>
       )}
       <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
     </div>
