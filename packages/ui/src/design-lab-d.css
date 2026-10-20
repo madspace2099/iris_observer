@@ -3036,6 +3036,16 @@
   }
 }
 
+/* An outcome row grows from the left: a clip, so its counts are never squeezed on the way. */
+@keyframes dld-grow {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
 @keyframes dld-turn {
   from {
     --d-sweep: 0deg;
@@ -3069,6 +3079,11 @@
     --d-sweep: 0deg;
   }
 
+  /* Only the bars wait: the names, the figures and the key are there from the first frame. */
+  .dld-draw[data-draw="wait"][data-kind="grow"] .iris-orow-bar {
+    clip-path: inset(0 100% 0 0);
+  }
+
   /* The play. */
   .dld-draw[data-draw="run"][data-kind="sweep"] > .dld-draw-body {
     animation: dld-sweep 1100ms var(--d-ease) both;
@@ -3099,6 +3114,12 @@
 
   .dld-draw[data-draw="run"][data-kind="turn"] svg {
     animation: dld-turn 1200ms var(--d-ease) both;
+  }
+
+  /* Row by row, 70ms apart, the ninth and after together: the last ends inside DrawIn's 1500ms. */
+  .dld-draw[data-draw="run"][data-kind="grow"] .iris-orow-bar {
+    animation: dld-grow 900ms var(--d-ease) both;
+    animation-delay: calc(min(var(--i, 0), 8) * 70ms);
   }
 
   /* A cell lights in the order of its own count: the busiest last. */

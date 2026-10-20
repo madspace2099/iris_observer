@@ -59,28 +59,20 @@ const OUTCOME_LADDER: readonly MeetingOutcome[] = [
   "skipped",
 ];
 
-/** `StackedBars`' shared key, ladder-ordered so stacking order is ladder order everywhere it's used. */
-export const OUTCOME_STACK_KEYS: readonly { id: string; label: string; colour: string }[] =
-  OUTCOME_LADDER.map((o) => ({ id: o, label: OUTCOME_LABELS[o], colour: OUTCOME_TONE[o] }));
+/** `OutcomeRows`' shared key, ladder-ordered so every row's parts run in ladder order. */
+export const OUTCOME_KEYS: readonly { id: string; label: string }[] = OUTCOME_LADDER.map((o) => ({
+  id: o,
+  label: OUTCOME_LABELS[o],
+}));
 
 /**
- * One `OutcomeSlice[]` (a ring's worth of data) reshaped into one
- * `StackedBars` column. `total` is taken from the caller rather than summed
- * from `slices`, because `slices` already omits a category with zero count
- * (`OutcomeKey` renders exactly what it's given) and the total must still be
- * the true meeting count, not the sum of only the categories present.
+ * One `OutcomeSlice[]` (a ring's worth of data) as an outcome row's parts:
+ * every rung of the ladder, at nought where `slices` left it out (it omits a
+ * category with no meeting). A reshape of the read model's counts, not a sum.
  */
-export function outcomeStackColumn(
-  label: string,
-  total: number,
-  slices: readonly OutcomeSlice[],
-): { label: string; total: number; parts: Record<string, number> } {
+export function outcomeParts(slices: readonly OutcomeSlice[]): Record<string, number> {
   const byOutcome = new Map(slices.map((s) => [s.outcome, s.count]));
-  return {
-    label,
-    total,
-    parts: Object.fromEntries(OUTCOME_LADDER.map((o) => [o, byOutcome.get(o) ?? 0])),
-  };
+  return Object.fromEntries(OUTCOME_LADDER.map((o) => [o, byOutcome.get(o) ?? 0]));
 }
 
 function arc(cx: number, cy: number, r: number, from: number, to: number): string {

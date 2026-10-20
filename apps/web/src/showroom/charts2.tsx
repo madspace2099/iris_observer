@@ -8,6 +8,7 @@
  *   Sparkline   a figure with its own recent history attached
  *   TrendLine   a series with the moment something changed marked on it
  *   StackedBars composition, and how the composition itself moved
+ *   OutcomeRows an outcome mix per group, one row each, every row its own whole
  *   Bullet      one value against a target and the pace needed to reach it
  *   Heatmap     two dimensions at once — weekday against hour
  *   Funnel      what survives each step, and what falls out
@@ -21,7 +22,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import type { PeriodPreset } from "@observer/readmodels";
+import type { PeriodPreset, StackedColumn } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { DrawIn } from "./DrawIn";
@@ -339,6 +340,97 @@ export function StackedBars({
               <b>{keyTotals?.[k.id] ?? columns.reduce((a, c) => a + (c.parts[k.id] ?? 0), 0)}</b>
             </li>
           ))}
+        </ul>
+      </div>
+    </DrawIn>
+  );
+}
+
+/* --- an outcome mix per group, as rows --------------------------------------- */
+
+/**
+ * One row per group, each its own whole, so a share in one row compares with
+ * the same share in any other (ADR-0041, outcome-rows amendment).
+ *
+ * The owner could not read `StackedBars` here: columns a few pixels wide, a
+ * one-meeting part a 3px sliver, names wrapping under them, a presenter's
+ * column dwarfed beside the team's, and a key whose colours came in pairs.
+ * A row gives the bar the card's width and the name a line of its own.
+ *
+ * Parts run in the order of `keys` (the ladder, the unrecorded outcome last)
+ * and a part with none is not drawn. The figure beside each bar is the read
+ * model's (`ProgressedFigure`); widths are geometry, and nothing here counts.
+ * The key states `keyCounts`, the team's own counts, never a sum of rows that
+ * already include the team.
+ */
+export function OutcomeRows({
+  label,
+  lead,
+  rows,
+  keys,
+  keyCounts,
+}: {
+  /** The list's accessible name. */
+  readonly label: string;
+  /** The team, drawn first and set apart; left out where the rows are disjoint. */
+  readonly lead?: StackedColumn;
+  /** In the read model's order: never re-sorted on a figure. */
+  readonly rows: readonly StackedColumn[];
+  readonly keys: readonly { readonly id: string; readonly label: string }[];
+  readonly keyCounts: Readonly<Record<string, number>>;
+}) {
+  const all = lead === undefined ? rows : [lead, ...rows];
+  return (
+    <DrawIn kind="grow">
+      <div className="iris-orows">
+        <ul className="iris-orows-key" aria-label="Outcomes, with the count for the whole period">
+          {keys.map((k) => (
+            <li key={k.id}>
+              <i data-outcome={k.id} aria-hidden="true" />
+              {k.label}
+              {keyCounts[k.id] === undefined ? null : <b>{keyCounts[k.id]}</b>}
+            </li>
+          ))}
+        </ul>
+        <ul className="iris-orows-list" aria-label={label}>
+          {all.map((row, index) => {
+            const drawn = keys.filter((k) => (row.parts[k.id] ?? 0) > 0);
+            return (
+              <li
+                key={`${index}-${row.label}`}
+                className="iris-orow"
+                data-lead={row === lead ? "true" : undefined}
+                data-below={row.figure.belowMinimum ? "true" : undefined}
+                aria-label={`${row.label}: ${row.figure.meetingsDisplay}, ${row.figure.display}`}
+                style={{ "--i": index } as React.CSSProperties}
+              >
+                <span className="iris-orow-who">
+                  <span className="iris-orow-name">{row.label}</span>
+                  <span className="iris-orow-total">{row.figure.meetingsDisplay}</span>
+                </span>
+                <span
+                  className="iris-orow-bar"
+                  role="img"
+                  aria-label={drawn
+                    .map((k) => `${k.label}: ${row.parts[k.id]} of ${row.total}`)
+                    .join(", ")}
+                >
+                  {drawn.map((k) => (
+                    <span
+                      key={k.id}
+                      className="iris-orow-part"
+                      data-outcome={k.id}
+                      style={{ flexGrow: row.parts[k.id] }}
+                      title={`${row.label} · ${k.label}: ${row.parts[k.id]} of ${row.total}`}
+                    >
+                      <b>{row.parts[k.id]}</b>
+                    </span>
+                  ))}
+                </span>
+                <span className="iris-orow-figure">{row.figure.display}</span>
+              </li>
+            );
+          })}
         </ul>
       </div>
     </DrawIn>

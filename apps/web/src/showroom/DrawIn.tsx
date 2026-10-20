@@ -33,7 +33,7 @@ import { useEffect, useRef, type ReactNode } from "react";
  * mask clips to the drawing's box, and left in place at rest it cut the ring's
  * glow off in a square.
  */
-export type DrawKind = "sweep" | "turn" | "bloom" | "rise";
+export type DrawKind = "sweep" | "turn" | "bloom" | "rise" | "grow";
 
 /** The longest entry, the turn's 1200ms, with room to finish; the heat cells end by 1000ms. */
 const PLAY_MS = 1500;

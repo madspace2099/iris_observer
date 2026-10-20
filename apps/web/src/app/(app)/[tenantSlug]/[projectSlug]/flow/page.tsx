@@ -6,6 +6,7 @@ import {
   type PeriodPreset,
   DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
+import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -16,13 +17,13 @@ import { AssistedSales, FlowLadder } from "@/components/flow";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
 import {
-  OUTCOME_STACK_KEYS,
+  OUTCOME_KEYS,
   OutcomeKey,
   OutcomeRing,
   PeriodSteps,
-  outcomeStackColumn,
+  outcomeParts,
 } from "@/showroom/charts";
-import { Funnel, Heatmap, KpiCard, RankedBars, StackedBars, TrendLine } from "@/showroom/charts2";
+import { Funnel, Heatmap, KpiCard, OutcomeRows, RankedBars, TrendLine } from "@/showroom/charts2";
 
 export const metadata: Metadata = { title: "Sales Flow" };
 
@@ -38,19 +39,14 @@ function windowFrom(value: string | undefined): KpiWindowId {
  * how many meetings today, yesterday, this week, last week, this month, last
  * month; how long they ran; and how many of them realised into something.
  *
- * The per-agent outcome mix is one `StackedBars` call — Team beside every
- * agent, one shared key, ladder order in every column — not a ring per
- * agent. A ring reads its own mix at a glance but has no way to carry the
- * *ordinal* fact that purchase and not_interested are opposite ends of one
- * ladder, not six unrelated slices; same-band pairs in the current palette
- * are close to indistinguishable by colour precisely because that
- * distinction was handed to position instead, and a ring has no position to
- * hand it to. A bar does: purchase at the base, not_interested at the top,
- * in every column, so the same rung reads at the same height everywhere on
- * the chart. Team is drawn to its own true count, same as any agent, so it
- * reads as a baseline rather than a rank. A flag is raised where a pattern
- * is worth a conversation, and it is written as a fact an agent can answer,
- * never a rank.
+ * The per-agent outcome mix is one `OutcomeRows` call — the team first, then
+ * every presenter in the read model's order, one shared key, ladder order in
+ * every row — not a ring per agent. The owner found the stacked columns that
+ * stood here unreadable (2026-10-20, ADR-0041): a row gives each bar the
+ * card's width, each name its own line, and each group its own whole, so a
+ * share in one row compares with the same share in any other. A flag is
+ * raised where a pattern is worth a conversation, and it is written as a fact
+ * an agent can answer, never a rank.
  *
  * The summary figures at the top answer to their own control rather than to the
  * page period. How many presentations is a different question today and this
@@ -64,10 +60,11 @@ function windowFrom(value: string | undefined): KpiWindowId {
  * DIFFERENT denominator than the "Every outcome" ring above it). ADR-0012
  * forbids the first kind on principle, and the second put two figures that
  * sound like the same claim, computed two different ways, on one screen.
- * Both are dropped rather than replaced: `OutcomeRing` already draws the
- * true total in its centre, `OutcomeKey` already states every slice's own
- * count, and the per-agent bars below state every column's own total the
- * same way, so nothing the reader could learn from either sentence is lost.
+ * Both were dropped: `OutcomeRing` draws the true total in its centre and
+ * `OutcomeKey` states every slice's own count. The rate came back with the
+ * outcome rows, written by the read model with its own denominator
+ * (`ProgressedFigure`: "81% progressed · 29 of 36 recorded"), so the page
+ * still rounds nothing.
  */
 export default async function FlowPage({
   params,
@@ -112,10 +109,9 @@ export default async function FlowPage({
     repository.getShowroomOverview(query),
   ]);
 
-  // Shared between the team-vs-agent bars and their key, so the key's totals
-  // come from Team's own count rather than summing every column together --
-  // Team is an aggregate of the agent columns beside it, not a disjoint one.
-  const teamOutcomeColumn = outcomeStackColumn("Team", view.meetingCount, view.outcomes);
+  // The team's own counts: its row, and both outcome keys. The key never sums
+  // the rows, because the team row is an aggregate of the presenters beside it.
+  const teamParts = outcomeParts(view.outcomes);
 
   const base = `/${tenantSlug}/${projectSlug}/flow`;
   const windowHref = (id: KpiWindowId) => {
@@ -470,7 +466,16 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               What those meetings became
             </h2>
-            <StackedBars columns={charts.composition.columns} keys={charts.composition.keys} />
+            <OutcomeRows
+              label="What those meetings became, month by month"
+              rows={charts.composition.columns}
+              keys={charts.composition.keys}
+              keyCounts={teamParts}
+            />
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+              Each month is its own whole. Its figure is the share of the month&rsquo;s recorded
+              meetings that reached a follow-up or better.
+            </p>
           </div>
         </div>
 
@@ -480,15 +485,22 @@ export default async function FlowPage({
           <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: "1.25rem" }}>
             How each agent&rsquo;s meetings end
           </h2>
-          <StackedBars
-            columns={[
-              teamOutcomeColumn,
-              ...view.rings.map((ring) =>
-                outcomeStackColumn(ring.name, ring.meetings, ring.slices),
-              ),
-            ]}
-            keys={OUTCOME_STACK_KEYS}
-            keyTotals={teamOutcomeColumn.parts}
+          <OutcomeRows
+            label="How each agent’s meetings end, the team first"
+            lead={{
+              label: "Team",
+              total: view.meetingCount,
+              parts: teamParts,
+              figure: view.team,
+            }}
+            rows={view.rings.map((ring) => ({
+              label: ring.name,
+              total: ring.meetings,
+              parts: outcomeParts(ring.slices),
+              figure: ring.figure,
+            }))}
+            keys={OUTCOME_KEYS}
+            keyCounts={teamParts}
           />
           <div className="iris-changes" style={{ marginTop: "1rem" }}>
             {view.rings.map((ring) => (
@@ -509,9 +521,11 @@ export default async function FlowPage({
             ))}
           </div>
           <p className="iris-meta iris-meta-measured" style={{ marginTop: "1rem" }}>
-            Each bar is drawn to its own true count, stacked in ladder order &mdash; purchase at the
-            base, not_interested at the top &mdash; so the shares within one bar are comparable to
-            the shares within any other, agent to agent and against the team.
+            Every row is its own whole, its parts in ladder order from purchase on the left, so a
+            share in one row compares with the same share in any other, presenter to presenter and
+            against the team. The hatched part is meetings with no outcome recorded; every rate
+            stands on the recorded ones only. Presenters keep the roster&rsquo;s order, not a
+            ranking, and below {AGENT_MIN_SAMPLE} meetings a presenter&rsquo;s row states no rate.
           </p>
           {/*
             Named where it contributed. A project with no CRM connected has no
