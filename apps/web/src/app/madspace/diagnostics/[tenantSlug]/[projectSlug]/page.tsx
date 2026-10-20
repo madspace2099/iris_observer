@@ -254,8 +254,8 @@ function Feeds({ d }: { d: ProjectDiagnostics }) {
         <h2 id="feeds-heading">Feeds</h2>
         <p>
           {d.sources.some((s) => !s.tracked)
-            ? "This demonstration project now runs on today's clock, and its feeds' records are the demonstration's fixed ones, so no age is taken from them. The control plane's heartbeat below is the reading."
-            : "Each feed's own last-seen record, against the day this project runs on."}
+            ? "This demonstration project now runs on today’s clock, and its feeds’ records are the demonstration’s fixed ones, so no age is taken from them. The control plane’s heartbeat below is the reading."
+            : "Each feed’s own last-seen record, against the day this project runs on."}
         </p>
       </div>
       <TableWrap labelledBy="feeds-heading">
