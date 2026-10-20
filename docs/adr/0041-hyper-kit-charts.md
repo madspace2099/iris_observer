@@ -110,22 +110,33 @@ blue, Presentation only and Not interested both brown).
   ("Lena Fischer · Purchase: 7 of 39") always. Beside each bar stands the read model's
   `ProgressedFigure`, "81% progressed · 29 of 36 recorded", written for a presenter
   (`AgentOutcomeRing.figure`), the team (`SalesFlowView.team`) and a month (`StackedColumn.figure`);
-  below `AGENT_MIN_SAMPLE` a presenter's row keeps its bar and states how far short it is instead of
-  a rate. One key, its counts the team's own. A card narrower than 36rem puts the name above the bar
-  and the figure under it. Each row is a list item named with its group, its meetings and its figure;
-  the bar is one image to assistive technology and no part is a focus stop.
+  below `AGENT_MIN_SAMPLE` recorded meetings, the set the rate stands on and not the meetings held,
+  a row keeps its bar and states how far short it is instead of a rate, for a presenter, the team and
+  a month alike (a five-meeting stub month states no rate beside a whole one). One key, its counts the
+  team's own. A card narrower than 56rem (a tablet's included) puts the name above the bar and the
+  figure under it, so the bar takes the card's width. Each row is a list item named with its group,
+  its meetings and its figure; the bar is one image to assistive technology, a bar with no part is
+  none, and no part is a focus stop. A period with no meeting gets one sentence in each card instead
+  of the rows.
 - **Motion.** A new `DrawIn` kind, `grow`: the bars clip in from the left, row by row 70ms apart,
   inside the 1500ms the entry already allows. Names, figures and key stand from the first frame;
   reduced motion and print get the final frame.
-- **Colour.** The rows carry their own palette, scoped to `.iris-orows` in `charts.css`;
-  `OUTCOME_TONE` and the `--outcome-*` tokens are unchanged, so the rings and the period steps read
-  as before. WCAG non-text contrast on the D card (`#000`): purchase `#8cf5a8` 15.7:1, reservation
-  `#3fd3a0` 11.0:1, interested `#22a6b8` 7.2:1, follow-up needed `#3f7fd0` 5.2:1 (green to teal to
-  blue for the four that progressed), presentation only `#9a9aa5` 7.5:1 (neutral grey), not
-  interested `#c4744c` 6.0:1 (a terracotta, neither the watch amber `#d9a441` nor the loss red
-  `#e07a72`), the unrecorded hatch's stripe `#6e6e78` 4.2:1. Neighbours stand only 1.3 to 1.5:1
-  apart, so a 2px gap of the card separates every two parts. A count inside a part is the card's
-  black, 5.2:1 or more on every fill; on the hatch it stands on a black patch in the card's ink. No
-  glow.
+- **Colour.** One palette for every outcome chart: the `--outcome-*` tokens (`iris.css`, bridged in
+  `observer-product.css`) were retokened, so the ring, its key and the rows read one key. A first
+  pass scoped a palette to the rows and left the ring on the old tokens; on one page blue then meant
+  Interested in the ring and Follow-up needed in the rows, and grey meant unrecorded in one and
+  Presentation only in the other. WCAG non-text contrast on the D card (`#000`) and the ring's track
+  (`#111114`): purchase `#8cf5a8` 15.7 / 14.1:1, reservation `#3fd3a0` 11.0 / 9.9:1, interested
+  `#26c0cf` 9.5 / 8.6:1, follow-up needed `#3f7fd0` 5.2 / 4.6:1 (green to teal to blue, lightest
+  first, for the four that progressed), presentation only `#8d8f95` 6.5 / 5.8:1 (neutral grey), not
+  interested `#c4744c` 6.0 / 5.3:1 (a terracotta, neither the watch amber `#d9a441` nor the loss red
+  `#e07a72`), unrecorded `#6e6e78` (`--outcome-unrecorded`) 4.2 / 3.7:1, never solid: a hatch in a
+  bar and a key, stripes on a ring. Every two of the seven stand at least 0.096 apart in OKLab under
+  normal vision, protanopia and deuteranopia (Machado 2009, full severity); the first pass's
+  interested `#22a6b8` and presentation only `#9a9aa5` were 0.028 apart under protanopia. Neighbours
+  are close in luminance (1.1 to 1.9:1), so a 2px gap of the card separates every two parts in a bar
+  and a gap of the track every two slices on a ring. A count inside a part is the card's black, 5.2:1
+  or more on every fill; on the hatch it stands on a black patch in the card's ink. The period steps
+  read the D ramp, not these tokens, and are unchanged. No glow.
 - **What stays.** `StackedBars` and the `.iris-stacks` rules remain for the design-lab gallery alone;
   the product card's own stacked-column rules are gone.
