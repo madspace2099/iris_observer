@@ -4724,3 +4724,15 @@ button.mad-quiet {
   margin-top: var(--space-4);
   max-width: 40rem;
 }
+
+/*
+ * The account block in MADSPACE's header. The product's header caps it at
+ * laptop widths so its four-item navigation stays centred; MADSPACE's three
+ * short sections leave room, so from 1280px the operator's name and role are
+ * read in full rather than as "MADSPACE Ope…".
+ */
+@media (width >= 1280px) {
+  .irs-shell.mad-portal .irs-header-end .irs-who {
+    max-width: none;
+  }
+}
