@@ -5307,3 +5307,30 @@ motion — no dev server was run, so **the three pages themselves were not looke
 **Next recommended action.** Máté looks at Sales Flow, Sales Agents and Project on the demo build
 (`pnpm build`, `node scripts/demo-start.mjs`) at 1440 and 390, period switched once, before
 recording.
+
+## 2026-10-20 — MADSPACE on the product's shell (ADR-0047)
+
+Máté, looking at `/madspace` on the demo server: its design "teljesen eltér" from a project page,
+"fejléc/logó bal oldalon nincs"; he should see all projects on `/madspace` (and `/madspace/projects`
+is the same list, so one page); Diagnostics should diagnose every client project ("hány agentjük
+használja"); the Directory should be companies first, each expandable to its people, with no
+separate Tenants and Agencies.
+
+**Built (ADR-0047):**
+
+| What                                                                                                                                   | Where                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| The product's shell and header: IRIS mark left, Projects · Diagnostics · Directory centred, account right, the control plane as a chip | `components/madspace/MadspaceHeader.tsx`, `app/madspace/layout.tsx`               |
+| `/madspace` is every project by company; `/madspace/projects` redirects there                                                          | `app/madspace/page.tsx`, `lib/madspace/portfolio.ts`                              |
+| `ProjectDiagnostics` read model, last 28 days and quarter to date, `madspace_admin` only                                               | `packages/readmodels/src/diagnostics.ts`, `packages/synthetic/src/diagnostics.ts` |
+| Diagnostics opens on one row per client project; a drill-down per project                                                              | `app/madspace/diagnostics/page.tsx`, `.../[tenantSlug]/[projectSlug]`             |
+| Directory: one list of companies, each a `<details>` with its people; Add company                                                      | `app/madspace/directory/page.tsx`, `lib/madspace/companies.ts`                    |
+
+**Not verified on screen yet.** No dev server or Playwright ran in this stream (the lead runs
+them). Typecheck, lint and the unit suite are green; the screens need a real look at 1440 and 390 on
+the demo server: `/madspace`, `/madspace/diagnostics`, `/madspace/diagnostics/shark/shark-residence`,
+`/madspace/directory`, and the header's menu sheet below 1200px.
+
+**Next recommended action.** Build and start the demo, sign in as MADSPACE Operations, look at the
+four screens above at both widths, then run `madspace-screenshots` and `m10-acceptance` (both edited
+for the new structure).
