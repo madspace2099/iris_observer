@@ -12,6 +12,7 @@ import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { Radar, RankedBars } from "@/showroom/charts2";
 import { DrawIn } from "@/showroom/DrawIn";
+import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 
 import { DEFAULT_LANGUAGE, agentDetailHref } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Sales Agents" };
@@ -106,7 +107,12 @@ export default async function AgentsPage({
     <div className="iris-one">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker">Sales agents · {view.context.period.label}</p>
-        <h1 className="iris-section">{view.verdict}</h1>
+        <SpokenVerdict
+          sentence={view.verdict}
+          meetings={view.meetingCount}
+          locale={view.context.project.locale}
+          replay={period}
+        />
 
         <div className="iris-segmented" role="tablist" aria-label="Sales Agents">
           <Link role="tab" aria-selected={!coaching} href={dynamicRoute(viewHref("roster"))}>

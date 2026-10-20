@@ -11,6 +11,7 @@ import { PairedRates, ParityScale } from "@/showroom/charts";
 import { BulletChart } from "@/showroom/charts2";
 import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
 import { DrawIn } from "@/showroom/DrawIn";
+import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { ExportReport } from "@/components/report";
 import { withPeriod, withPeriodOnLinks } from "@/lib/period";
 
@@ -106,7 +107,12 @@ export default async function ProjectPage({
       <div className="iris-one">
         <section className="iris-plane iris-stack">
           <p className="iris-kicker">Project · {view.context.period.label}</p>
-          <h1 className="iris-section">{view.verdict}</h1>
+          <SpokenVerdict
+            sentence={view.verdict}
+            meetings={view.meetingCount}
+            locale={view.context.project.locale}
+            replay={query.period}
+          />
           <p className="iris-body" style={{ maxWidth: "62ch" }}>
             This project shows only what its own sources deliver, and none has delivered yet.
             MADSPACE connects them, and each screen fills as its source starts to report.
@@ -126,7 +132,12 @@ export default async function ProjectPage({
     <div className="iris-one">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker">Project · {view.context.period.label}</p>
-        <h1 className="iris-section">{view.verdict}</h1>
+        <SpokenVerdict
+          sentence={view.verdict}
+          meetings={view.meetingCount}
+          locale={view.context.project.locale}
+          replay={query.period}
+        />
 
         {/*
          * PRESENTATION DNA, REACHABLE FROM ITS OWNING CONTEXT.

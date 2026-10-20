@@ -14,6 +14,7 @@ import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AssistedSales, FlowLadder } from "@/components/flow";
+import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
 import {
@@ -151,7 +152,12 @@ export default async function FlowPage({
     <div className="iris-one">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker iris-kicker-measured">Sales flow · {view.context.period.label}</p>
-        <h1 className="iris-section">{view.verdict}</h1>
+        <SpokenVerdict
+          sentence={view.verdict}
+          meetings={view.meetingCount}
+          locale={view.context.project.locale}
+          replay={`${query.period}-${kpiWindow}`}
+        />
 
         {/* --- the figures, over a window the reader picks ---------------- */}
 
