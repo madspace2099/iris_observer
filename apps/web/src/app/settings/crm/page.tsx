@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactNode } from "react";
 
 import {
@@ -11,7 +12,9 @@ import type { ConnectorKind } from "@observer/contracts";
 
 import { repository } from "@/lib/repository";
 import { requireAccount, requireViewer } from "@/lib/session";
-import { companyOf } from "@/lib/accounts";
+import { companyOf, mayConnectCrm } from "@/lib/accounts";
+import { mapToLines } from "@/lib/connectors/configs";
+import { dynamicRoute } from "@/lib/href";
 import { controlPlane } from "@/lib/sources/control-plane";
 import { controlPlaneProjectFor } from "@/lib/directory/rows";
 import { liveConnectorService } from "@/lib/connectors/live";
@@ -41,11 +44,12 @@ export const metadata: Metadata = { title: "CRM" };
  * ## Only forms that work
  *
  * A form is drawn only where saving it would do something: the reader is the
- * company admin (ADR-0043: admins act, members read), the project stands on
- * this server's control plane, and — for a login or a token — the server holds
- * a credential key to seal it under. Anywhere else the tile says why not. A
- * demonstration project's CRM is built in, so it shows as connected with what
- * it reads, and no form. Google Sheets has no connector of its own: Observer
+ * admin of the company that develops the project (ADR-0043: admins act,
+ * members read; an agency selling the project reads it too), or MADSPACE; the
+ * project stands on this server's control plane; and — for a login or a token —
+ * the server holds a credential key to seal it under. Anywhere else the tile
+ * says why not. A demonstration project's CRM is built in, so it shows as
+ * connected with what it reads, and no form. Google Sheets has no connector of its own: Observer
  * does not read a live sheet, so its tile says to download the sheet as CSV.
  *
  * ## Credentials
@@ -93,6 +97,7 @@ export default async function CrmSettings({
       project,
       source: view.source,
       live: uuid !== null && service !== null,
+      owner: mayConnectCrm(account, viewer, tenant),
       connectors: uuid === null || service === null ? [] : await service.list(uuid),
       deals: uuid === null || service === null ? new Map() : await service.dealSummary(uuid),
     });
@@ -114,7 +119,7 @@ export default async function CrmSettings({
             Your CRM says when a flat is reserved or sold. With it, Sales Flow shows which of those
             sales the IRIS showroom showed first, how often and how long before.{" "}
             {admin
-              ? "As your company's admin you connect it here, project by project."
+              ? "As your company's admin you connect it here for each project your company develops."
               : `${company.adminName}, your company's admin, connects it; you can see what each project reads.`}
           </p>
         </div>
@@ -134,8 +139,8 @@ export default async function CrmSettings({
           <ProjectPanel
             key={`${row.tenant.slug}/${row.project.slug}`}
             row={row}
-            admin={admin}
             adminName={company.adminName}
+            companyName={company.name}
             sealable={sealable}
           />
         ))
@@ -150,31 +155,51 @@ interface ProjectRow {
   readonly source: IrisLedSource | null;
   /** The project stands on this server's control plane: a form here would be saved. */
   readonly live: boolean;
+  /** The reader may connect this project's CRM: its developer's admin, or MADSPACE (ADR-0049). */
+  readonly owner: boolean;
   readonly connectors: readonly ConnectorSummary[];
   readonly deals: ReadonlyMap<string, LastDealSync>;
 }
 
-function when(iso: string): string {
-  return new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+/** In the project's own zone, named, as every other date about the project is. */
+function when(iso: string, timeZone: string): string {
+  return new Date(iso).toLocaleString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+    timeZoneName: "short",
+  });
 }
+
+/** What a stored map looks like in a form: one line per entry, as the MADSPACE form draws it. */
+const lines = (config: Record<string, unknown> | undefined, key: string): string =>
+  mapToLines(config?.[key] as Record<string, unknown> | null | undefined);
 
 function ProjectPanel({
   row,
-  admin,
   adminName,
+  companyName,
   sealable,
 }: {
   readonly row: ProjectRow;
-  readonly admin: boolean;
   readonly adminName: string;
+  readonly companyName: string;
   readonly sealable: boolean;
 }) {
   const { project, source } = row;
   const demonstration = source?.connector === "synthetic";
   const headingId = `crm-${row.tenant.slug}-${project.slug}`;
-  /* Forms where a save would land: the company's admin, on a project the control plane holds. */
-  const acts = admin && row.live && !demonstration;
+  /* Forms where a save would land: the developer's admin (or MADSPACE), on a project the control plane holds. */
+  const acts = row.owner && row.live && !demonstration;
   const connector = (kind: ConnectorKind) => row.connectors.find((c) => c.kind === kind) ?? null;
+  const config = (kind: ConnectorKind) => connector(kind)?.config;
+  const zone = project.timeZone;
+  /* The CRM is another company's: the developer's, read here by the agency that sells for it. */
+  const theirs = companyName !== row.tenant.name && !row.owner;
+  const irisLed = `/${row.tenant.slug}/${project.slug}/flow/iris-led`;
 
   return (
     <section className="ox-panel ox-panel-pad os-column" aria-labelledby={headingId}>
@@ -199,11 +224,13 @@ function ProjectPanel({
         {source === null ? (
           <p className="os-note">
             Nothing is read yet, so Sales Flow cannot say which sales IRIS showed first.
-            {row.live
-              ? admin
+            {!row.live
+              ? " This project is not on this server's control plane; MADSPACE connects its CRM."
+              : row.owner
                 ? " Choose a provider below."
-                : ` ${adminName} can connect one.`
-              : " This project is not on this server's control plane; MADSPACE connects its CRM."}
+                : theirs
+                  ? ` The admin of ${row.tenant.name} can connect one.`
+                  : ` ${adminName} can connect one.`}
           </p>
         ) : (
           <>
@@ -218,6 +245,11 @@ function ProjectPanel({
                 this page.
               </p>
             ) : null}
+            <p className="os-note">
+              <Link href={dynamicRoute(`${irisLed}?period=quarter_to_date`)}>
+                Open IRIS-led sales for {project.name}
+              </Link>
+            </p>
           </>
         )}
       </div>
@@ -227,7 +259,8 @@ function ProjectPanel({
         name="Realpad"
         state={connector("realpad")}
         deals={row.deals.get("realpad") ?? null}
-        supports="Reads the price list over REALPAD's API: every flat's availability, each hour. A flat that changes to reserved or sold between two reads is dated by the read that saw it. Deals, with the date of each stage, come from REALPAD's business-case export once its column ids are mapped with MADSPACE."
+        zone={zone}
+        supports="Reads the price list over REALPAD's API: every flat's availability, once when you save here, and once a day at 06:00 UTC where this server's scheduled sync is switched on. A flat that moves from available to reserved or sold between two reads is dated by the read that saw it, so the first read dates nothing. Deals, with the date of each stage, come from REALPAD's business-case export once its column ids are mapped with MADSPACE; a Data Takeout pair stored for them is kept when you replace the price-list pair here."
       >
         {!acts ? null : !sealable ? (
           <NoSeal />
@@ -280,7 +313,8 @@ function ProjectPanel({
         name="Monday.com"
         state={connector("monday")}
         deals={row.deals.get("monday") ?? null}
-        supports="Reads a board with one item per flat and a status column for its availability, each hour. Deals come from a second board once its columns and stage words are mapped with MADSPACE."
+        zone={zone}
+        supports="Reads a board with one item per flat and a status column for its availability, once when you save here, and once a day at 06:00 UTC where this server's scheduled sync is switched on. Deals come from a second board once its columns and stage words are mapped with MADSPACE."
       >
         {!acts ? null : !sealable ? (
           <NoSeal />
@@ -302,12 +336,14 @@ function ProjectPanel({
               id={`${headingId}-md-columns`}
               name="columns"
               label="Columns"
+              value={lines(config("monday"), "columns")}
               hint="One per line: code=column id, status=column id. Code is required."
             />
             <Lines
               id={`${headingId}-md-status`}
               name="statusMap"
               label="Status words"
+              value={lines(config("monday"), "statusMap")}
               hint="One per line: your label=available, reserved or sold."
             />
           </CrmForm>
@@ -328,6 +364,7 @@ function ProjectPanel({
         name="CSV upload"
         state={connector("csv")}
         deals={row.deals.get("csv") ?? null}
+        zone={zone}
         supports="A flats sheet (a code column and a status column) and, if you keep one, a deals sheet (deal id, stage, flat code, and the date each stage was entered). A stage date needs a time and a zone, as in 2026-08-12T14:00+02:00: a date alone cannot be placed against a showing, and such a deal is counted as undated."
       >
         {acts ? (
@@ -342,12 +379,14 @@ function ProjectPanel({
                 id={`${headingId}-csv-columns`}
                 name="columns"
                 label="Flats columns"
+                value={lines(config("csv"), "columns")}
                 hint="One per line: code=header, status=header. Code is required."
               />
               <Lines
                 id={`${headingId}-csv-status`}
                 name="statusMap"
                 label="Status words"
+                value={lines(config("csv"), "statusMap")}
                 hint="One per line: your word=available, reserved or sold."
               />
               <FileField id={`${headingId}-csv-file`} label="Flats sheet (.csv)" />
@@ -362,12 +401,14 @@ function ProjectPanel({
                 id={`${headingId}-csv-deals`}
                 name="dealColumns"
                 label="Deals columns"
+                value={lines(config("csv"), "dealColumns")}
                 hint="One per line: externalId=header, stage=header, unitCode=header, stageEnteredAt=header."
               />
               <Lines
                 id={`${headingId}-csv-stages`}
                 name="stageMap"
                 label="Stage words"
+                value={lines(config("csv"), "stageMap")}
                 hint="One per line: your word=lead, meeting, negotiation, offer, reservation, purchase or lost."
               />
               <FileField id={`${headingId}-csv-deals-file`} label="Deals sheet (.csv)" />
@@ -387,9 +428,11 @@ function ProjectPanel({
 
       {acts || demonstration ? null : (
         <p className="os-note">
-          {admin
+          {row.owner
             ? "Forms appear here once MADSPACE has put this project on the control plane."
-            : `Only ${adminName}, your company's admin, can connect a CRM.`}
+            : theirs
+              ? `This project's CRM belongs to ${row.tenant.name}: its admin connects it, and ${companyName} reads what it holds here.`
+              : `Only ${adminName}, your company's admin, can connect a CRM.`}
         </p>
       )}
     </section>
@@ -400,12 +443,15 @@ function Provider({
   name,
   state,
   deals,
+  zone = "UTC",
   supports,
   children = null,
 }: {
   readonly name: string;
   readonly state: ConnectorSummary | null;
   readonly deals: LastDealSync | null;
+  /** The project's zone, for when it last read. */
+  readonly zone?: string;
   readonly supports: string;
   readonly children?: ReactNode;
 }) {
@@ -430,7 +476,7 @@ function Provider({
       <p className="os-note">{supports}</p>
       {state?.lastSync == null ? null : (
         <p className="os-note">
-          Flats last read <time dateTime={state.lastSync.at}>{when(state.lastSync.at)}</time>:{" "}
+          Flats last read <time dateTime={state.lastSync.at}>{when(state.lastSync.at, zone)}</time>:{" "}
           {state.lastSync.outcome === "ok"
             ? `${String(state.lastSync.fetched ?? 0)} flats.`
             : state.lastSync.detail}
@@ -438,7 +484,7 @@ function Provider({
       )}
       {deals === null ? null : (
         <p className="os-note">
-          Deals last read <time dateTime={deals.at}>{when(deals.at)}</time>:{" "}
+          Deals last read <time dateTime={deals.at}>{when(deals.at, zone)}</time>:{" "}
           {deals.outcome === "ok" ? `${String(deals.fetched)} deals.` : deals.detail}
         </p>
       )}
@@ -516,11 +562,14 @@ function Lines({
   id,
   name,
   label,
+  value,
   hint,
 }: {
   readonly id: string;
   readonly name: string;
   readonly label: string;
+  /** What is stored now: a form sent back as drawn keeps it. */
+  readonly value: string;
   readonly hint: string;
 }) {
   return (
@@ -531,6 +580,7 @@ function Lines({
         id={id}
         name={name}
         rows={3}
+        defaultValue={value}
         spellCheck={false}
         aria-describedby={`${id}-hint`}
       />

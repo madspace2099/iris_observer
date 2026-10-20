@@ -357,6 +357,24 @@ export function companyOf(account: Account): Company {
 }
 
 /**
+ * Whether an account may connect, replace or switch off a project's CRM
+ * (ADR-0049). The CRM is the developer's (`docs/01-foundation.md` §1, §4), so
+ * the company admin of the project's own developer may, and MADSPACE, which
+ * connects every project's CRM anyway; an agency's admin holding the project
+ * reads it and changes nothing. ADR-0043's "admins act" was about a company's
+ * own key, never another company's connection.
+ */
+export function mayConnectCrm(
+  account: Account,
+  viewer: Viewer,
+  tenant: { readonly name: string },
+): boolean {
+  if (viewer.role === "madspace_admin") return true;
+  const company = companyOf(account);
+  return company.role === "admin" && company.name === tenant.name;
+}
+
+/**
  * The accounts a project made in administration can be given to.
  *
  * Everybody this deployment can sign in except its administrators, who hold

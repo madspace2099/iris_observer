@@ -671,6 +671,55 @@ describe("connectorService, deals", () => {
     expect(JSON.stringify(deals.syncs)).not.toContain("acme-pricelist");
   });
 
+  it("keeps the stored Data Takeout pair when only the pricelist pair is replaced", async () => {
+    const bodies: string[] = [];
+    /* A clock that moves, so the second credential is a newer revision than the first. */
+    let tick = 0;
+    const svc = connectorService({
+      db: memoryDb(),
+      deals: memoryDealsDb(),
+      account: ACCOUNT,
+      env: { ...ENV, OBSERVER_SUBJECT_PEPPER: PEPPER },
+      now: () => new Date(Date.parse("2026-09-07T10:00:00Z") + 1000 * tick++),
+      http: async (request) => {
+        bodies.push(request.body ?? "");
+        return { status: 401, headers: {}, text: "" };
+      },
+    });
+    const config = {
+      developerId: 1,
+      projectId: 2,
+      screenId: 3,
+      dealColumns: { externalId: "d", stage: "l" },
+    };
+    await svc.save(
+      PROJECT,
+      "realpad",
+      config,
+      {
+        login: "acme-pricelist",
+        password: "p1",
+        takeoutLogin: "acme-takeout",
+        takeoutPassword: "p2",
+      },
+      true,
+    );
+    /* The company admin's form: a new pricelist pair, and no word about the takeout pair. */
+    const saved = await svc.saveRealpadPricelist(
+      PROJECT,
+      config,
+      { login: "acme-pricelist-2", password: "p3" },
+      true,
+    );
+    expect(saved).toEqual({ ok: true });
+    expect((await svc.list(PROJECT)).find((c) => c.kind === "realpad")?.credentialTail).toBe(
+      "st-2",
+    );
+    await svc.syncDeals(PROJECT, "realpad");
+    const sent = new URLSearchParams(bodies[0]);
+    expect([sent.get("login"), sent.get("password")]).toEqual(["acme-takeout", "p2"]);
+  });
+
   it("answers with a sentence where the deals store is absent or the CRM offers no pull", async () => {
     const svc = connectorService({
       db: memoryDb(),

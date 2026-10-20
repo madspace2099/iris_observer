@@ -300,6 +300,38 @@ export function connectorService(deps: ServiceDeps) {
     return parsed.success ? parsed.data : null;
   }
 
+  /**
+   * A new REALPAD pricelist pair over the stored credential, keeping the Data
+   * Takeout pair stored beside it (ADR-0036). The company admin's form asks for
+   * the pricelist pair only; replacing the whole credential would drop the
+   * deals scope without a word. The stored pair is opened and merged here and
+   * goes nowhere but the seal; one this server cannot open has nothing to keep.
+   */
+  async function saveRealpadPricelist(
+    projectUuid: string,
+    rawConfig: unknown,
+    pair: { readonly login: string; readonly password: string },
+    enabled: boolean,
+  ): Promise<{ readonly ok: true } | Refused> {
+    let stored: Record<string, unknown> | null = null;
+    try {
+      stored = await openCredential(projectUuid, "realpad");
+    } catch {
+      stored = null;
+    }
+    return save(
+      projectUuid,
+      "realpad",
+      rawConfig,
+      {
+        ...pair,
+        takeoutLogin: stored?.["takeoutLogin"] ?? null,
+        takeoutPassword: stored?.["takeoutPassword"] ?? null,
+      },
+      enabled,
+    );
+  }
+
   function fetcherFor(
     kind: ConnectorKind,
     config: unknown,
@@ -718,6 +750,7 @@ export function connectorService(deps: ServiceDeps) {
   return {
     list,
     save,
+    saveRealpadPricelist,
     removeCredential,
     sync,
     importCsv,

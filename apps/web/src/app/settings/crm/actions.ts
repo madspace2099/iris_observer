@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import type { ConnectorKind } from "@observer/contracts";
 
-import { companyOf } from "@/lib/accounts";
+import { companyOf, mayConnectCrm } from "@/lib/accounts";
 import { currentAccount, currentViewer } from "@/lib/session";
 import { repository } from "@/lib/repository";
 import { controlPlaneProjectFor } from "@/lib/directory/rows";
@@ -19,8 +19,10 @@ import type { ConnectorService } from "@/lib/connectors/service";
  * (`liveConnectorService`): settings validated by the connector's own schema,
  * a credential sealed under the server's key, a sync recorded. What differs is
  * who may: the signed-in account's company admin, for a project their account
- * holds (`resolveProject` proves the grant) that stands on the control plane
- * (`controlPlaneProjectFor`). A member reads the page and changes nothing.
+ * holds (`resolveProject` proves the grant) whose developer is their own company
+ * (`mayConnectCrm`: an agency holding the project reads it), that stands on the
+ * control plane (`controlPlaneProjectFor`). A member reads the page and changes
+ * nothing.
  *
  * Every action re-authorises, because a server action is an HTTP endpoint. A
  * credential is read from the form, handed to `save`, and dropped: it is never
@@ -74,6 +76,12 @@ async function scope(form: FormData): Promise<Scope> {
   } catch {
     return { ok: false, message: "That project is not one your account holds. Nothing was saved." };
   }
+  if (!mayConnectCrm(account, viewer, resolved.tenant)) {
+    return {
+      ok: false,
+      message: `This project's CRM belongs to ${resolved.tenant.name}, and only its admin connects it. Nothing was saved.`,
+    };
+  }
   const projectUuid = await controlPlaneProjectFor(resolved.project);
   if (projectUuid === null) {
     return {
@@ -92,7 +100,12 @@ async function scope(form: FormData): Promise<Scope> {
   return { ok: true, service, projectUuid };
 }
 
-/** What is stored for the connector now, so a save here never drops a mapping MADSPACE made. */
+/**
+ * What is stored for the connector now, so a save here never drops a setting
+ * this page does not show. The maps it does show (columns, status and stage
+ * words) are drawn filled with what is stored, so a form sent back as drawn
+ * keeps them too.
+ */
 async function stored(
   service: ConnectorService,
   projectUuid: string,
@@ -105,14 +118,20 @@ function counted(changes: readonly { readonly kind: string }[], kind: string): n
   return changes.filter((c) => c.kind === kind).length;
 }
 
-/** Saves, then reads once, and says what happened in one sentence. */
+/** The unmapped status words a read met, as a sentence; empty when there were none. */
+function unmapped(words: readonly string[]): string {
+  return words.length === 0
+    ? ""
+    : ` ${String(words.length)} status word(s) are not mapped yet: ${words.join(", ")}. Until they are, those flats read as unknown and none of them is dated as a sale.`;
+}
+
+/** Saves (the write is the caller's), then reads once, and says what happened in one sentence. */
 async function saveAndRead(
   found: Extract<Scope, { ok: true }>,
   kind: Exclude<ConnectorKind, "csv">,
-  config: Record<string, unknown>,
-  credential: Record<string, unknown> | null,
+  saving: Promise<{ readonly ok: true } | { readonly ok: false; readonly problem: string }>,
 ): Promise<CrmActionState> {
-  const saved = await found.service.save(found.projectUuid, kind, config, credential, true);
+  const saved = await saving;
   if (!saved.ok) return refused(saved.problem);
   const result = await found.service.sync(found.projectUuid, kind);
   revalidatePath(PAGE);
@@ -127,11 +146,7 @@ async function saveAndRead(
   }
   return {
     ok: true,
-    message: `Connected. Read ${String(outcome.fetched)} flats: ${String(counted(outcome.changes, "added"))} added, ${String(counted(outcome.changes, "changed"))} changed, ${String(counted(outcome.changes, "withdrawn"))} withdrawn.${
-      outcome.unknownStatuses.length === 0
-        ? ""
-        : ` ${String(outcome.unknownStatuses.length)} status word(s) are not mapped yet: ${outcome.unknownStatuses.join(", ")}.`
-    }`,
+    message: `Connected. Read ${String(outcome.fetched)} flats: ${String(counted(outcome.changes, "added"))} added, ${String(counted(outcome.changes, "changed"))} changed, ${String(counted(outcome.changes, "withdrawn"))} withdrawn.${unmapped(outcome.unknownStatuses)}`,
   };
 }
 
@@ -143,18 +158,23 @@ export async function connectRealpad(
   if (!found.ok) return refused(found.message);
   const login = text(form, "login");
   const password = secret(form, "password");
-  /* Both empty keeps the stored pair; one without the other is refused by the schema. */
-  const credential =
-    login === "" && password === ""
-      ? null
-      : { login, password, takeoutLogin: null, takeoutPassword: null };
   const config = {
     ...(await stored(found.service, found.projectUuid, "realpad")),
     developerId: whole(form, "developerId"),
     projectId: whole(form, "realpadProjectId"),
     screenId: whole(form, "screenId"),
   };
-  return saveAndRead(found, "realpad", config, credential);
+  /*
+   * Both empty keeps the stored pair; one without the other is refused by the
+   * schema. A new pair keeps a Data Takeout pair MADSPACE stored beside it.
+   */
+  return saveAndRead(
+    found,
+    "realpad",
+    login === "" && password === ""
+      ? found.service.save(found.projectUuid, "realpad", config, null, true)
+      : found.service.saveRealpadPricelist(found.projectUuid, config, { login, password }, true),
+  );
 }
 
 export async function connectMonday(
@@ -170,7 +190,11 @@ export async function connectMonday(
     columns: parseMapLines(text(form, "columns")),
     statusMap: parseMapLines(text(form, "statusMap")),
   };
-  return saveAndRead(found, "monday", config, token === "" ? null : { token });
+  return saveAndRead(
+    found,
+    "monday",
+    found.service.save(found.projectUuid, "monday", config, token === "" ? null : { token }, true),
+  );
 }
 
 async function sheet(form: FormData): Promise<string | CrmActionState> {
@@ -207,7 +231,7 @@ export async function uploadFlatsCsv(
   if (!outcome.ok) return refused(outcome.detail);
   return {
     ok: true,
-    message: `Read ${String(outcome.fetched)} flats: ${String(counted(outcome.changes, "added"))} added, ${String(counted(outcome.changes, "changed"))} changed, ${String(counted(outcome.changes, "withdrawn"))} withdrawn.${
+    message: `Read ${String(outcome.fetched)} flats: ${String(counted(outcome.changes, "added"))} added, ${String(counted(outcome.changes, "changed"))} changed, ${String(counted(outcome.changes, "withdrawn"))} withdrawn.${unmapped(outcome.unknownStatuses)}${
       result.rejected.length === 0
         ? ""
         : ` ${String(result.rejected.length)} row(s) could not be read.`
