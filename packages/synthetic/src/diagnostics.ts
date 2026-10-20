@@ -59,6 +59,7 @@ export function buildProjectDiagnostics(
 
   const windows: DiagnosisWindow[] = input.windows.map(({ period, sessions }) => {
     const presenters = new Set(sessions.map((s) => s.agentId));
+    const onRoster = roster === null ? null : [...presenters].filter((id) => roster.has(id)).length;
     const opened = new Set(
       sessions.flatMap((s) => s.units.map((u) => u.unitCode)).filter((code) => catalogue.has(code)),
     );
@@ -66,8 +67,8 @@ export function buildProjectDiagnostics(
       period,
       meetings: sessions.length,
       presenters: presenters.size,
-      rosterPresenting:
-        roster === null ? null : [...presenters].filter((id) => roster.has(id)).length,
+      rosterPresenting: onRoster,
+      offRoster: onRoster === null ? null : presenters.size - onRoster,
       outcomeRecorded: sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length,
       timingUnavailable: sessions.filter((s) => s.timingUnavailable).length,
       webiris: sessions.filter((s) => s.channel === "webiris").length,

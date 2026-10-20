@@ -36,6 +36,8 @@ export interface DiagnosisWindow {
   readonly presenters: number;
   /** Of {@link ProjectDiagnostics.roster}, how many presented here. Null when there is no roster. */
   readonly rosterPresenting: number | null;
+  /** Of `presenters`, those not on the roster. Null when there is no roster. */
+  readonly offRoster: number | null;
   /** Of `meetings`, those with an outcome recorded. */
   readonly outcomeRecorded: number;
   /** Of `meetings`, those carrying no per-step timing. */

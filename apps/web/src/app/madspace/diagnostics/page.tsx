@@ -31,10 +31,18 @@ import {
   type DiagnosticsEstate,
   type DiagnosticsFilter,
 } from "@/lib/madspace/diagnostics";
+import {
+  diagnosisSentence,
+  portfolio,
+  staleFeeds,
+  type Portfolio,
+  type PortfolioProject,
+} from "@/lib/madspace/portfolio";
 import { DiagnosticsFilters } from "@/components/madspace/DiagnosticsFilters";
 import { ControlPlaneAbsent } from "@/components/madspace/ControlPlaneAbsent";
 import { InfoNote } from "@/components/madspace/InfoNote";
 import { StatusChip } from "@/components/madspace/StatusMark";
+import { TableWrap } from "@/components/madspace/TableWrap";
 
 export const metadata: Metadata = { title: "Diagnostics" };
 
@@ -109,46 +117,31 @@ const CODE_COLUMN = (
 );
 
 /**
- * Diagnostics — the operational state of every installation in the account.
+ * Diagnostics: every client project, then every installation (ADR-0047).
  *
  * ## What this screen is for
  *
- * One question, asked on a bad day: **which source is wrong?** So the first
- * section is the only one that matters when something has broken, it is sorted
- * worst first, and every row on it states the REASON in words rather than in a
- * colour. Everything below it is corroboration — when a heartbeat last arrived,
- * when ingestion was last proved, how full the outboxes are, what has been
- * refused, and the last safe error code — and it is deliberately arranged as
- * ruled tables rather than as a field of cards, because six panels of one
- * figure each is a scrapbook and this has to be scanned.
+ * The owner: "here we could diagnose our clients' projects, e.g. we would see
+ * all CLARITY client projects here, such as Shark Residence, and useful
+ * diagnosable information about each project, e.g. how many of their agents use
+ * it". So it opens on one row per client project, from the repository's
+ * `ProjectDiagnostics`: who of the roster presented, meetings in two named
+ * windows, how many carry an outcome, which feed went stale, the CRM's deals.
+ * Each row opens a drill-down with the evidence behind every line.
  *
- * ## Where the explanations went
- *
- * Every definition, every sort rule and every "this is not that" distinction
- * that used to sit in front of a section now sits behind the `i` beside its
- * heading, its column or its empty state. What stays on the surface is the
- * state, the party waited on, the date, the reason and the counts. The rule is
- * the design system's second principle, and `InfoNote` carries the list of what
- * may never move behind it.
- *
- * ## What it is not
- *
- * It is not the showroom HUD and it is not an observability product. There is
- * no timeline, no rate, no chart and no trend: the control plane persists
- * CURRENT operational state per source, so a graph here would be drawn from
- * numbers that do not exist. It also carries no analytics — what an
- * installation observed belongs to Observer; whether it observes at all belongs
- * here.
+ * Below it is what was here before: the operational state of every
+ * installation on the control plane, asked on a bad day as "which source is
+ * wrong?", sorted worst first with the REASON in words. Every definition sits
+ * behind the `i` beside its heading, as the design system's second principle
+ * asks.
  *
  * ## What it is not allowed to show
  *
  * No visitor subject, no agent identity, no event property, no error message,
- * no stack, no credential, no verifier, no selector and no token. Every value
- * below comes from `SourceOperationsRow` or from `ProjectSummaryRow`, and the
- * last error is a CODE — `db.ts` keeps that column an enum-ish string precisely
- * so an exception dump with a visitor's name in it can never land in an
- * operational table, and this screen is the reason that guarantee is worth
- * having.
+ * no stack, no credential, no verifier, no selector and no token, and no
+ * ranking of a client's people: the project rows count presenters, they never
+ * name one. The installation rows come from `SourceOperationsRow` and
+ * `ProjectSummaryRow`, and the last error is a CODE, never a message.
  */
 export default async function MadspaceDiagnosticsPage({
   searchParams,
@@ -161,73 +154,63 @@ export default async function MadspaceDiagnosticsPage({
   const filter = parseFilter(await searchParams);
   const plane = await controlPlane();
   const now = new Date();
-  const estate = plane.ok ? await diagnosticsEstate(plane.admin, filter, now) : null;
+  const [estate, projects] = await Promise.all([
+    plane.ok ? diagnosticsEstate(plane.admin, filter, now) : Promise.resolve(null),
+    portfolio(viewer),
+  ]);
 
   return (
     <>
       <header className="mad-head">
         <div className="mad-head-text">
-          <Kicker>MADSPACE operations</Kicker>
+          <Kicker>MADSPACE administration</Kicker>
           {/*
-           * The disclosure is a SIBLING of the heading, never a child of it.
-           * A button inside the `h1` joins that heading's accessible name, so
-           * the view announced itself as "Diagnostics About what the figures on
-           * this screen are". The heading holds the one word a reader would say
-           * out loud; the control sits beside it on the same line.
+           * The disclosure is a SIBLING of the heading, never a child of it: a
+           * button inside the `h1` joins that heading's accessible name.
            */}
           <div className="mad-idline">
             <h1 className="mad-title">Diagnostics</h1>
             <InfoNote label="what the figures on this screen are">
               <p>
-                Every figure below is the state persisted for a source, read once for the whole
-                account. It is not a rate, not a trend, and never an analytic.
+                A client project&rsquo;s figures are counted the way its own screens count them, on
+                the day it runs on. A feed is stale when it was last heard from more than 24 hours
+                before that day.
               </p>
               <p>
-                A source is registered against a project and then activated from the machine it runs
-                on.
-              </p>
-              <p>
-                A screen emptied by the filter is a statement about the filter and not about the
-                estate.
+                An installation&rsquo;s figures are the state persisted for its source, read once
+                for the whole account. They are not a rate, not a trend, and never an analytic.
               </p>
             </InfoNote>
           </div>
-          <p className="mad-lede">{lede(estate, filter)}</p>
+          <p className="mad-lede">{diagnosisSentence(projects)}</p>
         </div>
       </header>
 
-      {/*
-       * The scope band, because every figure under it is account-wide.
-       *
-       * It was a grey note in the page head, which put the one fact that decides
-       * what all the numbers mean in the quietest type on the screen. The system
-       * gives ink-as-surface to anything whose reach is wider than the page, and
-       * this screen's reach is every project in the account. It stays on the
-       * unreadable-control-plane branch too: which database was asked is exactly
-       * the context a failure needs.
-       */}
-      <p className="mad-note">
-        Everything on this screen covers every project, every environment and every source in this
-        account.
-      </p>
+      <ClientProjects projects={projects} />
 
-      {/*
-       * The tally band runs the full width UNDER the head rather than beside it.
-       * In the head's second column it became a sidebar — four figures set
-       * against the sentence they summarise, competing with it — and its two
-       * hairlines only spanned a third of the screen, so the one shape on this
-       * page whose whole job is to be a continuous ruled plane was not one.
-       */}
-      {estate === null ? null : <Tallies estate={estate} />}
+      <section className="mad-plane" aria-labelledby="installations-heading">
+        <div className="mad-section-head">
+          <h2 id="installations-heading">Installations on the control plane</h2>
+          <p>{lede(estate, filter)}</p>
+          <p>
+            Every installation below covers every project, every environment and every source in
+            this account.
+          </p>
+        </div>
+        {/*
+         * The tally band runs the full width under the section head rather than
+         * beside it, so the one shape whose job is to be a continuous ruled
+         * plane is one.
+         */}
+        {estate === null ? null : <Tallies estate={estate} />}
+      </section>
 
       {estate === null || !plane.ok ? (
         <section className="mad-plane" aria-labelledby="plane-heading">
           {/*
            * The absence gets a heading like every other section, because a
            * landmark with no accessible name is a region a reader can neither
-           * name nor navigate to — and this is the one region that matters when
-           * it is the only thing on the page. Projects names the same case the
-           * same way, so the two screens read alike on a bad day.
+           * name nor navigate to.
            */}
           <div className="mad-section-head">
             <h2 id="plane-heading">The control plane</h2>
@@ -237,10 +220,8 @@ export default async function MadspaceDiagnosticsPage({
       ) : (
         <>
           {/*
-           * A plane rather than a labelled `section`: a landmark with no heading
-           * is an entry in the document outline that a reader cannot navigate
-           * to. The three selects carry their own labels, which is what a filter
-           * band actually needs.
+           * A plane rather than a labelled `section`: the three selects carry
+           * their own labels, which is what a filter band actually needs.
            */}
           <div className="mad-plane">
             <DiagnosticsFilters
@@ -272,6 +253,143 @@ export default async function MadspaceDiagnosticsPage({
         </>
       )}
     </>
+  );
+}
+
+/* --- the client projects ------------------------------------------------------------- */
+
+/**
+ * One row per client project in Observer, each with its denominator.
+ *
+ * Presenters are counted, never named, so the table cannot become a league
+ * table of a client's people. A project the control plane holds but Observer
+ * does not yet is not here: it has nothing to diagnose until it has an address,
+ * and the Projects home lists it as needing setup.
+ */
+function ClientProjects({ projects }: { projects: Portfolio }) {
+  const rows = projects.companies.flatMap((company) =>
+    company.projects.flatMap((project) =>
+      project.address === null ? [] : [{ company: company.name, project }],
+    ),
+  );
+
+  return (
+    <section className="mad-plane" aria-labelledby="clients-heading">
+      <div className="mad-section-head">
+        <div className="mad-idline">
+          <h2 id="clients-heading">Client projects</h2>
+          <InfoNote label="what each column counts">
+            <p>
+              Presenters: of the project&rsquo;s roster, how many held at least one meeting in the
+              last 28 days.
+            </p>
+            <p>
+              Outcome recorded: of the quarter&rsquo;s meetings, how many carry an outcome from the
+              CRM. Without a CRM none can.
+            </p>
+          </InfoNote>
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <div className="mad-empty">
+          <strong>No client project in Observer yet</strong>
+          <span>A project appears here once it has a developer and an address.</span>
+        </div>
+      ) : (
+        <TableWrap labelledBy="clients-heading">
+          <table className="mad-table">
+            <thead>
+              <tr>
+                <th scope="col">Project</th>
+                <th scope="col">Status</th>
+                <th scope="col">Presenters, last 28 days</th>
+                <th scope="col">Meetings, last 28 days</th>
+                <th scope="col">Meetings, quarter to date</th>
+                <th scope="col">Outcome recorded, quarter to date</th>
+                <th scope="col">Last meeting</th>
+                <th scope="col">Stale feeds</th>
+                <th scope="col">CRM deals</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map(({ company, project }) => (
+                <ClientRow key={project.key} company={company} project={project} />
+              ))}
+            </tbody>
+          </table>
+        </TableWrap>
+      )}
+    </section>
+  );
+}
+
+function ClientRow({ company, project }: { company: string; project: PortfolioProject }) {
+  const d = project.diagnostics;
+  const address = project.address;
+  const link =
+    address === null ? null : (
+      <Link
+        href={dynamicRoute(`/madspace/diagnostics/${address.tenantSlug}/${address.projectSlug}`)}
+      >
+        {project.name}
+      </Link>
+    );
+
+  if (d === null) {
+    return (
+      <tr>
+        <th scope="row" className="mad-td-source">
+          {link}
+          <span className="mad-td-sub">{company}</span>
+        </th>
+        <td>
+          <StatusChip tone={project.status.tone}>{project.status.word}</StatusChip>
+        </td>
+        <td colSpan={7} data-missing="true">
+          Its diagnosis could not be read.
+        </td>
+      </tr>
+    );
+  }
+
+  const [recent, quarter] = d.windows;
+  const feeds = staleFeeds(d);
+  const last = instant(d.lastMeetingAt, "No meeting recorded");
+  return (
+    <tr>
+      <th scope="row" className="mad-td-source">
+        {link}
+        <span className="mad-td-sub">{company}</span>
+      </th>
+      <td>
+        <StatusChip tone={project.status.tone}>{project.status.word}</StatusChip>
+      </td>
+      <td>
+        {recent === undefined || d.roster === null || recent.rosterPresenting === null
+          ? "No roster kept"
+          : `${figure(recent.rosterPresenting)} of ${figure(d.roster)}`}
+      </td>
+      <td className="mad-td-figure">{recent === undefined ? "" : figure(recent.meetings)}</td>
+      <td className="mad-td-figure">{quarter === undefined ? "" : figure(quarter.meetings)}</td>
+      <td>
+        {quarter === undefined || quarter.meetings === 0
+          ? "No meeting to record"
+          : `${figure(quarter.outcomeRecorded)} of ${figure(quarter.meetings)}`}
+      </td>
+      <td data-missing={last.missing}>{last.text}</td>
+      <td data-tone={feeds.stale > 0 ? "weak" : undefined}>
+        {feeds.connected === 0
+          ? "No feed connected"
+          : `${figure(feeds.stale)} of ${figure(feeds.connected)}`}
+      </td>
+      <td>
+        {d.crm.deals !== null
+          ? figure(d.crm.deals)
+          : d.crm.connected
+            ? "None delivered"
+            : "No CRM connected"}
+      </td>
+    </tr>
   );
 }
 

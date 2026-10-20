@@ -3286,12 +3286,18 @@ button.mad-quiet {
  * component cards have.
  * ========================================================================= */
 
+/*
+ * The product's dark card, without its elevation (ADR-0047): black on the
+ * shell's ground with an 8% white hairline and 24px inside, as the Hyper kit's
+ * `--d-card` draws every card on a project page. The elevation stays the
+ * product's own; here only the popover and the modal float.
+ */
 .mad-portal .mad-plane {
   gap: var(--rhythm-section);
-  padding: var(--rhythm-major);
-  border: 1px solid var(--border-panel);
+  padding: 1.5rem;
+  border: 1px solid rgb(255 255 255 / 8%);
   border-radius: var(--portal-radius);
-  background: var(--surface-card);
+  background: #000;
 }
 
 /*
@@ -3301,8 +3307,8 @@ button.mad-quiet {
  * card reads as a seam across the top of the second one.
  */
 .mad-portal .mad-plane + .mad-plane {
-  padding-top: var(--rhythm-major);
-  border-top: 1px solid var(--border-panel);
+  padding-top: 1.5rem;
+  border-top: 1px solid rgb(255 255 255 / 8%);
 }
 
 /*
@@ -3315,12 +3321,12 @@ button.mad-quiet {
  * the row keeps the ruled band it always was.
  */
 .mad-portal .mad-plane .mad-rows {
-  margin-inline: calc(var(--rhythm-major) * -1);
+  margin-inline: -1.5rem;
   border-top: 1px solid var(--border-hairline);
 }
 
 .mad-portal .mad-plane .mad-row {
-  padding-inline: var(--rhythm-major);
+  padding-inline: 1.5rem;
   border: 0;
   border-bottom: 1px solid var(--border-hairline);
   border-inline-start: 2px solid transparent;
@@ -3347,7 +3353,7 @@ button.mad-quiet {
  * the first place.
  */
 .mad-portal .mad-plane > .mad-datapanel {
-  margin-inline: calc(var(--rhythm-major) * -1);
+  margin-inline: -1.5rem;
   border-inline: 0;
   border-radius: 0;
 }
@@ -4516,4 +4522,33 @@ button.mad-quiet {
   .mad-row--portfolio > .mad-row-actions {
     justify-content: flex-end;
   }
+}
+
+/* --- a diagnosis: each line, and what it was counted from ------------------- */
+
+.mad-evidence {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--border-hairline);
+}
+
+.mad-evidence li {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.mad-evidence strong {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}
+
+.mad-evidence span {
+  color: var(--ink-4);
+  font-size: var(--text-caption);
 }

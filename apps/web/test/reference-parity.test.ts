@@ -117,9 +117,11 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
   "/madspace/projects/[projectId]/sources/new",
   "/madspace/sources/[sourceId]",
   "/madspace/diagnostics",
+  /* One client project's diagnosis, by its Observer address (ADR-0047). */
+  "/madspace/diagnostics/[tenantSlug]/[projectSlug]",
   /*
-   * Directory — M9's tenants, agencies and people, from the demonstration
-   * directory until the tables that will hold them exist.
+   * Directory: the companies first, each opening onto its people (ADR-0047),
+   * from the demonstration directory and the control plane's developers.
    */
   "/madspace/directory",
 

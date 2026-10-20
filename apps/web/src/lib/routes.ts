@@ -282,6 +282,10 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
 
+  /*
+   * The MADSPACE home: every project MADSPACE can see, by company (ADR-0047).
+   * `/madspace/projects` below redirects here and keeps its drill-downs.
+   */
   { route: "/madspace", audience: "internal", requiresRole: ["madspace_admin"] },
 
   /*
@@ -292,9 +296,10 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
    * is deliberate — this table is what the audit reads, and the redirect is what
    * actually refuses somebody who types the URL.
    *
-   * Nothing on these screens is analytics. They answer whether an installation
-   * is activated, connected and delivering; what it observed belongs to the
-   * customer's surfaces and is not readable from here.
+   * They answer whether a project is set up, fed and used: whether an
+   * installation is activated, connected and delivering, and how many meetings
+   * and presenters a project counted in a named window (ADR-0047). What those
+   * meetings showed belongs to the customer's surfaces and is not read here.
    */
   { route: "/madspace/projects", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/madspace/projects/new", audience: "internal", requiresRole: ["madspace_admin"] },
@@ -330,6 +335,12 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
   },
   { route: "/madspace/sources/[sourceId]", audience: "internal", requiresRole: ["madspace_admin"] },
   { route: "/madspace/diagnostics", audience: "internal", requiresRole: ["madspace_admin"] },
+  /* One client project, diagnosed, by its Observer address (ADR-0047). */
+  {
+    route: "/madspace/diagnostics/[tenantSlug]/[projectSlug]",
+    audience: "internal",
+    requiresRole: ["madspace_admin"],
+  },
   /*
    * DIRECTORY — tenants, agencies and people (M9), read from the demonstration
    * directory because no tenant, user or agency table exists yet. The page

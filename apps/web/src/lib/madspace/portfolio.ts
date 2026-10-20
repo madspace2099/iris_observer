@@ -115,6 +115,26 @@ function plural(n: number, one: string, other: string): string {
   return `${count(n).text} ${n === 1 ? one : other}`;
 }
 
+/** Connected feeds last heard from more than 24 hours before the project's today. */
+export function staleFeeds(diagnostics: ProjectDiagnostics): {
+  readonly stale: number;
+  readonly connected: number;
+} {
+  const connected = diagnostics.sources.filter((s) => s.connected);
+  return { stale: connected.filter((s) => s.stale).length, connected: connected.length };
+}
+
+/** The diagnosis in one sentence: how many client projects, and how many have a stale feed. */
+export function diagnosisSentence(portfolio: Portfolio): string {
+  const diagnosed = portfolio.companies.flatMap((c) =>
+    c.projects.flatMap((p) => (p.diagnostics === null ? [] : [p.diagnostics])),
+  );
+  if (diagnosed.length === 0) return "No client project in Observer can be diagnosed yet.";
+  const stale = diagnosed.filter((d) => staleFeeds(d).stale > 0).length;
+  const silent = diagnosed.filter((d) => d.windows[0]?.meetings === 0).length;
+  return `${plural(diagnosed.length, "client project", "client projects")} in Observer. ${count(stale).text} of ${count(diagnosed.length).text} have a feed not heard from in over 24 hours; ${count(silent).text} of ${count(diagnosed.length).text} held no meeting in the last 28 days.`;
+}
+
 /** An age in whole hours, as a reader says it. */
 export function hoursAgo(hours: number): string {
   return hours === 0 ? "under 1 h ago" : `${duration(hours * 3600)} ago`;

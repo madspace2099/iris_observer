@@ -38,6 +38,9 @@ describe("project diagnostics", () => {
       expect(window.outcomeRecorded).toBeLessThanOrEqual(window.meetings);
       expect(window.webiris).toBeLessThanOrEqual(window.meetings);
       expect(window.rosterPresenting).not.toBeNull();
+      /* Every synthetic presenter is on the roster. */
+      expect(window.offRoster).toBe(0);
+      expect(window.presenters).toBe((window.rosterPresenting ?? 0) + (window.offRoster ?? 0));
       expect(window.rosterPresenting ?? 0).toBeLessThanOrEqual(view.roster ?? 0);
       expect(window.unitsOpened).toBeLessThanOrEqual(view.catalogueUnits ?? 0);
     }
