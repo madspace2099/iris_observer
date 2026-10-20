@@ -5519,3 +5519,37 @@ your CRM"); every reference in this stream was renumbered.
 
 **Next recommended action.** Máté exports the same summary from the demo build in Chrome ("Save as
 PDF", Default margins) and looks at the six pages; the footer needs Chrome 131 or later.
+
+## 2026-10-20 — What the most-opened flats share (ADR-0050)
+
+Máté, recording the Shark demo, asked Ask IRIS "Which units draw the most attention, and do they
+convert?" and got a list ranked by looking time under meeting counts (29, 22, 23 — out of order)
+beside the project's 32 dated sales. He asked for the pattern instead: the aspect, the floors, the
+price the most-opened flats share.
+
+- **Read model** `getUnitAttentionPatterns` (`packages/synthetic/src/showroom/unit-patterns.ts`,
+  types in `packages/readmodels/src/showroom.ts`): the period's five most-opened flats (a tie by
+  shortlisting, then code, and said), compared with the whole catalogue on aspect, block, rooms,
+  floor band, price and area thirds. A pattern needs 70% of the five and 1.5× the catalogue's
+  share (60% was proposed; three of five is chance one time in five); identical sets merge; where
+  nothing concentrates the span is said against the catalogue; unstated attributes never band.
+  Conversion: reserved or sold now against the catalogue, then each flat's own ADR-0039 sale. Below
+  10 meetings or 3 opened flats nothing is compared.
+- **Ask IRIS**: `analyze_unit_attention` with no unit answers from it — patterns, sales, then the
+  ranking in descending order; the live question routes to it alone (no project-wide share).
+- **Units**: one D-kit panel between the building and the attention checks; the flats are chips to
+  their pages.
+
+**Shark, quarter to date:** S-503 (29 of 150), S-403 (23), S-603 (22), S-501 (22), H-401 (18); all
+five on floors 4–7 (40% of the 60), all two-room (45%), four facing south in block S (50%); four
+reserved or sold (60%); of the four with a dated sale, three followed a showing within 72 hours.
+
+**Verified.** Typecheck clean; lint and prettier clean on every changed file; `unit-patterns` (7),
+`ask` (66), `unit-patterns-panel`, the AI suites. The full unit suite (after `pnpm release:wrappers`):
+273 files, 5063 passed, 1 skipped, 1 failed — `no-secret-recipes`, which needs a web build. The panel
+was looked at as a static render on the product stylesheets in headless Chrome at 1440 and inside a
+390px frame (Shark, Northgate); not on a running page. No dev server, build or Playwright; no e2e
+asserted the old sentence.
+
+**Next recommended action.** Ask the question on the demo build as a Shark viewer and open
+`/shark/shark-residence/units` at 1440 and 390 to see the panel in its page.
