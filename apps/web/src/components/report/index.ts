@@ -16,10 +16,11 @@
  * `ReportScopeView` satisfies `ExportReportView` structurally, so the view goes
  * straight through and nothing has to be unpacked at the call site.
  *
- * Nothing in here generates a document, and the surface says so out loud rather
- * than in a tooltip. That statement is the read model's — `ReportGeneration` is
- * typed to the single state that exists — so a component cannot promise a file
- * by forgetting a condition.
+ * The browser prints the report page to a PDF and `report/csv` writes its
+ * figures (ADR-0045); no server renders a document, and the surface says so
+ * out loud rather than in a tooltip. That statement is the read model's —
+ * `ReportGeneration` is typed to the single state that exists — so a
+ * component cannot promise a renderer by forgetting a condition.
  */
 
 export { ExportReport, type ExportReportView } from "./ExportReport";

@@ -3,18 +3,17 @@ import type { ViewContext } from "./context";
 import type { EvidenceRef } from "./metric-value";
 
 /**
- * What a report could contain, and the fact that nothing produces one yet.
+ * What a report contains, per section, and how it reaches a reader.
  *
- * Report generation belongs to a later milestone (`docs/roadmap.md`); no
- * document is written, no file is produced, and no queue is waiting. The screen
- * that offers it therefore has one job — to say honestly what a report *would*
- * hold, per section, given the sources this project actually has — and one
- * failure mode, which is a Download button that does nothing.
+ * The report is a page (`/report`), drawn from the read models the screens
+ * use. The browser prints that page to a PDF, and its figures download as a
+ * CSV (ADR-0045, the owner, 2026-10-20). No server renders a document, nothing
+ * is scheduled and nothing is sent: those remain in M4 (`docs/roadmap.md`).
  *
- * So "preview-ready, backend not connected" is a **type**, not a sentence a
- * component invents. `ReportGeneration.state` has exactly one member today, so
- * there is no truthy value a component can branch on into an action that does
- * not exist, and a reader is never promised a document.
+ * How it is produced is a **type**, not a sentence a component invents.
+ * `ReportGeneration.state` has exactly one member, so a component cannot
+ * branch into a state nobody built, and adding a server renderer later is a
+ * type change every call site has to acknowledge.
  */
 
 /**
@@ -83,8 +82,8 @@ export interface ReportScope {
 export type ReportScopeSelector = { readonly meetingId: string } | { readonly agentId: string };
 
 export const REPORT_GENERATION_STATES = [
-  /** Sections can be described. Nothing renders a document. */
-  "preview_only",
+  /** The page, printed by the browser to PDF, and its figures as CSV. No server renders a document. */
+  "available",
 ] as const;
 export type ReportGenerationState = (typeof REPORT_GENERATION_STATES)[number];
 
@@ -92,15 +91,15 @@ export type ReportGenerationState = (typeof REPORT_GENERATION_STATES)[number];
  * The generation state, as a literal rather than a flag.
  *
  * `state` is typed to the single member that exists, so a component cannot
- * write `state === "connected"` and cannot leave a live-looking control behind
- * when a second member is added — adding one is a type change every call site
+ * write `state === "rendered"` and cannot leave a live-looking control behind
+ * for a renderer nobody built — adding one is a type change every call site
  * has to acknowledge.
  */
 export interface ReportGeneration {
-  readonly state: "preview_only";
-  /** Said out loud on the surface. Never a tooltip. */
+  readonly state: "available";
+  /** How the document is produced, said out loud on the surface. Never a tooltip. */
   readonly statement: string;
-  /** The milestone that owns it, so the answer to "when" is not "soon". */
+  /** What is still not built, and the milestone that owns it, so "when" is not "soon". */
   readonly milestone: string;
 }
 

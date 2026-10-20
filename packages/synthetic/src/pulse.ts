@@ -976,16 +976,16 @@ export function buildAskSession(
        * report was told the thing they can already open does not exist, and
        * sent somewhere else.
        *
-       * The caveat stays, because the half of it that is true is still true:
-       * the page COMPOSES the report and no file is generated from it —
-       * `ReportGeneration.state` is typed to the single member `preview_only`,
-       * which is what the export dialog says on screen.
+       * The caveat says how the document is produced (ADR-0045): the page
+       * composes it, the browser prints it to a PDF, and its figures download
+       * as a CSV. No server renders a file, which is what
+       * `ReportGeneration.state` and the export dialog say on screen.
        */
       actionLabel: "Open the report page",
       actionHref: `${root}/report`,
       followUps: ["Include the buyer list", "Compare with last quarter"],
       caveat:
-        "The report page composes this on screen. Generating a file from it is not built yet.",
+        "The report page composes this on screen. Its export prints it to a PDF through the browser or downloads its figures as a CSV; no server renders a file.",
     },
   ];
 

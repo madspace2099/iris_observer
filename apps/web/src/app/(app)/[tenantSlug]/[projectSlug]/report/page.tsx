@@ -49,9 +49,11 @@ export const metadata: Metadata = { title: "Report" };
  * THE INTERNAL SALES-INTELLIGENCE REPORT, AS A PAGE.
  *
  * `docs/roadmap.md` M4 names two documents: the buyer meeting report and the
- * internal sales-intelligence report, "real vector PDF". No generator writes
- * a file yet, and `ReportGeneration.state` is typed to say so. What a reader
- * can already have is the document itself, on a page: the same sections
+ * internal sales-intelligence report, "real vector PDF". No server renders a
+ * file; the internal report is this page, the browser prints it to a PDF
+ * (`?print=1` opens that dialog by itself, for the export dialog's "PDF
+ * document"), and `report/csv` writes its figures (ADR-0045). The page is
+ * the document itself: the same sections
  * `getReportScope` describes, in the same order, each one drawn from the read
  * model that owns it — the verdict and the findings from Sales Flow, the
  * segments from Project, the roster from Sales Agents, the ladder the CRM
@@ -99,6 +101,7 @@ export default async function ReportPage({
     agent?: string;
     lang?: string;
     omit?: string;
+    print?: string;
   }>;
 }) {
   const viewer = await requireViewer();
@@ -119,6 +122,8 @@ export default async function ReportPage({
   /* Only a language the scope is written in whole; see `WRITTEN_IN`. The frame reads the same. */
   const language = reportLanguage(search);
   const omitted = omittedFrom(search.omit);
+  /* The export dialog's "PDF document": the print dialog opens once the page is ready. */
+  const print = search.print === "1";
   const query = { viewer, tenantSlug, projectSlug, period, language };
   /*
    * A meeting summary is the meeting route's own material, and that route
@@ -127,12 +132,12 @@ export default async function ReportPage({
    */
   if (meetingId !== null) {
     requireSurface(viewer, "[meetingId]", `/${tenantSlug}/${projectSlug}`);
-    return <MeetingReport query={query} meetingId={meetingId} omitted={omitted} />;
+    return <MeetingReport query={query} meetingId={meetingId} omitted={omitted} print={print} />;
   }
   /* One agent's summary is the agent route's own material: the same roles, enforced on the same list. */
   if (agentId !== null) {
     requireSurface(viewer, "[agentId]", `/${tenantSlug}/${projectSlug}`);
-    return <AgentReport query={query} agentId={agentId} omitted={omitted} />;
+    return <AgentReport query={query} agentId={agentId} omitted={omitted} print={print} />;
   }
 
   const [report, flow, project, agents, meetings] = await Promise.all([
@@ -360,7 +365,7 @@ export default async function ReportPage({
         aside={
           <>
             <Synthetic language={language} />
-            <PrintPage label={words.print} />
+            <PrintPage label={words.print} auto={print} />
           </>
         }
         period={period}
@@ -435,10 +440,12 @@ async function MeetingReport({
   query,
   meetingId,
   omitted,
+  print,
 }: {
   readonly query: OverviewQuery;
   readonly meetingId: string;
   readonly omitted: ReadonlySet<string>;
+  readonly print: boolean;
 }) {
   /*
    * `?meeting=` is a URL parameter, so it is whatever the address bar says:
@@ -529,7 +536,7 @@ async function MeetingReport({
         aside={
           <>
             <Synthetic language={language} />
-            <PrintPage label={words.print} />
+            <PrintPage label={words.print} auto={print} />
           </>
         }
         period={period}

@@ -32,6 +32,23 @@ export function printedSections<S extends { readonly id: string; readonly availa
   );
 }
 
+/**
+ * The composed report, asking the page to open the browser's print dialog
+ * once it is ready: the export dialog's "PDF document" (ADR-0045).
+ */
+export function withPrint(href: string): string {
+  return `${href}${href.includes("?") ? "&" : "?"}print=1`;
+}
+
+/**
+ * The composed report's figures as CSV: the route beside the page, with the
+ * same scope, period, language and omitted sections on its address.
+ */
+export function csvAddress(href: string): string {
+  const [path, query] = href.split("?");
+  return `${path ?? href}/csv${query === undefined ? "" : `?${query}`}`;
+}
+
 /** `href` leaving out `ids`; none leaves the address as it was. */
 export function withOmitted(href: string, ids: readonly string[]): string {
   const [path, query] = href.split("?");

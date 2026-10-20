@@ -25,37 +25,36 @@ const TITLES: Readonly<Record<ReportScope["kind"], string>> = {
 import { Dialog } from "@/components/product/Dialog";
 import { LANGUAGE_NAMES, WRITTEN_IN, withLanguage } from "@/lib/language";
 import { ReportSections } from "./ReportSections";
-import { withOmitted } from "./omit";
+import { csvAddress, withOmitted, withPrint } from "./omit";
 
 /**
- * EXPORT — the frontend for a document nothing writes yet.
+ * EXPORT — three ways to take the report away, and all three work.
  *
- * Report generation belongs to a later milestone. No document is rendered, no
- * file is produced and no queue is waiting, and that is a fact this surface is
- * built to state rather than a fact it works around. The failure mode it exists
- * to avoid has a name in the doctrine: a Download button that does nothing.
+ * The owner, recording a demo (2026-10-20): "the Generate document button is
+ * locked". It was, by design: `ReportGeneration.state` was typed to
+ * `preview_only` and the button was `aria-disabled` pending an M4 renderer.
+ * ADR-0045 replaces that with what the browser and the read models can do
+ * today, and says plainly what each one is:
  *
- * ## What is honest here, and what would not have been
+ *   PDF document    the composed report page opens in a new tab with
+ *                   `print=1`, and the page opens the browser's print dialog
+ *                   once it and its fonts have loaded. The reader chooses
+ *                   "Save as PDF"; the print stylesheet puts it on paper
+ *                   (ADR-0042). The browser makes the PDF; no server does.
+ *   Shareable page  a link to the composed report page.
+ *   Figures as CSV  a download from `report/csv`, which authorises like the
+ *                   page and flattens the same read models into one row per
+ *                   figure. It computes nothing.
  *
- * `ReportGeneration.state` is typed to a single member, `preview_only`. There is
- * no truthy value this component can branch on into an action that does not
- * exist, and adding a second member later is a type change every call site has
- * to acknowledge. So the generate control is `aria-disabled` with its reason
- * stated in the footer rather than in a tooltip, and the reason is the read
- * model's own sentence together with the milestone that owns it — so the answer
- * to "when" is a milestone rather than "soon".
+ * All three take the same address: the scope and period the caller passed,
+ * the language chosen here and the sections taken out here. So the section
+ * checkboxes and the language chips apply to the PDF and the CSV exactly as
+ * to the page, and the report says on its cover what was left out.
  *
- * What would have been dishonest, and is deliberately absent: a progress bar, a
- * queued state, an email-it-to-me field, a download that produces an empty file,
- * and a format list that implies a renderer exists for each entry.
- *
- * **Every other control in this dialog works.** The section checkboxes, the
- * language and the format select configure the preview sentence beneath them,
- * which changes as they change, and the report page the dialog opens is the
- * document they describe: the sections the reader took out are left out of it,
- * and say so on its cover, and it is written in the language chosen. They are
- * the specification a reader is composing, and the one control that would act
- * on it as a file says plainly that it cannot yet.
+ * What is still absent, and stated by the read model's own sentence rather
+ * than implied: a server-side PDF renderer, scheduled sends, and a
+ * buyer-facing document — M4 (`docs/roadmap.md`). No progress bar, no queue,
+ * no email-it-to-me field.
  *
  * ## ADR-0018 — a client-facing document is a different contract
  *
@@ -109,22 +108,45 @@ export interface ExportReportView {
 }
 
 /**
- * The shapes a document could take.
- *
- * Named and nothing more. None of them describes what the file would look like
- * inside, since no renderer exists to be described and a paragraph about
- * pagination would be a specification invented by a dialog.
+ * The shapes the document takes, and what pressing the button does for each,
+ * in plain words: the footer says it before the reader presses.
  */
 const FORMATS = [
-  { id: "pdf", label: "PDF document" },
-  { id: "page", label: "Shareable page" },
-  { id: "csv", label: "Figures as CSV" },
+  {
+    id: "pdf",
+    label: "PDF document",
+    note: "The report opens in a new tab and the browser’s print dialog appears: choose “Save as PDF”. The browser makes the PDF from the printed page.",
+  },
+  {
+    id: "page",
+    label: "Shareable page",
+    note: "The shareable page is this report drawn on a screen of its own, printable through the browser.",
+  },
+  {
+    id: "csv",
+    label: "Figures as CSV",
+    note: "Downloads every figure the report prints, one row each, with its denominator or sample, period, scope and sources. UTF-8, so Excel opens Slovak and Hungarian correctly.",
+  },
 ] as const;
 
 type FormatId = (typeof FORMATS)[number]["id"];
 
-function formatLabel(id: FormatId): string {
-  return FORMATS.find((format) => format.id === id)?.label ?? id;
+function formatOf(id: FormatId): (typeof FORMATS)[number] {
+  return FORMATS.find((format) => format.id === id) ?? FORMATS[0];
+}
+
+/**
+ * The three addresses the dialog's buttons take, from the one it composed:
+ * the caller's scope and period, the language chosen and the sections taken
+ * out. A blank section cannot be taken out, so only writable ids travel.
+ */
+export function exportAddresses(
+  pageHref: string,
+  language: Language,
+  omitted: readonly string[],
+): Readonly<Record<FormatId, string>> {
+  const page = withOmitted(withLanguage(pageHref, language), omitted);
+  return { page, pdf: withPrint(page), csv: csvAddress(page) };
 }
 
 /** The sections a report would leave blank. The Slovak and Hungarian forms are the ones a count takes standing alone. */
@@ -162,9 +184,10 @@ export function ExportReport({
 }: {
   readonly report: ExportReportView;
   /**
-   * The report as a page, which is the one format that exists: `/report`
-   * draws every section this dialog describes. Already carrying the period,
-   * because the caller knows it and this component must not guess it.
+   * The report as a page: `/report` draws every section this dialog
+   * describes, and the PDF and CSV are taken from the same address. Already
+   * carrying the scope and period, because the caller knows them and this
+   * component must not guess them.
    */
   readonly pageHref: string;
   /** `quiet` beside other page controls; `primary` where export is the point. */
@@ -200,12 +223,13 @@ export function ExportReport({
   const writable = report.sections.filter((section) => section.availability !== "unavailable");
   const included = writable.filter((section) => !excluded.includes(section.id));
   /*
-   * The page the reader composed: the sections they kept and the language they
-   * chose travel on its address, so the document is the one described here and
-   * not the page's default. A blank section cannot be taken out.
+   * The document the reader composed: the sections they kept and the language
+   * they chose travel on every address, so the page, the PDF and the CSV are
+   * the one described here and not the page's default.
    */
-  const href = withOmitted(
-    withLanguage(pageHref, reportLanguage),
+  const hrefs = exportAddresses(
+    pageHref,
+    reportLanguage,
     writable.filter((section) => excluded.includes(section.id)).map((section) => section.id),
   );
 
@@ -336,34 +360,35 @@ export function ExportReport({
           </div>
 
           {/*
-           * WHAT THE READER HAS SPECIFIED, AND THE STATE OF THE THING THAT
-           * WOULD ACT ON IT.
+           * WHAT THE READER HAS SPECIFIED, AND WHAT PRODUCES IT.
            *
            * `.ox-result` rather than `.ox-empty`: this is a statement about the
            * product, not a slot that failed to fill. The chip carries the word
            * as well as the tone, since a state never reaches this screen as a
-           * colour alone.
+           * colour alone. The sentence after it is the read model's: how the
+           * document is produced, and what is still not built.
            */}
           <p className="ox-result">
-            <span className="ox-chip" data-tone={format === "page" ? "good" : "watch"}>
+            <span className="ox-chip" data-tone="good">
               <span className="ox-chip-mark" aria-hidden="true" />
-              {format === "page" ? "Available now" : "Preview-ready"}
+              Available now
             </span>
             <span>
-              {formatLabel(format)} · {LANGUAGE_NAMES[reportLanguage]} · {included.length} of{" "}
+              {formatOf(format).label} · {LANGUAGE_NAMES[reportLanguage]} · {included.length} of{" "}
               {writable.length} writable sections · {report.scope.label}.
               {report.unavailableCount === 0
                 ? ""
                 : ` ${sentence(language, EXPORT_BLANK_SENTENCE, { count: report.unavailableCount })}`}
             </span>
           </p>
+          <p className="ox-section-note">
+            {report.generation.statement} {report.generation.milestone}
+          </p>
         </div>
 
         <div className="ox-dialog-foot">
           <p className="ox-dialog-note" id={noteId}>
-            {format === "page"
-              ? "The shareable page is this report drawn on a screen of its own, printable through the browser. It is the one format that exists today."
-              : `${report.generation.statement} ${report.generation.milestone}`}
+            {formatOf(format).note}
           </p>
 
           <button
@@ -377,30 +402,37 @@ export function ExportReport({
           </button>
 
           {/*
-           * THE CONTROL THAT WOULD PRODUCE THE DOCUMENT, AND DOES NOT.
-           *
-           * `aria-disabled` rather than `disabled`, so it stays reachable and a
-           * reader who tabs to it is told why it is unavailable through
-           * `aria-describedby` — a control removed from the tab order is a
-           * control a keyboard reader cannot discover the reason for. It has no
-           * handler at all, so there is no path from pressing it to a file, an
-           * empty download or a spinner that never resolves.
+           * THE CONTROL THAT PRODUCES THE DOCUMENT — a link in every format,
+           * because each is an address: the page, the page asking to be
+           * printed (in a new tab, so the dialog's screen is still here), and
+           * the CSV route as a download. The footer note above says what
+           * happens before the reader presses.
            */}
           {format === "page" ? (
-            <Link className="ox-btn" data-weight="primary" href={href as never}>
+            <Link className="ox-btn" data-weight="primary" href={hrefs.page as never}>
               Open the report page
             </Link>
-          ) : null}
-          {format === "page" ? null : (
-            <button
-              type="button"
+          ) : format === "pdf" ? (
+            <a
               className="ox-btn"
-              aria-disabled="true"
+              data-weight="primary"
+              href={hrefs.pdf}
+              target="_blank"
+              rel="noopener"
               aria-describedby={noteId}
-              title={report.generation.statement}
             >
               Generate document
-            </button>
+            </a>
+          ) : (
+            <a
+              className="ox-btn"
+              data-weight="primary"
+              href={hrefs.csv}
+              download
+              aria-describedby={noteId}
+            >
+              Generate document
+            </a>
           )}
         </div>
       </Dialog>

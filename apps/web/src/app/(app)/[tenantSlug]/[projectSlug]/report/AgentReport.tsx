@@ -86,11 +86,14 @@ export async function AgentReport({
   query,
   agentId,
   omitted,
+  print,
 }: {
   readonly query: OverviewQuery;
   readonly agentId: string;
   /** Sections the reader took out in the export dialog; a blank one is printed whatever this says. */
   readonly omitted: ReadonlySet<string>;
+  /** The export dialog's "PDF document": open the print dialog once the page is ready. */
+  readonly print: boolean;
 }) {
   /*
    * `?agent=` is whatever the address bar says. An agent who did not present
@@ -459,7 +462,7 @@ export async function AgentReport({
               n={view.sampleSize}
               noun={language === "en" ? "meetings" : plural(language, view.sampleSize, MEETINGS)}
             />
-            <PrintPage label={reportWords.print} />
+            <PrintPage label={reportWords.print} auto={print} />
           </>
         }
         period={period}

@@ -433,10 +433,10 @@ describe("getAskHistory and getAskThread", () => {
 /* --- report scope ----------------------------------------------------------- */
 
 describe("getReportScope", () => {
-  it("states that nothing generates a document, on every project", async () => {
+  it("states how the document is produced, on every project", async () => {
     for (const project of EVERY_PROJECT) {
       const view = await repo.getReportScope(project);
-      expect(view.generation.state, project.projectSlug).toBe("preview_only");
+      expect(view.generation.state, project.projectSlug).toBe("available");
       expect(view.generation.statement.length).toBeGreaterThan(0);
       expect(view.sections.length).toBeGreaterThan(0);
       for (const section of view.sections) {
