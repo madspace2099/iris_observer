@@ -5484,3 +5484,26 @@ new cases are written, not run, and the pages were not looked at after these cha
 **Next recommended action.** Carry the interval rule into `buildAssistedSales` once the card's note
 is free, then look at `/shark/shark-residence/flow/iris-led` and `/settings/crm` (as Clara, Daniel
 and Tomáš) at 1440 and 390 on the demo build, and run `e2e/iris-led.spec.ts`.
+
+## 2026-10-20 — The report prints as a document (ADR-0049)
+
+Máté exported Zsófia Bárány's summary (Shark Residence, YTD, Hungarian) to PDF: "not really well
+structured for PDF … 14 pages … a lot of blank space … not visually impressive either". Two causes:
+the `width <= 48rem` phone layout applied to A4 paper (about 43rem wide), and
+`break-inside: avoid` on every section. Built, for all three scopes:
+
+- `@page report` (A4, 16/14/18mm) with a running footer in the margin boxes — "IRIS Observer ·
+  project · document · period" in the report's language, "page / pages" — and a bare first page;
+- a full-bleed graphite cover (print only): wordmark, "Internal — not for buyers", document type,
+  subject, the head's verdict and 3–4 headline figures handed over from the read models;
+- numbered contents with each section's one line; numbered sections with one provenance line;
+  every caption and note at the back in "How to read this report", under the section's number;
+- sections flow; tables repeat their head, rows stay whole; the outcome mix as one 100% SVG bar
+  over its table, bars beside section times and shares, the funnel and ladder compact.
+
+**Measured** (headless Chromium 151, A4, backgrounds off, the real read models and sheets): agent
+HU 14 → 7 pages, project EN 11 → 5, meeting 3 → 2. Tests: `report-document.test.ts`,
+`report-print.test.ts`; `dark-surfaces` and `frame-language` e2e specs edited, not run.
+
+**Next recommended action.** Máté exports the same summary from the demo build in Chrome ("Save as
+PDF", Default margins) and looks at the seven pages; the footer needs Chrome 131 or later.
