@@ -32,6 +32,18 @@ const DEMO_ENV = {
   OBSERVER_ASK_PER_VIEWER_PER_DAY: "2000",
   OBSERVER_ASK_PER_INSTANCE_PER_DAY: "20000",
   OBSERVER_DEMO_COMPANY_KEYS: "1",
+  /*
+   * The local control plane under `next start` (ADR-0044), so /madspace can
+   * onboard a client. Its state lives in .observer-local/demo, never in the
+   * directory the browser suite's lab server opens. The two peppers are
+   * demo-only constants for a loopback demo, in the subject pepper's style:
+   * not secrets, refused by describePepper wherever the harness flag is absent.
+   */
+  OBSERVER_DEMO_LOCAL_PLANE: "1",
+  OBSERVER_LOCAL_CONTROL_PLANE: "1",
+  OBSERVER_LOCAL_STATE_DIR: ".observer-local/demo",
+  OBSERVER_ACTIVATION_CODE_PEPPER: "b".repeat(64),
+  OBSERVER_SOURCE_TOKEN_PEPPER: "c".repeat(64),
 };
 
 const env = { ...process.env };

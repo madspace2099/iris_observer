@@ -1,9 +1,11 @@
 import "server-only";
 
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 import { pgliteDb, type ObserverDb, type SqlQuery } from "@observer/sources";
+
+import { onDeploymentPlatform } from "@/lib/deployment-markers";
 
 /**
  * A real Postgres for the control plane, running inside the dev server.
@@ -29,6 +31,12 @@ import { pgliteDb, type ObserverDb, type SqlQuery } from "@observer/sources";
  *   - `NODE_ENV` is not `production`;
  *   - `OBSERVER_LOCAL_CONTROL_PLANE` is set;
  *   - the import is dynamic, so a production build never pulls the WASM in.
+ *
+ * One exception to the first, and only one (ADR-0044): the owner's loopback
+ * recording runs `next start`, so `NODE_ENV` is `production` there. It opens
+ * only with `OBSERVER_DEMO_LOCAL_PLANE=1` AND the conditions ADR-0040 gives a
+ * local demonstration, which include the absence of every deployment marker,
+ * so a hosted copy of the same variables still has no local plane.
  *
  * `next.config.ts` also lists the package as server-external, so it is never
  * considered for the browser bundle at all. A production deployment reaches
@@ -150,7 +158,29 @@ function migrationFiles(): readonly string[] {
  */
 export function localControlPlaneEnabled(): boolean {
   return (
-    process.env.NODE_ENV !== "production" && process.env["OBSERVER_LOCAL_CONTROL_PLANE"] === "1"
+    process.env["OBSERVER_LOCAL_CONTROL_PLANE"] === "1" &&
+    (process.env.NODE_ENV !== "production" || demonstrationPlaneAllowed(process.env))
+  );
+}
+
+/**
+ * The production exception, for the owner's loopback recording (ADR-0044).
+ *
+ * Its own flag, then the same three conditions `env.ts` gives the
+ * demonstration key (ADR-0040): the synthetic account directory, a development
+ * environment or the synthetic harness, and no deployment platform's marker.
+ * The last is what an `.env` file cannot remove, so these lines copied into a
+ * hosted project yield a deployment without a local plane.
+ */
+export function demonstrationPlaneAllowed(
+  source: Readonly<Record<string, string | undefined>>,
+): boolean {
+  return (
+    source["OBSERVER_DEMO_LOCAL_PLANE"] === "1" &&
+    source["OBSERVER_DEMO_ACCOUNTS"] === "1" &&
+    ((source["OBSERVER_ENVIRONMENT"] ?? "development") === "development" ||
+      source["OBSERVER_SYNTHETIC_HARNESS"] === "1") &&
+    !onDeploymentPlatform(source)
   );
 }
 
@@ -163,8 +193,15 @@ export function localControlPlaneEnabled(): boolean {
  * the ledger trustworthy: there is no facade that lists projects, so a ledger
  * outliving its database would name a project id nothing could resolve, and
  * `rm -rf .observer-local` has to be able to reset all of it at once.
+ *
+ * `OBSERVER_LOCAL_STATE_DIR` moves all of it together, absolute or relative to
+ * the repository root. The demonstration server uses `.observer-local/demo`, so
+ * it never opens the PGlite directory the browser suite's lab server holds: two
+ * processes on one PGlite directory corrupt it.
  */
 export function observerLocalDirectory(): string {
+  const configured = process.env["OBSERVER_LOCAL_STATE_DIR"]?.trim() ?? "";
+  if (configured.length > 0) return resolve(repositoryRoot(), configured);
   return join(repositoryRoot(), ".observer-local");
 }
 
@@ -203,7 +240,7 @@ async function connect(): Promise<LocalConnection> {
   const { PGlite } = await import("@electric-sql/pglite");
 
   const root = repositoryRoot();
-  const dataDir = join(root, ".observer-local", "control-plane");
+  const dataDir = join(observerLocalDirectory(), "control-plane");
 
   /*
    * PGlite's own `mkdir` is not recursive, so it fails with ENOENT on the
