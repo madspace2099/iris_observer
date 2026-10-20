@@ -1112,6 +1112,11 @@
   border: 1px solid var(--rule);
 }
 
+/* Under a bordered strip of changes, the chips keep a gap rather than touch it. */
+.iris-changes + .iris-srcs {
+  margin-top: 0.75rem;
+}
+
 .iris-change {
   display: grid;
   gap: 0.25rem;

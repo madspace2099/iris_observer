@@ -82,11 +82,6 @@
   font-size: 0.75rem;
 }
 
-/* Under a bordered strip of changes, the chips keep a gap rather than touch it. */
-.iris-changes + .iris-srcs {
-  margin-top: 0.75rem;
-}
-
 /* The synthetic-data banner. Never subtle: the reader must not mistake it. */
 .iris-synthetic {
   display: inline-flex;
