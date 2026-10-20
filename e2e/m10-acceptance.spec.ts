@@ -408,7 +408,11 @@ test.describe.serial("M10 acceptance", () => {
     const heading = page.getByRole("heading", { name: /deal ladder/i });
     await expect(heading).toBeVisible({ timeout: 90_000 });
     const ladder = page.locator("section, div").filter({ has: heading }).last();
-    await expect(ladder.getByText(/Stated by the deals sheet: 4 deals/)).toBeVisible();
+    /* The count stays in view; the note that names the sheet is behind the `i` (2026-10-20). */
+    await expect(ladder.getByText(/4 deals as they stand now/)).toBeVisible();
+    await ladder.getByRole("button", { name: "About the deal ladder" }).click();
+    await expect(ladder.locator(".iris-info-panel")).toContainText(/Stated by the deals sheet: 4 deals/);
+    await page.keyboard.press("Escape");
     const figures = await ladder.locator(".ox-stage").evaluateAll((stages) =>
       stages.map((s) => [
         s.querySelector(".ox-stage-label")?.textContent?.trim() ?? "",

@@ -146,9 +146,12 @@ test("R05-4 · Sales Flow's Cycle time names where the cycle starts", async ({ p
   await signInAs(page, "Tomáš Varga");
   await page.goto(`${ROOT}/flow`, { waitUntil: "networkidle" });
   const group = page.getByRole("group", { name: "Cycle time" });
-  await expect(group).toContainText(
+  /* The definition stands behind the `i` beside the group's name since 2026-10-20. */
+  await group.getByRole("button", { name: "About Cycle time", exact: true }).click();
+  await expect(group.locator(".iris-info-panel")).toContainText(
     "Measured from the first recorded showroom opening to the date the deal entered the Sold stage.",
   );
+  await page.keyboard.press("Escape");
   await expect(group).toContainText(/Sales cycle|No sale/);
 });
 

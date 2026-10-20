@@ -116,7 +116,14 @@ test("R05-2 · each of the four groups carries its own definition", async ({ pag
       "Measured from the first recorded showroom opening to the date the deal entered the Sold stage.",
     ],
   ] as const) {
-    await expect(page.getByRole("group", { name, exact: true })).toContainText(definition);
+    /* Behind the `i` beside the group's name since 2026-10-20: open it, read it, close it. */
+    const group = page.getByRole("group", { name, exact: true });
+    await group.getByRole("button", { name: `About ${name}`, exact: true }).click();
+    const panel = group.locator(".iris-info-panel");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText(definition);
+    await page.keyboard.press("Escape");
+    await expect(panel).toBeHidden();
   }
 });
 

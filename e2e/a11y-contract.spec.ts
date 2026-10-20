@@ -38,7 +38,7 @@ interface Popup {
   /** The control that opens it. */
   readonly trigger: string;
   /** How the open thing is found from its trigger, and whether it is open. */
-  readonly kind: "details" | "expanded" | "dialog";
+  readonly kind: "details" | "expanded" | "dialog" | "popover";
 }
 
 interface Surface {
@@ -101,6 +101,8 @@ const SURFACES: readonly Surface[] = [
     popups: [
       PERIOD,
       { name: "a figure's explanation", trigger: ".iris-kpi button.iris-measure-info", kind: "expanded" },
+      /* A card's note behind its `i` (2026-10-20): a native popover drawn over the page. */
+      { name: "a card's explanation", trigger: "main button.iris-info", kind: "popover" },
     ],
     change: async (page) => {
       await page.getByRole("link", { name: "Last 7 days", exact: true }).click();
@@ -427,13 +429,17 @@ for (const surface of SURFACES) {
                   ? t.closest("details")
                   : kind === "dialog"
                     ? document.querySelector('[role="dialog"], dialog[open]')
-                    : t.closest(".iris-measure");
+                    : kind === "popover"
+                      ? document.getElementById(t.getAttribute("popovertarget") ?? "")
+                      : t.closest(".iris-measure");
               const open =
                 kind === "details"
                   ? (box as HTMLDetailsElement | null)?.open === true
                   : kind === "dialog"
                     ? box !== null && (box as HTMLElement).getBoundingClientRect().height > 0
-                    : t.getAttribute("aria-expanded") === "true";
+                    : kind === "popover"
+                      ? box?.matches(":popover-open") === true
+                      : t.getAttribute("aria-expanded") === "true";
               const active = document.activeElement;
               return {
                 open,
@@ -472,7 +478,9 @@ for (const surface of SURFACES) {
                 ? t.closest("details")
                 : kind === "dialog"
                   ? document.querySelector('[role="dialog"], dialog[open]')
-                  : t.closest(".iris-measure");
+                  : kind === "popover"
+                    ? document.getElementById(t.getAttribute("popovertarget") ?? "")
+                    : t.closest(".iris-measure");
             const inside = [
               ...(box?.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea") ?? []),
             ].find((el) => el !== t && el.checkVisibility());
