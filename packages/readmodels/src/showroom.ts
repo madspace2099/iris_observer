@@ -497,6 +497,8 @@ export interface UnitPatternLine {
   /** How many catalogue flats, of `baseTotal` that state the attribute. */
   readonly baseCount: number;
   readonly baseTotal: number;
+  /** `baseCount` of `baseTotal`, formatted in the project's locale: "40%". */
+  readonly baseShareDisplay: string;
   /** The most-opened flats it covers. */
   readonly unitCodes: readonly string[];
   readonly evidence: EvidenceRef;

@@ -432,6 +432,24 @@ describe("the tools state each figure's own denominator", () => {
     vi.restoreAllMocks();
   });
 
+  /*
+   * A model is shown the facts and the limitations, never the draft
+   * (`evidenceBlock`), and an answer with a digit it was not shown is
+   * discarded (`figuresAreGiven`). So a model rewording the patterns draft must
+   * find every figure of it among the facts: the catalogue's share included.
+   */
+  it("hands a model every figure the most-opened flats' draft states", async () => {
+    const result = await run("analyze_unit_attention");
+    const shown = [
+      ...result.facts.map((f) => `${f.label} ${f.value} ${f.note ?? ""}`),
+      ...result.caveats,
+    ].join(" ");
+    const digits = (text: string) => new Set(text.match(/\d+/g) ?? []);
+    const given = digits(shown);
+    expect([...digits(result.draft)].filter((run) => !given.has(run))).toEqual([]);
+    expect(result.facts[0]?.note).toMatch(/^against \d+% of the \d+ in the catalogue \(\d+\)$/);
+  });
+
   it("gives each behaviour rate in the outcomes comparison its own sample", async () => {
     const result = await run("compare_agent_outcomes");
     expect(result.draft).toMatch(/progressed most often \(\d+% of \d+ with an outcome\)/);

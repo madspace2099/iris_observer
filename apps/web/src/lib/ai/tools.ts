@@ -702,7 +702,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
           ...patterns.patterns.map((p) => ({
             label: p.label,
             value: `${String(p.topCount)} of the ${String(p.topTotal)} most opened`,
-            note: `against ${String(p.baseCount)} of the ${String(p.baseTotal)} in the catalogue`,
+            note: `against ${p.baseShareDisplay} of the ${String(p.baseTotal)} in the catalogue (${String(p.baseCount)})`,
           })),
           ...patterns.top.map((f) => ({
             label: f.unitCode,

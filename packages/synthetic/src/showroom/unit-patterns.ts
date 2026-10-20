@@ -401,14 +401,16 @@ function findPatterns(
   /* The first line names the flats; the lines after it read on from it ("All 5 have two rooms"). */
   const patterns = groups.map(({ group, first, id }, index): UnitPatternLine => {
     const k = first.top.length;
+    const baseShareDisplay = share(first.base.length, first.baseTotal, locale);
     return {
       id,
       label: group.map((c) => c.label).join(" · "),
-      statement: `${index === 0 ? lead(k, n) : of(k, n)} ${group.map((c) => c.phrase).join(" and ")}, against ${share(first.base.length, first.baseTotal, locale)} of the ${String(first.baseTotal)} ${first.noun}.`,
+      statement: `${index === 0 ? lead(k, n) : of(k, n)} ${group.map((c) => c.phrase).join(" and ")}, against ${baseShareDisplay} of the ${String(first.baseTotal)} ${first.noun}.`,
       topCount: k,
       topTotal: n,
       baseCount: first.base.length,
       baseTotal: first.baseTotal,
+      baseShareDisplay,
       unitCodes: first.top,
       evidence: evidenceRef(
         `unit-pattern-${id}`,
