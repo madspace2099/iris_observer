@@ -3946,7 +3946,8 @@ button.mad-quiet {
 
 .mad-wizard-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  /* A zone name (America/Los_Angeles) is the longest of the three. */
+  grid-template-columns: minmax(7rem, 0.8fr) minmax(7rem, 0.8fr) minmax(11rem, 1.4fr);
   gap: var(--rhythm-inner);
 }
 
@@ -4099,6 +4100,29 @@ button.mad-quiet {
 
 .mad-wizard-foot > :first-child:not(:last-child) {
   margin-right: auto;
+}
+
+/*
+ * The footer's two buttons at the size of the field beside them, and Next in
+ * IRIS blue as Akhilesh drew it. Scoped to the wizard: elsewhere in MADSPACE an
+ * ink fill is the primary and blue means "waiting for MADSPACE" (ADR-0042).
+ */
+.mad-portal .mad-wizard-foot .mad-button {
+  min-height: 2.75rem;
+  padding: 0 var(--space-5);
+}
+
+.mad-portal .mad-wizard-foot .mad-button[data-emphasis="primary"]:not([aria-disabled="true"]) {
+  border-color: var(--iris-accent);
+  background: var(--iris-accent);
+  color: #04121c;
+}
+
+.mad-portal
+  .mad-wizard-foot
+  .mad-button[data-emphasis="primary"]:not([aria-disabled="true"]):hover {
+  border-color: var(--iris-accent-strong);
+  background: var(--iris-accent-strong);
 }
 
 /* Busy swaps the fill as well as the label, as `.mad-action[aria-disabled]` does. */

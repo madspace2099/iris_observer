@@ -64,9 +64,9 @@ export function composerNotices(input: {
   const modelNotice = !input.aiEnabled
     ? null
     : model !== null
-      ? `${asked} are worded by ${model}, a language model, from the figures Observer's read models compute. It writes no figure.`
+      ? `${asked} are worded by ${model}, a language model, from the figures Observer's read models compute. Every figure it writes in digits is checked against those results before it is shown.`
       : input.connected
-        ? `${asked} may be worded by the language model connected to this account, from the figures Observer's read models compute. It writes no figure.`
+        ? `${asked} may be worded by the language model connected to this account, from the figures Observer's read models compute. Every figure it writes in digits is checked against those results before it is shown.`
         : null;
 
   const company = modelNotice === null ? input.company : null;

@@ -71,7 +71,8 @@ export function CompanyKeyDialog({
           The key is kept in this server&rsquo;s memory for {company} until the server restarts.
           Every member of {company} asks with it, and it is never shown again. With it,{" "}
           {MODEL_WORDED} in Ask IRIS are worded by a language model from the figures
-          Observer&rsquo;s read models compute; the model writes no figure.
+          Observer&rsquo;s read models compute; every figure it writes in digits is checked against
+          them before it is shown.
         </p>
 
         {failure === null ? null : (

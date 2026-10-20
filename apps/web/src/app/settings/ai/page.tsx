@@ -578,7 +578,8 @@ function CompanyKeyPanel({
       <p className="ox-section-note">
         One OpenAI key for everyone at {state.company}, kept in this server&rsquo;s memory until it
         restarts and never shown again. With it, {MODEL_WORDED} in Ask IRIS are worded by a language
-        model from the figures Observer&rsquo;s read models compute; it writes no figure.
+        model from the figures Observer&rsquo;s read models compute; every figure it writes in
+        digits is checked against them before it is shown.
       </p>
 
       {spendable ? null : (
