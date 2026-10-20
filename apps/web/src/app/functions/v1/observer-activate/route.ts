@@ -1,5 +1,6 @@
 import { handleActivate, failure } from "@observer/sources";
 
+import { activateWithAliases, aliasesEnabled } from "@/lib/madspace/activation-aliases";
 import { observerDepsAsync } from "@/lib/sources/deps";
 
 /**
@@ -15,6 +16,9 @@ import { observerDepsAsync } from "@/lib/sources/deps";
  * The path is backend-owned (`PD-13`). The `/functions/v1` prefix is where a
  * Supabase Edge Function is served from, so serving it here means the URL a
  * plugin is configured with does not change if this later moves.
+ *
+ * On the local plane a short `ACT-XXXX-XXXX` alias is swapped for the real
+ * code first (`activation-aliases.ts`, ADR-0044); the rules stay in the handler.
  */
 
 export const runtime = "nodejs";
@@ -27,5 +31,5 @@ export async function POST(request: Request): Promise<Response> {
   if (deps === null) {
     return failure("unavailable", "This deployment is not configured to accept Observer traffic.");
   }
-  return handleActivate(request, deps);
+  return aliasesEnabled() ? activateWithAliases(request, deps) : handleActivate(request, deps);
 }

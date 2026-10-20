@@ -1016,7 +1016,7 @@ describe("the test store is not a development convenience", () => {
       .map((f) => f.slice(src.length).split("\\").join("/"));
 
     /*
-     * Five, and every one deliberate.
+     * Seven, and every one deliberate.
      *
      * `ai/limits.ts` keeps the Ask limiter's counters there for a bundle-boundary
      * reason and predates all of this. Three are the browser harness —
@@ -1039,7 +1039,13 @@ describe("the test store is not a development convenience", () => {
      * memory only, and is deleted in one piece when a company can own a row
      * in the real credential store.
      *
-     * A seventh entry appearing here means somebody reached for process-global
+     * `madspace/activation-aliases.ts` is the seventh (ADR-0044, amended): the
+     * short `ACT-XXXX-XXXX` alias of an activation code is minted by a server
+     * action and resolved by the activation route, two bundles again. It holds
+     * process memory only, mints only where the local control plane is the one
+     * in use (one process by construction), and a hosted plane never reaches it.
+     *
+     * An eighth entry appearing here means somebody reached for process-global
      * state in the product itself, which is what this list exists to catch.
      */
     expect(offenders.sort()).toEqual([
@@ -1047,6 +1053,7 @@ describe("the test store is not a development convenience", () => {
       "/lib/budget/test-ledger.ts",
       "/lib/credentials/company-keys.ts",
       "/lib/credentials/test-store.ts",
+      "/lib/madspace/activation-aliases.ts",
       "/lib/models/test-preferences.ts",
       "/lib/sources/local-db.ts",
     ]);
@@ -1060,6 +1067,7 @@ describe("the test store is not a development convenience", () => {
     const NAMED_EXCEPTIONS = [
       "/lib/ai/limits.ts",
       "/lib/credentials/company-keys.ts",
+      "/lib/madspace/activation-aliases.ts",
       "/lib/sources/local-db.ts",
     ];
     for (const harness of offenders.filter((f) => !NAMED_EXCEPTIONS.includes(f))) {
