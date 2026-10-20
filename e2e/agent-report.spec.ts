@@ -16,7 +16,9 @@ import { signIn } from "./sign-in";
  *     Kováč holds thirty-eight, and every percentage of his has an "of …"
  *     beside it, never a title attribute;
  *   - the agent's own screen offers the export, and the shareable page it
- *     links to is that agent's summary, not the project's report.
+ *     links to is that agent's summary, not the project's report;
+ *   - its Generate document works: the PDF opens that page to print, and the
+ *     CSV downloads that summary's figures (ADR-0045).
  *
  * A count is a count and stands alone with its denominator; what these
  * tests hold to the floor are the figures that would read as a verdict: a
@@ -78,4 +80,40 @@ test("the agent's screen offers the export, and its shareable page is their own 
     "href",
     `${ISTER}/report?agent=agt_luciahorvath`,
   );
+});
+
+/*
+ * "The Generate document button is locked" (the owner, 2026-10-20, ADR-0045).
+ * It is a link in both formats that lacked one: the PDF opens the composed
+ * page in a new tab asking for the print dialog, and the CSV downloads from
+ * the route beside the page, named for the agent, in the language chosen.
+ */
+test("Generate document opens the PDF to print and downloads the figures as CSV", async ({
+  page,
+}) => {
+  await signIn(page, "Petra Novák");
+  await page.goto(`${ISTER}/agents/agt_luciahorvath`);
+  await page.getByRole("button", { name: "Export agent summary" }).click();
+  const dialog = page.getByRole("dialog");
+  const generate = dialog.getByRole("link", { name: "Generate document" });
+
+  await dialog.getByLabel("Format").selectOption("pdf");
+  await expect(generate).toHaveAttribute("href", `${ISTER}/report?agent=agt_luciahorvath&print=1`);
+  await expect(generate).toHaveAttribute("target", "_blank");
+  await expect(generate).not.toHaveAttribute("aria-disabled", "true");
+  await expect(dialog).toContainText("Save as PDF");
+
+  await dialog.getByRole("button", { name: "Magyar" }).click();
+  await dialog.getByLabel("Format").selectOption("csv");
+  const href = `${ISTER}/report/csv?agent=agt_luciahorvath&lang=hu`;
+  await expect(generate).toHaveAttribute("href", href);
+  await expect(generate).toHaveAttribute("download", "");
+
+  const response = await page.request.get(href);
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toBe("text/csv; charset=utf-8");
+  expect(response.headers()["content-disposition"]).toBe(
+    'attachment; filename="ister-tower_lucia-horvath_quarter-to-date_hu.csv"',
+  );
+  expect((await response.body()).subarray(0, 3)).toEqual(Buffer.from([0xef, 0xbb, 0xbf]));
 });
