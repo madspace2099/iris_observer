@@ -17,15 +17,28 @@ export interface DeliveredCatalogue {
   /** The tenant's orientation codes → compass points, from the connector's configuration. */
   readonly orientationMap: OrientationMap;
   /**
-   * For a unit whose move onto its CURRENT availability Observer witnessed — its
-   * status differed between two syncs — the instant of the sync that first saw
-   * it there, by unit code. The catalogue states no date for a status change
-   * (REALPAD's pricelist has no per-flat time at all), so this is the only date
-   * an availability change has, and it is late by up to one sync, never early.
-   * Absent for a unit first seen already reserved or sold: the first sync sees
-   * every historical sale at once (ADR-0039 §5, ADR-0049).
+   * For a unit now reserved or sold whose move OFF the market Observer
+   * witnessed — between two syncs, from a status the tenant's mapping knows
+   * (available, pre-reserved, …) to reserved or sold, with the CRM's own word
+   * changing too — that move, by unit code. The catalogue states no date for a
+   * status change (REALPAD's pricelist has no per-flat time at all), so two
+   * syncs are the only dates it has: the move came after `seenBefore` and at or
+   * before `at`. A reserved flat later sold keeps its reservation's move.
+   * Absent for a unit first seen already reserved or sold, and for one whose
+   * earlier status was a word nobody had mapped: a mapping added or fixed is
+   * not a sale (ADR-0039 §5, ADR-0049).
    */
-  readonly statusObservedAt?: Readonly<Record<string, string>>;
+  readonly statusChanges?: Readonly<Record<string, CatalogueStatusChange>>;
+}
+
+/** A witnessed move onto reserved or sold: between two syncs, never at an instant. */
+export interface CatalogueStatusChange {
+  /** The sync that first saw the flat reserved or sold. */
+  readonly at: string;
+  /** What it moved to then; a reserved flat may since have been sold. */
+  readonly to: "reserved" | "sold";
+  /** The newest sync Observer knows of before `at`: the move came after it. */
+  readonly seenBefore: string;
 }
 
 export interface CatalogueSource {

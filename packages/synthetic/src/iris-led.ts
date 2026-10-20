@@ -4,6 +4,7 @@ import {
   DAYS,
   plural,
   type AssistVerdict,
+  type CatalogueStatusChange,
   type DeliveredDeals,
   type IrisLedAgent,
   type IrisLedFigure,
@@ -15,7 +16,7 @@ import {
   type ViewContext,
 } from "@observer/readmodels";
 import { CONNECTOR_WORDS, STAGE_LABELS, lagWords, median } from "./deals";
-import { dayLabel, percent } from "./format";
+import { count as formatCount, dayLabel, percent } from "./format";
 import { BUILDINGS, catalogueFor, hasDeliveredCatalogue } from "./pulse";
 
 /**
@@ -41,8 +42,8 @@ export interface IrisLedCatalogue {
   readonly units: readonly { readonly code: string; readonly status: UnitStatus }[];
   /** The connector that delivered it; null for the synthetic building, which is no CRM. */
   readonly connector: ConnectorKind | null;
-  /** By unit code: when a sync first saw the flat on its current availability. */
-  readonly statusObservedAt: Readonly<Record<string, string>>;
+  /** By unit code: the witnessed move off the market, between two syncs. */
+  readonly statusChanges: Readonly<Record<string, CatalogueStatusChange>>;
   /** True where the flats' availability is the demonstration CRM's own holds. */
   readonly fromDemonstrationCrm: boolean;
 }
@@ -65,19 +66,12 @@ export interface IrisLedInput {
 
 /* --- the catalogue's witnessed changes, held like the deals ------------------ */
 
-const witnessed = new Map<
-  string,
-  { readonly connector: ConnectorKind; readonly statusObservedAt: Readonly<Record<string, string>> }
->();
+type Witnessed = Pick<IrisLedCatalogue, "statusChanges"> & { readonly connector: ConnectorKind };
+
+const witnessed = new Map<string, Witnessed>();
 
 /** Set by the repository beside `provideCatalogue`, from the same delivered catalogue. */
-export function provideCatalogueChanges(
-  projectId: string,
-  delivered: {
-    readonly connector: ConnectorKind;
-    readonly statusObservedAt: Readonly<Record<string, string>>;
-  } | null,
-): void {
+export function provideCatalogueChanges(projectId: string, delivered: Witnessed | null): void {
   if (delivered === null) witnessed.delete(projectId);
   else witnessed.set(projectId, delivered);
 }
@@ -88,7 +82,7 @@ export function irisLedCatalogue(projectId: string): IrisLedCatalogue {
   return {
     units: catalogueFor(projectId),
     connector: delivered?.connector ?? null,
-    statusObservedAt: delivered?.statusObservedAt ?? {},
+    statusChanges: delivered?.statusChanges ?? {},
     fromDemonstrationCrm: delivered === null && BUILDINGS[projectId]?.statusFromCrm === true,
   };
 }
@@ -135,6 +129,12 @@ interface Placed {
   /** "the reservation", "the change to sold": what a showing came before. */
   readonly changeNoun: string;
   readonly at: number;
+  /**
+   * The latest start a showing may have and still certainly come first: the
+   * date itself where the CRM states it, else the sync before the one that saw
+   * the change. A showing between the two is of unknown order, and not counted.
+   */
+  readonly certainUntil: number;
   readonly dateBasis: IrisLedSale["dateBasis"];
 }
 
@@ -146,7 +146,7 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
   const window = `${String(policy.windowHours)} hours`;
 
   const definition = `A sale is IRIS-led when its flat was opened in an IRIS presentation before its status changed: before the date the CRM states for its reservation or purchase, or before a sync saw the flat's availability change to reserved or sold. It is a rule about order. It counts every showing that came first, how long before, and who gave it. The ${window} column is the IRIS-assisted rule, kept beside it.`;
-  const caveat = `Sequence, not cause. That a flat was shown before its status changed does not say the showing produced the sale: the CRM's buyer is not linked to the visitor in the room, so the buyer may never have seen the flat in IRIS while someone else did. A date the CRM states is its own. Where it states none, and where a flat's availability changed in the catalogue, the change is dated by the sync that first saw it, which is up to one sync late: the gap from the last showing reads longer than it was, never shorter. A sale with no date, or with no flat, cannot be placed and is counted beside the figures, never inside them.`;
+  const caveat = `Sequence, not cause. That a flat was shown before its status changed does not say the showing produced the sale: the CRM's buyer is not linked to the visitor in the room, so the buyer may never have seen the flat in IRIS while someone else did. A date the CRM states is its own. Where it states none, and where a flat's availability changed in the catalogue, Observer knows only that the change came after one sync and by the next, and dates it by the later one. A showing counts as before the change only if it started by the earlier sync; one between the two may have come after the change, so it is listed as of unknown order and counted nowhere. Measured to the later sync, the gap from the last showing reads longer than it was, never shorter. A sale with no date, or with no flat, cannot be placed and is counted beside the figures, never inside them.`;
 
   const connected = deals !== null || catalogue.connector !== null;
   const counts0 = {
@@ -169,6 +169,7 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
       neverShown: [],
       neverShownNote: "",
       unplacedNote: null,
+      frameNote: null,
       agents: [],
       axis: { ticks: [], windowStart: 1, caption: "" },
       counts: {
@@ -195,6 +196,7 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
     (d) => d.stage === "reservation" || d.stage === "purchase",
   );
   const observed = deals?.stageObservedAt ?? {};
+  const seenBefore = deals?.stageSeenBeforeAt ?? {};
   const placed: Placed[] = [];
   let unplacedNoDate = 0;
   let unplacedNoUnit = 0;
@@ -203,7 +205,10 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
     const stated = d.stageEnteredAt;
     const dated = stated ?? observed[d.externalId] ?? null;
     const at = dated === null ? Number.NaN : Date.parse(dated);
-    if (Number.isNaN(at)) {
+    /* A sync's date needs the sync before it, or no showing can be put in order against it. */
+    const certainUntil =
+      stated === null ? Date.parse(seenBefore[d.externalId] ?? "") : Date.parse(stated);
+    if (Number.isNaN(at) || Number.isNaN(certainUntil)) {
       unplacedNoDate += 1;
       continue;
     }
@@ -221,6 +226,7 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
       dateWords: stated === null ? `Observer first saw its ${word}` : `its ${word} date`,
       changeNoun: `the ${word}`,
       at,
+      certainUntil,
       dateBasis: stated === null ? "first_observed" : "crm_stated",
     });
   }
@@ -230,9 +236,10 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
   let catalogueUndated = 0;
   for (const unit of catalogue.units) {
     if ((unit.status !== "reserved" && unit.status !== "sold") || crmFlats.has(unit.code)) continue;
-    const seen = catalogue.statusObservedAt[unit.code];
-    const at = seen === undefined ? Number.NaN : Date.parse(seen);
-    if (Number.isNaN(at)) {
+    const move = catalogue.statusChanges[unit.code];
+    const at = move === undefined ? Number.NaN : Date.parse(move.at);
+    const certainUntil = move === undefined ? Number.NaN : Date.parse(move.seenBefore);
+    if (move === undefined || Number.isNaN(at) || Number.isNaN(certainUntil)) {
       catalogueUndated += 1;
       continue;
     }
@@ -241,10 +248,12 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
       id: `unit:${unit.code}`,
       unitCode: unit.code,
       source: "catalogue_availability",
-      changeLabel: `Marked ${unit.status}`,
-      dateWords: `Observer first saw it marked ${unit.status}`,
-      changeNoun: `the change to ${unit.status}`,
+      changeLabel:
+        move.to === unit.status ? `Marked ${move.to}` : `Marked ${move.to}, now ${unit.status}`,
+      dateWords: `Observer first saw it marked ${move.to}`,
+      changeNoun: `the change to ${move.to}`,
       at,
+      certainUntil,
       dateBasis: "first_observed",
     });
   }
@@ -262,7 +271,13 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
     }
   }
   const showingsOf = (p: Placed): readonly ShowroomSession[] =>
-    (byFlat.get(p.unitCode) ?? []).filter((s) => Date.parse(s.startedAt) <= p.at);
+    (byFlat.get(p.unitCode) ?? []).filter((s) => Date.parse(s.startedAt) <= p.certainUntil);
+  /* Between the sync before and the sync that saw the change: which came first is unknown. */
+  const unorderedOf = (p: Placed): number =>
+    (byFlat.get(p.unitCode) ?? []).filter((s) => {
+      const start = Date.parse(s.startedAt);
+      return start > p.certainUntil && start <= p.at;
+    }).length;
 
   /* One colour per presenter, in name order, across the whole page. */
   const agentIds = [...new Set(placed.flatMap((p) => showingsOf(p).map((s) => s.agentId)))];
@@ -312,6 +327,11 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
           : "shown_earlier";
     const n = showings.length;
     const within = showings.filter((s) => s.inPeriod).length;
+    const unordered = unorderedOf(p);
+    const unorderedWords =
+      unordered === 0
+        ? ""
+        : ` ${n === 0 ? count(unordered, "meeting", "meetings") : count(unordered, "more meeting", "more meetings")} opened it after the sync before the change and by the one that saw it, so ${unordered === 1 ? "its" : "their"} order against the change is unknown and ${unordered === 1 ? "it is" : "they are"} not counted.`;
     const rowAgents = [...new Set(shown.map((s) => s.agentId))].flatMap((id) => {
       const a = agentOf.get(id);
       return a === undefined ? [] : [a];
@@ -331,14 +351,16 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
             ? "the CRM's date"
             : "first seen by a deals sync",
       showings,
-      showingsDisplay:
+      showingsDisplay: `${
         n === 0
           ? "None"
           : within === n
             ? `${String(n)}, all in the period`
             : within === 0
               ? `${String(n)}, all before the period`
-              : `${String(n)}: ${String(within)} in the period, ${String(n - within)} before it`,
+              : `${String(n)}: ${String(within)} in the period, ${String(n - within)} before it`
+      }${unordered === 0 ? "" : `; ${String(unordered)} of unknown order`}`,
+      unorderedShowings: unordered,
       firstShownDisplay: showings[0]?.dateDisplay ?? null,
       lastShownDisplay: last?.dateDisplay ?? null,
       daysFromLastShowing: lagHours === null ? null : Math.floor(lagHours / 24),
@@ -348,10 +370,11 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
       agents: rowAgents,
       verdict,
       verdictLabel: VERDICT_WORDS[verdict](policy.windowHours),
-      statement:
+      statement: `${
         last === null
           ? `No IRIS presentation opened ${p.unitCode} before ${p.dateWords}.`
-          : `${p.unitCode} was opened in ${count(n, "IRIS presentation", "IRIS presentations")} before ${p.dateWords}, the last ${last.beforeDisplay} it, by ${last.agentName}.`,
+          : `${p.unitCode} was opened in ${count(n, "IRIS presentation", "IRIS presentations")} before ${p.dateWords}, the last ${last.beforeDisplay} it, by ${last.agentName}.`
+      }${unorderedWords}`,
     };
   });
 
@@ -387,7 +410,7 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
             of:
               share(shownBefore) === null
                 ? floorWords
-                : `${share(shownBefore) ?? ""} of the period's sales`,
+                : `${share(shownBefore) ?? ""} of the period's sales with a date and a flat`,
           },
           {
             id: "window",
@@ -401,7 +424,8 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
           {
             id: "showings",
             label: "Showings before a sale, median",
-            value: medianShowings === null ? "No sale shown" : String(medianShowings),
+            /* The median of an even count is the mean of the middle two: "7.5", in the project's own figures. */
+            value: medianShowings === null ? "No sale shown" : formatCount(medianShowings, locale),
             of: medianShowings === null ? "nothing to take a median of" : acrossLed,
           },
           {
@@ -423,12 +447,19 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
         ? `${said} (${share(shownBefore) ?? ""}).`
         : `${said}. A share is stated from ${count(policy.minimumSales, "sale", "sales")}.`;
 
+  /* The demonstration CRM makes its deals from meetings: a 100% here is how the data was made. */
+  const byConstruction =
+    deals?.connector === "synthetic"
+      ? " The demonstration CRM makes each of its deals from a meeting that opened the flat, so every sale it states was shown in IRIS by construction; a real CRM lists sales the showroom never showed."
+      : "";
   const neverShownNote =
     total === 0
       ? ""
-      : neverShown.length === 0
-        ? "Every sale in this period was shown in IRIS before its status changed."
-        : `${String(neverShown.length)} of ${String(total)} ${total === 1 ? "sale" : "sales"} in this period had no IRIS presentation open the flat before the change. They are in the denominator above.`;
+      : `${
+          neverShown.length === 0
+            ? "Every sale in this period was shown in IRIS before its status changed."
+            : `${String(neverShown.length)} of ${String(total)} ${total === 1 ? "sale" : "sales"} in this period had no IRIS presentation open the flat before the change. They are in the denominator above.`
+        }${byConstruction}`;
 
   const unplaced = [
     unplacedNoDate === 0
@@ -464,8 +495,13 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
     name,
     readAtDisplay,
     reads,
-    note: `Read from ${name}${readAtDisplay === null ? "" : `, last read ${readAtDisplay}`}: ${reads.join("; ")}. Showings are read from every IRIS meeting on this project, whatever the period.`,
+    note: `Read from ${name}${readAtDisplay === null ? "" : `, last read ${readAtDisplay}`}: ${reads.join("; ")}. Showings are read from every IRIS meeting on this project, whatever the period.${byConstruction}`,
   };
+  /* The Sales Flow card this page sits beneath reads the same rule over a different frame (ADR-0039 §8). */
+  const frameNote =
+    deals === null || total === 0
+      ? null
+      : `The IRIS-assisted card on Sales Flow applies the same ${String(policy.windowHours)}-hour rule to every dated deal the CRM states, whatever the period. These figures count this period's sales only, so the two can differ.`;
 
   const windowStart = position(policy.windowHours / 24);
   return {
@@ -481,6 +517,7 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
     neverShown,
     neverShownNote,
     unplacedNote: unplaced.length === 0 ? null : unplaced.join(" "),
+    frameNote,
     agents,
     axis: {
       ticks: TICKS.filter((t) => t.days <= longest).map((t) => ({

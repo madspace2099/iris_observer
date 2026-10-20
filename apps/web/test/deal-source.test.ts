@@ -89,6 +89,11 @@ describe("the sync instants a deal source hands the read models", () => {
       /* The move onto the stage it is on NOW, not the earlier one it has since left. */
       "MOVED-ON": "2026-09-15T06:00:00.000Z",
     });
+    /* The sync before each move, of this connector: the move came after it, so a showing between the two is of unknown order. */
+    expect(delivered?.stageSeenBeforeAt).toEqual({
+      WITNESSED: "2026-09-05T06:00:00.000Z",
+      "MOVED-ON": "2026-09-10T06:00:00.000Z",
+    });
     expect(service.recentDealChanges).toHaveBeenCalledWith(TWIN, 1000);
   });
 

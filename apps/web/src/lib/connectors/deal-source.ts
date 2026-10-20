@@ -55,15 +55,30 @@ async function resolve(project: ProjectSummary): Promise<DeliveredDeals | null> 
    * honest reading of a sale nobody dated.
    */
   const standing = new Map(deals.map((d) => [d.externalId, d.stage]));
+  const rows = (await service.recentDealChanges(projectUuid, 1000)).filter(
+    (change) => change.connector === active.kind,
+  );
+  /*
+   * The move came after the sync before it. The sync log is not on the façade,
+   * so "before it" is the newest instant among these rows that precedes the
+   * move: a sync that changed nothing is invisible, and the interval is never
+   * narrower than the truth.
+   */
+  const instants = [...new Set(rows.map((r) => r.observed_at))].sort(
+    (a, b) => Date.parse(b) - Date.parse(a),
+  );
   const stageObservedAt: Record<string, string> = {};
-  for (const change of await service.recentDealChanges(projectUuid, 1000)) {
-    if (change.connector !== active.kind || change.kind !== "stage_changed") continue;
+  const stageSeenBeforeAt: Record<string, string> = {};
+  for (const change of rows) {
+    if (change.kind !== "stage_changed") continue;
     if (stageObservedAt[change.external_id] !== undefined) continue;
     if (standing.get(change.external_id) !== change.to_stage) continue;
     stageObservedAt[change.external_id] = change.observed_at;
+    const before = instants.find((t) => Date.parse(t) < Date.parse(change.observed_at));
+    if (before !== undefined) stageSeenBeforeAt[change.external_id] = before;
   }
 
-  return { connector: active.kind, deals, fetchedAt: last.at, stageObservedAt };
+  return { connector: active.kind, deals, fetchedAt: last.at, stageObservedAt, stageSeenBeforeAt };
 }
 
 export const liveDealSource: DealSource = {

@@ -4,6 +4,7 @@ import type { CrmDeal, ShowroomSession } from "@observer/contracts";
 import { DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
 import {
   DEFAULT_LANGUAGE,
+  NotPermittedError,
   type DeliveredDeals,
   type IrisLedSalesView,
   type OverviewQuery,
@@ -96,6 +97,8 @@ const SESSIONS = [
   meeting("m3", "2026-09-09T10:00:00.000Z", "agt_a", "A-1"),
   meeting("m4", "2026-09-12T10:00:00.000Z", "agt_b", "C-3"),
   meeting("m6", "2026-09-19T22:00:00.000Z", "agt_a", "F-6"),
+  /* After the sync before W-1's move and before the sync that saw it: of unknown order. */
+  meeting("m7", "2026-09-20T04:00:00.000Z", "agt_b", "F-6"),
 ];
 
 const DEALS: DeliveredDeals = {
@@ -113,6 +116,7 @@ const DEALS: DeliveredDeals = {
     deal("W-1", "F-6", "reservation", null),
   ],
   stageObservedAt: { "W-1": "2026-09-20T10:00:00.000Z" },
+  stageSeenBeforeAt: { "W-1": "2026-09-20T00:00:00.000Z" },
 };
 
 const CATALOGUE: IrisLedCatalogue = {
@@ -125,7 +129,10 @@ const CATALOGUE: IrisLedCatalogue = {
     { code: "J-9", status: "available" },
     { code: "K-10", status: "sold" },
   ],
-  statusObservedAt: { "G-7": "2026-09-18T06:00:00.000Z", "K-10": "2026-06-01T06:00:00.000Z" },
+  statusChanges: {
+    "G-7": { at: "2026-09-18T06:00:00.000Z", to: "sold", seenBefore: "2026-09-17T06:00:00.000Z" },
+    "K-10": { at: "2026-06-01T06:00:00.000Z", to: "sold", seenBefore: "2026-05-31T06:00:00.000Z" },
+  },
 };
 
 function build(
@@ -210,8 +217,13 @@ describe("which of the period's sales the showroom showed first", () => {
     expect(row("W-1")?.dateBasis).toBe("first_observed");
     expect(row("W-1")?.dateWhose).toBe("first seen by a deals sync");
     expect(row("W-1")?.statement).toBe(
-      "F-6 was opened in 1 IRIS presentation before Observer first saw its reservation, the last 12 hours before it, by Anna Test.",
+      "F-6 was opened in 1 IRIS presentation before Observer first saw its reservation, the last 12 hours before it, by Anna Test. 1 more meeting opened it after the sync before the change and by the one that saw it, so its order against the change is unknown and it is not counted.",
     );
+    /* m6 started before the sync that still saw the deal unmoved; m7 between that sync and the next. */
+    expect(row("W-1")?.showings.map((s) => s.meetingId)).toEqual(["m6"]);
+    expect(row("W-1")?.unorderedShowings).toBe(1);
+    expect(row("W-1")?.showingsDisplay).toBe("1, all in the period; 1 of unknown order");
+    expect(row("R-1")?.unorderedShowings, "a date the CRM states orders every showing").toBe(0);
     expect(row("unit:G-7")?.changeLabel).toBe("Marked sold");
     expect(row("unit:G-7")?.dateWhose).toBe("first seen by a catalogue sync");
     expect(row("unit:G-7")?.statement).toBe(
@@ -228,13 +240,19 @@ describe("which of the period's sales the showroom showed first", () => {
       "3 of 5 sales in this period were shown in IRIS before their status changed (60%).",
     );
     const figure = (id: string) => view.figures.find((f) => f.id === id);
-    expect(figure("led")).toMatchObject({ value: "3 of 5", of: "60% of the period's sales" });
+    expect(figure("led")).toMatchObject({
+      value: "3 of 5",
+      of: "60% of the period's sales with a date and a flat",
+    });
     expect(figure("window")).toMatchObject({ value: "2 of 5", of: "40%, the IRIS-assisted rule" });
     /* Showings 3, 1, 1: median 1. Days to the change 1, 20, 0: median 1. */
     expect(figure("showings")).toMatchObject({ value: "1", of: "across 3 IRIS-led sales" });
     expect(figure("gap")).toMatchObject({ value: "1 day", of: "across 3 IRIS-led sales" });
     /* m1, m2, m3 for A-1; m2 again for B-2; m6 for F-6. */
     expect(view.verdictMeetings).toBe(4);
+    expect(view.frameNote).toBe(
+      "The IRIS-assisted card on Sales Flow applies the same 72-hour rule to every dated deal the CRM states, whatever the period. These figures count this period's sales only, so the two can differ.",
+    );
   });
 
   it("lists the shown sales newest change first, and the never-shown ones beside them", () => {
@@ -315,12 +333,61 @@ describe("below the sample floor, and with nothing connected", () => {
   });
 
   it("says no CRM is connected rather than drawing an empty period", () => {
-    const view = build(null, { ...CATALOGUE, connector: null, statusObservedAt: {} });
+    const view = build(null, { ...CATALOGUE, connector: null, statusChanges: {} });
     expect(view.source).toBeNull();
     expect(view.figures).toEqual([]);
     expect(view.headline).toBe(
       "No CRM is connected to this project, so there is no sale to place against a showing.",
     );
+  });
+
+  it("cannot place a sync-dated deal without the sync before it", () => {
+    /* W-1 dated by a sync, but no earlier sync on record: no showing can be put in order against it. */
+    const view = build({
+      ...DEALS,
+      deals: DEALS.deals.filter((d) => d.externalId === "W-1"),
+      stageSeenBeforeAt: {},
+    });
+    expect(view.counts.unplacedNoDate).toBe(1);
+    expect([...view.sales, ...view.neverShown].map((s) => s.id)).toEqual(["unit:G-7"]);
+  });
+
+  it("dates a flat reserved and then sold by its reservation, and says it is sold now", () => {
+    const view = build(null, {
+      ...CATALOGUE,
+      statusChanges: {
+        "G-7": {
+          at: "2026-09-18T06:00:00.000Z",
+          to: "reserved",
+          seenBefore: "2026-09-17T06:00:00.000Z",
+        },
+      },
+    });
+    const sale = view.neverShown.find((s) => s.id === "unit:G-7");
+    expect(sale?.changeLabel).toBe("Marked reserved, now sold");
+    expect(sale?.statement).toBe(
+      "No IRIS presentation opened G-7 before Observer first saw it marked reserved.",
+    );
+  });
+
+  it("prints a median of an even count in the project's own figures", () => {
+    /* Two IRIS-led sales, shown once and twice: the median is 1.5, which Czech writes 1,5. */
+    const view = buildIrisLedSales({
+      context: viewContext({ project: { locale: "cs-CZ" } }),
+      deals: {
+        ...DEALS,
+        deals: DEALS.deals.filter((d) => d.externalId === "R-1" || d.externalId === "R-2"),
+      },
+      catalogue: { ...CATALOGUE, connector: null, units: [] },
+      sessions: SESSIONS.filter((s) => s.meetingId !== "m1"),
+      window: PERIOD,
+      policy: DEFAULT_IRIS_ASSIST_POLICY,
+      unitHref: () => null,
+      meetingHref: (id) => `/t/p/meetings/${id}`,
+      agentName: (id) => id,
+      agentHref: () => null,
+    });
+    expect(view.figures.find((f) => f.id === "showings")?.value).toBe("1,5");
   });
 
   it("reads a delivered catalogue alone as a connection: availability changes are sales", () => {
@@ -367,12 +434,20 @@ describe("on Shark Residence, through the repository", () => {
     }
   });
 
+  it("discloses that the demonstration CRM makes every sale it states from a meeting", async () => {
+    const view = await new SyntheticObserverRepository().getIrisLedSales(query);
+    const said =
+      "The demonstration CRM makes each of its deals from a meeting that opened the flat, so every sale it states was shown in IRIS by construction; a real CRM lists sales the showroom never showed.";
+    expect(view.neverShownNote).toContain(said);
+    expect(view.source?.note).toContain(said);
+  });
+
   it("refuses a reader who does not hold the project", async () => {
     await expect(
       new SyntheticObserverRepository().getIrisLedSales({
         ...query,
         viewer: VIEWERS.developer as Viewer,
       }),
-    ).rejects.toThrow();
+    ).rejects.toBeInstanceOf(NotPermittedError);
   });
 });

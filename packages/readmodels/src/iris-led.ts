@@ -58,6 +58,12 @@ export interface IrisLedSale {
   readonly showings: readonly IrisLedShowing[];
   /** "3 · 2 in the period, 1 before it". */
   readonly showingsDisplay: string;
+  /**
+   * Meetings that opened the flat between the sync before a sync-dated change
+   * and the sync that saw it: they may have come after the change, so they are
+   * counted nowhere and the statement says so. Zero for a date the CRM states.
+   */
+  readonly unorderedShowings: number;
   readonly firstShownDisplay: string | null;
   readonly lastShownDisplay: string | null;
   /** Whole days from the last showing to the change; null when never shown. */
@@ -114,8 +120,14 @@ export interface IrisLedSalesView {
   /** In the period and never shown before the change: listed, not dropped. */
   readonly neverShown: readonly IrisLedSale[];
   readonly neverShownNote: string;
-  /** What could not be placed, and why. Null when everything could be. */
+  /** What could not be placed, and why. Null when everything could be. Printed beside the figures. */
   readonly unplacedNote: string | null;
+  /**
+   * Why Sales Flow's IRIS-assisted card, which links here, can count the same
+   * 72-hour rule differently: it reads every dated deal, this page the
+   * period's. Null where there is no card or nothing to count.
+   */
+  readonly frameNote: string | null;
   readonly agents: readonly IrisLedAgent[];
   readonly axis: {
     readonly ticks: readonly { readonly label: string; readonly position: number }[];

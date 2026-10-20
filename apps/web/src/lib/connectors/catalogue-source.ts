@@ -1,6 +1,11 @@
 import "server-only";
 
-import type { CatalogueSource, DeliveredCatalogue, ProjectSummary } from "@observer/readmodels";
+import type {
+  CatalogueSource,
+  CatalogueStatusChange,
+  DeliveredCatalogue,
+  ProjectSummary,
+} from "@observer/readmodels";
 
 import { controlPlaneProjectFor } from "@/lib/directory/rows";
 
@@ -47,38 +52,89 @@ async function resolve(project: ProjectSummary): Promise<DeliveredCatalogue | nu
   if (units.length === 0) return null;
 
   const config = CONFIG_SCHEMAS[active.kind].safeParse(active.config);
+  /* An optional date: a failure to read it leaves the flats undated, never the catalogue unread. */
+  let changes: Record<string, CatalogueStatusChange> = {};
+  try {
+    changes = await statusChanges(service, projectUuid, active.kind, units);
+  } catch (error: unknown) {
+    console.error(
+      "[observer.catalogue] availability changes could not be read; no flat is dated —",
+      error instanceof Error ? error.name : "unknown error",
+    );
+  }
   return {
     connector: active.kind,
     units,
     orientationMap: config.success ? config.data.orientationMap : {},
-    statusObservedAt: await statusObservedAt(service, projectUuid, active.kind, units),
+    statusChanges: changes,
   };
 }
 
+const OFF_MARKET = new Set<unknown>(["reserved", "sold"]);
+
+const field = (unit: unknown, key: "status" | "statusRaw"): unknown =>
+  (unit as Readonly<Record<string, unknown>> | null)?.[key];
+
 /**
- * WHEN A SYNC SAW A FLAT'S AVAILABILITY CHANGE (ADR-0049), the deals' rule
- * (`deal-source.ts`) applied to the catalogue: only a change WITNESSED between
- * two syncs onto the status the flat still has. A flat first seen already sold
- * was `added`, and its instant is when the connector was switched on. The
- * façade answers newest first, so the first status change met for a flat is
- * its latest; a thousand rows is one page, and an older change stays undated.
+ * WHEN A FLAT LEFT THE MARKET (ADR-0049), the deals' rule (`deal-source.ts`)
+ * applied to the catalogue: only a move WITNESSED between two syncs counts, and
+ * only the move off the market, so a flat reserved on the 5th and sold on the
+ * 15th is dated by the 5th. Walking a flat's status changes newest first, a
+ * change from reserved to sold steps further back; the change from a status
+ * the mapping knows (available, pre-reserved, …) dates it. Undated instead:
+ *
+ * - a flat first seen already sold — it was `added`, on the day the connector
+ *   was switched on;
+ * - a change from `unknown`, or with the CRM's own word unchanged — that is a
+ *   status word mapped, or a map fixed, and every old sale would move with it;
+ * - a run whose start lies beyond the thousand rows read, or whose rows do not
+ *   chain.
+ *
+ * `seenBefore` is the newest sync instant among the rows read that precedes
+ * the move. The sync log is not on the façade, so a sync that changed nothing
+ * is invisible and the interval this gives is never narrower than the truth.
  */
-async function statusObservedAt(
+async function statusChanges(
   service: NonNullable<Awaited<ReturnType<typeof liveConnectorService>>>,
   projectUuid: string,
   kind: DeliveredCatalogue["connector"],
   units: DeliveredCatalogue["units"],
-): Promise<Record<string, string>> {
-  const standing = new Map(units.map((u) => [u.code, u.status]));
-  const met = new Set<string>();
-  const out: Record<string, string> = {};
-  for (const change of await service.recentChanges(projectUuid, 1000)) {
-    if (change.connector !== kind || change.kind !== "changed" || met.has(change.code)) continue;
-    const fields = Array.isArray(change.changed_fields) ? (change.changed_fields as unknown[]) : [];
-    if (!fields.includes("status")) continue;
-    met.add(change.code);
-    const after = (change.after_unit as { readonly status?: unknown } | null)?.status;
-    if (after === standing.get(change.code)) out[change.code] = change.fetched_at;
+): Promise<Record<string, CatalogueStatusChange>> {
+  const rows = (await service.recentChanges(projectUuid, 1000)).filter((c) => c.connector === kind);
+  const syncs = [...new Set(rows.map((r) => r.fetched_at))].sort(
+    (a, b) => Date.parse(b) - Date.parse(a),
+  );
+  const moves = new Map<string, (typeof rows)[number][]>();
+  for (const row of rows) {
+    const fields = Array.isArray(row.changed_fields) ? (row.changed_fields as unknown[]) : [];
+    if (row.kind !== "changed" || !fields.includes("status")) continue;
+    moves.set(row.code, [...(moves.get(row.code) ?? []), row]);
+  }
+
+  const out: Record<string, CatalogueStatusChange> = {};
+  for (const unit of units) {
+    let expected: unknown = unit.status;
+    if (!OFF_MARKET.has(expected)) continue;
+    for (const row of moves.get(unit.code) ?? []) {
+      if (field(row.after_unit, "status") !== expected) break;
+      const raw = field(row.before_unit, "statusRaw");
+      if (raw !== undefined && raw === field(row.after_unit, "statusRaw")) break;
+      const before = field(row.before_unit, "status");
+      if (OFF_MARKET.has(before)) {
+        expected = before;
+        continue;
+      }
+      if (typeof before !== "string" || before === "unknown") break;
+      const seenBefore = syncs.find((t) => Date.parse(t) < Date.parse(row.fetched_at));
+      if (seenBefore !== undefined) {
+        out[unit.code] = {
+          at: row.fetched_at,
+          to: expected === "sold" ? "sold" : "reserved",
+          seenBefore,
+        };
+      }
+      break;
+    }
   }
   return out;
 }

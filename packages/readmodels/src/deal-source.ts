@@ -37,6 +37,13 @@ export interface DeliveredDeals {
    * to one sync interval, never early.
    */
   readonly stageObservedAt?: Readonly<Record<string, string>>;
+  /**
+   * For each deal in `stageObservedAt`, the newest sync Observer knows of
+   * before that one: the move happened after it. A showing at or before it
+   * certainly came first; one between the two syncs may have come after the
+   * move, and IRIS-led sales says so rather than counting it (ADR-0049).
+   */
+  readonly stageSeenBeforeAt?: Readonly<Record<string, string>>;
 }
 
 export interface DealSource {

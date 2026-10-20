@@ -434,7 +434,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       project.id as string,
       delivered === null
         ? null
-        : { connector: delivered.connector, statusObservedAt: delivered.statusObservedAt ?? {} },
+        : { connector: delivered.connector, statusChanges: delivered.statusChanges ?? {} },
     );
   }
 
