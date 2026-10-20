@@ -2283,19 +2283,8 @@
   align-items: stretch;
 }
 
-[data-charts="d"] .iris-rings,
-[data-charts="d"] .iris-radars {
+[data-charts="d"] .iris-rings {
   gap: 20px;
-}
-
-/*
- * The radar's axis names are 12px in a 286-unit drawing; a card narrower than
- * the drawing would scale them under the floor, so a card is never narrower
- * where the page has the room. A phone's page has not, and there the names
- * grow with the drawing's scale instead (`.iris-radar-axis`, below).
- */
-[data-charts="d"] .iris-radars {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
 }
 
 /* --- type: the kit's, and nothing under 12px --------------------------------------- */
@@ -2697,9 +2686,27 @@
   }
 }
 
-[data-charts="d"] .d-card .iris-radar-card figcaption {
-  font-size: 12px;
-  color: var(--d-ink-2);
+/*
+ * Coaching overlays every agent's shape in one radar: each keeps its outline
+ * and only a breath of fill, so five shapes over each other still read as
+ * five. A shape lifted from the key changes colour, not size, so the move is a
+ * fade.
+ */
+[data-charts="d"] .d-card .iris-coach-plot .iris-radar-shape {
+  fill: color-mix(in oklab, var(--tone) 6%, transparent);
+  transition:
+    stroke 160ms var(--d-ease),
+    fill 160ms var(--d-ease);
+}
+
+[data-charts="d"] .d-card .iris-coach-plot .dld-parallel-line {
+  transition: stroke 160ms var(--d-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-charts="d"] .d-card .iris-coach-plot :is(.iris-radar-shape, .dld-parallel-line) {
+    transition: none;
+  }
 }
 
 /* --- the weekday grid: the kit's "gradient" ------------------------------------------- */

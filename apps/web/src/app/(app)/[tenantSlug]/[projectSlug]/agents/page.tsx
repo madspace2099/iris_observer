@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { PeriodPreset } from "@observer/readmodels";
+import type { AgentCharts, PeriodPreset } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
+import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { Missing, ShareFigure } from "@/components/agents";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
-import { Radar, RankedBars } from "@/showroom/charts2";
+import { RankedBars } from "@/showroom/charts2";
+import { CoachingChart } from "@/showroom/CoachingChart";
+import { AxisNotes } from "@/showroom/forms";
 import { DrawIn } from "@/showroom/DrawIn";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 
@@ -43,7 +46,7 @@ export default async function AgentsPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string; view?: string }>;
+  searchParams: Promise<{ period?: string; view?: string; lens?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
@@ -232,52 +235,16 @@ export default async function AgentsPage({
           </>
         )}
 
-        {/* --- the same six dimensions, one shape per agent: the Coaching tab --- */}
+        {/* --- every agent in one chart, and what IRIS reads in it: the Coaching tab --- */}
         {coaching ? (
-          <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-              How each agent uses the showroom
-            </p>
-            <div className="iris-radars">
-              {charts.radar.profiles.map((profile) => (
-                <figure className="iris-radar-card d-card" key={`${profile.id}-${period}`}>
-                  {/*
-                   * Below the floor the card stays and the shape does not: a
-                   * shape scaled against the strongest colleague on every axis
-                   * is a ranking without numbers, drawn from four meetings. The
-                   * note is the read model's, the same sentence the ring card
-                   * above prints.
-                   */}
-                  {profile.belowMinimum ? (
-                    /* The note stands in the box the shape would fill (`.iris-radar-note`), so the row keeps four equal cells. */
-                    <p className="iris-meta iris-radar-note">
-                      <b>{profile.label}</b> — {profile.note}
-                    </p>
-                  ) : (
-                    /* The label is the card's caption, under the shape — not a key inside the component for one shape. */
-                    <>
-                      <Radar axes={charts.radar.axes} series={[profile]} size={190} />
-                      <figcaption>{profile.label}</figcaption>
-                    </>
-                  )}
-                </figure>
-              ))}
-            </div>
-            <dl className="iris-axis-key">
-              {charts.radar.axes.map((axis, i) => (
-                <div key={axis}>
-                  <dt>{axis}</dt>
-                  <dd>{charts.radar.axisNotes[i]}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-              Each spoke is scaled against the strongest agent on that spoke, so the shapes are
-              comparable to each other and not to an absolute. A wider shape is a different way of
-              presenting, not a better one.
-            </p>
-            <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
-          </div>
+          <Coaching
+            charts={charts}
+            period={period}
+            lens={search.lens === "parallel" ? "parallel" : "radar"}
+            root={`/${tenantSlug}/${projectSlug}`}
+            detailHref={detailHref}
+            mayCompareCohorts={maySeeSurface(viewer.role, "presentation")}
+          />
         ) : null}
 
         {coaching ? null : (
@@ -351,5 +318,194 @@ export default async function AgentsPage({
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * COACHING: EVERY AGENT IN ONE CHART, AND WHAT IRIS READS IN IT.
+ *
+ * The owner, 2026-10-20, on this tab: a row of small radars showed the reader
+ * charts and taught them nothing; the system should evaluate what it sees
+ * between the agents, in one large chart with every agent inside it. So:
+ *
+ *  - one chart region the width of the page, every agent at or above the
+ *    floor drawn in it in their seat colour, through one of two lenses — how
+ *    they present (the radar) or which parts of the showroom they use (the
+ *    parallel plot) — chosen on the address, so a reload or a period change
+ *    keeps it;
+ *  - a key that lifts, hides and opens each agent (`CoachingChart`), and the
+ *    agents under the floor named beside it with their counts, never drawn;
+ *  - IRIS's reading beside the chart: where they differ most, each agent's
+ *    most distinctive habit, and what meetings with that habit came to across
+ *    the project, every figure with its denominator. It is the read model's
+ *    (`CoachingReading`), composed with the chart from the same meetings; this
+ *    component only places it. It ends on the comparison's own words and on
+ *    the two places to act from: the cohort comparison and each agent's page.
+ *
+ * Nothing on this tab is ordered by workload or outcome: "presentations
+ * given" stays on the roster.
+ */
+function Coaching({
+  charts,
+  period,
+  lens,
+  root,
+  detailHref,
+  mayCompareCohorts,
+}: {
+  readonly charts: AgentCharts;
+  readonly period: PeriodPreset;
+  readonly lens: "radar" | "parallel";
+  readonly root: string;
+  readonly detailHref: (agentId: string) => string;
+  readonly mayCompareCohorts: boolean;
+}) {
+  const usage = charts.featureUsage;
+  /* The feature-use profiles carry each person's count; the radar's are the same people, in the same seats. */
+  const shapeOf = new Map(charts.radar.profiles.map((p) => [p.id, p.values]));
+  const drawn = usage.profiles.filter((p) => !p.belowMinimum);
+  const undrawn = usage.profiles.filter((p) => p.belowMinimum);
+  const reading = lens === "parallel" ? usage.reading : charts.radar.reading;
+  const counted = (n: number) => `${n} ${n === 1 ? "meeting" : "meetings"}`;
+  const lensHref = (to: "radar" | "parallel") =>
+    withPeriod(`${root}/agents?view=coaching${to === "parallel" ? "&lens=parallel" : ""}`, period);
+
+  return (
+    <section className="iris-coach d-card" aria-labelledby="coach-title">
+      <div className="iris-coach-head">
+        <h2 id="coach-title" className="iris-kicker iris-kicker-measured">
+          Every agent at or above {AGENT_MIN_SAMPLE} meetings, in one chart
+        </h2>
+        <div className="iris-segmented" role="tablist" aria-label="What the chart shows">
+          <Link
+            role="tab"
+            aria-selected={lens === "radar"}
+            href={dynamicRoute(lensHref("radar"))}
+            scroll={false}
+          >
+            How they present
+          </Link>
+          <Link
+            role="tab"
+            aria-selected={lens === "parallel"}
+            href={dynamicRoute(lensHref("parallel"))}
+            scroll={false}
+          >
+            Which parts of the showroom they use
+          </Link>
+        </div>
+      </div>
+
+      <div className="iris-coach-body">
+        <div className="iris-coach-main">
+          {drawn.length === 0 ? (
+            <p className="iris-meta">
+              No agent reached {AGENT_MIN_SAMPLE} meetings in this period, so no{" "}
+              {lens === "radar" ? "shape" : "line"} is drawn.
+            </p>
+          ) : (
+            <CoachingChart
+              key={`${period}-${lens}`}
+              lens={lens}
+              radarAxes={charts.radar.axes}
+              parallelAxes={usage.axes}
+              people={drawn.map((p) => ({
+                id: p.id,
+                name: p.label,
+                meetings: counted(p.meetings),
+                tone: p.tone,
+                href: detailHref(p.id),
+                shape: shapeOf.get(p.id) ?? [],
+                parts: p.values,
+              }))}
+            />
+          )}
+          <p className="ox-sr">{lens === "radar" ? charts.radar.summary : usage.summary}</p>
+
+          {undrawn.length === 0 ? null : (
+            <div className="iris-coach-undrawn">
+              <p>Under {AGENT_MIN_SAMPLE} meetings, not drawn:</p>
+              <ul>
+                {undrawn.map((p) => (
+                  <li key={p.id}>
+                    <Link href={dynamicRoute(detailHref(p.id))}>{p.label}</Link> ·{" "}
+                    {counted(p.meetings)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <p className="iris-meta">
+            {lens === "radar"
+              ? "Each spoke is scaled against the strongest agent on that spoke, so the shapes are comparable to each other and not to an absolute. A wider shape is a different way of presenting, not a better one."
+              : "The share of their meetings that used each part at least once; an axis the build cannot answer is dashed, and no line crosses it. A different way of presenting, not a better one."}
+          </p>
+          <AxisNotes
+            items={
+              lens === "radar"
+                ? charts.radar.axes.map((label, i) => ({
+                    label,
+                    note: charts.radar.axisNotes[i] ?? "",
+                    missing: null,
+                  }))
+                : usage.axes
+            }
+          />
+        </div>
+
+        <aside className="iris-coach-reading" aria-labelledby="coach-reading">
+          <h2 id="coach-reading" className="iris-kicker iris-kicker-measured">
+            IRIS reading
+          </h2>
+          {reading.note === null ? null : <p className="iris-coach-lead">{reading.note}</p>}
+          {reading.differences.length === 0 ? null : (
+            <>
+              <h3>Where they differ most</h3>
+              <ul>
+                {reading.differences.map((d) => (
+                  <li key={d.id}>{d.text}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          {reading.habits.length === 0 ? null : (
+            <>
+              <h3>Each agent&rsquo;s most distinctive habit</h3>
+              <ul>
+                {reading.habits.map((h) => (
+                  <li key={h.agentId}>
+                    <i style={{ background: h.tone }} aria-hidden="true" />
+                    {h.text}{" "}
+                    <Link href={dynamicRoute(detailHref(h.agentId))}>{h.name}&rsquo;s page</Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          {reading.outcomes.length === 0 ? null : (
+            <>
+              <h3>What meetings with those habits came to, across the project</h3>
+              <ul>
+                {reading.outcomes.map((o) => (
+                  <li key={o.id}>{o.text}</li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="iris-coach-caveat">{reading.caveat}</p>
+          {mayCompareCohorts ? (
+            <Link
+              className="iris-action"
+              href={dynamicRoute(withPeriod(`${root}/presentation?mode=cohorts`, period))}
+            >
+              Compare the cohorts in Presentation DNA →
+            </Link>
+          ) : null}
+        </aside>
+      </div>
+
+      <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
+    </section>
   );
 }

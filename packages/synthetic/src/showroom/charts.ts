@@ -15,6 +15,7 @@ import type {
   AgentCharts,
   AgentRadar,
   BehaviourFunnel,
+  CoachingReading,
   FeatureUsage,
   FlowCharts,
   BehaviourStep,
@@ -57,6 +58,7 @@ import { presenterName, presentersIn } from "./sessions";
 import { AGENT_MIN_SAMPLE, getMetric } from "@observer/metrics";
 import { showroomSaleCycleInputs } from "./sale-cycles";
 import { meetings, progressedFigure, sliceSpan, suppressionNoteFor } from "./views3";
+import { ASSOCIATION_DISCLAIMER, behaviourTest, outcomeSplit } from "./project";
 
 /**
  * The figures behind the chart vocabulary.
@@ -563,17 +565,49 @@ export function buildBehaviourFunnel(
 
 /* --- agents across several dimensions ------------------------------------------ */
 
+/**
+ * One measure a chart of agents is drawn on, as IRIS's reading uses it: the
+ * figure over any set of meetings, that figure in words beside its
+ * denominator, and — where the measure is something a meeting did or did not
+ * do — that test, so the project's outcomes can be split by it.
+ */
+interface ReadingAxis {
+  readonly id: string;
+  readonly label: string;
+  readonly measure: (mine: readonly ShowroomSession[]) => number;
+  /** "25% of 26 meetings reached Compare": `n` is the count already in words. */
+  readonly say: (value: number, n: string, locale: string) => string;
+  /** The same figure once the sentence has said what it counts: "76% of 33", "5 across 33 meetings". */
+  readonly brief: (value: number, n: number, locale: string) => string;
+  /** The habit as a yes or no per meeting, worded to follow "Meetings that"; null for a typical count. */
+  readonly split: { readonly test: (s: ShowroomSession) => boolean; readonly did: string } | null;
+}
+
+/** A median as the reader sees it: whole where it is whole, one decimal where two middles split. */
+function typical(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value);
+}
+
+/** A split taken from the cohort comparison's own named behaviour, so the two can never test different things. */
+function behaviour(id: string, did: string): NonNullable<ReadingAxis["split"]> {
+  const test = behaviourTest(id);
+  if (test === undefined) throw new Error(`The cohort comparison has no behaviour "${id}".`);
+  return { test, did };
+}
+
+/** A share's brief form, "76% of 33"; every set it is said of clears the floor, so it is never one meeting. */
+function shareOf(value: number, n: number, locale: string): string {
+  return `${percent(value, locale)} of ${count(n, locale)}`;
+}
+
 /*
  * The six measures, each over a set of meetings, in words for a reader who has
  * not met the metric vocabulary: "typical" where the figure is a median, "how
  * often" where it is a share.
  */
-const RADAR_AXES: readonly {
-  readonly label: string;
-  readonly note: string;
-  readonly measure: (mine: readonly ShowroomSession[]) => number;
-}[] = [
+const RADAR_AXES: readonly (ReadingAxis & { readonly note: string })[] = [
   {
+    id: "coverage",
     label: "Coverage",
     note: "How many of the main parts of the presentation a typical meeting reached.",
     measure: (mine) =>
@@ -585,33 +619,58 @@ const RADAR_AXES: readonly {
           ),
         ),
       ),
+    say: (v, n, locale) =>
+      `a typical meeting reached ${percent(v, locale)} of the main parts, across ${n}`,
+    brief: (v, n, locale) => `${percent(v, locale)} across ${count(n, locale)} meetings`,
+    split: null,
   },
   {
+    id: "depth",
     label: "Depth",
     note: "How many steps a typical meeting took through the presentation.",
     measure: (mine) => median(mine.map((s) => s.steps.length)),
+    say: (v, n, locale) => `a typical meeting took ${typical(v, locale)} steps, across ${n}`,
+    brief: (v, n, locale) => `${typical(v, locale)} across ${count(n, locale)} meetings`,
+    split: null,
   },
   {
+    id: "units",
     label: "Units",
     note: "How many apartments a typical meeting opened.",
     measure: (mine) => median(mine.map((s) => s.units.length)),
+    say: (v, n, locale) => `a typical meeting opened ${typical(v, locale)} apartments, across ${n}`,
+    brief: (v, n, locale) => `${typical(v, locale)} across ${count(n, locale)} meetings`,
+    split: behaviour("four_plus_units", "opened four or more apartments"),
   },
   {
+    id: "compare",
     label: "Compare",
     note: "How often a meeting used the side-by-side comparison.",
     measure: (mine) =>
       share(mine.filter((s) => s.steps.some((x) => x.sectionId === "compare")).length, mine.length),
+    say: (v, n, locale) => `${percent(v, locale)} of ${n} reached Compare`,
+    brief: shareOf,
+    split: behaviour("compare_used", "reached Compare"),
   },
   {
+    id: "returns",
     label: "Returns",
     note: "How often a meeting went back to a part it had already shown.",
     measure: (mine) =>
       share(mine.filter((s) => s.steps.some((x) => x.isReturn)).length, mine.length),
+    say: (v, n, locale) => `${percent(v, locale)} of ${n} went back to a part already shown`,
+    brief: shareOf,
+    split: behaviour("returns_before_end", "went back to a part already shown"),
   },
   {
+    id: "places",
     label: "Places",
     note: "How many named places a typical meeting stopped at.",
     measure: (mine) => median(mine.map((s) => s.places.length)),
+    say: (v, n, locale) =>
+      `a typical meeting stopped at ${typical(v, locale)} named places, across ${n}`,
+    brief: (v, n, locale) => `${typical(v, locale)} across ${count(n, locale)} meetings`,
+    split: null,
   },
 ];
 
@@ -630,6 +689,133 @@ const AND = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" })
 // ponytail: colours wrap after six agents, and an agent with no meeting in the period shifts the colours of everyone after them; key the colour on the roster seat if a project grows past six presenters.
 function seatTone(seat: number): string {
   return `var(--d-series-${(seat % 6) + 1})`;
+}
+
+/*
+ * IRIS'S READING OF A CHART THAT DRAWS EVERY AGENT AT ONCE.
+ *
+ * The owner, on Coaching (2026-10-20): the reader learns nothing from charts
+ * alone; the system should say what it sees between the agents. Three things,
+ * each a description with its denominators, never a cause and never a verdict
+ * on a person:
+ *
+ *   - where the drawn agents differ most: the widest spreads, as the chart
+ *     scales them, with who sits at each end;
+ *   - each drawn agent's most distinctive habit: the measure on which they
+ *     stand furthest from everyone else's meetings in the period;
+ *   - what meetings with that habit came to across the whole project: the
+ *     cohort comparison's split (`outcomeSplit`), at both sample sizes, and
+ *     only where each side clears the floor.
+ *
+ * The floor holds throughout: nobody under it is described, the rest of the
+ * team is not a comparison under it either, and the closing line is the
+ * comparison's own disclaimer.
+ */
+function readAgents(
+  sessions: readonly ShowroomSession[],
+  people: readonly {
+    readonly id: string;
+    readonly name: string;
+    readonly tone: string;
+    readonly belowMinimum: boolean;
+  }[],
+  axes: readonly ReadingAxis[],
+  /** Per axis, what the chart divides a figure by: its strongest presenter, or 1 for a share. */
+  scale: readonly number[],
+  locale: string,
+  language: Language,
+): CoachingReading {
+  const floor = count(AGENT_MIN_SAMPLE, locale);
+  const n = (k: number) => meetings(k, locale, language);
+  const unit = (i: number) => scale[i] || 1;
+  const drawn = people
+    .filter((p) => !p.belowMinimum)
+    .map((p) => {
+      const mine = sessions.filter((s) => s.agentId === p.id);
+      return { ...p, mine, values: axes.map((axis) => axis.measure(mine)) };
+    });
+  const at = (values: readonly number[], i: number) => values[i] ?? 0;
+
+  const differences =
+    drawn.length < 2
+      ? []
+      : axes
+          .map((axis, i) => {
+            const lo = drawn.reduce((a, b) => (at(b.values, i) < at(a.values, i) ? b : a));
+            const hi = drawn.reduce((a, b) => (at(b.values, i) > at(a.values, i) ? b : a));
+            return { axis, i, lo, hi, spread: (at(hi.values, i) - at(lo.values, i)) / unit(i) };
+          })
+          .filter((d) => d.spread > 0)
+          /* A stable sort: a tie keeps the chart's own axis order. */
+          .sort((a, b) => b.spread - a.spread)
+          .slice(0, 3)
+          .map(({ axis, i, lo, hi }) => ({
+            id: axis.id,
+            text: `${axis.label}: ${lo.name}, ${axis.say(at(lo.values, i), n(lo.mine.length), locale)}; ${hi.name}, ${axis.brief(at(hi.values, i), hi.mine.length, locale)}.`,
+          }));
+
+  const chosen: ReadingAxis[] = [];
+  const habits = drawn.map((p) => {
+    const who = { agentId: p.id, name: p.name, tone: p.tone };
+    const rest = sessions.filter((s) => s.agentId !== p.id);
+    if (rest.length < AGENT_MIN_SAMPLE) {
+      return {
+        ...who,
+        text: `${p.name}: everyone else held ${n(rest.length)}, under ${floor}, so nothing is set beside them.`,
+      };
+    }
+    const team = axes.map((axis) => axis.measure(rest));
+    const far = axes.map((_, i) => Math.abs(at(p.values, i) - at(team, i)) / unit(i));
+    const furthest = far.indexOf(Math.max(...far));
+    const axis = axes[furthest];
+    if (axis === undefined || at(far, furthest) === 0) {
+      return {
+        ...who,
+        text: `${p.name} sits at the rest of the team's own figure on every measure.`,
+      };
+    }
+    if (!chosen.includes(axis)) chosen.push(axis);
+    return {
+      ...who,
+      text: `${p.name} differs most from the rest of the team on ${axis.label}: ${axis.say(at(p.values, furthest), n(p.mine.length), locale)}; the rest of the team, ${axis.brief(at(team, furthest), rest.length, locale)}.`,
+    };
+  });
+
+  const outcomes = chosen.map((axis) => {
+    if (axis.split === null) {
+      return {
+        id: axis.id,
+        text: `${axis.label} is a typical count per meeting, not something a meeting did or did not do, so no outcome is set beside it.`,
+      };
+    }
+    const split = outcomeSplit(sessions, axis.split.test);
+    const yes = split.with;
+    const no = split.without;
+    if (yes.meetings < AGENT_MIN_SAMPLE || no.meetings < AGENT_MIN_SAMPLE) {
+      return {
+        id: axis.id,
+        text: `Meetings that ${axis.split.did}, and those that did not, are not set beside their outcomes: ${count(yes.meetings, locale)} and ${count(no.meetings, locale)} have an outcome recorded, and each side needs ${floor}.`,
+      };
+    }
+    return {
+      id: axis.id,
+      text: `Meetings that ${axis.split.did} progressed further in ${percent(share(yes.progressed, yes.meetings), locale)} of ${count(yes.meetings, locale)} with an outcome recorded; those that did not, ${percent(share(no.progressed, no.meetings), locale)} of ${count(no.meetings, locale)}.`,
+    };
+  });
+
+  const [only] = drawn;
+  return {
+    differences,
+    habits,
+    outcomes,
+    note:
+      drawn.length === 0
+        ? `No agent reached ${floor} meetings in this period, so nothing is compared between agents.`
+        : drawn.length === 1 && only !== undefined
+          ? `Only ${only.name} reached ${floor} meetings in this period, so no two agents are set side by side; their habit is read against everyone else's meetings instead.`
+          : null,
+    caveat: ASSOCIATION_DISCLAIMER,
+  };
 }
 
 export function buildAgentCharts(
@@ -707,6 +893,19 @@ export function buildAgentCharts(
         ? []
         : [`Not drawn, under ${floor} meetings: ${AND.format(notDrawn)}.`]),
     ].join(" "),
+    reading: readAgents(
+      sessions,
+      raw.map((r, i) => ({
+        id: r.id,
+        name: r.label,
+        tone: seatTone(i),
+        belowMinimum: r.belowMinimum,
+      })),
+      RADAR_AXES,
+      peaks,
+      locale,
+      language,
+    ),
   };
 
   /*
@@ -760,6 +959,8 @@ const FEATURE_AXES: readonly {
   readonly label: string;
   readonly note: string;
   readonly used: ((s: ShowroomSession) => boolean) | null;
+  /** The habit in words that follow "Meetings that"; on a measured axis only. */
+  readonly did?: string;
   readonly missing: string | null;
 }[] = [
   {
@@ -767,6 +968,7 @@ const FEATURE_AXES: readonly {
     label: "Locating",
     note: "How many of their meetings stopped on a named place in Amenities.",
     used: (s) => s.places.some((p) => p.section === "amenities"),
+    did: "stopped on a named place in Amenities",
     missing: null,
   },
   {
@@ -774,6 +976,7 @@ const FEATURE_AXES: readonly {
     label: "Comparing",
     note: "How many of their meetings put one apartment beside another in Compare. How long the comparison stayed open is not recorded. The radar's Compare counts a meeting that reached the Compare section at all.",
     used: (s) => s.units.some((u) => u.comparedWith.length > 0),
+    did: "put one apartment beside another in Compare",
     missing: null,
   },
   {
@@ -781,6 +984,7 @@ const FEATURE_AXES: readonly {
     label: "Shortlisting",
     note: "How many of their meetings marked an apartment as a favourite.",
     used: (s) => s.units.some((u) => u.favourited),
+    did: "marked an apartment as a favourite",
     missing: null,
   },
   {
@@ -788,6 +992,7 @@ const FEATURE_AXES: readonly {
     label: "Capturing",
     note: "How many of their meetings took a screenshot of an apartment.",
     used: (s) => s.units.some((u) => u.screenshots > 0),
+    did: "took a screenshot of an apartment",
     missing: null,
   },
   {
@@ -795,6 +1000,7 @@ const FEATURE_AXES: readonly {
     label: "Slicing",
     note: "How many of their meetings opened an apartment's floor cut.",
     used: (s) => s.units.some((u) => u.floorCutViews > 0),
+    did: "opened an apartment's floor cut",
     missing: null,
   },
   {
@@ -802,6 +1008,7 @@ const FEATURE_AXES: readonly {
     label: "Reading",
     note: "How many of their meetings opened an apartment's PDF.",
     used: (s) => s.units.some((u) => u.pdfOpened),
+    did: "opened an apartment's PDF",
     missing: null,
   },
   {
@@ -809,6 +1016,7 @@ const FEATURE_AXES: readonly {
     label: "Sharing",
     note: "How many of their meetings shared an apartment.",
     used: (s) => s.units.some((u) => u.shared),
+    did: "shared an apartment",
     missing: null,
   },
   {
@@ -879,6 +1087,32 @@ export function buildFeatureUsage(
         ? []
         : [`Not drawn, under ${floor} meetings: ${AND.format(notDrawn)}.`]),
     ].join(" "),
+    /* The measured axes only: an axis the build cannot answer is never ranked or set beside anyone. */
+    reading: readAgents(
+      sessions,
+      profiles.map((p) => ({
+        id: p.id,
+        name: p.label,
+        tone: p.tone,
+        belowMinimum: p.belowMinimum,
+      })),
+      measured.map(({ axis }) => {
+        const used = axis.used ?? (() => false);
+        const did = axis.did ?? axis.label;
+        return {
+          id: axis.id,
+          label: axis.label,
+          measure: (mine: readonly ShowroomSession[]) =>
+            share(mine.filter(used).length, mine.length),
+          say: (v: number, n: string, locale: string) => `${percent(v, locale)} of ${n} ${did}`,
+          brief: shareOf,
+          split: { test: used, did },
+        };
+      }),
+      measured.map(() => 1),
+      locale,
+      language,
+    ),
   };
 }
 

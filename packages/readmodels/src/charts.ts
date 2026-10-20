@@ -141,6 +141,32 @@ export interface BehaviourFunnel {
   readonly disclaimer: string;
 }
 
+/* --- what a chart of agents shows, in words ------------------------------------ */
+
+/**
+ * IRIS's reading of a chart that draws every agent at once: what the drawing
+ * shows between people, said as description and never as cause, every figure
+ * beside its denominator. Composed with the chart from the same meetings, so
+ * the words and the drawing cannot disagree.
+ */
+export interface CoachingReading {
+  /** The measures on which the drawn agents differ most, widest first, naming who sits at each end. Empty under two drawn. */
+  readonly differences: readonly { readonly id: string; readonly text: string }[];
+  /** Each drawn agent's most distinctive habit: the measure on which they stand furthest from the rest of the team. */
+  readonly habits: readonly {
+    readonly agentId: string;
+    readonly name: string;
+    readonly tone: string;
+    readonly text: string;
+  }[];
+  /** What meetings with each of those habits came to across the project, once per measure, at both sample sizes. */
+  readonly outcomes: readonly { readonly id: string; readonly text: string }[];
+  /** Why a part cannot be read in this period; null when every part is. */
+  readonly note: string | null;
+  /** What all of it is, and is not: the comparison's own words. */
+  readonly caveat: string;
+}
+
 /* --- one agent across several dimensions -------------------------------------- */
 
 export interface RadarProfile {
@@ -173,6 +199,8 @@ export interface AgentRadar {
   readonly profiles: readonly RadarProfile[];
   /** Every drawn shape's reading, then who is not drawn and why. */
   readonly summary: string;
+  /** What the overlaid shapes show between the agents. */
+  readonly reading: CoachingReading;
 }
 
 /* --- which parts of the showroom an agent uses ---------------------------------- */
@@ -220,6 +248,8 @@ export interface FeatureUsage {
   readonly profiles: readonly FeatureUsageProfile[];
   /** Every drawn line in words, the axes not measured, and who is not drawn and why. */
   readonly summary: string;
+  /** What the lines show between the agents, on the measured axes only. */
+  readonly reading: CoachingReading;
 }
 
 /* --- an ordered list where the order is the finding ---------------------------- */

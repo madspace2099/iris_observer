@@ -918,53 +918,217 @@
   }
 }
 
-/* --- several profiles, side by side ------------------------------------------ */
+/* --- every agent in one chart, and IRIS's reading beside it: Coaching --------- */
 
-.iris-radars {
+/*
+ * One region the width of the page (the owner, 2026-10-20): the chart takes the
+ * room, the reading a column of its own beside it; on a card under 62rem the
+ * reading stands under the chart instead, at the chart's width.
+ */
+.iris-coach {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
   gap: 1.25rem;
 }
 
-/*
- * A `figure`, so its caption is a caption: the browser's figure margin is
- * reset. The rows pack at the top, so a note (`.iris-radar-note`) is centred
- * on the shape's 190px box and not on the box plus the caption under it —
- * a note and a shape in one row share one centre line, and the caption
- * stands under its own shape.
- */
-.iris-radar-card {
-  display: grid;
-  justify-items: center;
-  align-content: start;
-  gap: 0.375rem;
-  margin: 0;
+.iris-coach-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
 }
 
-.iris-radar-card figcaption {
+.iris-coach-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 26rem);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.iris-coach-main {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* The key is the chart's control: a name lifts, hides or draws its agent; the link opens them. */
+.iris-coach-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.iris-coach-key li {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+.iris-coach-key button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.25rem;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.iris-coach-key button i {
+  flex: none;
+  box-sizing: border-box;
+  width: 0.75rem;
+  height: 0.75rem;
+  border: 2px solid;
+  border-radius: 50%;
+}
+
+.iris-coach-key button em {
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.iris-coach-key li[data-hidden="true"] button span {
+  color: var(--ink-2);
+  text-decoration: line-through;
+}
+
+.iris-coach-key li[data-lifted="true"] button span {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.iris-coach-key a,
+.iris-coach-undrawn a,
+.iris-coach-reading li a {
   font-size: 0.75rem;
   color: var(--ink-2);
-  text-align: center;
+}
+
+.iris-coach-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--ink-2);
 }
 
 /*
- * The note that stands in for a shape below the sample floor.
- *
- * The card keeps its cell and its height: the note fills the box the radar
- * would (190px, the size the page draws the radar at) and sits in its vertical
- * middle, so a row of four reads as four equal cells rather than one chart and
- * three captions floating at the top of empty space — which is what the first
- * photograph showed.
+ * The drawing's own width chooses its geometry (`Sized`), not the card's: the
+ * reading takes a column of the card. On a phone the small drawing fills the
+ * card. The page draws the key that works, so the radar's own is not shown.
  */
-.iris-radar-note {
-  box-sizing: border-box;
-  min-height: 190px;
-  max-width: 22rem;
+.iris-coach-plot {
+  container-type: inline-size;
+  margin-top: 0.5rem;
+}
+
+.iris-coach-plot .iris-ring-key {
+  display: none;
+}
+
+.iris-coach-plot .dld-size[data-size="l"] svg {
+  width: 100%;
+}
+
+/* The large radar's top and bottom names stand past its box: room for them, and no clipping. */
+.iris-coach-plot .iris-radar {
+  padding-block: 1.5rem;
+}
+
+.iris-coach-plot .iris-radar svg {
+  overflow: visible;
+}
+
+.iris-coach-undrawn {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.iris-coach-undrawn p {
   margin: 0;
-  padding: 0 0.5rem;
+}
+
+.iris-coach-undrawn ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* IRIS's reading: plain sentences under three plain headings, on a hairline beside the chart. */
+.iris-coach-reading {
   display: grid;
-  align-content: center;
-  text-align: center;
+  align-content: start;
+  gap: 0.75rem;
+  padding-left: 2.5rem;
+  border-left: 1px solid var(--rule);
+}
+
+.iris-coach-reading h3 {
+  margin: 0.75rem 0 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.iris-coach-reading ul {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.iris-coach-reading li,
+.iris-coach-lead {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+.iris-coach-reading li i {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: 0.5rem;
+  border-radius: 50%;
+}
+
+.iris-coach-caveat {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+@container (width < 62rem) {
+  .iris-coach-body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.75rem;
+  }
+
+  .iris-coach-reading {
+    padding: 1.5rem 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+  }
 }
 
 /*

@@ -311,20 +311,16 @@ test.describe("the chart vocabulary", () => {
     await page.goto("/alpha/northgate/agents?view=coaching");
 
     /*
-     * The same agent's radar card, by name. The radar's label used to be a
-     * key inside the chart (`.iris-ring-key li`); a key for one shape was a
-     * caption in the wrong place, so the label is the card's own now - a
-     * `<figcaption>` under the shape, or the note that stands in for the
-     * shape below the sample floor. This waited for the key for two rounds
-     * after it went: a guard standing where its subject no longer was.
+     * The same agent in Coaching's one chart, by name (the owner, 2026-10-20:
+     * one chart for every agent, not a card each). The chart's key carries a
+     * drawn agent's count; an agent under the floor is listed beside it, not
+     * drawn, with theirs. Either way the count must be the ring's.
      */
     const radarLabel = await page
-      .locator(".iris-radars .iris-radar-card", { hasText: name })
-      .first()
-      .locator("figcaption, .iris-radar-note")
+      .locator(".iris-coach-key li, .iris-coach-undrawn li", { hasText: name })
       .first()
       .textContent();
-    expect(radarLabel, `${name}'s radar card does not carry the count the ring does`).toContain(
+    expect(radarLabel, `${name}'s entry in the Coaching chart does not carry the count the ring does`).toContain(
       String(fromRing),
     );
   });

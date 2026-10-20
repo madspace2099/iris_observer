@@ -72,7 +72,12 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
     "last_quarter",
   );
 
-  await expect(page.locator("main .iris-radar-card").first()).toBeVisible();
+  /*
+   * One chart for every agent since the owner's word of 2026-10-20: its key
+   * names whoever is drawn, and IRIS's reading stands beside it.
+   */
+  await expect(page.locator("main .iris-coach .iris-coach-key li").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "IRIS reading" })).toBeVisible();
   const coaching = await page.locator("main").innerText();
   expect(coaching).toContain("Each spoke is scaled against the strongest agent");
   /* The plan's second clause for R12-7: a bigger shape is not better (FEJEZET1). */

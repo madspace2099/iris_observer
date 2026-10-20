@@ -37,9 +37,21 @@ describe("the roster", () => {
     );
   });
 
-  it("withholds the radar shape under the floor and prints the note", () => {
-    expect(ROSTER, "a radar shape is drawn whatever the sample").toMatch(
-      /profile\.belowMinimum \? \([\s\S]*?\{profile\.note\}[\s\S]*?\) : \([\s\S]*?<Radar/,
+  it("feeds Coaching's one chart only the agents at or above the floor", () => {
+    expect(ROSTER, "an agent is drawn whatever the sample").toMatch(
+      /const drawn = usage\.profiles\.filter\(\(p\) => !p\.belowMinimum\);[\s\S]*?<CoachingChart[\s\S]*?people=\{drawn\.map\(/,
+    );
+  });
+
+  it("names the agents under the floor beside the chart, with their counts, not drawn", () => {
+    expect(ROSTER).toMatch(
+      /const undrawn = usage\.profiles\.filter\(\(p\) => p\.belowMinimum\);[\s\S]*?Under \{AGENT_MIN_SAMPLE\} meetings, not drawn:[\s\S]*?\{counted\(p\.meetings\)\}/,
+    );
+  });
+
+  it("prints IRIS's reading from the read model, never composing it", () => {
+    expect(ROSTER).toMatch(
+      /const reading = lens === "parallel" \? usage\.reading : charts\.radar\.reading;/,
     );
   });
 });

@@ -45,17 +45,28 @@ describe("the radar's key", () => {
   });
 });
 
-const ROSTER = readFileSync(
-  resolve(import.meta.dirname, "..", "src/app/(app)/[tenantSlug]/[projectSlug]/agents/page.tsx"),
+const DETAIL = readFileSync(
+  resolve(
+    import.meta.dirname,
+    "..",
+    "src/app/(app)/[tenantSlug]/[projectSlug]/agents/[agentId]/page.tsx",
+  ),
   "utf8",
 )
   .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
   .replace(/\/\*[\s\S]*?\*\//g, "");
 
-describe("the roster's radar card", () => {
-  it("captions the shape itself, under it", () => {
-    expect(ROSTER, "the shape's label is not the card's caption").toMatch(
-      /<Radar[\s\S]*?\/>\s*<figcaption>\{profile\.label\}<\/figcaption>/,
+describe("the agent page's radar", () => {
+  it("draws their one shape, which the frame's title names", () => {
+    expect(DETAIL).toMatch(/title=\{`How \$\{view\.name\} presents`\}/);
+    expect(DETAIL, "the agent page overlays more than its own agent").toMatch(
+      /<Radar axes=\{charts\.radar\.axes\} series=\{\[shape\]\}/,
     );
   });
 });
+
+/*
+ * Coaching draws every agent in one radar (the owner, 2026-10-20), and its key
+ * is the page's own, which works (`coaching-chart.test.ts`): the radar's key
+ * for two or more shapes is the one `.iris-coach-plot .iris-ring-key` hides.
+ */
