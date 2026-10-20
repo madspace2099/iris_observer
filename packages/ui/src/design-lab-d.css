@@ -2437,6 +2437,15 @@
   stroke: var(--d-card);
 }
 
+/* The phone's drawing is 240 units and a 360px phone's card 222px: a point up keeps the ticks at 12. */
+[data-charts="d"] .d-card .dld-size[data-size="l"] .iris-trend-tick {
+  font-size: 13px;
+}
+
+[data-charts="d"] .d-card .iris-trend-caption {
+  font-family: var(--d-font-numeric);
+}
+
 /* --- stacked columns: the kit's pills, the outcome colours kept ------------------- */
 
 [data-charts="d"] .d-card .iris-stacks-column {

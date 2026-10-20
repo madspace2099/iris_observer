@@ -201,6 +201,14 @@
   stroke-linejoin: round;
 }
 
+/* The same note under a phone's drawing, which has no room for it inside the plot. */
+.iris-trend-caption {
+  margin: 0.25rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--watch);
+}
+
 /* --- composition over periods ----------------------------------------------- */
 
 .iris-stacks {

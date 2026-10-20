@@ -14,16 +14,48 @@ const points = ["6 Jul", "13 Jul", "20 Jul", "27 Jul", "3 Aug", "10 Aug", "17 Au
   (label, i) => ({ label, value: 9 + (i % 2) }),
 );
 
+/* Each drawing's x labels as "label:anchor", in the order drawn: the XL, the middle, the phone's. */
+function xLabels(html: string): string[][] {
+  return html
+    .split("<svg")
+    .slice(1)
+    .map((svg) =>
+      [...svg.matchAll(/text-anchor="(\w+)"[^>]*>([^<]*\d+ \w{3})</g)].map(
+        (m) => `${m[2] ?? ""}:${m[1] ?? ""}`,
+      ),
+    );
+}
+
 describe("the trend line's x labels", () => {
-  it("ends the last label at its point and centres the others", () => {
+  it("ends the last label at its point and centres the others, in every drawing", () => {
     const html = renderToStaticMarkup(
       createElement(TrendLine, { points, valueLabel: "Meetings per week" }),
     );
-    const anchors = [...html.matchAll(/text-anchor="(\w+)"[^>]*>([^<]*\d+ \w{3})</g)].map(
-      (m) => `${m[2] ?? ""}:${m[1] ?? ""}`,
+    const drawings = xLabels(html);
+    expect(drawings.length, "the XL, the middle and the phone's drawing").toBe(3);
+    for (const anchors of drawings) {
+      expect(anchors.at(-1)).toBe("17 Aug:end");
+      expect(anchors.slice(0, -1).every((a) => a.endsWith(":middle"))).toBe(true);
+    }
+  });
+
+  /*
+   * One 720-unit drawing on a 252px phone card printed its 12px ticks at four.
+   * The phone's drawing is 240 units and labels at most four weeks, which fit.
+   */
+  it("labels at most four weeks on the phone's drawing, and sets its note under it", () => {
+    const html = renderToStaticMarkup(
+      createElement(TrendLine, {
+        points,
+        valueLabel: "Meetings per week",
+        annotation: { index: 3, text: "±7 against the week before" },
+      }),
     );
-    expect(anchors.at(-1)).toBe("17 Aug:end");
-    expect(anchors.slice(0, -1).every((a) => a.endsWith(":middle"))).toBe(true);
+    const phone = html.slice(html.indexOf('data-size="l"'));
+    expect(phone).toContain('viewBox="0 0 240 150"');
+    expect(xLabels(phone)[0]?.length).toBeLessThanOrEqual(4);
+    expect(phone).not.toContain('class="iris-trend-note"');
+    expect(phone).toContain('<p class="iris-trend-caption">±7 against the week before</p>');
   });
 });
 

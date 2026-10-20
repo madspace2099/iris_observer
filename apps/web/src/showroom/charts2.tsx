@@ -25,6 +25,7 @@ import type { PeriodPreset } from "@observer/readmodels";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { DrawIn } from "./DrawIn";
+import { Sized } from "./forms";
 
 /* --- a figure with its history -------------------------------------------- */
 
@@ -128,13 +129,7 @@ export function KpiCard({
 
 /* --- a series with its turning point marked -------------------------------- */
 
-export function TrendLine({
-  points,
-  annotation,
-  height = 150,
-  valueLabel,
-  measured = false,
-}: {
+interface TrendProps {
   points: readonly { readonly label: string; readonly value: number }[];
   /** The moment worth pointing at, by index. */
   annotation?: { readonly index: number; readonly text: string } | null;
@@ -142,9 +137,51 @@ export function TrendLine({
   valueLabel: string;
   /** Opt-in: raises the 9px axis ticks to the 12px floor. Sales Flow only — see `charts.css`. */
   measured?: boolean;
-}) {
-  if (points.length < 2) return null;
-  const width = 720;
+}
+
+/*
+ * Three drawings of one series, each shown where its card holds it at 1:1 or
+ * more (`Sized`): one 720-unit drawing on a 252px phone card printed its 12px
+ * ticks at four. The phone's drawing labels every other week or fewer, and its
+ * note stands under the plot as text, where it has the card's width.
+ */
+const TREND_SIZE = {
+  xl: { width: 720, ticks: 8 },
+  m: { width: 544, ticks: 6 },
+  l: { width: 240, ticks: 4 },
+} as const;
+
+export function TrendLine(props: TrendProps) {
+  if (props.points.length < 2) return null;
+  const note =
+    props.annotation == null || props.points[props.annotation.index] === undefined
+      ? null
+      : props.annotation.text;
+  return (
+    <DrawIn kind="sweep">
+      <Sized
+        xl={<TrendPlot {...props} size="xl" />}
+        m={<TrendPlot {...props} size="m" />}
+        l={
+          <>
+            <TrendPlot {...props} size="l" />
+            {note === null ? null : <p className="iris-trend-caption">{note}</p>}
+          </>
+        }
+      />
+    </DrawIn>
+  );
+}
+
+function TrendPlot({
+  points,
+  annotation,
+  height = 150,
+  valueLabel,
+  measured = false,
+  size,
+}: TrendProps & { readonly size: keyof typeof TREND_SIZE }) {
+  const { width, ticks } = TREND_SIZE[size];
   const pad = { top: 14, right: 16, bottom: 26, left: 34 };
   const peak = Math.max(1, ...points.map((p) => p.value));
   const innerW = width - pad.left - pad.right;
@@ -158,54 +195,55 @@ export function TrendLine({
   const marked = annotation === undefined || annotation === null ? null : points[annotation.index];
 
   return (
-    <DrawIn kind="sweep">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className={`iris-trend${measured ? " iris-trend-measured" : ""}`}
-        role="img"
-        aria-label={`${valueLabel}: ${points.map((p) => `${p.label} ${p.value}`).join(", ")}`}
-      >
-        {[0, 0.5, 1].map((t) => (
-          <g key={t}>
-            <line
-              x1={pad.left}
-              x2={width - pad.right}
-              y1={y(peak * t)}
-              y2={y(peak * t)}
-              className="iris-trend-grid"
-            />
-            <text x={pad.left - 6} y={y(peak * t) + 3} className="iris-trend-tick" textAnchor="end">
-              {Math.round(peak * t)}
-            </text>
-          </g>
-        ))}
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className={`iris-trend${measured ? " iris-trend-measured" : ""}`}
+      role="img"
+      aria-label={`${valueLabel}: ${points.map((p) => `${p.label} ${p.value}`).join(", ")}`}
+    >
+      {[0, 0.5, 1].map((t) => (
+        <g key={t}>
+          <line
+            x1={pad.left}
+            x2={width - pad.right}
+            y1={y(peak * t)}
+            y2={y(peak * t)}
+            className="iris-trend-grid"
+          />
+          <text x={pad.left - 6} y={y(peak * t) + 3} className="iris-trend-tick" textAnchor="end">
+            {Math.round(peak * t)}
+          </text>
+        </g>
+      ))}
 
-        <path
-          d={`${line} L ${x(points.length - 1)} ${pad.top + innerH} L ${x(0)} ${pad.top + innerH} Z`}
-          className="iris-trend-fill"
-        />
-        <path d={line} className="iris-trend-line" data-level={level(points.map((p) => p.value))} />
+      <path
+        d={`${line} L ${x(points.length - 1)} ${pad.top + innerH} L ${x(0)} ${pad.top + innerH} Z`}
+        className="iris-trend-fill"
+      />
+      <path d={line} className="iris-trend-line" data-level={level(points.map((p) => p.value))} />
 
-        {points.map((p, i) => (
-          <circle key={p.label} cx={x(i)} cy={y(p.value)} r="2.5" className="iris-trend-dot">
-            <title>{`${p.label}: ${p.value}`}</title>
-          </circle>
-        ))}
+      {points.map((p, i) => (
+        <circle key={p.label} cx={x(i)} cy={y(p.value)} r="2.5" className="iris-trend-dot">
+          <title>{`${p.label}: ${p.value}`}</title>
+        </circle>
+      ))}
 
-        {/* The annotation is the reason a line beats a table: it points at when. */}
-        {marked === undefined || marked === null || annotation == null ? null : (
-          <g>
-            <line
-              x1={x(annotation.index)}
-              x2={x(annotation.index)}
-              y1={pad.top}
-              y2={pad.top + innerH}
-              className="iris-trend-mark"
-            />
-            {/*
-             * Flipped to the left once the mark is past the midpoint, so a note
-             * on the last week is readable rather than clipped by the frame.
-             */}
+      {/* The annotation is the reason a line beats a table: it points at when. */}
+      {marked === undefined || marked === null || annotation == null ? null : (
+        <g>
+          <line
+            x1={x(annotation.index)}
+            x2={x(annotation.index)}
+            y1={pad.top}
+            y2={pad.top + innerH}
+            className="iris-trend-mark"
+          />
+          {/*
+           * Flipped to the left once the mark is past the midpoint, so a note
+           * on the last week is readable rather than clipped by the frame.
+           * The phone's drawing has no room for it: `TrendLine` sets it under.
+           */}
+          {size === "l" ? null : (
             <text
               x={x(annotation.index) + (annotation.index > points.length / 2 ? -6 : 6)}
               y={pad.top + 10}
@@ -214,25 +252,25 @@ export function TrendLine({
             >
               {annotation.text}
             </text>
-          </g>
-        )}
+          )}
+        </g>
+      )}
 
-        {points.map((p, i) =>
-          i % Math.ceil(points.length / 8) === 0 ? (
-            <text
-              key={`${p.label}-x`}
-              x={x(i)}
-              y={height - 8}
-              className="iris-trend-tick"
-              /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
-              textAnchor={i === points.length - 1 ? "end" : "middle"}
-            >
-              {p.label}
-            </text>
-          ) : null,
-        )}
-      </svg>
-    </DrawIn>
+      {points.map((p, i) =>
+        i % Math.ceil(points.length / ticks) === 0 ? (
+          <text
+            key={`${p.label}-x`}
+            x={x(i)}
+            y={height - 8}
+            className="iris-trend-tick"
+            /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
+            textAnchor={i === points.length - 1 ? "end" : "middle"}
+          >
+            {p.label}
+          </text>
+        ) : null,
+      )}
+    </svg>
   );
 }
 
