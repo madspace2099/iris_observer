@@ -105,19 +105,24 @@ interface PresentationDifferenceLike {
   readonly behaviour: string;
   readonly leftDisplay: string;
   readonly rightDisplay: string;
+  readonly sampleLeft: number;
+  readonly sampleRight: number;
 }
 
 /**
- * Turns a behaviour predicate into a clause.
+ * Turns a behaviour predicate into a clause, with the rate's own denominator.
  *
  * "Opens the Shortlist" + "89%" becomes "opens the Shortlist in 89% of their
- * meetings", which can be dropped into a sentence. The predicate strings are
- * written in the third person singular for exactly this reason.
+ * 39 meetings", which can be dropped into a sentence. The predicate strings are
+ * written in the third person singular for exactly this reason. The count is
+ * the behaviour's own sample, which can be narrower than the presenter's
+ * meetings and is never the outcome count a sentence stated just before it.
  */
 function describe(d: PresentationDifferenceLike, side: "left" | "right"): string {
   const rate = side === "left" ? d.leftDisplay : d.rightDisplay;
+  const n = side === "left" ? d.sampleLeft : d.sampleRight;
   const clause = d.behaviour.charAt(0).toLowerCase() + d.behaviour.slice(1);
-  return `${clause} in ${rate} of their meetings`;
+  return `${clause} in ${rate} of their ${n} meeting${n === 1 ? "" : "s"}`;
 }
 
 const NO_CAUSATION =
@@ -284,6 +289,11 @@ const compareAgentFlows: ToolDefinition<
        * Under the floor the read model withholds every difference, and an
        * empty list there is a refusal, not "similar ways": the surface says
        * the same sentence, and this tool must not answer what it refuses.
+       *
+       * Each rate carries its own sample (`describe`), which is the lane's
+       * meeting count unless the behaviour excludes meetings that cannot
+       * answer it; a trailing "based on" count would restate it, or contradict
+       * it in exactly that case.
        */
       draft:
         c.verdictRefusal !== null
@@ -293,8 +303,8 @@ const compareAgentFlows: ToolDefinition<
             : `The clearest difference is that ${c.left.label} ${describe(top[0] as PresentationDifferenceLike, "left")}, where ${c.right.label} ${describe(top[0] as PresentationDifferenceLike, "right")}.${
                 top[1] === undefined
                   ? ""
-                  : ` ${c.left.label.split(" ")[0]} also ${describe(top[1] as PresentationDifferenceLike, "left")} against ${top[1].rightDisplay}.`
-              } Based on ${c.left.meetingCount} and ${c.right.meetingCount} meetings.`,
+                  : ` ${c.left.label.split(" ")[0]} also ${describe(top[1], "left")}, against ${top[1].rightDisplay} of ${top[1].sampleRight}.`
+              }`,
     };
   },
 };
@@ -328,17 +338,19 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
     }
 
     const top = c.differences.slice(0, 4);
+    /* The two cohorts together are the meetings with a recorded outcome: each count's denominator. */
+    const decided = c.left.meetingCount + c.right.meetingCount;
     return {
       tool: "compare_meeting_cohorts",
       facts: [
         {
           label: "Progressed further",
-          value: String(c.left.meetingCount),
+          value: `${c.left.meetingCount} of ${decided} with an outcome`,
           note: "purchase, reservation, interested or follow-up",
         },
         {
           label: "Did not progress",
-          value: String(c.right.meetingCount),
+          value: `${c.right.meetingCount} of ${decided} with an outcome`,
           note: "presentation only or not interested",
         },
         ...top.map((d) => ({
@@ -349,7 +361,7 @@ const compareMeetingCohorts: ToolDefinition<z.ZodObject<Record<string, never>>> 
       ],
       sources: WITH_OUTCOME,
       evidence: c.evidence,
-      sampleSize: c.left.meetingCount + c.right.meetingCount,
+      sampleSize: decided,
       caveats: [
         NO_CAUSATION,
         ...(c.verdictRefusal === null ? [] : [c.verdictRefusal]),
@@ -411,12 +423,23 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
         : [`Not ranked — below the sample floor or no outcome recorded: ${unranked.join(", ")}.`];
     const top = ranked[0];
     const bottom = ranked[ranked.length - 1];
+    /*
+     * Shares that read the same are a tie, not a "most" and a "least". Judged
+     * on the printed share, because that is what the reader compares; the list
+     * is sorted, so a tie between its ends is a tie across all of it.
+     */
+    const tied =
+      top !== undefined &&
+      bottom !== undefined &&
+      pct(top.ring.progressedShare) === pct(bottom.ring.progressedShare);
 
-    if (top === undefined || bottom === undefined || top === bottom) {
+    if (top === undefined || bottom === undefined || top === bottom || tied) {
       const why =
         top === undefined
           ? "No presenter's meetings in this period carry enough recorded outcomes to be ranked."
-          : `Only ${top.name} has enough recorded outcomes in this period to be read, so there is nobody to rank against.`;
+          : top === bottom
+            ? `Only ${top.name} has enough recorded outcomes in this period to be read, so there is nobody to rank against.`
+            : `The ${ranked.length} presenters with enough recorded outcomes progressed in the same share of their meetings, ${pct(top.ring.progressedShare)} each, so none ranks above another.`;
       return {
         tool: "compare_agent_outcomes",
         facts: ranked.map(progressed),
@@ -447,10 +470,17 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
       facts: [
         progressed(top),
         progressed(bottom),
+        /*
+         * Each rate's own sample, beside the read model's note: the behaviour
+         * rates count every meeting the presenter held (or fewer, where the
+         * note says so), never the outcome count in the row above.
+         */
         ...differences.map((d) => ({
           label: d.behaviour,
           value: `${d.leftDisplay} vs ${d.rightDisplay}`,
-          note: `${top.name} against ${bottom.name}`,
+          note: `${top.name} against ${bottom.name}, of ${d.sampleLeft} and ${d.sampleRight} meetings${
+            d.note === null ? "" : ` · ${d.note}`
+          }`,
         })),
         ...ranked.slice(1, -1).map(progressed),
       ],
@@ -468,7 +498,7 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
         href: `${root(context)}/presentation?mode=agents&left=${top.agentId}&right=${bottom.agentId}`,
       },
       draft:
-        `Of the ${ranked.length} presenters with enough recorded outcomes, ${top.name}'s meetings progressed most often (${pct(top.ring.progressedShare)} of ${top.ring.decidedMeetings}) and ${bottom.name}'s least (${pct(bottom.ring.progressedShare)} of ${bottom.ring.decidedMeetings}). ${how}`.trim(),
+        `Of the ${ranked.length} presenters with enough recorded outcomes, ${top.name}'s meetings progressed most often (${pct(top.ring.progressedShare)} of ${top.ring.decidedMeetings} with an outcome) and ${bottom.name}'s least (${pct(bottom.ring.progressedShare)} of ${bottom.ring.decidedMeetings}). ${how}`.trim(),
     };
   },
 };
@@ -902,12 +932,12 @@ const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>
         },
         {
           label: "Shown earlier than the window",
-          value: String(assisted.shownEarlier),
+          value: `${String(assisted.shownEarlier)} of ${String(assisted.datedSales)} dated sales`,
           note: null,
         },
         {
           label: "Not opened in IRIS before the date",
-          value: String(assisted.notShown),
+          value: `${String(assisted.notShown)} of ${String(assisted.datedSales)} dated sales`,
           note: null,
         },
         ...(assisted.unplaced === 0
@@ -928,7 +958,14 @@ const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>
       sources: WITH_OUTCOME,
       evidence: view.evidence,
       sampleSize: assisted.datedSales,
-      caveats: [assisted.note],
+      /*
+       * Asked beside unit attention ("do they convert?"), the share reads as
+       * a per-unit rate unless it is said not to be one.
+       */
+      caveats: [
+        assisted.note,
+        "These are the whole project's dated sales, counted across every unit; no figure here is a rate for any one unit.",
+      ],
       action,
       draft: assisted.headline,
     };

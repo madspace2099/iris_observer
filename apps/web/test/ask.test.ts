@@ -1,13 +1,14 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { VIEWERS } from "@observer/synthetic";
 import { ask, namedAgents, routeQuestion, type AskContextInput } from "../src/lib/ai/agent";
 import { LIVE_QUESTIONS } from "../src/components/ask-iris/live-questions";
 import { rosterOf } from "./support/roster";
 import type { ModelGrant } from "../src/lib/ai/provider";
-import { TOOL_NAMES } from "../src/lib/ai/tools";
+import { TOOLS, TOOL_NAMES } from "../src/lib/ai/tools";
 import { resetEnvironmentCache } from "../src/lib/env";
+import { repository } from "../src/lib/repository";
 
 /**
  * Ask Observer, against the ten questions the product must answer.
@@ -353,5 +354,85 @@ describe("the router names presenters from the project's own roster", () => {
   it("names no project's presenter in the router itself", () => {
     const source = readFileSync(resolve(import.meta.dirname, "../src/lib/ai/agent.ts"), "utf8");
     expect(source).not.toMatch(/agt_monika|agt_akhilesh|monika\|/i);
+  });
+});
+
+/*
+ * Every rate in a tool's answer stands on a stated count.
+ *
+ * The outcomes tool read "progressed most often (83% of 36)" and then "in 85%
+ * of their meetings", a second share over a different total (every meeting the
+ * presenter held) with no total at all; its fact rows dropped the read model's
+ * note on a timing-blind behaviour; and two presenters at the same share were
+ * called "most" and "least".
+ */
+describe("the tools state each figure's own denominator", () => {
+  const SHARK = {
+    viewer: VIEWERS.developerShark,
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    period: "quarter_to_date" as const,
+  };
+  const run = async (name: string) => {
+    const tool = TOOLS.find((t) => t.name === name);
+    if (tool === undefined) throw new Error(`no tool ${name}`);
+    return tool.run(SHARK, {});
+  };
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("gives each behaviour rate in the outcomes comparison its own sample", async () => {
+    const result = await run("compare_agent_outcomes");
+    expect(result.draft).toMatch(/progressed most often \(\d+% of \d+ with an outcome\)/);
+    expect(result.draft, result.draft).toMatch(/ in \d+% of their \d+ meetings?, where /);
+    expect(result.draft).not.toMatch(/of their meetings/);
+    const rates = result.facts.filter((f) => / vs /.test(f.value));
+    expect(rates.length).toBeGreaterThan(0);
+    for (const fact of rates) expect(fact.note ?? "").toMatch(/, of \d+ and \d+ meetings/);
+  });
+
+  it("keeps the read model's own note on a behaviour row", async () => {
+    const original = repository.getPresentationIntelligence.bind(repository);
+    vi.spyOn(repository, "getPresentationIntelligence").mockImplementation(async (q, pair) => {
+      const view = await original(q, pair);
+      if (view.comparison === null) return view;
+      const differences = view.comparison.differences.map((d, i) =>
+        i === 0 ? { ...d, note: "Timed meetings only." } : d,
+      );
+      return { ...view, comparison: { ...view.comparison, differences } };
+    });
+    const result = await run("compare_agent_outcomes");
+    expect(result.facts.some((f) => (f.note ?? "").endsWith("· Timed meetings only."))).toBe(true);
+  });
+
+  it("calls presenters at the same share a tie, not a most and a least", async () => {
+    const original = repository.getAgentsView.bind(repository);
+    vi.spyOn(repository, "getAgentsView").mockImplementation(async (q) => {
+      const view = await original(q);
+      return {
+        ...view,
+        agents: view.agents.map((a) => ({ ...a, ring: { ...a.ring, progressedShare: 0.5 } })),
+      };
+    });
+    const result = await run("compare_agent_outcomes");
+    expect(result.draft).toMatch(/same share of their meetings, 50% each/);
+    expect(result.draft).not.toMatch(/most often|least/);
+  });
+
+  it("states the cohorts and the placed sales against their totals", async () => {
+    const cohorts = await run("compare_meeting_cohorts");
+    for (const label of ["Progressed further", "Did not progress"]) {
+      const fact = cohorts.facts.find((f) => f.label === label);
+      expect(fact?.value).toMatch(new RegExp(`^\\d+ of ${cohorts.sampleSize} with an outcome$`));
+    }
+    const sales = await run("analyze_iris_assisted_sales");
+    for (const label of ["Shown earlier than the window", "Not opened in IRIS before the date"]) {
+      const fact = sales.facts.find((f) => f.label === label);
+      expect(fact?.value).toMatch(new RegExp(`^\\d+ of ${sales.sampleSize} dated sales$`));
+    }
+    /* Asked beside unit attention, the sales are said to be the project's, not a unit's. */
+    expect(sales.caveats.join(" ")).toMatch(/whole project's dated sales/);
   });
 });
