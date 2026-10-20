@@ -34,61 +34,34 @@
   --loss: #f0616d;
 
   /*
-   * The six-category outcome ladder (purchase -> ... -> not_interested),
-   * measured rather than mixed.
+   * The outcome ladder (purchase -> ... -> not_interested), one palette for
+   * every chart that draws it: the ring, its key and Sales Flow's outcome rows
+   * (ADR-0041, outcome-rows amendment, 2026-10-20). The earlier set came in
+   * three pairs of near twins (two greens, two blues, two browns) and left the
+   * difference to position; in the stacked columns the owner could not tell
+   * from the key which part was which, and beside a second palette on the
+   * same page the two keys disagreed. Here the four rungs that progressed
+   * step green to teal to blue, lightest first; presentation only is a
+   * neutral grey; not interested a terracotta that is neither the watch amber
+   * nor the loss red; the unrecorded outcome is never a solid fill (a hatch in
+   * a bar, stripes on a ring) in its own grey.
    *
-   * These used to be `color-mix()` interpolations between --gain/--accent/
-   * --ink-3, which spread hue across the six categories but not lightness --
-   * measured against the real rendered background stack, every pair but one
-   * came out under 1.3:1, nowhere near the 3:1 WCAG 1.4.11 floor this
-   * product already holds itself to elsewhere (ADR-0034's own table). Two
-   * greys in particular ("Presentation only" and, before it moved to the
-   * heatmap's own empty-cell treatment, "Outcome not recorded") were
-   * genuinely indistinguishable on a real ring.
-   *
-   * These six are chosen instead: three bands (light/mid/dark) tracking the
-   * commitment ladder monotonically -- purchase+reservation light, interested+
-   * follow_up_needed mid, presentation_only+not_interested dark -- with the
-   * band lightness pushed toward the product's own two declared neutrals
-   * (graphite black, warm off-white) specifically so the mid band has room to
-   * clear 3:1 against both neighbours, which it cannot at the narrower spread
-   * the original tokens implied. Same-band pairs (adjacent ladder rungs) are
-   * deliberately not colour-separated -- position in the stack/ring carries
-   * that distinction instead, verified with the full 15-pair contrast matrix
-   * under normal vision, protanopia and deuteranopia simulation, not
-   * eyeballed. No new hue: purchase/reservation stay in --gain's green,
-   * interested/follow_up_needed in --accent's blue, presentation_only/
-   * not_interested in --loss's red-amber register.
-   *
-   * The 15-pair matrix above never asked whether a fill reads as a fill at
-   * all: it compares categories to each other, not to the ground a segment
-   * actually sits on. Measured against the real composited chart background
-   * (~rgb(9,13,23), `.iris-plane`'s wash over `.ox-graphite`) and the ring's
-   * own track (`--rule` composited the same way, ~rgb(20,25,37)), the
-   * original dark band measured 1.00-1.17 -- statistically indistinguishable
-   * from either, i.e. invisible, not merely muted. Proven by exhaustive
-   * search (not eyeballed): raising the dark band far enough to clear 3:1
-   * against that ground is mathematically incompatible with also holding
-   * 3:1 against `--outcome-interested` (0.176 relative luminance) -- the
-   * ceiling the interested-pair imposes on presentation_only (~0.025) sits
-   * below the floor the background/track imposes (~0.11-0.13) at every hue
-   * and chroma tried, so interested/follow_up_needed-vs-presentation_only/
-   * not_interested no longer clear 3:1 above this comment. What still
-   * holds, un-eyeballed: presentation_only measures darker than
-   * not_interested is false in the *previous* values (a real monotonicity
-   * bug, fixed here) and true in these; both remain far below the light
-   * band (purchase/reservation), so purchase/not_interested stays strongly
-   * separated (~4.6:1 vs the light band's own ~14:1, not the same thing as
-   * failing); and both now clear 3:1 against the real background and track
-   * under all three vision conditions, which is the defect this pass was
-   * asked to fix.
+   * Measured, not eyeballed. WCAG non-text contrast on the D card (#000) and
+   * on the ring's track (#111114): purchase 15.7 / 14.1, reservation 11.0 /
+   * 9.9, interested 9.5 / 8.6, follow-up 5.2 / 4.6, presentation only 6.5 /
+   * 5.8, not interested 6.0 / 5.3, unrecorded 4.2 / 3.7. Every two of the
+   * seven stand at least 0.096 apart in OKLab under normal vision, protanopia
+   * and deuteranopia (Machado 2009, full severity). Neighbours are close in
+   * luminance, so a bar parts them with a 2px gap of the card and a ring with
+   * a gap of its track.
    */
-  --outcome-purchase: #8cfab5; /* oklch(90% 0.14 155) */
-  --outcome-reservation: #65f0cf; /* oklch(87% 0.13 175) */
-  --outcome-interested: #3378b7; /* oklch(56% 0.12 249) */
-  --outcome-follow-up: #286eac; /* oklch(52.5% 0.12 249) */
-  --outcome-presentation-only: #88735f; /* oklch(57% 0.04 65) */
-  --outcome-not-interested: #806559; /* oklch(53% 0.04 45) */
+  --outcome-purchase: #8cf5a8;
+  --outcome-reservation: #3fd3a0;
+  --outcome-interested: #26c0cf;
+  --outcome-follow-up: #3f7fd0;
+  --outcome-presentation-only: #8d8f95;
+  --outcome-not-interested: #c4744c;
+  --outcome-unrecorded: #6e6e78;
 
   /*
    * The body face, named.

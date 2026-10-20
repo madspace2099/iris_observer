@@ -281,54 +281,44 @@
 /* --- an outcome mix per group, as rows (ADR-0041, outcome-rows amendment) --- */
 
 /*
- * This chart's own colours. The ring's `--outcome-*` come in three pairs of
- * near twins (two blues, two browns) and leave the difference to position;
- * in the stacked columns the owner could not tell from the key which part was
- * which. Here the four rungs that progressed step green to teal to blue,
- * presentation only is a neutral grey, not interested a terracotta that is
- * neither the watch amber nor the loss red, and the unrecorded part is a
- * hatch, never a solid that reads as an outcome. No glow.
- *
- * WCAG non-text contrast against the D card (#000): purchase 15.7:1,
- * reservation 11.0:1, interested 7.2:1, follow-up 5.2:1, presentation only
- * 7.5:1, not interested 6.0:1, the hatch's stripe 4.2:1. Neighbours stand
- * 1.3 to 1.5:1 apart, so a 2px gap of the card separates every two parts.
- * A count inside a part is the card's black: 5.2:1 or more on every fill.
+ * The outcome palette (`--outcome-*`, iris.css), shared with the ring and its
+ * key so one colour names one outcome on the whole page. A part's count is
+ * the card's black on its fill, 5.2:1 or more on every one; neighbours are
+ * close in luminance, so a 2px gap of the card parts every two. The
+ * unrecorded outcome is a hatch, never a solid that reads as an outcome. No
+ * glow.
  */
 .iris-orows {
-  --orow-purchase: #8cf5a8;
-  --orow-reservation: #3fd3a0;
-  --orow-interested: #22a6b8;
-  --orow-follow-up: #3f7fd0;
-  --orow-presentation-only: #9a9aa5;
-  --orow-not-interested: #c4744c;
-  --orow-unrecorded: #6e6e78;
   --orow-card: var(--d-card, #000);
   display: grid;
   gap: 1.25rem;
 }
 
-.iris-orows [data-outcome="purchase"] {
-  background: var(--orow-purchase);
+:is(.iris-orows, .iris-ring-key) [data-outcome="purchase"] {
+  background: var(--outcome-purchase);
 }
-.iris-orows [data-outcome="reservation"] {
-  background: var(--orow-reservation);
+:is(.iris-orows, .iris-ring-key) [data-outcome="reservation"] {
+  background: var(--outcome-reservation);
 }
-.iris-orows [data-outcome="interested"] {
-  background: var(--orow-interested);
+:is(.iris-orows, .iris-ring-key) [data-outcome="interested"] {
+  background: var(--outcome-interested);
 }
-.iris-orows [data-outcome="follow_up_needed"] {
-  background: var(--orow-follow-up);
+:is(.iris-orows, .iris-ring-key) [data-outcome="follow_up_needed"] {
+  background: var(--outcome-follow-up);
 }
-.iris-orows [data-outcome="presentation_only"] {
-  background: var(--orow-presentation-only);
+:is(.iris-orows, .iris-ring-key) [data-outcome="presentation_only"] {
+  background: var(--outcome-presentation-only);
 }
-.iris-orows [data-outcome="not_interested"] {
-  background: var(--orow-not-interested);
+:is(.iris-orows, .iris-ring-key) [data-outcome="not_interested"] {
+  background: var(--outcome-not-interested);
 }
-.iris-orows [data-outcome="skipped"] {
-  background: repeating-linear-gradient(135deg, var(--orow-unrecorded) 0 2px, transparent 2px 6px);
-  box-shadow: inset 0 0 0 1px var(--orow-unrecorded);
+:is(.iris-orows, .iris-ring-key) [data-outcome="skipped"] {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--outcome-unrecorded) 0 2px,
+    transparent 2px 6px
+  );
+  box-shadow: inset 0 0 0 1px var(--outcome-unrecorded);
 }
 
 .iris-orows-key {

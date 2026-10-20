@@ -851,9 +851,8 @@ export function buildLongestMeetings(
  * Kept identical to `OUTCOME_TONE` in `apps/web/src/showroom/charts.tsx` on
  * purpose -- both name the same six `--outcome-*` custom properties
  * (`packages/ui/src/iris.css`) rather than each declaring their own
- * `color-mix()`, which is what let the two drift apart before. `skipped`
- * still resolves to the heatmap's own empty-cell treatment's colour, not a
- * seventh ladder rung.
+ * `color-mix()`, which is what let the two drift apart before. `skipped` is
+ * the unrecorded grey, which a chart draws as a hatch, never as a rung.
  */
 const OUTCOME_COLOURS: Record<MeetingOutcome, string> = {
   purchase: "var(--outcome-purchase)",
@@ -862,7 +861,7 @@ const OUTCOME_COLOURS: Record<MeetingOutcome, string> = {
   follow_up_needed: "var(--outcome-follow-up)",
   presentation_only: "var(--outcome-presentation-only)",
   not_interested: "var(--outcome-not-interested)",
-  skipped: "color-mix(in oklab, var(--ink-3) 45%, transparent)",
+  skipped: "var(--outcome-unrecorded)",
 };
 
 export function buildComposition(

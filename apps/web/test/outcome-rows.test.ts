@@ -5,7 +5,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { StackedColumn } from "@observer/readmodels";
-import { OUTCOME_KEYS } from "@/showroom/charts";
+import { OUTCOME_KEYS, OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { OutcomeRows } from "@/showroom/charts2";
 
 /**
@@ -110,9 +110,37 @@ describe("Sales Flow's outcome rows", () => {
       join(dirname(fileURLToPath(import.meta.url)), "../../../packages/ui/src/charts.css"),
       "utf8",
     );
-    const rule = /\.iris-orows \[data-outcome="skipped"\] \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    const rule =
+      /:is\(\.iris-orows, \.iris-ring-key\) \[data-outcome="skipped"\] \{([^}]*)\}/.exec(
+        css,
+      )?.[1] ?? "";
     expect(rule).toContain("repeating-linear-gradient");
     expect(rule).toContain("transparent");
+  });
+
+  it("colour every part from the one outcome palette the ring reads", () => {
+    const css = readFileSync(
+      join(dirname(fileURLToPath(import.meta.url)), "../../../packages/ui/src/charts.css"),
+      "utf8",
+    );
+    const rows = css.slice(css.indexOf(".iris-orows {"), css.indexOf(".iris-orows-key {"));
+    // No palette of the rows' own: a second key on one page is the defect the owner saw.
+    expect(rows).not.toMatch(/#[0-9a-f]{6}/i);
+    for (const token of ["purchase", "reservation", "interested", "follow-up", "not-interested"]) {
+      expect(rows).toContain(`var(--outcome-${token})`);
+    }
+
+    // The ring's key takes its swatches from the same rules, and its unrecorded slice is striped.
+    const slices = [
+      { outcome: "purchase", label: "Purchase", count: 2, share: 0.5 },
+      { outcome: "skipped", label: "Outcome not recorded", count: 2, share: 0.5 },
+    ] as const;
+    const key = renderToStaticMarkup(createElement(OutcomeKey, { slices }));
+    expect(key).toContain('<i data-outcome="skipped"></i>');
+    expect(key).not.toContain("style=");
+    const ring = renderToStaticMarkup(createElement(OutcomeRing, { slices, total: 4 }));
+    expect(ring).toMatch(/stroke="var\(--outcome-unrecorded\)"[^>]*stroke-dasharray="2 2"/);
+    expect(ring).not.toMatch(/stroke="var\(--outcome-purchase\)"[^>]*stroke-dasharray/);
   });
 
   it("name each bar that draws a part as one image, and give an empty bar none", () => {

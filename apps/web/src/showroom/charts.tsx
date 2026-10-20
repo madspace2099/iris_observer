@@ -25,9 +25,9 @@ import { DrawIn } from "./DrawIn";
  * Kept identical to `OUTCOME_COLOURS` in `packages/synthetic/src/showroom/charts.ts`
  * on purpose -- both name the same six `--outcome-*` custom properties
  * (`packages/ui/src/iris.css`) rather than each declaring their own
- * `color-mix()`, which is what let the two drift apart before. `skipped`
- * still resolves to the heatmap's own empty-cell treatment's colour, not a
- * seventh ladder rung.
+ * `color-mix()`, which is what let the two drift apart before. `skipped` is
+ * the unrecorded grey, never drawn solid: the ring strokes it in stripes, and
+ * a key or a bar hatches it (`charts.css`), so it never reads as a rung.
  */
 const OUTCOME_TONE: Record<MeetingOutcome, string> = {
   purchase: "var(--outcome-purchase)",
@@ -36,7 +36,7 @@ const OUTCOME_TONE: Record<MeetingOutcome, string> = {
   follow_up_needed: "var(--outcome-follow-up)",
   presentation_only: "var(--outcome-presentation-only)",
   not_interested: "var(--outcome-not-interested)",
-  skipped: "color-mix(in oklab, var(--ink-3) 45%, transparent)",
+  skipped: "var(--outcome-unrecorded)",
 };
 
 /**
@@ -141,6 +141,7 @@ export function OutcomeRing({
               stroke={OUTCOME_TONE[s.outcome]}
               strokeWidth={stroke}
               strokeLinecap="butt"
+              {...(s.outcome === "skipped" ? { strokeDasharray: "2 2" } : {})}
             >
               <title>{`${s.label}: ${s.count} of ${total}`}</title>
             </path>
@@ -168,7 +169,8 @@ export function OutcomeKey({ slices }: { slices: readonly OutcomeSlice[] }) {
     <ul className="iris-ring-key">
       {slices.map((s) => (
         <li key={s.outcome}>
-          <i style={{ background: OUTCOME_TONE[s.outcome] }} />
+          {/* Coloured by `charts.css`, the same rules as the outcome rows' key. */}
+          <i data-outcome={s.outcome} />
           {s.label}
           <b>{s.count}</b>
         </li>

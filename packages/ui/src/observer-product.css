@@ -369,12 +369,13 @@
    * resolves to nothing on the page that is the entire point of having them.
    * Carried as the same literal values `.iris` declares, not re-derived.
    */
-  --outcome-purchase: #8cfab5;
-  --outcome-reservation: #65f0cf;
-  --outcome-interested: #3378b7;
-  --outcome-follow-up: #286eac;
-  --outcome-presentation-only: #88735f;
-  --outcome-not-interested: #806559;
+  --outcome-purchase: #8cf5a8;
+  --outcome-reservation: #3fd3a0;
+  --outcome-interested: #26c0cf;
+  --outcome-follow-up: #3f7fd0;
+  --outcome-presentation-only: #8d8f95;
+  --outcome-not-interested: #c4744c;
+  --outcome-unrecorded: #6e6e78;
 }
 
 /* On paper the brand accent measures 2.73:1, so a chart's own accent takes the
