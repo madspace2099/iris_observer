@@ -1290,6 +1290,123 @@
   color: var(--ink-3);
 }
 
+/* --- a title that explains itself (InfoTip) --------------------------------- */
+
+/*
+ * A card's title and the `i` beside it, on one line. The title's own margin
+ * moves to this row, so a card reads exactly as it did with the bare heading.
+ */
+.iris-titled {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.iris-titled > .iris-kicker {
+  min-width: 0;
+}
+
+/*
+ * A 16px ring in a 24px target. The negative block margin keeps the target
+ * from growing the line it sits on: a 16px kicker row stays 16px tall.
+ */
+.iris-info {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-block: -0.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.iris-info svg {
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.iris-info:hover {
+  color: var(--accent);
+}
+
+/* Its own rule: a browser without `:popover-open` drops only this one. */
+.iris-info:has(+ .iris-info-panel:popover-open) {
+  color: var(--accent);
+}
+
+.iris-info:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/*
+ * The panel, in the top layer, so no card's overflow can clip it. Without
+ * anchor positioning the browser's own popover box applies and it stands in
+ * the middle of the window; with it, it hangs under its button and flips
+ * where the window runs out. The ground is the menu panel's (`.ox-menu-panel`)
+ * and the shadow the one lift a floating control spends (`--ox-lift`).
+ */
+.iris-info-panel {
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(34ch, calc(100vw - 2rem));
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--ox-line-panel, var(--rule-firm));
+  border-radius: 8px;
+  background: #0b111b;
+  box-shadow: var(--ox-lift, var(--shadow-overlay));
+  color: var(--ink-2);
+  font-family: var(--sans, inherit);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.25rem;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+.iris-info-panel > p {
+  margin: 0;
+}
+
+.iris-info-panel > p + p {
+  margin-top: 0.5rem;
+}
+
+@supports (position-area: block-end) {
+  .iris-info-panel {
+    inset: auto;
+    margin: 0.375rem 0 0;
+    position-area: block-end span-inline-end;
+    position-try-fallbacks:
+      flip-inline,
+      flip-block,
+      flip-block flip-inline;
+  }
+}
+
+/* A phone: a sheet along the bottom, the width of the screen. */
+@media (width < 40rem) {
+  .iris-info-panel {
+    position-area: none;
+    inset: auto 0 0;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    border-radius: 12px 12px 0 0;
+    font-size: 0.875rem;
+    line-height: 1.375rem;
+  }
+}
+
 /*
  * Six columns, none of them an abbreviation — and none of them optional.
  *
