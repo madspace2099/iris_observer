@@ -6338,3 +6338,66 @@ through a presenter's counts; "Summary over"), Meetings ("Show the remaining 130
 the 21st, Compact), Units ("Order by", the building), S-503, Audience at 360, Presentation (Two
 agents) and the report's section 04; run `a11y-contract`, `layout-integrity`,
 `p220-table-preferences`, `units-register`, `fejezet1` and `dontesek1` on the mobile project.
+
+## 2026-10-22 — Stream KPIS: what changed, as a screen of figures (ADR-0060)
+
+**Asked.** The owner, recording the Shark Residence demo: the three "What changed since …" cards on
+Sales Flow are lost; show them as three important figures on a full screen, and add what else the
+showroom measures — median clicks, median presentation time, top feature, median screenshots and
+median favourites per meeting — each with a rising or falling trend against the same figure
+computed 7 calendar days earlier, a green arrow up where it rose. Every panel readable in five
+seconds. Stream SCREENS (ADR-0059) owns the page, the block's full-screen wrapper and its title;
+this stream owns the block's inside.
+
+**Done.**
+
+- **Read model.** `ChangeKpisView` (`packages/readmodels/src/change-kpis.ts`) on
+  `ShowroomOverview.kpis`, built by `buildChangeKpis`
+  (`packages/synthetic/src/showroom/change-kpis.ts`): Compare mode used, Surroundings early,
+  Presentation depth (the three that stood there), then Interactions per meeting, Presentation
+  length, Top feature, Screenshots per meeting, Favourites per meeting. Medians and shares, each
+  with its sample in view; the definitions are the registry's words, behind each name's `i`.
+- **Clicks are not measured** (the event map deleted the client click map; no click fact exists):
+  "Interactions per meeting" is the recorded openings and actions — sections, flats, floor plans,
+  floor cuts, balcony views, favourites, screenshots — under its own name, and the `i` says so.
+- **The arrow.** Today's window is the period's slice; the comparison is the same window ending 7
+  calendar days earlier in the project's zone (DST-safe). Unchanged under 2 points for a share or
+  5% for a median; no arrow unless both windows hold 20 meetings that can answer the figure
+  (`AGENT_MIN_SAMPLE`), the shortfall said once for the screen or per figure; the policy-version
+  refusal (docs/10-policies.md §1) takes every arrow away and says why. Green up / red down for
+  Compare, interactions, screenshots and favourites; neutral for Surroundings early, depth and
+  length; no arrow for the top feature, which says whether it was the top 7 days earlier. The top
+  feature is the most timed presentation time over fully timed meetings; ties go to reach, then the
+  inventory's order; not named below the floor.
+- **Registry.** `CHANGE_FIGURES` in `packages/metrics/src/registry/flow.ts` (floor
+  `AGENT_MIN_SAMPLE`, new comparison method `seven_days_earlier`); matrix regenerated.
+- **Screen.** `apps/web/src/components/flow/ChangeKpis.tsx` and `change-kpis.css`, mounted in place
+  of the `summary.changes` list and its refusal only. The three lead across the top (44 to 72, the
+  kit's mono), five beneath at up to 44; a subgrid keeps each row's name, figure, arrow and sample
+  level; a row per figure on a phone; the entry cascades the figures and moves each arrow the way it
+  points, nothing under reduced motion.
+- **Ask IRIS.** `detect_showroom_behavior_changes` reads the same read model (facts are the
+  screen's figures, samples and arrow words; the draft states no figure a model is not shown).
+
+**Not done, by ownership.** The block's title still reads "What changed since {baseline}" and its
+`i` still speaks of two periods — SCREENS' wrapper; at integration it should say the comparison is
+against 7 days ago. `ShowroomOverview.changes` (the old previous-period deltas) has no reader on
+screen now; removing it is a separate decision. The import of `ChangeKpis` is the one line of
+`page.tsx` outside the block.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
+`packages/synthetic/test/change-kpis.test.ts` (22, hand-computed: windows across the clock change,
+medians against means, the threshold met and missed, nought, tones, the floor per window and per
+figure, the top feature's share and tie rules, the refusal, an empty period, the registry's order,
+Shark through the repository) and one in `apps/web/test/ask.test.ts`. Full suite (after
+`pnpm release:wrappers`): 292 files, 5352 passed, 1 skipped, 1 failed — `no-secret-recipes`, which
+needs a web build (environmental). Static renders (react-dom/server, the product stylesheets,
+headless Chromium) at 1440, 1280, 1200, 1100, 1024, 768, 600, 390 and 360, on the plane and in a
+chart card, with the longest figures: no sideways scroll, nothing clipped. **Not looked at on a
+running page**; no e2e or unit spec asserted the replaced cards (grep of `e2e/` and
+`apps/web/test/`).
+
+**Next recommended action.** After SCREENS and KPIS are cherry-picked together: retitle the block
+for the 7-day basis, then look at Sales Flow on the demo build at 1440 and 390 — the screen of
+figures inside its full-screen wrapper, Tab through the eight names and `i`s — and run
+`a11y-contract`, `layout-integrity` and `period-travels` on the flow page.

@@ -162,5 +162,7 @@ AGENT_MIN_SAMPLE` and a new comparison method, `seven_days_earlier`. The screen'
 - **Not looked at on a running page** (no dev server, build or Playwright e2e in this stream). Static
   renders — `ChangeKpis` through `react-dom/server` with the product stylesheets, headless Chromium,
   on the block's plane and inside a chart card — of Shark and Kingsford quarter to date, the refused
-  and the short states, at 1440, 1280, 390 and 360: no sideways scroll, nothing clipped or outside
-  its cell, no text under 12px but the `i` glyph itself.
+  and the short states, and the longest figures the read model writes ("58m 59s", "Surroundings"),
+  at 1440, 1280, 1200, 1100, 1024, 768, 600, 390 and 360: no sideways scroll, no text running past
+  its line or its cell, no text under 12px but the `i` glyph itself. A mid-entry frame shows the
+  cascade and the arrows in flight.
