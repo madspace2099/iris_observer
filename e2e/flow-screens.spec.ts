@@ -23,6 +23,12 @@ async function open(page: Page): Promise<void> {
 const chromeBottom = (page: Page) =>
   page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop));
 
+/** A screen's distance from the bottom of the chrome, once the page has come to rest. */
+const offset = (page: Page, id: string, top: number) =>
+  page
+    .locator(`#${id}`)
+    .evaluate((el, chrome) => Math.abs(el.getBoundingClientRect().top - chrome), top);
+
 test("every screen fills the viewport under the header, so the next one starts below it", async ({
   page,
 }, info) => {
@@ -88,9 +94,11 @@ test("the rail names every screen and goes to it", async ({ page }, info) => {
   await expect(links).toHaveCount(screens);
   const last = links.last();
   const target = ((await last.getAttribute("href")) ?? "").slice(1);
+  const entries = await page.evaluate(() => history.length);
   await last.click();
   await expect(last).toHaveAttribute("aria-current", "location");
   const top = await chromeBottom(page);
-  const at = await page.locator(`#${target}`).evaluate((el) => el.getBoundingClientRect().top);
-  expect(Math.abs(at - top), `${target} under the header`).toBeLessThanOrEqual(2);
+  expect(await offset(page, target, top), `${target} under the header`).toBeLessThanOrEqual(2);
+  expect(await page.evaluate(() => history.length), "a history entry").toBe(entries);
+  expect(page.url()).toContain(`#${target}`);
 });

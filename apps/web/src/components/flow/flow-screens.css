@@ -61,6 +61,16 @@ html:has(.iris-salesflow) {
   flex-direction: column;
 }
 
+/* A screen’s own link keeps its width: the column would stretch the pill across the screen. */
+.iris-salesflow .flow-screen:not(.iris-band) > .iris-action {
+  align-self: flex-start;
+}
+
+/* A screen the rail moves focus to is a place, not a control: no ring round the whole screen. */
+.iris-salesflow .flow-screen:focus {
+  outline: none;
+}
+
 /* A screen that frames a card (IRIS-assisted sales) gives the card its height. */
 .iris-salesflow .flow-screen > .d-card {
   flex: 1 0 auto;
@@ -322,7 +332,13 @@ html:has(.iris-salesflow) {
   display: none;
 }
 
-@media (width >= 40rem) {
+/*
+ * Drawn only where its dots fit under the chrome: fifteen 26px steps need
+ * 390px, and on a landscape phone the first sat under the header and the last
+ * below the viewport, focusable and out of sight (review round 1). 33rem tall
+ * leaves 399px under the desktop's chrome.
+ */
+@media (width >= 40rem) and (height >= 33rem) {
   .iris-salesflow {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 2rem;
@@ -334,15 +350,20 @@ html:has(.iris-salesflow) {
     grid-row: 1;
   }
 
+  /*
+   * The rail is as tall as its dots, held in the middle of the room under the
+   * chrome (`--flow-dots` is the rail's count). A rail a screen tall was dragged
+   * up by the page's end, under the context band (review round 1); one this
+   * short is reached by the page's end only on a window too short to draw it.
+   */
   .iris-salesflow .flow-rail {
     grid-column: 2;
     grid-row: 1;
+    align-self: start;
     position: sticky;
-    top: var(--flow-top);
+    top: calc(var(--flow-top) + (var(--flow-h) - var(--flow-dots, 15) * 26px) / 2);
     display: flex;
-    align-items: center;
     justify-content: center;
-    height: var(--flow-h);
   }
 
   .iris-salesflow .flow-rail ol {

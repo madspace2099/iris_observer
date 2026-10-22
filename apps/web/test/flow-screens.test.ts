@@ -100,7 +100,9 @@ describe("the rail", () => {
         ],
       }),
     );
-    expect(html).toContain('<nav class="flow-rail" aria-label="Sales Flow screens">');
+    expect(html).toContain(
+      '<nav class="flow-rail" aria-label="Sales Flow screens" style="--flow-dots:2">',
+    );
     expect(html).toContain('href="#flow-verdict" aria-label="The verdict"');
     expect(html).toMatch(/href="#flow-verdict"[^>]*aria-current="location"/);
     expect(html).not.toMatch(/href="#flow-summary"[^>]*aria-current/);

@@ -15,8 +15,6 @@ import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AssistedSales, FlowLadder } from "@/components/flow";
 import { ChangeKpis } from "@/components/flow/ChangeKpis";
-
-import { FlowRail, type FlowScreen } from "@/components/flow/FlowRail";
 import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -33,6 +31,7 @@ import { Funnel, Heatmap, KpiCard, OutcomeRows, RankedBars, TrendLine } from "@/
 import { DrawIn } from "@/showroom/DrawIn";
 import { RadialHistogram, Sized } from "@/showroom/forms";
 import { BubbleLens } from "@/showroom/BubbleLens";
+import { FlowRail, type FlowScreen } from "@/components/flow/FlowRail";
 import "@/components/flow/sales-flow.css";
 import "@/components/flow/flow-screens.css";
 
@@ -215,7 +214,8 @@ export default async function FlowPage({
 
   return (
     <div className="iris-one iris-salesflow">
-      <FlowRail screens={screens} />
+      {/* Keyed as the screens it watches are, so its observer follows them when they are replaced. */}
+      <FlowRail key={`rail-${query.period}-${kpiWindow}`} screens={screens} />
       <section className="iris-plane iris-stack">
         {/* The verdict is the first screen, alone (ADR-0048, ADR-0059). */}
         <div className="flow-screen flow-verdict" id="flow-verdict">
