@@ -61,23 +61,31 @@ cause. Refusals and sample shortfalls stay in view.
    through the whole of it, and Page Down and the arrow keys went screen to screen. Proximity, not
    mandatory, where nearly every screen outgrows the viewport (a phone, a short window). The Ask
    composer after the last screen is a place the scroller may rest (`scroll-snap-align: end`). The
-   page sets no smooth scrolling anywhere, so nothing is smoothed under reduced motion.
+   page sets no smooth scrolling anywhere, and **under reduced motion it does not snap at all**:
+   Chrome animates every snap, so the page glided on by itself after each wheel turn (review round
+   1). The screens still fill the viewport there, and Page Down and the rail still go from one to
+   the next.
 3. **The verdict is the first screen, alone.** The spoken verdict (ADR-0048), unchanged in words and
    in its typing, at up to 56px in a 30ch measure with the mark at 72px, in the middle of its screen.
 4. **Two pairs share a screen.** "Meetings, and how many progressed" and "Every outcome" are one
    card; so are "Longest presentations this period" and "Presentations given". Each half keeps its
    own title, so every heading, link and test that names one still finds it; side by side above
-   75rem, stacked below.
+   75rem, stacked below. The presentations' halves are even, each with its own columns, so both
+   lists' bars take room (review round 1).
 5. **The drawing takes the screen.** Each drawing is sized against `--flow-h`, the screen's height,
    less what the screen also holds, and never past its card's width; a drawing with a viewBox
-   scales its type with it, never under the 12px floor. The summary's figures at 36–56px with their
-   strips the screen's height, a sparkline under its words where the cell is narrow; the ladder's
-   rungs spread down the screen with 28px bars; the steps the screen's height beside a ring of up
-   to 416px with its key in two columns under it; the clock face up to the screen's height less
-   9rem; the heatmap's seven rows the screen's height between them; the weekly line drawn 460 units
-   tall on a wide screen (`TrendLine`'s new `wideHeight`; a phone's drawing 260), capped at the
-   screen; a ranked list's five rows spread down its screen with a 12px bar, its names at 16px with
-   a third more width in a wide card, so a sale's name stays one line.
+   scales its type with it, so it is **never sized under its drawn size by the screen's height**:
+   a short window scrolls the screen instead. The summary's figures at 36–56px with their strips
+   the screen's height, a sparkline under its words where the cell is narrow, a group nothing
+   measures as tall as its sentence; the ladder's rungs share the screen's height with 28px bars
+   (six fit 591px, they spread on a taller screen); the steps the screen's height beside a ring of
+   up to 416px with its key in two columns under it; the clock face up to the screen's height less
+   9rem and never under its drawn 430; the heatmap's seven rows the screen's height between them;
+   the weekly line drawn 400 units tall at 720 on a wide card (`TrendLine`'s new `wideHeight`, the
+   middle drawing at the same proportions; a phone's drawing 260), at its column's width and never
+   capped; the bubble lens on its seven days, bubbles at full size; a ranked list's five rows
+   spread down its screen with a 12px bar, its names at 16px, a third wider where a sale is named
+   (stalled deals, IRIS-assisted sales) so a sale's name stays one line.
 6. **Five seconds: one line, the rest behind the `i`.** A screen says its title, draws its chart,
    and keeps the figure it stands on and its source. What moved behind an `i`: the clock face's
    count sentence, time zone, the grid reconciliation and "a count of when meetings start, not a
@@ -85,17 +93,24 @@ cause. Refusals and sample shortfalls stay in view.
    heatmap's "an empty square is drawn empty…" (its denominator caption and busiest slot stay);
    "How many, not how well. Volume is a workload figure." beside Presentations given. Nothing else
    was removed: the ladder's note, the stalled list's "12 of 114 open deals", the assisted sales'
-   unplaced note, every refusal and every shortfall stand where they stood.
+   unplaced note, every refusal and every shortfall stand where they stood. How each agent's
+   meetings end says every count once, and every count is a link (review round 1): the key the
+   team's row repeats steps aside and a bar's parts drop the counts the line under them carries,
+   as they already did on a phone.
 7. **Motion plays when its screen arrives.** The charts already draw in through `DrawIn` (an
    `IntersectionObserver`, once, nothing under reduced motion); on a screen of its own each plays as
    its screen comes into view. The ladder, the one drawing without an entrance, sweeps in.
 8. **A quiet rail says where you are.** `FlowRail`: one dot per screen in a column beside the
-   screens, sticky in the middle of the viewport, each a link to its screen, the current one in IRIS
-   blue (`aria-current="location"`, set by an observer on the viewport's middle line). Its name shows
-   beside the dot on hover or keyboard focus; its accessible name is the link's `aria-label`, so the
-   page's text and headings are unchanged. In the DOM before the screens, so Tab reaches it after the
-   context band and before the summary; a 2px blue focus ring. Not drawn on a phone, where each
-   screen's title says where you are.
+   screens, sticky in the middle of the room under the chrome and as tall as its dots, each a link
+   to its screen, the current one in IRIS blue (`aria-current="location"`, set by an observer on the
+   viewport's middle line). Its name shows beside the dot on hover or keyboard focus; its accessible
+   name is the link's `aria-label`, so the page's text and headings are unchanged. In the DOM before
+   the screens, so Tab reaches it after the context band and before the summary; a 2px blue focus
+   ring. A dot brings its screen into view, moves focus into it and replaces the address: a native
+   fragment link pushed a history entry the App Router does not handle on Back. The rail is keyed
+   as the screens are, on the period and the window, so its observer follows them when they are
+   replaced. Drawn from 40rem wide and 33rem tall, where its dots fit under the chrome; not on a
+   phone, where each screen's title says where you are.
 9. **Without a CRM the ladder's sentence closes the summary screen** instead of holding a screen of
    its own, so no screen is one sentence on a black field. With a CRM the ladder, stalled deals and
    IRIS-assisted sales are screens as before.
@@ -109,11 +124,11 @@ cause. Refusals and sample shortfalls stay in view.
 - **The ladder's secondary figures** ("100% on its own", "−74 after Meeting") stay: they are the
   component's on every page that draws a ladder, and the bars already carry the share. A screen-only
   quiet mode would be a second ladder.
-- **The lens's span.** It opens on the month, as ported; seven days makes its bubbles the screen's
-  size, and is one press away.
-- **A 1280×720 window**: the summary, the ladder, IRIS-assisted sales, the lens, the agents and the
-  not-interested group are taller than its 591px screen (645 to 1,008px) and are read through; at
-  1440×900 only the agents screen is (855px against 771).
+- **A window about 600px tall under the chrome** (1280×720, or 1536×730, a 1920×1080 laptop at
+  125%): the summary (645 / 624px), IRIS-assisted sales (642 / 650), the lens (719 / 769), the
+  agents (843 / 769) and the not-interested group (647 / 647) are taller than its 591 / 601px
+  screen and are read through; the ladder, the weekly line and every other screen fit. At
+  1440×900 and 1920×1080 every screen fits.
 - **The inside of the not-interested screen** is stream DRILL's (ADR-0053), unchanged.
 
 ## Consequences
@@ -122,12 +137,42 @@ cause. Refusals and sample shortfalls stay in view.
   on the rail; the verdict stands alone; the two pairs share a screen; the heatmap keeps its
   denominator in view and its method behind the `i`; the stylesheet is scoped to the page, snaps by
   proximity unless the screens fit, and sets no smooth scrolling; the rail links every screen and
-  marks the first before script runs. `flow-claims.test.ts` ends a block at the next screen.
+  marks the first before script runs. `flow-claims.test.ts` ends a block at the next screen. Review
+  round 1 added: the rail re-keyed on everything a screen is keyed on; no snap under reduced motion;
+  no drawing shrunk under its drawn size by the screen's height; the wide name column only where a
+  sale is named; every agent count once; the ladder's height through its wrappers; the rail drawn
+  only where it fits, as tall as its dots, and going to a screen without a pushed history entry.
 - `e2e/flow-screens.spec.ts` (written, not run here): every screen fills the viewport under the
-  header at 1440×900; Page Down lands the next screen under the header; a phone's tallest screen is
-  read through by the arrow key; the rail names and reaches every screen. No other e2e spec asserted
-  the structure that moved: the reading note, every title, every link and every list name are
-  unchanged.
+  header at 1440×900; the page does not snap under reduced motion; with motion asked back, Page Down
+  lands the next screen under the header once it comes to rest (polled; a snap glides about 470ms)
+  and a phone's tallest screen is read through by the arrow key; the rail names and reaches every
+  screen without adding a history entry. No other e2e spec asserted the structure that moved: the
+  reading note, every title, every link and every list name are unchanged.
 - Looked at as static renders (the page in the real shell through `react-dom/server`, the product
   stylesheets, headless Chromium) at 1440×900, 1280×720, 390×844 and 360×780, every screen: no
   sideways scroll at any size, no new text under 12px. **Not looked at on a running page.**
+
+## Review round 1 (2026-10-23)
+
+Adversarial reviewers read the branch and filed fourteen findings. Each was confirmed in the code
+and, where it is a measurement, in the static render, before it was changed. All fourteen were
+real; none was rejected. Measured afterwards at 1440×900, 1280×720, 1536×730, 1920×1080, 390×844
+and 360×780 (and the rail at 844×390, 915×412 and 1024×768): no sideways scroll, no new text under
+12px.
+
+| #   | Finding                                                                              | Confirmed by                                                                                                                                       | Done                                                                                                                                                             |
+| --- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | After a period or window pick the rail marks the wrong screen                        | the observer's effect depends on `ids` only; Next's page `stateKey` drops search params (`layout-router.js:549`), so the rail outlives the screens | the rail is keyed on the period and the window; a unit test holds every screen key to those two                                                                  |
+| 2   | The agents screen is not simplified and is taller than 1440×900 (855 against 771)    | measured; every count stood three times (key, bar, line)                                                                                           | every count once and linked, rows closer, cards five to a line: 771 at 1440×900                                                                                  |
+| 3   | The bubble lens takes a quarter of its screen                                        | measured: the month's canvas 140px high                                                                                                            | it opens on its seven days, bubbles at full size: the screen's drawing at 1440×900 and 1920×1080                                                                 |
+| 4   | Both bars of the presentations pair got smaller                                      | measured: given 46px, longest 375px                                                                                                                | even halves with their own columns: given 220px, longest 265px with every date's line whole; the wide name column only where a sale is named                     |
+| 5   | At about 600px six screens overflow; the ladder's flex rules are dead under `DrawIn` | measured; `.ox-funnel`'s parent became `.dld-draw-body`, which also undid "not a second box"                                                       | the height is carried through the wrappers, rungs padded small: six fit 591px and spread at 1080; the weekly line fits; the rest are listed under What stays out |
+| 6   | Refusal-only summary groups stretch into empty frames                                | measured on Riverside (no CRM): two ~245px boxes of black                                                                                          | an empty group is as tall as its sentence; a second row of only empty groups takes no free height                                                                |
+| 7   | SCREENS and KPIS conflict on the same import line                                    | `git merge-tree` on `ef36b566`                                                                                                                     | the `FlowRail` import moved below the chart imports: `page.tsx` merges clean. `PROJECT-STATE.md` still conflicts — keep both sections                            |
+| 8   | At the page's end the rail's first dot sits under the context band                   | the sticky box was a screen tall, so the page's end dragged it up                                                                                  | the rail is as tall as its dots, centred by their count (`--flow-dots`): first dot at 230px at 1280×720, at the top and the end                                  |
+| 9   | Under reduced motion snapping still animates the page                                | no reduced-motion guard on `scroll-snap-type`                                                                                                      | no snap under reduced motion; a 300px wheel now stays at 300                                                                                                     |
+| 10  | The weekly line's ticks fall to 10.8px at 1280×720                                   | the `max-height` cap letterboxed a viewBox drawing                                                                                                 | the cap is gone; the drawing is 400 units at 720, the middle one at the same proportions, and fits about 600px                                                   |
+| 11  | The e2e Page Down test samples before the snap has settled                           | measured: a snap settles after 438–483ms                                                                                                           | the snap tests ask for motion back and poll until the screen comes to rest                                                                                       |
+| 12  | The clock face's labels fall under 12px on short windows                             | `min(100%, --flow-h − 9rem)` goes under the drawn 430 below a 574px screen                                                                         | floored at 430px; a short window scrolls the screen                                                                                                              |
+| 13  | On a landscape phone the rail overflows its sticky box                               | fifteen dots need 390px; 844×390 leaves 332                                                                                                        | drawn only from 33rem tall; hidden at 844×390 and 915×412                                                                                                        |
+| 14  | The rail's fragment links write history the router ignores                           | `app-router.js:285-288` returns on a popped entry with no state                                                                                    | a dot scrolls, moves focus and replaces the address with the router's state carried over; the e2e checks no entry is added                                       |

@@ -6447,20 +6447,20 @@ screen in parallel; this stream gave it its frame and left its inside byte-for-b
 - **Screens.** Every block of `flow/page.tsx` is a `.flow-screen` at least `100svh` less the sticky
   chrome tall (70 + 59 above 1199px, 58 below); the rules between blocks are gone. The document
   snaps (`components/flow/flow-screens.css`, on `html:has(.iris-salesflow)`): proximity, and
-  mandatory from 64rem × 40rem. The verdict opens alone at up to 56px. The two pairs are one card
+  mandatory from 64rem × 40rem; not at all under reduced motion. The verdict opens alone at up to 56px. The two pairs are one card
   each, every half keeping its title. Without a CRM the ladder's sentence closes the summary screen
   rather than holding a screen of its own. The summary's window chips no longer scroll the page to
   its top (`scroll={false}`).
 - **Drawings take the screen.** Sized against `--flow-h`: the summary's figures at 36–56px in strips
   the screen's height; the ladder's rungs spread with 28px bars (and it now sweeps in); the steps the
   screen's height beside a ring up to 416px; the clock face up to the screen less 9rem; the
-  heatmap's rows the screen's height; the weekly line 460 units tall on a wide card
+  heatmap's rows the screen's height; the weekly line 400 units tall at 720 on a wide card
   (`TrendLine.wideHeight`, the one shared-component change); ranked lists spread with 12px bars.
 - **Behind the `i` now:** the clock face's count sentence, its time zone and "not a judgement of
   which hour sells" (its busiest hour stays, as the screen's one line); the heatmap's empty-square
   note (its denominator caption and busiest slot stay); "How many, not how well" beside
   Presentations given.
-- **Rail.** `components/flow/FlowRail.tsx`: a dot per screen, sticky beside the screens from 40rem,
+- **Rail.** `components/flow/FlowRail.tsx`: a dot per screen, sticky beside the screens from 40rem wide and 33rem tall,
   each a link whose accessible name is the screen's name, with a hover and focus label; the current
   one IRIS blue (`aria-current="location"`, an observer on the viewport's middle line). Hidden on a
   phone, where each screen's title says where you are.
@@ -6488,3 +6488,32 @@ pick a summary window (the page stays on the summary), use the rail, then a phon
 `flow-screens`, `a11y-contract` (Sales Flow), `nav-reachability`, `m10-acceptance`, `p221-render`,
 `quality`, `layout-integrity` and `fixed-covers-nothing`. If a mouse wheel holds at a screen on the
 demo, set the snap to proximity at every width (one line in `flow-screens.css`).
+
+**Review round 1 (2026-10-23).** Fourteen findings from the adversarial reviewers, each confirmed
+in the code or the static render before it was changed; all fourteen were real, none rejected
+(ADR-0059 § Review round 1 has the table). Fixed: the rail is keyed on the period and the window as
+the screens are, so its observer follows them after a pick; a dot replaces the address instead of
+pushing a fragment entry the App Router ignores on Back, and moves focus into its screen; the rail
+is as tall as its dots, centred by their count, so the page's end no longer drags it under the
+context band, and it is drawn only from 33rem tall, where its dots fit (hidden on a landscape
+phone). No snap under reduced motion (Chrome animates every snap). The agents screen says every
+count once and linked (no key, no counts in the bars, as on a phone), rows closer, cards five to a
+line: it fits 1440×900. The bubble lens opens on its seven days, bubbles at full size. The
+presentations pair is even halves with their own columns (given bars 46 → 220px, longest
+375 → 265px with every date's line whole); the wide name column stays only where a sale is named.
+The ladder's height reaches its rungs through the `DrawIn` wrappers, which had also undone its
+"not a second box"; six rungs fit a 591px screen and spread at 1080. The weekly line is no longer
+capped by the screen's height (its ticks fell to 10.8px); it is 400 units at 720 and fits about
+600px. The clock face is floored at its drawn 430. Empty summary groups are as tall as their
+sentence. The `FlowRail` import moved so `page.tsx` merges with stream KPIS cleanly (`git
+merge-tree`); **`docs/PROJECT-STATE.md` still conflicts on integration — keep both sections.**
+Still taller than a ~600px screen (1280×720, 1536×730) and read through: the summary, IRIS-assisted
+sales, the lens, the agents and the not-interested group; every screen fits at 1440×900 and
+1920×1080. Verified: typecheck, eslint and prettier clean; `flow-screens.test.ts` now 16 cases;
+`e2e/flow-screens.spec.ts` edited (no snap under reduced motion; Page Down and the phone read-through
+with motion asked back, Page Down polled until it settles; the rail adds no history entry), not
+run; static renders at 1440×900, 1280×720, 1536×730, 1920×1080, 390×844 and 360×780 looked at, no
+sideways scroll, no new text under 12px. Full unit suite (one run): 292 files, 5343 passed, 1 skipped, 3 failed — `no-secret-recipes`, which
+needs a web build (environmental), and `staged-module`'s two tree-disturbance cases, whose tree
+changed because this section and the ADR were being written during the run; re-run alone on the
+committed, clean tree, `staged-module` passed.
