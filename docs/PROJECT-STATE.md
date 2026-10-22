@@ -6434,3 +6434,57 @@ period — and run `a11y-contract`, `layout-integrity` and `period-travels` on t
 
 Final full suite of the review round (after `pnpm release:wrappers`): 292 files, 5360 passed, 1
 skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
+
+## 2026-10-22 — Stream SCREENS: Sales Flow, one screen at a time (ADR-0059)
+
+Máté, recording the Shark demo, asked to switch between Sales Flow's charts by scrolling: the
+verdict filling a whole screen with nothing of the next chart under it, every panel simplified so
+it is read in five seconds, "Meetings, and how many progressed" with "Every outcome" on one screen,
+and "Longest presentations this period" with "Presentations given" in one panel. Branch
+`flow-screens-r6`, from `ef36b566`, not pushed. Stream KPIS (ADR-0060) fills the "What changed"
+screen in parallel; this stream gave it its frame and left its inside byte-for-byte as it was.
+
+- **Screens.** Every block of `flow/page.tsx` is a `.flow-screen` at least `100svh` less the sticky
+  chrome tall (70 + 59 above 1199px, 58 below); the rules between blocks are gone. The document
+  snaps (`components/flow/flow-screens.css`, on `html:has(.iris-salesflow)`): proximity, and
+  mandatory from 64rem × 40rem. The verdict opens alone at up to 56px. The two pairs are one card
+  each, every half keeping its title. Without a CRM the ladder's sentence closes the summary screen
+  rather than holding a screen of its own. The summary's window chips no longer scroll the page to
+  its top (`scroll={false}`).
+- **Drawings take the screen.** Sized against `--flow-h`: the summary's figures at 36–56px in strips
+  the screen's height; the ladder's rungs spread with 28px bars (and it now sweeps in); the steps the
+  screen's height beside a ring up to 416px; the clock face up to the screen less 9rem; the
+  heatmap's rows the screen's height; the weekly line 460 units tall on a wide card
+  (`TrendLine.wideHeight`, the one shared-component change); ranked lists spread with 12px bars.
+- **Behind the `i` now:** the clock face's count sentence, its time zone and "not a judgement of
+  which hour sells" (its busiest hour stays, as the screen's one line); the heatmap's empty-square
+  note (its denominator caption and busiest slot stay); "How many, not how well" beside
+  Presentations given.
+- **Rail.** `components/flow/FlowRail.tsx`: a dot per screen, sticky beside the screens from 40rem,
+  each a link whose accessible name is the screen's name, with a hover and focus label; the current
+  one IRIS blue (`aria-current="location"`, an observer on the viewport's middle line). Hidden on a
+  phone, where each screen's title says where you are.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
+`apps/web/test/flow-screens.test.ts` (8: the rail and the screens agree, the verdict alone, both
+pairs, the heatmap's denominator and `i`, the chips' scroll, the sheet's scope, proximity unless
+the screens fit and no smooth scrolling, the rail's markup); `flow-claims` ends a block at the next
+screen. New `e2e/flow-screens.spec.ts`, written and **not run** (each screen fills the viewport,
+Page Down, a phone's tall screen read to its end, the rail). No existing e2e spec asserted the
+structure that moved: titles, links, list names and the reading note are unchanged. Static renders
+of the page inside the real shell (react-dom/server, the product stylesheets, headless Chromium) at
+1440×900, 1280×720, 390×844 and 360×780, every screen looked at: no sideways scroll, no new text
+under 12px. Snapping measured in the same renders: Page Down and the arrow keys go screen to screen
+at 1440; small steps read through the agents screen at 1440, 1280 and 390. Headless wheel events
+are precise-pixel deltas, which snap back at a screen that fits under either snap type, so a real
+mouse wheel and a trackpad are **not** measured here. **Not looked at on a running page.** Full
+unit suite (after `pnpm release:wrappers`): 292 files, 5337 passed, 1 skipped, 1 failed —
+`no-secret-recipes`, which needs a web build (environmental; nothing here touches it).
+
+**Next recommended action.** Cherry-pick this with stream KPIS onto the demo branch, build, and on
+the running demo at 1440×900 as Clara: scroll Sales Flow with a mouse wheel and with a trackpad (a
+notch or a swipe a screen; the agents screen read through; the Ask composer reached at the end),
+pick a summary window (the page stays on the summary), use the rail, then a phone at 390. Run
+`flow-screens`, `a11y-contract` (Sales Flow), `nav-reachability`, `m10-acceptance`, `p221-render`,
+`quality`, `layout-integrity` and `fixed-covers-nothing`. If a mouse wheel holds at a screen on the
+demo, set the snap to proximity at every width (one line in `flow-screens.css`).
