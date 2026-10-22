@@ -28,6 +28,8 @@
 .iris-srcs {
   display: block;
   margin: 0;
+  /* Words, not an evidence id: Manrope even in a finding's monospace foot. */
+  font-family: var(--sans);
   font-size: 0.75rem;
   line-height: 1.125rem;
   color: var(--ink-3);
@@ -2660,9 +2662,10 @@
  * to the taller one, the ring's, and six 6rem columns stood at the top of
  * theirs. Side by side, the two cards split the row more evenly so the ring
  * can hold its key beside it, and the columns grow to the height the ring
- * sets. Each step reserves two lines for its label, so a label that wraps
- * ("Last week, first 1 day") does not lift its column off the shared floor.
- * Stacked (75rem and under) each card is its own height and none of this
+ * sets. The six steps share four rows through two subgrids (the bar, the
+ * count, the label, the median), so a label that wraps ("Last month, first 24
+ * days") pushes every label down alike instead of lifting its own column off
+ * the shared floor. Stacked (75rem and under) each card is its own height and none of this
  * applies.
  */
 @media (width > 75rem) {
@@ -2679,13 +2682,16 @@
     flex: 1 1 auto;
   }
 
-  .iris-steps-card .iris-step-groups,
-  .iris-steps-card .iris-steps {
-    align-items: stretch;
+  .iris-steps-card .iris-step-groups {
+    grid-template-rows: minmax(6rem, 1fr) auto auto auto;
+    row-gap: 0.25rem;
   }
 
+  .iris-steps-card .iris-steps,
   .iris-steps-card .iris-step {
-    grid-template-rows: minmax(6rem, 1fr) auto minmax(2rem, auto) auto;
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+    row-gap: 0.25rem;
   }
 
   .iris-steps-card .iris-step-bar {
