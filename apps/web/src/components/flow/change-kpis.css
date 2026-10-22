@@ -79,13 +79,14 @@
   border-top: 1px solid var(--rule, rgb(255 255 255 / 8%));
 }
 
+/* Inline, so the `i` follows the name's last word when the name wraps. */
 .iris-ckpi-head {
-  display: flex;
-  align-items: center;
   min-height: 1.5rem;
 }
 
+/* Padded to a 24px target without growing the line it sits on. */
 .iris-ckpi-name {
+  padding-block: 0.125rem;
   font-size: 0.875rem;
   font-weight: 600;
   line-height: 1.25rem;
@@ -104,10 +105,17 @@ a.iris-ckpi-name:hover {
   text-underline-offset: 0.2em;
 }
 
+/*
+ * The Figure size, 44, down to what a fifth of the block holds: "13m 39s" is
+ * about four of its own ems, so a cell narrower than 4 × 44 sets it smaller
+ * rather than running it past its line. ponytail: tuned to the longest figure
+ * the read model writes (a duration); `cqi` is the block's width, not the cell's,
+ * because a cell with size containment could not be a subgrid.
+ */
 .iris-ckpi-figure {
   margin: 0.25rem 0 0;
   font-family: var(--d-font-numeric, var(--mono));
-  font-size: 2.75rem;
+  font-size: min(2.75rem, 3.9cqi);
   font-weight: 500;
   line-height: 1;
   letter-spacing: -0.04em;
@@ -122,11 +130,13 @@ a.iris-ckpi-name:hover {
 
 .iris-ckpi-figure[data-name] {
   font-family: inherit;
-  font-size: 2rem;
+  font-size: min(2rem, 2.45cqi);
   font-weight: 600;
   line-height: 1.1;
   letter-spacing: -0.02em;
   white-space: normal;
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 /* A bare number's unit, beside it and smaller, in the text face. */
@@ -145,10 +155,11 @@ a.iris-ckpi-name:hover {
 
 .iris-ckpi-trend {
   margin: 0.25rem 0 0;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.25rem;
   color: var(--d-ink-2, var(--ink-2));
+  text-wrap: balance;
 }
 
 .iris-ckpi[data-lead] .iris-ckpi-trend {
@@ -212,8 +223,14 @@ a.iris-ckpi-name:hover {
     padding-left: 0;
   }
 
+  /* A third of the block, so the figure is held to what a third holds. */
+  .iris-ckpi-figure,
   .iris-ckpi[data-lead] .iris-ckpi-figure {
-    font-size: 2.75rem;
+    font-size: min(2.75rem, 6.8cqi);
+  }
+
+  .iris-ckpi-figure[data-name] {
+    font-size: min(2rem, 4.2cqi);
   }
 }
 
@@ -261,6 +278,7 @@ a.iris-ckpi-name:hover {
 
   .iris-ckpi > .iris-ckpi-figure[data-name] {
     font-size: 1.25rem;
+    text-align: right;
   }
 
   .iris-ckpi > .iris-ckpi-trend {
