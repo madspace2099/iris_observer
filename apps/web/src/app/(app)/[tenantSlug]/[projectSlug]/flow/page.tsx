@@ -779,18 +779,13 @@ export default async function FlowPage({
             ))}
           </div>
           {/*
-            Named where it contributed. A project with no CRM connected has no
-            CRM outcome under these figures, and a chip saying otherwise is the
-            same lie in miniature as a zero standing in for something unmeasured.
+            Named where it contributed, and the CRM contributes nothing here,
+            connected or not: the rows, the rates and the flags are the outcomes
+            agents recorded in the room (as on the Sales Agents roster). Said in
+            words since ADR-0052, "deal stages from your CRM" under them was a
+            plain false sentence.
           */}
-          <SourceChips
-            sources={
-              view.context.project.connectedSources.includes("crm")
-                ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
-                : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
-            }
-            measured
-          />
+          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
         <hr className="iris-rule iris-section-rule" />
