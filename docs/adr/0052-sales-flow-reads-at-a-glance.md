@@ -156,8 +156,8 @@ says its sources the way §8 does, in one vocabulary:
 2. **`Sources` is the line.** Meeting replay and outcomes, agent detail, units and unit detail,
    features, showroom, findings, attention states and the report on screen and on paper print
    "Source: recorded in the showroom by the IRIS app · …". The CSV's source column uses the same
-   words (no lead: the column is headed "Sources"). The audience basis reads "Source: recorded in the
-   showroom by the IRIS app · Recorded today": the availability is kept, in Manrope like the line.
+   words (no lead: the column is headed "Sources"). The audience page says its source once, above
+   the list; a row adds only an availability that is not "Recorded today" (see the review below).
 3. **The chips' styling goes with them.** The `ox-prov`/`ox-src` rules and the stylesheet-only
    `data-source` tokens are removed: no markup or test read the tokens, and the line keeps
    `data-src`. A model's wording keeps its colour through `.iris-src[data-src="AI_INTERPRETATION"]`,
@@ -173,5 +173,24 @@ says its sources the way §8 does, in one vocabulary:
 
 Looked at as static renders (the pages through `react-dom/server`, the product stylesheets, headless
 Chromium) at 1440 and 390: a Shark meeting, Lena Fischer's page, Sales Flow, the Slovak and
-Hungarian report on screen and in print, Northgate's audience and features. No new sideways scroll;
-the audience basis wraps to three lines in its column at 1440, where the chip words took two.
+Hungarian report on screen and in print, Northgate's audience and features. No new sideways scroll.
+
+## Review of the second round, 2026-10-22
+
+Six findings, each confirmed in the code and fixed:
+
+- **The audience rows repeated the line above them.** Every row printed "Source: recorded in the
+  showroom by the IRIS app · Recorded today": N+1 copies, three lines a row at 1440, read inside
+  every row link's name, and "Recorded today" beside "2 Jul" read as the meeting's day. The line
+  stands once; a row prints its availability only when a place it names is not recorded whole.
+- **Three CRM names where no CRM is read.** A unit's offer stage ("No source in this product records
+  an offer") now names no source, as the catalogue's stages do; the Briefing and the report's
+  outcomes section name the CRM only on a project with one connected, as the attention states do.
+  `packages/synthetic/test/crm-named-only-when-read.test.ts` holds the three.
+- **Hungarian said the room two ways.** The line's "bemutatóterem" is "showroom", as every other
+  Hungarian sentence of the report (the approved P2-17 texts among them) says it.
+- **Coverage pointed at a map nothing prints.** `showroom.source_visible` names
+  `SOURCE_LINE_WORDS` and `SourceChips` beside `InsightSource`, not `INSIGHT_SOURCE_LABELS`.
+
+Northgate's audience was looked at again as a static render at 1440 and 390: one line above the
+list, rows one line high at 1440.

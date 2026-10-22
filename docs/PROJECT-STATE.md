@@ -5807,24 +5807,29 @@ tenant's admin (Clara), not the agency's (Daniel), in case he meant otherwise.
 
 Máté could not read "IRIS observed / IRIS calculated / CRM outcome"; LAYOUT fixed Sales Flow, and a
 meeting opened from it still showed the chips. Branch `worktree-wf_17ac9644-363-1`, from `9a674ca`,
-four commits, not pushed.
+nine commits, not pushed.
 
 - **One vocabulary.** `SOURCE_LINE_WORDS` (EN/SK/HU) moved into `components/report/words.ts`;
   `SourceChips` and `Provenance.Sources` both print "Source: recorded in the showroom by the IRIS
   app · …" — meeting replay, agent, units, features, showroom, findings, attention, the report on
-  screen and in print (in the report's language), the CSV's source column, the audience basis
-  ("… · Recorded today"). The contract's labels are untouched and no screen indexes them.
+  screen and in print (in the report's language), the CSV's source column. The contract's labels
+  are untouched and no screen indexes them.
 - **Chip CSS removed** (`ox-prov`, `ox-src`, `data-source`); the model source keeps its colour
   via `data-src`. A `Timeline` whose steps share one source says it once under the list.
 - **Month rows** are named "Month by month, how they ended". **Trend ticks** are thinned by
   drawn width from the latest week back: no more "3 Aug17 Aug" at 390.
+- **Review round (6 of 6 fixed).** The audience says its source once above the list, a row only an
+  availability short of "Recorded today"; the CRM is no longer named on a unit's offer stage, nor on
+  the Briefing or the report's outcomes section of a project without one; Hungarian says
+  "showroom"; the coverage report credits `SOURCE_LINE_WORDS`/`SourceChips`.
 
 **Verified.** Typecheck clean; eslint and prettier clean on every changed file; `apps/web/test`
 and `packages/ui/test` 100 files, 1435 passed (new `source-line` 4, `trend-labels` +1). Full suite
-(after `pnpm release:wrappers`): 282 files, 5174 passed, 1 skipped, 1 failed — `no-secret-recipes`,
-whose auditor reports the tree clean and the browser bundle not scanned (no web build;
-environmental). Static renders at 1440 and 390, no sideways scroll. `e2e/veghajras1.spec.ts` (the
-audience basis) edited, not run; no other spec quoted the old words.
+(after `pnpm release:wrappers`, after the review round): 283 files, 5177 passed, 1 skipped, 1
+failed — `no-secret-recipes`, whose auditor reports the tree clean and the browser bundle not
+scanned (no web build; environmental); new `crm-named-only-when-read` 3. Static renders at 1440
+and 390, no sideways scroll. `e2e/veghajras1.spec.ts` (the audience line, now once above the list
+and no row basis on Northgate) edited, not run; no other spec quoted the old words.
 
 **Next recommended action.** On the demo build open a Shark meeting from Sales Flow's lens and
 Lena's agent page at 1440 and 390 and read the source lines; run `veghajras1` and
