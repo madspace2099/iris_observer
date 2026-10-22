@@ -275,6 +275,16 @@
   color: var(--ox-ink-2);
 }
 
+/*
+ * Each cell of the plan opens its unit. On a phone a 22px row of 30px cells
+ * is under a fingertip's reach; 32px rows keep the building one screen tall.
+ */
+@media (width < 48rem) {
+  .sheet .ox-stack-unit {
+    height: 2rem;
+  }
+}
+
 /* A door's one way in is a thumb's target on a phone, the width of the row. */
 @media (width < 48rem) {
   .sheet-door .ox-btn {
