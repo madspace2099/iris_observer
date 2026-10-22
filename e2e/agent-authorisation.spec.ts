@@ -70,12 +70,10 @@ async function agentsNamed(page: Page): Promise<string[]> {
 /**
  * Every figure the rings carry, so two projects can be compared as data.
  *
- * `p.iris-code`, not the bare class: below `AGENT_MIN_SAMPLE` the card's own
- * progressed-percentage paragraph is replaced by a suppression sentence
- * (`.iris-meta`, see `detail === ""` below), and `.iris-rating`'s MADSPACE-only
- * response count is a `<span class="iris-code">` nested inside a different
- * paragraph — the bare class matches both, and a naive `querySelector` would
- * silently pick up the rating span once the progressed paragraph is gone.
+ * The card's one headline since ADR-0057 (`.ag-card-headline`, read as shown,
+ * so the closed `i` panel is not in it): the rate and what it is of, or below
+ * the floor of recorded meetings the shortfall in its place ("No rate yet: …").
+ * The floor's whole sentence is behind the `i`; `suppressed` reads it there.
  */
 async function agentFigures(
   page: Page,
@@ -83,10 +81,8 @@ async function agentFigures(
   return page.evaluate(() =>
     [...document.querySelectorAll(".iris-ring-card")].map((card) => ({
       name: (card.querySelector("h3")?.textContent ?? "").trim(),
-      /* Empty for a below-threshold agent: no percentage, no rank, by design. */
-      detail: (card.querySelector("p.iris-code")?.textContent ?? "").trim(),
-      /* Set instead of `detail`, on the same threshold — never both, never neither. */
-      suppressed: card.querySelectorAll(".iris-meta")[1]?.textContent?.trim() ?? null,
+      detail: ((card.querySelector(".ag-card-headline") as HTMLElement | null)?.innerText ?? "").trim(),
+      suppressed: card.querySelector(".iris-info-panel")?.textContent?.trim() ?? null,
     })),
   );
 }
@@ -145,8 +141,8 @@ test.describe("the project she holds", () => {
      * assertion has to honour rather than assume away.
      */
     for (const row of await agentFigures(page)) {
-      const carriesSomething =
-        /progressed/.test(row.detail) || (row.suppressed !== null && /needed for a verdict/.test(row.suppressed));
+      /* The rate, or the shortfall in its place: below the floor no rate, never nothing. */
+      const carriesSomething = /progressed|No rate yet|No outcome recorded/.test(row.detail);
       expect(carriesSomething, `${row.name}: "${row.detail}" / "${row.suppressed}"`).toBe(true);
     }
   });

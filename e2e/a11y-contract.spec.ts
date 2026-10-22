@@ -165,7 +165,11 @@ const SURFACES: readonly Surface[] = [
   {
     key: "Sales Agents",
     path: `${ROOT}/agents`,
-    popups: [PERIOD],
+    popups: [
+      PERIOD,
+      /* What a card's figure counts, and each chart's note, behind its `i` (ADR-0057). */
+      { name: "a card's explanation", trigger: "main button.iris-info", kind: "popover" },
+    ],
     change: async (page) => {
       await page.getByRole("tab", { name: "Coaching", exact: true }).click();
       await page.waitForURL(/view=coaching/);

@@ -40,7 +40,8 @@
   background: color-mix(in oklab, var(--ag-seat-ring) 20%, #0b0d10);
   color: var(--ox-ink, #f4f7fc);
   font-weight: 600;
-  font-size: calc(var(--ag-size) * 0.36);
+  /* Never under the 12px floor: the row's 32px disc would set them at 11.5. */
+  font-size: max(12px, calc(var(--ag-size) * 0.36));
   letter-spacing: 0.02em;
   line-height: 1;
   user-select: none;

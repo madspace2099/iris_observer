@@ -33,7 +33,7 @@ describe("the roster", () => {
       ROSTER,
       "'leans on' stands on the timed set under a gate that counts the meetings held",
     ).toMatch(
-      /a\.belowMinimum \? null : a\.signatureNote !== null \? \([\s\S]*?\{a\.signatureNote\}/,
+      /a\.belowMinimum \? \([\s\S]*?\{a\.suppressionNote\}[\s\S]*?\) : a\.signatureNote !== null \? \([\s\S]*?\{a\.signatureNote\}/,
     );
   });
 

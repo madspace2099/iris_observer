@@ -454,7 +454,10 @@ export interface RepeatDistribution {
   readonly visits: number | null;
   readonly label: string;
   readonly meetings: number;
+  /** Of every meeting in the scope, linked or not: the rows add up to all of them. */
   readonly share: number;
+  /** `share` as printed, "14%", in the project's locale. */
+  readonly shareDisplay: string;
 }
 
 /** Where an agent's time goes inside IRIS, as a share of their own presentation. */
@@ -540,6 +543,20 @@ export interface AgentProfile {
   readonly signatureNote: string | null;
   readonly medianDurationDisplay: string;
   readonly ring: AgentOutcomeRing;
+  /**
+   * The roster card's one headline figure (the owner, 2026-10-22, ADR-0057):
+   * the progressed rate alone, set large, and what it is of beside it. The
+   * same rule and words as `ring.figure`, split for the type scale: `figure`
+   * is null where that withholds the rate (no outcome recorded, or fewer than
+   * `AGENT_MIN_SAMPLE` recorded), and `caption` then says why.
+   */
+  readonly headline: { readonly figure: string | null; readonly caption: string };
+  /**
+   * Every outcome in ladder order, the same seven on every card, a count of
+   * none printed as 0: a counted outcome no meeting ended in is a measured
+   * zero, not an absent value (ADR-0057). `ring.slices` keeps only the drawn.
+   */
+  readonly outcomes: readonly OutcomeSlice[];
   readonly repeats: readonly RepeatDistribution[];
   readonly sections: readonly AgentSectionUse[];
   /** The section this agent leans on hardest relative to the team. */
@@ -558,6 +575,8 @@ export interface AgentsView {
   readonly verdict: string;
   readonly agents: readonly AgentProfile[];
   readonly repeats: readonly RepeatDistribution[];
+  /** What every repeat row's share is of: "Share of all 150 meetings, quarter to date." */
+  readonly repeatsOf: string;
   readonly findings: readonly ShowroomFinding[];
   readonly showRatings: boolean;
   readonly meetingCount: number;

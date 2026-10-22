@@ -8,7 +8,6 @@ import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
-import { Missing, ShareFigure } from "@/components/agents";
 import { AgentPortrait } from "@/components/agents/Portrait";
 import { PresenterBars, seatTones } from "@/components/agents/PresenterBars";
 import { portraitSources } from "@/lib/portraits/server";
@@ -18,6 +17,8 @@ import { CoachingChart } from "@/showroom/CoachingChart";
 import { AxisNotes } from "@/showroom/forms";
 import { DrawIn } from "@/showroom/DrawIn";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
+import { InfoTip } from "@/components/iris/InfoTip";
+import "@/components/agents/roster.css";
 
 import { DEFAULT_LANGUAGE, agentDetailHref } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Sales Agents" };
@@ -117,9 +118,11 @@ export default async function AgentsPage({
     );
 
   return (
-    <div className="iris-one">
+    <div className="iris-one ag-page">
       <section className="iris-plane iris-stack">
-        <p className="iris-kicker">Sales agents · {view.context.period.label}</p>
+        <p className="iris-kicker iris-kicker-measured">
+          Sales agents · {view.context.period.label}
+        </p>
         <SpokenVerdict
           sentence={view.verdict}
           meetings={view.meetingCount}
@@ -137,10 +140,48 @@ export default async function AgentsPage({
         </div>
 
         {coaching ? null : (
-          <>
-            <div className="iris-rings">
-              {view.agents.map((a) => (
-                <article className="iris-ring-card d-card" key={`${a.agentId}-${period}`}>
+          /*
+           * THE ROSTER CARD, BY TYPE SIZE (the owner, 2026-10-22, ADR-0057).
+           *
+           * "Too much text, too small, no information hierarchy." Three levels
+           * and nothing between them: the face and the name; the ring and the
+           * one headline figure, the progressed rate and what it is of; then
+           * the same seven outcome rows on every card, a zero printed as 0.
+           * What the rate counts, the typical length and the presenter's habit
+           * stand behind the `i` and on the agent's page; a flag stays in
+           * sight, being something to act on.
+           */
+          <div className="iris-rings ag-roster">
+            {view.agents.map((a, index) => {
+              const about = (
+                <InfoTip id={`agent-${index}`} label={`${a.name}’s figures`}>
+                  <p>
+                    Progressed: the meeting ended in a purchase, a reservation, interest or a
+                    follow-up. The rate is of the meetings with an outcome recorded, and below{" "}
+                    {AGENT_MIN_SAMPLE} recorded none is given.
+                  </p>
+                  <p>Typical length: {a.medianDurationDisplay} (the median).</p>
+                  {/*
+                   * The habit's own gate, on the set the habit stands on: "leans
+                   * on" is a share of the TIMED meetings, so under the timed
+                   * floor the read model's reason stands where it would. Under
+                   * `belowMinimum` the floor's own sentence speaks for the card.
+                   */}
+                  {a.belowMinimum ? (
+                    <p>{a.suppressionNote}</p>
+                  ) : a.signatureNote !== null ? (
+                    <p>{a.signatureNote}</p>
+                  ) : a.signature === null ? null : (
+                    <p>
+                      Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the
+                      team&rsquo;s share of presentation time, across the {a.timedMeetings} of{" "}
+                      {a.meetings} meetings the source could time end to end.
+                    </p>
+                  )}
+                </InfoTip>
+              );
+              return (
+                <article className="iris-ring-card d-card ag-card" key={`${a.agentId}-${period}`}>
                   <div className="ag-card-head">
                     <AgentPortrait
                       name={a.name}
@@ -151,110 +192,77 @@ export default async function AgentsPage({
                     />
                     <div>
                       <h3>{a.name}</h3>
-                      <p className="iris-meta" style={{ margin: 0 }}>
-                        {a.organisationName}
-                      </p>
+                      <p className="ag-card-org">{a.organisationName}</p>
                     </div>
                   </div>
-                  <OutcomeRing
-                    slices={a.ring.slices}
-                    total={a.meetings}
-                    size={126}
-                    label={`${a.name}: ${a.meetings} meetings`}
-                  />
-                  {a.belowMinimum ? (
-                    /*
-                     * BELOW AGENT_MIN_SAMPLE: no rank, no trend, no team
-                     * comparison — the same floor `AgentDetailView` already
-                     * states, applied here where a percentage and a flag would
-                     * otherwise draw a verdict from a handful of meetings. The
-                     * ring above still shows the raw outcome counts; this is the
-                     * sentence that says why nothing here is compared.
-                     */
-                    <p className="iris-meta" style={{ margin: 0 }}>
-                      {a.suppressionNote}
-                    </p>
-                  ) : (
-                    /*
-                     * THE RATE THROUGH `ShareFigure`, NOT ROUNDED HERE.
-                     *
-                     * This line rounded `progressedShare` and appended a percent
-                     * sign — the component computing a figure that ADR-0012
-                     * forbids, and the exact thing the Flow page's docblock named
-                     * when it removed the same line. Worse, the only count on the
-                     * card was the ring's centre, every meeting, while the rate
-                     * stands on the decided ones. The denominator is the read
-                     * model's, in words; the locale is the project's.
-                     */
-                    <p className="iris-code" style={{ margin: 0 }}>
-                      {a.ring.decidedMeetings === 0 ? (
-                        <Missing what="No outcome recorded" />
-                      ) : (
-                        <ShareFigure
-                          language={view.context.language}
-                          share={a.ring.progressedShare}
-                          sampleSize={a.meetings}
-                          minimumSampleSize={AGENT_MIN_SAMPLE}
-                          locale={view.context.project.locale}
-                          qualifier={`progressed, of ${a.ring.decidedMeetings} meetings with an outcome`}
-                        />
-                      )}{" "}
-                      · median {a.medianDurationDisplay}
-                    </p>
-                  )}
-                  <OutcomeKey slices={a.ring.slices} />
+                  <div className="ag-card-ring">
+                    <OutcomeRing
+                      slices={a.ring.slices}
+                      total={a.meetings}
+                      size={176}
+                      measured
+                      label={`${a.name}: ${a.meetings} meetings`}
+                    />
+                  </div>
                   {/*
-                   * The habit's own gate, on the set the habit stands on. The
-                   * card's `belowMinimum` counts the meetings held; "leans on"
-                   * stands on the timed ones, and a card that named a set of
-                   * fifteen under a gate that counted twenty-five would contradict
-                   * itself in one breath. Under the timed floor the read model's
-                   * own reason stands where the habit would.
+                   * A div: the `i`'s panel is a div, which a paragraph cannot hold.
+                   * The `i` stands beside the figure it explains, or after the
+                   * sentence that stands in for it.
                    */}
-                  {a.belowMinimum ? null : a.signatureNote !== null ? (
-                    <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
-                      {a.signatureNote}
-                    </p>
-                  ) : a.signature === null ? null : (
-                    /* The set the two shares stand on, in the Features page's own form. */
-                    <p className="iris-meta" style={{ margin: ".25rem 0 0" }}>
-                      Leans on <b>{a.signature.label}</b> — {a.signature.overIndex.toFixed(1)}× the
-                      team&rsquo;s share of presentation time, across the {a.timedMeetings} of{" "}
-                      {a.meetings} meetings the source could time end to end.
-                    </p>
-                  )}
-                  {a.irisRating === null ? null : (
-                    <p className="iris-rating">
-                      Rates IRIS {a.irisRating.mean.toFixed(1)}/5
-                      <span className="iris-code">
-                        {" "}
-                        · {a.irisRating.responses} responses · MADSPACE only
+                  <div className="ag-card-headline">
+                    {a.headline.figure === null ? (
+                      <span className="ag-card-caption">
+                        {a.headline.caption}
+                        {about}
                       </span>
+                    ) : (
+                      <>
+                        <span className="ag-card-rate">
+                          <b className="ag-card-figure">{a.headline.figure}</b>
+                          {about}
+                        </span>
+                        <span className="ag-card-caption">{a.headline.caption}</span>
+                      </>
+                    )}
+                  </div>
+                  <OutcomeKey slices={a.outcomes} />
+                  {/* Always present, empty or not: each card's rows line up with its neighbours'. */}
+                  <div className="ag-card-notes">
+                    {a.belowMinimum || a.ring.flag === null ? null : (
+                      <p className="iris-ring-flag" data-severity={a.ring.flag.severity}>
+                        {a.ring.flag.text}
+                      </p>
+                    )}
+                    {a.irisRating === null ? null : (
+                      <p className="iris-rating">
+                        Rates IRIS {a.irisRating.mean.toFixed(1)}/5
+                        <span className="iris-code">
+                          {" "}
+                          · {a.irisRating.responses} responses · MADSPACE only
+                        </span>
+                      </p>
+                    )}
+                  </div>
+                  <div className="ag-card-foot">
+                    <Link className="iris-action" href={dynamicRoute(detailHref(a.agentId))}>
+                      {/* An agent's own page is their profile, where their portrait is changed. */}
+                      {a.agentId === viewer.agentId ? "Your profile →" : "Agent detail →"}
+                    </Link>
+                    {/*
+                     * R12-6 (Máté, 2026-10-02): the agent's meetings and report
+                     * second, quieter than the one action; Report goes to the
+                     * report page, never the export panel.
+                     */}
+                    <p className="iris-meta">
+                      <Link href={dynamicRoute(agentHref("meetings", a.agentId))}>Meetings</Link>
+                      {" · "}
+                      <Link href={dynamicRoute(agentHref("report", a.agentId))}>Report</Link>
                     </p>
-                  )}
-                  {a.belowMinimum || a.ring.flag === null ? null : (
-                    <p className="iris-ring-flag" data-severity={a.ring.flag.severity}>
-                      {a.ring.flag.text}
-                    </p>
-                  )}
-                  <Link className="iris-action" href={dynamicRoute(detailHref(a.agentId))}>
-                    {/* An agent's own page is their profile, where their portrait is changed. */}
-                    {a.agentId === viewer.agentId ? "Your profile →" : "Agent detail →"}
-                  </Link>
-                  {/*
-                   * R12-6 (Máté, 2026-10-02): the agent's meetings and report
-                   * second, quieter than the one action; Report goes to the
-                   * report page, never the export panel.
-                   */}
-                  <p className="iris-meta">
-                    <Link href={dynamicRoute(agentHref("meetings", a.agentId))}>Meetings</Link>
-                    {" · "}
-                    <Link href={dynamicRoute(agentHref("report", a.agentId))}>Report</Link>
-                  </p>
+                  </div>
                 </article>
-              ))}
-            </div>
-          </>
+              );
+            })}
+          </div>
         )}
 
         {/* --- every agent in one chart, and what IRIS reads in it: the Coaching tab --- */}
@@ -274,34 +282,52 @@ export default async function AgentsPage({
             <hr className="iris-rule" />
 
             <div className="iris-band" key={`ranked-${period}`}>
-              <div className="d-card">
-                <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
-                  Presentations given
-                </p>
+              <div className="d-card ag-presenters">
+                <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+                  <h2 className="iris-kicker iris-kicker-measured">Presentations given</h2>
+                  <InfoTip id="presentations" label="presentations given">
+                    <p>
+                      How many, and how long they typically ran. This list is ordered by workload.
+                      It is not ordered by outcome, and there is no list here that is.
+                    </p>
+                  </InfoTip>
+                </header>
                 <PresenterBars
                   rows={charts.ranked}
                   period={period}
                   tenant={view.context.tenant}
                   projectSlug={projectSlug}
                   seatOrder={seatOrder}
+                  measured
                 />
-                <p className="iris-meta" style={{ marginTop: ".5rem" }}>
-                  How many, and how long they typically ran. This list is ordered by workload. It is
-                  not ordered by outcome, and there is no list here that is.
-                </p>
               </div>
 
-              <div className="iris-band-side d-card">
-                <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
-                  Across every agent
-                </p>
+              {/*
+               * "Across every agent" did not say what it counted (the owner,
+               * 2026-10-22, ADR-0057). A question for a title, rows in plain
+               * words, and the share's base under it; why a meeting can be
+               * neither a first nor a return stands behind the `i`.
+               */}
+              <div className="iris-band-side d-card ag-repeats">
+                <header className="iris-titled">
+                  <h2 className="iris-kicker iris-kicker-measured">
+                    Was it the buyer&rsquo;s first meeting?
+                  </h2>
+                  <InfoTip id="repeats" label="first and returning meetings">
+                    <p>
+                      A meeting counts as a buyer&rsquo;s second, third or later when it is linked
+                      to a contact who had met here before. A meeting linked to no contact has no
+                      history, so it is neither a first nor a return: it is counted apart, as
+                      &ldquo;Buyer not identified&rdquo;.
+                    </p>
+                  </InfoTip>
+                </header>
+                <p className="ag-repeats-of">{view.repeatsOf}</p>
                 <DrawIn kind="sweep">
                   <div className="iris-bars">
                     {view.repeats.map((r) => (
                       <div className="iris-bar" key={r.visits ?? "unlinked"}>
-                        <span className="iris-bar-label" title={r.label}>
-                          {r.label}
-                        </span>
+                        <span className="iris-bar-label">{r.label}</span>
                         <span
                           className="iris-bar-track"
                           style={{ "--v": r.share.toFixed(3) } as React.CSSProperties}
@@ -309,7 +335,7 @@ export default async function AgentsPage({
                           <i />
                         </span>
                         <span className="iris-bar-value">
-                          {r.meetings} · {Math.round(r.share * 100)}%
+                          <b>{r.meetings}</b> · {r.shareDisplay}
                         </span>
                       </div>
                     ))}
@@ -328,7 +354,14 @@ export default async function AgentsPage({
             <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
 
             {view.findings.map((finding, index) => (
-              <Finding key={finding.id} finding={finding} period={period} lead={index === 0} />
+              <Finding
+                key={finding.id}
+                finding={finding}
+                period={period}
+                lead={index === 0}
+                plane
+                measured
+              />
             ))}
 
             <Gaps

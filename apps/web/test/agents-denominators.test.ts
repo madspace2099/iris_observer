@@ -31,9 +31,14 @@ const ANSWER = markup("src/components/agents/answer.ts");
 const REPORT = markup("src/app/(app)/[tenantSlug]/[projectSlug]/report/page.tsx");
 
 describe("the roster", () => {
-  it("draws the rate through ShareFigure, with its denominator in words", () => {
-    expect(ROSTER, "the rate is drawn without the component that carries its denominator").toMatch(
-      /<ShareFigure[\s\S]*?share=\{a\.ring\.progressedShare\}[\s\S]*?qualifier=\{`progressed, of \$\{a\.ring\.decidedMeetings\} meetings with an outcome`\}/,
+  /*
+   * Since ADR-0057 the card's one figure is the read model's headline: the
+   * rate set large, and beside it, always, what it is of ("progressed · 29 of
+   * 36 recorded") or why there is none. The page prints both and counts nothing.
+   */
+  it("prints the rate with its denominator, both the read model's", () => {
+    expect(ROSTER, "the rate is drawn without the caption that carries its denominator").toMatch(
+      /<b className="ag-card-figure">\{a\.headline\.figure\}<\/b>[\s\S]*?<span className="ag-card-caption">\{a\.headline\.caption\}<\/span>/,
     );
   });
 

@@ -503,7 +503,12 @@ function buildPeriods(
 
 /* --- outcome rings ----------------------------------------------------------- */
 
-function outcomeSlices(sessions: readonly ShowroomSession[], language: Language): OutcomeSlice[] {
+function outcomeSlices(
+  sessions: readonly ShowroomSession[],
+  language: Language,
+  /** Keep an outcome no meeting ended in, at 0: the roster's seven rows (ADR-0057). */
+  everyOutcome = false,
+): OutcomeSlice[] {
   const counts = new Map<MeetingOutcome, number>();
   for (const s of sessions) counts.set(s.outcome, (counts.get(s.outcome) ?? 0) + 1);
   const order: MeetingOutcome[] = [
@@ -516,7 +521,7 @@ function outcomeSlices(sessions: readonly ShowroomSession[], language: Language)
     "skipped",
   ];
   return order
-    .filter((o) => (counts.get(o) ?? 0) > 0)
+    .filter((o) => everyOutcome || (counts.get(o) ?? 0) > 0)
     .map((o) => ({
       outcome: o,
       label: OUTCOME_WORDS[language][o],
@@ -541,53 +546,69 @@ const PROGRESSED_WORDS: Readonly<
   Record<
     Language,
     {
-      readonly rate: (share: string, progressed: number, decided: number, locale: string) => string;
+      /** What follows the rate: "progressed · 29 of 36 recorded". The rate itself comes first in every language. */
+      readonly of: (progressed: number, decided: number, locale: string) => string;
       readonly none: string;
       readonly short: (short: string, minimum: number) => string;
     }
   >
 > = {
   en: {
-    rate: (share, p, d, locale) =>
-      `${share} progressed · ${count(p, locale)} of ${count(d, locale)} recorded`,
+    of: (p, d, locale) => `progressed · ${count(p, locale)} of ${count(d, locale)} recorded`,
     none: "No outcome recorded, so no rate",
     short: (short, minimum) =>
       `No rate yet: ${short} short of the ${minimum} recorded meetings needed`,
   },
   sk: {
-    rate: (share, p, d, locale) =>
-      `${share} pokročilo · ${count(p, locale)} ${slovakZForm(d)} ${count(d, locale)} zaznamenaných`,
+    of: (p, d, locale) =>
+      `pokročilo · ${count(p, locale)} ${slovakZForm(d)} ${count(d, locale)} zaznamenaných`,
     none: "Bez zaznamenaného výsledku, miera sa neuvádza",
     short: (short, minimum) =>
       `Bez miery: chýba ${short} ${slovakZForm(minimum)} ${minimum} potrebných zaznamenaných stretnutí`,
   },
   hu: {
-    rate: (share, p, d, locale) =>
-      `${share} lépett tovább · ${count(d, locale)} rögzítettből ${count(p, locale)}`,
+    of: (p, d, locale) => `lépett tovább · ${count(d, locale)} rögzítettből ${count(p, locale)}`,
     none: "Nincs rögzített eredmény, így arány sincs",
     short: (short, minimum) =>
       `Nincs arány: ${hungarianInstrumental(short)} kevesebb rögzített találkozó a szükséges ${hungarianAdessive(String(minimum))}`,
   },
 };
 
+/**
+ * The rate set large and what it is of, or why there is none (ADR-0057): the
+ * roster card's headline, and the two halves of `progressedFigure`'s line.
+ */
+export function progressedHeadline(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+  language: Language,
+): AgentProfile["headline"] {
+  const words = PROGRESSED_WORDS[language];
+  const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length;
+  const progressed = sessions.filter((s) => hasProgressed(s.outcome)).length;
+  if (decided === 0) return { figure: null, caption: words.none };
+  if (decided < AGENT_MIN_SAMPLE) {
+    return {
+      figure: null,
+      caption: words.short(count(AGENT_MIN_SAMPLE - decided, locale), AGENT_MIN_SAMPLE),
+    };
+  }
+  return {
+    figure: shareDisplay(progressed / decided, locale),
+    caption: words.of(progressed, decided, locale),
+  };
+}
+
 export function progressedFigure(
   sessions: readonly ShowroomSession[],
   locale: string,
   language: Language,
 ): ProgressedFigure {
-  const words = PROGRESSED_WORDS[language];
-  const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length;
-  const progressed = sessions.filter((s) => hasProgressed(s.outcome)).length;
-  const belowMinimum = decided < AGENT_MIN_SAMPLE;
+  const { figure, caption } = progressedHeadline(sessions, locale, language);
   return {
     meetingsDisplay: meetings(sessions.length, locale, language),
-    display:
-      decided === 0
-        ? words.none
-        : belowMinimum
-          ? words.short(count(AGENT_MIN_SAMPLE - decided, locale), AGENT_MIN_SAMPLE)
-          : words.rate(shareDisplay(progressed / decided, locale), progressed, decided, locale),
-    belowMinimum,
+    display: figure === null ? caption : `${figure} ${caption}`,
+    belowMinimum: sessions.filter((s) => !outcomeIsUnknown(s.outcome)).length < AGENT_MIN_SAMPLE,
   };
 }
 
@@ -1742,35 +1763,38 @@ export function buildProjectView(
  * and every row keeps all meetings as its denominator, so the rows still add
  * up to the whole.
  */
-function repeatDistribution(sessions: readonly ShowroomSession[]): RepeatDistribution[] {
+/*
+ * Plain row names (the owner, 2026-10-22, ADR-0057: "understood in seconds").
+ * "Not linked to a contact" read as system vocabulary; the row is the meetings
+ * whose buyer Observer cannot name, so it says that, and the chart's `i` says
+ * why such a meeting is neither a first nor a return. Every row stands, a row
+ * no meeting fell in at 0 (his rule for the outcome rows: a zero is
+ * information); with no meeting at all there is no share to give, and no row.
+ */
+const VISIT_LABELS = ["First meeting", "Second meeting", "Third meeting", "Fourth or later"];
+
+function repeatDistribution(
+  sessions: readonly ShowroomSession[],
+  locale: string,
+): RepeatDistribution[] {
   const linked = sessions.filter((s) => s.contactId !== null);
-  const buckets = [0, 1, 2, 3];
-  const rows: RepeatDistribution[] = buckets.map((visits) => {
-    const inside = linked.filter((s) =>
-      visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits,
-    );
-    return {
-      visits,
-      label:
-        visits === 0
-          ? "First meeting"
-          : visits === 3
-            ? "Fourth or later"
-            : `${visits + 1}${visits === 1 ? "nd" : "rd"} meeting`,
-      meetings: inside.length,
-      share: share(inside.length, sessions.length),
-    };
+  const row = (visits: number | null, inside: number): RepeatDistribution => ({
+    visits,
+    label: visits === null ? "Buyer not identified" : (VISIT_LABELS[visits] ?? ""),
+    meetings: inside,
+    share: share(inside, sessions.length),
+    shareDisplay: shareDisplay(share(inside, sessions.length), locale),
   });
-  const unlinked = sessions.length - linked.length;
   return [
-    ...rows,
-    {
-      visits: null,
-      label: "Not linked to a contact",
-      meetings: unlinked,
-      share: share(unlinked, sessions.length),
-    },
-  ].filter((b) => b.meetings > 0);
+    ...VISIT_LABELS.map((_, visits) =>
+      row(
+        visits,
+        linked.filter((s) => (visits === 3 ? s.priorMeetings >= 3 : s.priorMeetings === visits))
+          .length,
+      ),
+    ),
+    row(null, sessions.length - linked.length),
+  ].filter(() => sessions.length > 0);
 }
 
 /**
@@ -1916,7 +1940,9 @@ export function buildAgentsView(
           locale,
           context.language,
         ),
-        repeats: repeatDistribution(mine),
+        headline: progressedHeadline(mine, locale, context.language),
+        outcomes: outcomeSlices(mine, context.language, true),
+        repeats: repeatDistribution(mine, locale),
         sections,
         signature:
           over === undefined || over.teamShare === 0
@@ -2010,7 +2036,7 @@ export function buildAgentsView(
     });
   }
 
-  const repeats = repeatDistribution(sessions);
+  const repeats = repeatDistribution(sessions, locale);
   const first = repeats.find((r) => r.visits === 0);
   if (first !== undefined && first.share > 0.7) {
     findings.push({
@@ -2046,6 +2072,10 @@ export function buildAgentsView(
           : `${count(agents.length, locale)} agents presented ${meetings(sessions.length, locale, context.language)}, and they do not present alike.`,
     agents,
     repeats,
+    repeatsOf:
+      sessions.length === 0
+        ? `No meeting in ${context.period.label.toLowerCase()}.`
+        : `Share of all ${meetings(sessions.length, locale, context.language)}, ${context.period.label.toLowerCase()}.`,
     findings,
     showRatings,
     meetingCount: sessions.length,
