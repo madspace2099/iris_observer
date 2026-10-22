@@ -70,6 +70,19 @@
   min-width: 0;
 }
 
+/*
+ * The name keeps the kit's card title (design-lab-d.css, `.d-card > h3:first-child`),
+ * which no longer reaches it once the portrait stands first in the card.
+ */
+[data-charts="d"] .d-card .ag-card-head h3 {
+  font-size: 16px;
+  line-height: 28px;
+  font-weight: 700;
+  letter-spacing: -0.009em;
+  text-transform: none;
+  color: var(--d-ink-2);
+}
+
 .ag-titled {
   display: inline-flex;
   align-items: center;
