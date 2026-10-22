@@ -18,6 +18,7 @@ import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
+import { PresenterBars } from "@/components/agents/PresenterBars";
 import {
   OUTCOME_KEYS,
   OutcomeKey,
@@ -867,8 +868,16 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Presentations given
             </h2>
-            {/* Never collapsed: every row carries its own denominator, "N of M meetings". */}
-            <RankedBars period={query.period} rows={charts.rankedAgents} measured tone="volume" />
+            {/* Never collapsed: every row carries its own denominator, "N of M meetings".
+                Each name wears its portrait or initials, in its seat colour (ADR-0054). */}
+            <PresenterBars
+              period={query.period}
+              rows={charts.rankedAgents}
+              tenant={view.context.tenant}
+              projectSlug={projectSlug}
+              seatOrder={charts.lens.agents.map((agent) => agent.id)}
+              measured
+            />
             <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
               How many, not how well. Volume is a workload figure.
             </p>

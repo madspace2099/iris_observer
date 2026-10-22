@@ -39,6 +39,14 @@ import {
   agentAnswer,
 } from "@/components/agents";
 import { ExportReport } from "@/components/report";
+import { AgentPortrait } from "@/components/agents/Portrait";
+import { PortraitEditor } from "@/components/agents/PortraitEditor";
+import { companyOf } from "@/lib/accounts";
+import { portraitRight } from "@/lib/portraits/access";
+import { PORTRAIT_MAX_BYTES } from "@/lib/portraits/image";
+import { actorFor, portraitEndpoint, portraitSources } from "@/lib/portraits/server";
+import { NO_PORTRAIT_STORE, portraitStore } from "@/lib/portraits/store";
+import { currentAccount } from "@/lib/session";
 import { OutcomeKey, OutcomeRing, PairedRates } from "@/showroom/charts";
 import { Radar, SectionSequence, TrendLine } from "@/showroom/charts2";
 import { Sized } from "@/showroom/forms";
@@ -141,6 +149,50 @@ export default async function AgentPage({
   const meetingsHref = `${root}/meetings?agent=${view.agentId}`;
   const shape = charts.radar.profiles.find((p) => p.id === view.agentId);
 
+  /*
+   * THE PORTRAIT, AND WHO MAY CHANGE IT HERE (ADR-0054).
+   *
+   * Drawn before the name in the heading for everyone who may open the page.
+   * The control appears for the admin of the agent's company, and for the agent
+   * on their own page, which is their profile; the route checks the same right
+   * again. An agent without a portrait is told who adds it rather than shown a
+   * button the server would refuse.
+   */
+  const portrait =
+    (await portraitSources(view.context.tenant, projectSlug, [view.agentId]))[view.agentId] ?? null;
+  const account = await currentAccount();
+  const portraitBy =
+    account === null
+      ? null
+      : portraitRight(
+          actorFor(account, viewer),
+          { agentId: view.agentId, organisationName: view.organisationName },
+          portrait !== null,
+        );
+  const stored = portraitStore() !== null;
+  const portraitControl =
+    portraitBy !== null ? (
+      <PortraitEditor
+        endpoint={portraitEndpoint(tenantSlug, projectSlug, view.agentId)}
+        name={view.name}
+        src={portrait}
+        tone={shape?.tone}
+        mode={portraitBy}
+        available={stored}
+        unavailable={NO_PORTRAIT_STORE}
+        maxBytes={PORTRAIT_MAX_BYTES}
+      />
+    ) : account !== null && viewer.agentId === view.agentId ? (
+      <section className="ag-editor" aria-label="Your portrait">
+        <h2 className="ag-editor-title">Your portrait</h2>
+        <p className="ag-editor-note">
+          {stored
+            ? `${companyOf(account).adminName}, as ${view.organisationName}'s admin, adds your portrait. Once it is here you can replace or remove it.`
+            : NO_PORTRAIT_STORE}
+        </p>
+      </section>
+    ) : null;
+
   /* The ten-second answer: `agentAnswer`, shared with the printed summary. */
   const answer = agentAnswer(view, view.context.language);
 
@@ -216,7 +268,12 @@ export default async function AgentPage({
       <PageHead
         language={view.context.language}
         kicker={`${view.context.project.name} · Sales Agents · ${periodLabel}`}
-        title={view.name}
+        title={
+          <span className="ag-titled">
+            <AgentPortrait name={view.name} src={portrait} tone={shape?.tone} size="head" alt="" />
+            {view.name}
+          </span>
+        }
         answer={answer}
         lede={
           <>
@@ -240,6 +297,7 @@ export default async function AgentPage({
               report={report}
               pageHref={withPeriod(`${root}/report?agent=${view.agentId}`, period)}
             />
+            {portraitControl}
           </>
         }
         period={period}

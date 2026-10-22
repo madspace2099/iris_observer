@@ -1,0 +1,145 @@
+/*
+ * AN AGENT'S PORTRAIT, AND THE CONTROL THAT CHANGES IT (ADR-0054).
+ *
+ * The disc is ringed in the agent's seat colour (`--ag-seat`, set inline from
+ * the read model's seat order); without a portrait it carries the initials on a
+ * dark tint of that colour. Four sizes, one per place: a list row, a ring card,
+ * the agent page's heading, and the editor's preview.
+ */
+
+.ag-portrait {
+  --ag-size: 2rem;
+  --ag-seat-ring: var(--ag-seat, var(--ox-line-hover));
+  box-sizing: border-box;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  inline-size: var(--ag-size);
+  block-size: var(--ag-size);
+  border-radius: 50%;
+  border: 1.5px solid var(--ag-seat-ring);
+  object-fit: cover;
+  background: #0b0d10;
+}
+
+.ag-portrait[data-size="card"] {
+  --ag-size: 2.5rem;
+}
+
+.ag-portrait[data-size="head"] {
+  --ag-size: clamp(3rem, 2.4rem + 2vw, 4rem);
+  border-width: 2px;
+}
+
+.ag-portrait[data-size="editor"] {
+  --ag-size: 5.5rem;
+  border-width: 2px;
+}
+
+.ag-portrait-initials {
+  background: color-mix(in oklab, var(--ag-seat-ring) 20%, #0b0d10);
+  color: var(--ox-ink, #f4f7fc);
+  font-weight: 600;
+  font-size: calc(var(--ag-size) * 0.36);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  user-select: none;
+}
+
+/* --- where a portrait stands beside a name -------------------------------- */
+
+/* A ranked row: the disc to the left of the name and its line, both rows. */
+.iris-ranked-name[data-marked] {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.625rem;
+  align-items: center;
+}
+
+.iris-ranked-name[data-marked] > .ag-portrait {
+  grid-row: span 2;
+}
+
+.ag-card-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ag-card-head > div {
+  min-width: 0;
+}
+
+.ag-titled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.875rem;
+  max-width: 100%;
+}
+
+/* --- the control ----------------------------------------------------------- */
+
+.ag-editor {
+  display: grid;
+  gap: 0.75rem;
+  max-width: 22rem;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--ox-line-hair, rgb(130 150 185 / 9%));
+}
+
+.ag-editor-title {
+  margin: 0;
+  font-size: var(--ox-micro, 0.75rem);
+  font-weight: 600;
+  letter-spacing: var(--ox-track-micro, 0.09em);
+  text-transform: uppercase;
+  color: var(--ox-ink-3, #98a4b8);
+}
+
+.ag-editor-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.ag-editor-side {
+  display: grid;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.ag-editor-note,
+.ag-editor-status {
+  margin: 0;
+  font-size: var(--ox-caption, 0.8125rem);
+  line-height: 1.45;
+  color: var(--ox-ink-2, rgb(244 247 252 / 74%));
+}
+
+/* Empty, it stays in the page so a screen reader hears what arrives in it. */
+.ag-editor-status:empty {
+  margin-top: -0.625rem;
+}
+
+.ag-editor-status[data-tone="refused"] {
+  color: var(--ox-poor, #f0a49e);
+}
+
+.ag-editor-status[data-tone="saved"] {
+  color: var(--ox-good, #8ad9b0);
+}
+
+.ag-editor .ox-btn-row {
+  gap: 0.5rem;
+}
+
+/* On a phone the preview shrinks rather than stacking, so the buttons stay beside it. */
+@media (max-width: 30rem) {
+  .ag-portrait[data-size="editor"] {
+    --ag-size: 4.25rem;
+  }
+
+  .ag-editor-body {
+    gap: 0.875rem;
+  }
+}

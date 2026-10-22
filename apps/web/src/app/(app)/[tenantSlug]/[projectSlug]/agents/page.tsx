@@ -9,9 +9,11 @@ import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { Missing, ShareFigure } from "@/components/agents";
+import { AgentPortrait } from "@/components/agents/Portrait";
+import { PresenterBars, seatTones } from "@/components/agents/PresenterBars";
+import { portraitSources } from "@/lib/portraits/server";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
-import { RankedBars } from "@/showroom/charts2";
 import { CoachingChart } from "@/showroom/CoachingChart";
 import { AxisNotes } from "@/showroom/forms";
 import { DrawIn } from "@/showroom/DrawIn";
@@ -67,6 +69,14 @@ export default async function AgentsPage({
     repository.getAgentsView(query),
     repository.getAgentCharts(query),
   ]);
+  /* Each card's portrait or initials, ringed in the seat colour its charts wear (ADR-0054). */
+  const portraits = await portraitSources(
+    view.context.tenant,
+    projectSlug,
+    view.agents.map((a) => a.agentId),
+  );
+  const seatOrder = charts.radar.profiles.map((p) => p.id);
+  const tones = seatTones(seatOrder);
 
   /*
    * ONE AGENT-DETAIL EXPERIENCE, AT THE DEDICATED ROUTE.
@@ -131,10 +141,21 @@ export default async function AgentsPage({
             <div className="iris-rings">
               {view.agents.map((a) => (
                 <article className="iris-ring-card d-card" key={`${a.agentId}-${period}`}>
-                  <h3>{a.name}</h3>
-                  <p className="iris-meta" style={{ margin: "0 0 .5rem" }}>
-                    {a.organisationName}
-                  </p>
+                  <div className="ag-card-head">
+                    <AgentPortrait
+                      name={a.name}
+                      src={portraits[a.agentId] ?? null}
+                      tone={tones[a.agentId]}
+                      size="card"
+                      alt=""
+                    />
+                    <div>
+                      <h3>{a.name}</h3>
+                      <p className="iris-meta" style={{ margin: 0 }}>
+                        {a.organisationName}
+                      </p>
+                    </div>
+                  </div>
                   <OutcomeRing
                     slices={a.ring.slices}
                     total={a.meetings}
@@ -217,7 +238,8 @@ export default async function AgentsPage({
                     </p>
                   )}
                   <Link className="iris-action" href={dynamicRoute(detailHref(a.agentId))}>
-                    Agent detail →
+                    {/* An agent's own page is their profile, where their portrait is changed. */}
+                    {a.agentId === viewer.agentId ? "Your profile →" : "Agent detail →"}
                   </Link>
                   {/*
                    * R12-6 (Máté, 2026-10-02): the agent's meetings and report
@@ -256,7 +278,13 @@ export default async function AgentsPage({
                 <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
                   Presentations given
                 </p>
-                <RankedBars rows={charts.ranked} period={period} tone="volume" />
+                <PresenterBars
+                  rows={charts.ranked}
+                  period={period}
+                  tenant={view.context.tenant}
+                  projectSlug={projectSlug}
+                  seatOrder={seatOrder}
+                />
                 <p className="iris-meta" style={{ marginTop: ".5rem" }}>
                   How many, and how long they typically ran. This list is ordered by workload. It is
                   not ordered by outcome, and there is no list here that is.

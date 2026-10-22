@@ -6,12 +6,14 @@ import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 
 /**
- * Initials, and the reason there is no picture.
+ * Initials, and never a generated picture.
  *
- * There is no photograph in this product and there will not be one. A generated
- * avatar — a coloured circle, an identicon, a cartoon — is a decoration
- * standing exactly where an identity should be, and on a roster it invites the
- * reader to tell people apart by hue rather than by name.
+ * A generated avatar — a coloured circle, an identicon, a cartoon — is a
+ * decoration standing exactly where an identity should be, and on a roster it
+ * invites the reader to tell people apart by hue rather than by name. The one
+ * picture this product shows is a real portrait the agent's company put there
+ * (ADR-0054, `components/agents/Portrait.tsx`), which reads the same initials
+ * where there is none.
  *
  * The mark is `aria-hidden` because the name it abbreviates is always rendered
  * beside it. A screen reader that announced "P M, Petra Molnár" would be
@@ -22,7 +24,7 @@ import { withPeriod } from "@/lib/period";
  * letter for a mononym rather than an empty circle. It is string handling, not
  * a metric: nothing here counts, ranks or compares.
  */
-export function Initials({ name }: { readonly name: string }) {
+export function initialsOf(name: string): string {
   const words = name
     .trim()
     .split(/\s+/)
@@ -30,10 +32,13 @@ export function Initials({ name }: { readonly name: string }) {
   const first = words[0] ?? "";
   const last = words.length > 1 ? (words[words.length - 1] ?? "") : "";
   const mark = `${first.slice(0, 1)}${last.slice(0, 1)}`.toUpperCase();
+  return mark.length === 0 ? "·" : mark;
+}
 
+export function Initials({ name }: { readonly name: string }) {
   return (
     <span className="ox-person-initials" aria-hidden="true">
-      {mark.length === 0 ? "·" : mark}
+      {initialsOf(name)}
     </span>
   );
 }

@@ -942,6 +942,7 @@ export function RankedBars({
   peak: scale,
   collapseAfter,
   tone,
+  marks,
 }: {
   rows: readonly {
     readonly id: string;
@@ -987,6 +988,11 @@ export function RankedBars({
    * Absent, the bars are neutral.
    */
   tone?: "volume" | "late";
+  /**
+   * A mark to stand before a row's name, keyed by row id: an agent's portrait
+   * (ADR-0054). Rows without one are drawn as before.
+   */
+  marks?: Readonly<Record<string, React.ReactNode>>;
 }) {
   const peak = scale ?? Math.max(1, ...rows.map((r) => r.value));
   const className = `iris-ranked${measured ? " iris-ranked-measured" : ""}`;
@@ -996,7 +1002,11 @@ export function RankedBars({
   const item = (row: (typeof rows)[number], place: number) => (
     <li key={row.id}>
       <span className="iris-ranked-place">{place}</span>
-      <span className="iris-ranked-name">
+      <span
+        className="iris-ranked-name"
+        data-marked={marks?.[row.id] === undefined ? undefined : ""}
+      >
+        {marks?.[row.id]}
         {row.href === undefined || row.href === null ? (
           row.label
         ) : (
