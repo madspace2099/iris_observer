@@ -120,6 +120,7 @@ export function StackPlan({
   period,
   buildingLabel,
   peakViews = null,
+  keyed = true,
   language,
 }: {
   /** Top floor first, as `ProjectPulse.floors` already orders them. */
@@ -142,6 +143,11 @@ export function StackPlan({
    * luminance with no scale is a decoration.
    */
   readonly peakViews?: number | null;
+  /**
+   * False when the caller prints `StackPlanKey` itself — the Briefing puts it
+   * behind the `i` beside the building's name (ADR-0058).
+   */
+  readonly keyed?: boolean;
   /** The words' language; the page passes the reader's once there is a choice. */
   readonly language: Language;
 }) {
@@ -171,17 +177,24 @@ export function StackPlan({
         ))}
       </div>
 
-      <ul className="ox-stack-key">
-        <li>Row · one floor, top floor first</li>
-        <li>Cell width · floor area</li>
-        <li>
-          Brighter fill · more meaningful views in this period
-          {peakViews === null ? "" : `, against ${peakViews} on the busiest unit`}
-        </li>
-        <li>Dashed edge · reserved</li>
-        <li>Hatched · sold, and drawn without a fill</li>
-      </ul>
+      {keyed ? <StackPlanKey peakViews={peakViews} /> : null}
     </div>
+  );
+}
+
+/** How the plan is drawn: what a row, a width, a fill and an edge mean. */
+export function StackPlanKey({ peakViews = null }: { readonly peakViews?: number | null }) {
+  return (
+    <ul className="ox-stack-key">
+      <li>Row · one floor, top floor first</li>
+      <li>Cell width · floor area</li>
+      <li>
+        Brighter fill · more meaningful views in this period
+        {peakViews === null ? "" : `, against ${peakViews} on the busiest unit`}
+      </li>
+      <li>Dashed edge · reserved</li>
+      <li>Hatched · sold, and drawn without a fill</li>
+    </ul>
   );
 }
 

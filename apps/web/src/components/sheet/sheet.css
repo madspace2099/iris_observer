@@ -1,0 +1,282 @@
+/*
+ * THE TWO ANSWER SHEETS — What needs attention and the Briefing (ADR-0058).
+ *
+ * The owner, recording the Shark demo (2026-10-22): neither page could be
+ * taken in at a glance; design the hierarchy by type size, less text, and the
+ * rest behind an "i". Every rule here is scoped to `.sheet`, the class the two
+ * pages put on their `.ox-page`, so no other screen moves.
+ *
+ * The scale is `docs/14-design-system.md` §5, as Sales Flow reads it:
+ *
+ *   the answer    the page's one headline, the size of Sales Flow's verdict
+ *   a figure      44 on 44 at 600, tabular; 32 on a phone
+ *   a section     20 on 28 at 600 (ADR-0052)
+ *   a row's name  16 on 24 at 600
+ *   body          15 / 14, the secondary ink
+ *   meta          13 on 18, the denominator under a figure
+ */
+
+/* The headline: the page's answer is the h1, at Sales Flow's verdict size. */
+.sheet .ox-title {
+  max-width: 42ch;
+  font-size: clamp(1.5rem, 0.95rem + 1.75vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.18;
+  letter-spacing: -0.022em;
+  overflow-wrap: break-word;
+  text-wrap: balance;
+}
+
+/* Under the headline on a narrow screen, the signal and the demo mark share a line. */
+@media (width < 64rem) {
+  .sheet .ox-head-aside {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+}
+
+.sheet .ox-section-title {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/*
+ * A title and the `i` after its last word, as Sales Flow's `.iris-titled`: the
+ * title runs inline, so one that wraps on a phone carries the `i` on its last
+ * line rather than at the edge between two lines.
+ */
+.sheet-titled {
+  margin: 0;
+  line-height: 0;
+}
+
+.sheet-titled > :is(h2, h3) {
+  display: inline;
+}
+
+.sheet-titled > .ox-alert-title .ox-alert-mark {
+  display: inline-block;
+  margin-right: 0.5rem;
+  vertical-align: 0.1em;
+}
+
+/* On a phone the `i` is a thumb's target; the line it sits on does not grow. */
+@media (width < 40rem) {
+  .sheet .iris-info {
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: -0.625rem -0.625rem -0.625rem -0.125rem;
+  }
+}
+
+/* --- the figures that read first ----------------------------------------- */
+
+.sheet-figures {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.sheet-figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding: 0.25rem 1.25rem;
+}
+
+.sheet-figure:first-child {
+  padding-left: 0;
+}
+
+.sheet-figure + .sheet-figure {
+  border-left: 1px solid var(--ox-line-panel);
+}
+
+.sheet-figure dt {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 500;
+  color: var(--ox-ink-3);
+}
+
+.sheet-figure dd {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+}
+
+.sheet-n {
+  font-size: 2.75rem;
+  line-height: 1;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ox-ink);
+}
+
+.sheet-of {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--ox-ink-3);
+}
+
+/*
+ * A phone: one figure to a row, its name on the left and the figure on the
+ * right, with what it is measured against under the figure. Three columns of
+ * 90px broke "Progressing this month" a word to a line.
+ */
+@media (width < 30rem) {
+  .sheet-figures {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sheet-figure,
+  .sheet-figure:first-child {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 8.5rem);
+    gap: 0.75rem;
+    align-items: start;
+    padding: 0.875rem 0;
+  }
+
+  .sheet-figure:first-child {
+    padding-top: 0;
+  }
+
+  .sheet-figure + .sheet-figure {
+    border-left: 0;
+    border-top: 1px solid var(--ox-line-panel);
+  }
+
+  .sheet-figure dt {
+    padding-top: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  /* A long comparison ("no earlier period to compare") wraps in its own column. */
+  .sheet-figure dd {
+    align-items: flex-end;
+    text-align: right;
+  }
+
+  .sheet-n {
+    font-size: 2rem;
+  }
+}
+
+/* --- a raised state ------------------------------------------------------ */
+
+.sheet .ox-alert-title {
+  font-size: 1.125rem;
+  line-height: 1.625rem;
+  font-weight: 600;
+}
+
+.sheet .ox-alert-detail {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+/* --- the register: every check, one row each ----------------------------- */
+
+.sheet-checks {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sheet-check {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr) 10rem;
+  gap: 0.375rem 1.25rem;
+  align-items: baseline;
+  padding: 1rem 0;
+  border-top: 1px solid var(--ox-line-hair);
+}
+
+.sheet-check:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sheet-check > .ox-chip {
+  justify-self: start;
+}
+
+.sheet-check-name {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  color: var(--ox-ink);
+}
+
+.sheet-check-found {
+  max-width: 68ch;
+  margin: 0.125rem 0 0;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--ox-ink-2);
+}
+
+.sheet-check-step {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  color: var(--ox-ink-3);
+  text-align: right;
+}
+
+@media (width < 48rem) {
+  .sheet-check {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sheet-check-step {
+    text-align: left;
+  }
+}
+
+/* --- the Briefing's one action, its building and its doors -------------- */
+
+.sheet .ox-result {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  color: var(--ox-ink);
+}
+
+.sheet-line {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  color: var(--ox-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.sheet .ox-row-name {
+  font-size: 1.125rem;
+  line-height: 1.625rem;
+  font-weight: 600;
+}
+
+.sheet-door-headline {
+  margin: 0.25rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  color: var(--ox-ink-2);
+}
+
+/* A door's one way in is a thumb's target on a phone, the width of the row. */
+@media (width < 48rem) {
+  .sheet-door .ox-btn {
+    min-height: 2.75rem;
+  }
+}

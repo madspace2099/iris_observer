@@ -97,7 +97,13 @@ const METHOD = [
   "A state below its minimum sample is stated without a rank.",
 ];
 
-test("R04-7 · every check names its next step, the method folds closed, and ingestion is Not evaluated", async ({
+/*
+ * The method and each card's rank stood in view until the owner asked for less
+ * text (2026-10-22, ADR-0058): both are now the `i` beside the title they
+ * explain, and the register is a list rather than a table. R04-7 itself is
+ * unchanged: every check names its next step.
+ */
+test("R04-7 · every check names its next step, the method stands behind its i, and ingestion is Not evaluated", async ({
   page,
 }) => {
   for (const [who, path] of [
@@ -105,22 +111,23 @@ test("R04-7 · every check names its next step, the method folds closed, and ing
     ["Petra Novák", "/alpha/riverside/attention"],
   ] as const) {
     const closed = await open(page, who, path);
-    const fold = page.locator("main details.iris-method");
-    await expect(fold, path).toHaveCount(1);
-    await expect(fold.locator("summary"), path).toHaveText("How to read this");
-    for (const sentence of METHOD) expect(closed, `${path}: folded until asked for`).not.toContain(sentence);
+    for (const sentence of METHOD) expect(closed, `${path}: behind the i until asked for`).not.toContain(sentence);
     expect(closed, `${path}: the answer stays in view`).toMatch(/\d+ of \d+ checks raised something on /);
-    expect(closed, `${path}: the rank stays in view`).toContain("Rank 1 of");
 
-    const table = page.getByRole("table", { name: /Every question this screen asks of the period/ });
-    await expect(table.getByRole("columnheader", { name: "Next step" }), path).toHaveCount(1);
+    const firstCard = page.locator("main li.ox-alert").first();
+    await firstCard.locator("button.iris-info").click();
+    await expect(firstCard.locator(".iris-info-panel"), `${path}: the rank, when asked for`).toBeVisible();
+    await expect(firstCard.locator(".iris-info-panel"), path).toContainText("Rank 1 of");
+    await page.keyboard.press("Escape");
+
+    const register = page.getByRole("list", { name: "Every check, and what it found" });
     const raisedList = page.getByRole("list", { name: "States raised in this period" });
-    const rows = table.locator("tbody tr");
+    const rows = register.locator(":scope > li");
     expect(await rows.count(), path).toBeGreaterThan(0);
     for (const row of await rows.all()) {
-      const answer = (await row.locator('td[data-label="Answer"]').innerText()).trim();
-      const found = (await row.locator('td[data-label="What it found"]').innerText()).trim();
-      const step = row.locator('td[data-label="Next step"]');
+      const answer = (await row.locator('[data-part="answer"]').innerText()).trim();
+      const found = (await row.locator('[data-part="found"]').innerText()).trim();
+      const step = row.locator('[data-part="step"]');
       if (answer === "Clear") {
         await expect(step, `${path}: ${found}`).toHaveText("None needed");
         await expect(step.locator("a")).toHaveCount(0);
@@ -144,20 +151,20 @@ test("R04-7 · every check names its next step, the method folds closed, and ing
       }
     }
     const ingestion = rows.filter({ hasText: "Ingestion delay" });
-    await expect(ingestion.locator('td[data-label="Answer"]'), path).toHaveText("Not evaluated");
+    await expect(ingestion.locator('[data-part="answer"]'), path).toHaveText("Not evaluated");
     expect(await ingestion.innerText(), `${path}: no queue figure`).not.toMatch(/\d/);
 
-    await fold.locator("summary").click();
-    const opened = await page.locator("main").innerText();
+    await page.getByRole("button", { name: "About what was raised" }).click();
+    const opened = await page.locator("#info-raised").innerText();
     for (const sentence of METHOD) expect(opened, `${path}: there when asked for`).toContain(sentence);
   }
   /* The branch with a route is on the render: Northgate's unrecorded outcomes. */
   await open(page, "Tomáš Varga", "/alpha/northgate/attention");
   const outcome = page
-    .getByRole("table", { name: /Every question this screen asks of the period/ })
-    .locator("tbody tr")
+    .getByRole("list", { name: "Every check, and what it found" })
+    .locator(":scope > li")
     .filter({ hasText: "Outcome not recorded" })
-    .locator('td[data-label="Next step"] a');
+    .locator('[data-part="step"] a');
   await expect(outcome).toHaveText("See the meetings");
   expect(await outcome.getAttribute("href")).toContain("/alpha/northgate/meetings?outcome=skipped");
 });

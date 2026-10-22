@@ -92,18 +92,15 @@ test.describe("the three views", () => {
     const views = page.getByRole("navigation", { name: "Views" });
     await expect(views).toBeVisible();
     /*
-     * Three destinations, not three links: each one's heading is itself a
-     * link to the same place its own "Open …" button goes to, so a plain
-     * link count over the whole region is six, not three, and always was
-     * once the heading became clickable too. The property under test --
-     * "there are three, and no more" -- is what the door's own dedicated
-     * control still measures.
+     * Three destinations, one link each: the heading stopped being a second
+     * link to the place its "Open …" button goes to (ADR-0058).
      */
     const doors = views.getByRole("link", { name: /^Open /ug });
     await expect(doors).toHaveCount(3);
-    // The verdict sentence -- `.iris-signal` under the old design system,
-    // `.ox-answer` under the current one (ADR-0034's paper ground).
-    await expect(page.locator(".ox-answer")).toBeVisible();
+    await expect(views.getByRole("link")).toHaveCount(3);
+    // The verdict sentence -- `.iris-signal` under the old design system, then
+    // `.ox-answer`, and the page's headline since ADR-0058.
+    await expect(page.locator(".ox-head h1")).toBeVisible();
   });
 
   test("each door leads somewhere that answers its own question", async ({ page }) => {
@@ -114,7 +111,10 @@ test.describe("the three views", () => {
       ["Sales Agents", /present/i],
     ] as const) {
       await page.goto("/alpha/northgate/showroom");
-      await page.getByRole("link", { name: new RegExp(label) }).first().click();
+      await page
+        .getByRole("navigation", { name: "Views" })
+        .getByRole("link", { name: `Open ${label}` })
+        .click();
       await expect(page.getByRole("heading", { level: 1 })).toContainText(heading);
     }
   });

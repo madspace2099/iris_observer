@@ -22,4 +22,4 @@
  */
 
 export { StateList, SUBJECTS_SHOWN } from "./StateList";
-export { ChecksRegister } from "./ChecksRegister";
+export { ChecksRegister, CheckQuestions, STATE_WORDS } from "./ChecksRegister";

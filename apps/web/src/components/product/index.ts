@@ -40,7 +40,15 @@
 
 export { PageHead, type Crumb } from "./PageHead";
 export { Figure, Tally, TallyItem } from "./Metric";
-export { Tier, Sources, Evidence, Sample, TIER_LABELS } from "./Provenance";
+export {
+  Tier,
+  Sources,
+  Evidence,
+  Sample,
+  TIER_LABELS,
+  evidenceText,
+  tierSentence,
+} from "./Provenance";
 export { FindingList } from "./Finding";
 export { AttentionList } from "./Attention";
 export { Empty, Unavailable, Failure, Synthetic } from "./Absence";
@@ -51,4 +59,4 @@ export { FilterBar, type FilterField, type FilterOption } from "./FilterBar";
 export { Timeline, type TimelineStep } from "./Timeline";
 export { Dialog } from "./Dialog";
 export { PersonCard, Initials } from "./Person";
-export { StackPlan } from "./StackPlan";
+export { StackPlan, StackPlanKey } from "./StackPlan";

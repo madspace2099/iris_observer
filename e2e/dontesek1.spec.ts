@@ -64,7 +64,8 @@ test("R02-1 · the Briefing chip and its sentence name what they compare against
     const chip = (await page.locator(".ox-head-aside .ox-chip").first().innerText()).trim();
     expect(chip, path).not.toBe("On course");
     expect(chip, path).toMatch(/^(?:(?:Above|In line with|Below|Mixed against) \S.*|No verdict)$/);
-    const answer = (await page.locator(".ox-head .ox-answer").first().innerText()).trim();
+    /* The verdict is the Briefing's headline since ADR-0058. */
+    const answer = (await page.locator(".ox-head h1").first().innerText()).trim();
     expect(answer, path).not.toMatch(/on course/i);
     if (chip === "No verdict") expect(answer, path).not.toMatch(/^Against /);
     else

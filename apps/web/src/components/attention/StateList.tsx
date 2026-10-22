@@ -7,7 +7,8 @@ import type {
   PeriodPreset,
 } from "@observer/readmodels";
 
-import { Evidence, Sample, Sources, Tier } from "@/components/product";
+import { InfoTip } from "@/components/iris/InfoTip";
+import { Sources, evidenceText, tierSentence } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 
@@ -142,11 +143,35 @@ export function StateList({
           data-severity={SEVERITY[state.alert.severity]}
         >
           <div>
-            <h3 className="ox-alert-title">
-              <span className="ox-alert-mark" aria-hidden="true" />
-              <span className="ox-sr">{SEVERITY_LABEL[state.alert.severity]} — </span>
-              {state.alert.title}
-            </h3>
+            {/*
+             * The title, and beside it the `i` that holds the card's
+             * provenance (the owner, 2026-10-22, ADR-0058): the tier and what
+             * it claims, the evidence, the sample and the rank, and the
+             * sources in words. The detail sentence carries the state's own
+             * figure and its denominator in view; a state too thin to rank
+             * says so in view, below.
+             */}
+            <div className="sheet-titled">
+              <h3 className="ox-alert-title">
+                <span className="ox-alert-mark" aria-hidden="true" />
+                <span className="ox-sr">{SEVERITY_LABEL[state.alert.severity]} — </span>
+                {state.alert.title}
+              </h3>
+              <InfoTip id={`state-${state.kind}`} label={state.alert.title}>
+                {tierSentence(state.tier, language) === null ? null : (
+                  <p>{tierSentence(state.tier, language)}</p>
+                )}
+                <p>
+                  {evidenceText(state.alert.evidence, language)}
+                  {state.belowMinimum
+                    ? null
+                    : ` · n = ${state.sampleSize} ${SAMPLE_NOUNS[state.kind]} · Rank ${state.rank} of ${states.length}`}
+                </p>
+                <p>
+                  <Sources language={language} sources={state.sources} />
+                </p>
+              </InfoTip>
+            </div>
             <p className="ox-alert-detail">{state.alert.detail}</p>
 
             {/*
@@ -190,31 +215,21 @@ export function StateList({
               </div>
             )}
 
-            <div className="ox-alert-foot">
-              <Tier language={language} tier={state.tier} />
-              <Sources language={language} sources={state.sources} />
-              <Evidence language={language} evidence={state.alert.evidence} period={period} />
-
-              {state.belowMinimum ? (
-                /*
-                 * The raw figure and how far short it falls, and no rank beside
-                 * it. A state worth naming from eleven observations is still
-                 * worth naming; calling it the second most important thing on
-                 * the project is the part that is not supported.
-                 */
+            {state.belowMinimum ? (
+              /*
+               * The raw figure and how far short it falls, and no rank beside
+               * it. A state worth naming from eleven observations is still
+               * worth naming; calling it the second most important thing on
+               * the project is the part that is not supported. A refusal, so
+               * it stays in view rather than behind the `i`.
+               */
+              <div className="ox-alert-foot">
                 <span className="ox-shortfall">
                   {state.sampleSize} of {state.minimumSampleSize} {SAMPLE_NOUNS[state.kind]} —
                   stated, not ranked
                 </span>
-              ) : (
-                <>
-                  <Sample n={state.sampleSize} noun={SAMPLE_NOUNS[state.kind]} />
-                  <span className="ox-n">
-                    Rank {state.rank} of {states.length}
-                  </span>
-                </>
-              )}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           {/*

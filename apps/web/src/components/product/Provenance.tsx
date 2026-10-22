@@ -125,6 +125,13 @@ const TIER_MEANING_WORDS: Readonly<
   },
 };
 
+/** The tier's word and its sentence together, for a panel with room for both (ADR-0058). */
+export function tierSentence(tier: EvidenceTier, language: Language): string | null {
+  return isProducibleTier(tier)
+    ? `${TIER_WORDS[language][tier]}: ${TIER_MEANING_WORDS[language][tier]}`
+    : null;
+}
+
 const NO_EVIDENCE: Readonly<Record<Language, string>> = {
   en: "No evidence",
   sk: "Bez podkladov",

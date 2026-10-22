@@ -41,26 +41,31 @@ test.beforeEach(({ isMobile }, testInfo) => {
   test.skip(isMobile || testInfo.project.name !== "desktop", "a reading of the page, not of its width");
 });
 
+/*
+ * The Briefing's "Worth acting on" region. Its note and each state's rank stand
+ * behind an `i` since the owner asked for less text (2026-10-22, ADR-0058), so
+ * the region is found by its heading rather than between two printed lines.
+ */
+function worthActing(page: Page) {
+  return page
+    .locator("main section.ox-plane")
+    .filter({ has: page.getByRole("heading", { name: "Worth acting on" }) });
+}
+
 test("R02-2 · R04-6 · the Briefing's alert is the first state What needs attention raised", async ({
   page,
 }) => {
-  const briefing = await mainText(page, "Tomáš Varga", `${ROOT}/showroom`);
-  const alert = between(briefing, "neither does this screen.", "The figures behind it")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0)[0];
+  await mainText(page, "Tomáš Varga", `${ROOT}/showroom`);
+  const alert = (await worthActing(page).locator(".ox-result > span").first().innerText()).trim();
   await page.goto(`${ROOT}/attention`, { waitUntil: "networkidle" });
-  const raised = between(
-    await page.locator("main").innerText(),
-    "Raised in this period",
-    "Every check, and what it found",
-  );
+  const raised = page.getByRole("list", { name: "States raised in this period" });
+  const titles = (await raised.locator("li.ox-alert h3").allInnerTexts()).map((t) => t.trim());
   expect(alert, "the Briefing names one alert").toBeTruthy();
-  expect(raised).toContain(alert ?? "");
-  expect(raised.indexOf("Rank 1 of"), "the states are ranked").toBeGreaterThan(0);
-  expect(raised.indexOf(alert ?? ""), "and it is the first one raised").toBeLessThan(
-    raised.indexOf("Rank 1 of"),
-  );
+  expect(titles[0], "and it is the first one raised").toContain(alert);
+  await expect(
+    raised.locator("li.ox-alert").first().locator(".iris-info-panel"),
+    "the states are ranked",
+  ).toContainText("Rank 1 of");
 });
 
 test("R02-5 · a Briefing draws one alert or none, never a row of cards", async ({ page }) => {
@@ -69,12 +74,10 @@ test("R02-5 · a Briefing draws one alert or none, never a row of cards", async 
     ["Tomáš Varga", "/beta/kingsford/showroom"],
     ["Petra Novák", "/alpha/riverside/showroom"],
   ] as const) {
-    const block = between(
-      await mainText(page, who, path),
-      "neither does this screen.",
-      "The figures behind it",
-    );
-    const lines = block
+    await mainText(page, who, path);
+    const result = worthActing(page).locator(".ox-result");
+    await expect(result, path).toHaveCount(1);
+    const lines = (await result.innerText())
       .split("\n")
       .map((l) => l.trim())
       .filter((l) => l.length > 0);
@@ -123,21 +126,30 @@ test("R03-4 · pin, rename and delete are not offered where nothing writes them"
 test("R04-2 · lateness is Not evaluated without a task, a deadline and a completion", async ({
   page,
 }) => {
-  const text = await mainText(page, "Tomáš Varga", `${ROOT}/attention`);
-  const lateness = between(text, "Is a follow-up past the deadline it was given?", "Demand falling");
-  expect(lateness).toContain("Not evaluated");
-  expect(lateness).not.toMatch(/\b(Raised|Clear)\b/);
+  await mainText(page, "Tomáš Varga", `${ROOT}/attention`);
+  /* A row of the register is its answer, the check's name, what it found and its step (ADR-0058). */
+  const lateness = checkRow(page, "Lateness");
+  await expect(lateness.locator('[data-part="answer"]')).toHaveText("Not evaluated");
+  expect(await lateness.innerText()).not.toMatch(/\b(Raised|Clear)\b/);
 });
 
 test("R04-3 · a missing outcome and an unverified one are two checks with two answers", async ({
   page,
 }) => {
-  const text = await mainText(page, "Tomáš Varga", `${ROOT}/attention`);
-  const notRecorded = between(text, "Outcome not recorded\n", "Outcomes not verified");
-  const notVerified = between(text, "Outcomes not verified\n", "A source has gone quiet");
-  expect(notRecorded).toMatch(/\d+ of \d+ presentations/);
-  expect(notVerified).toContain("Not evaluated");
+  await mainText(page, "Tomáš Varga", `${ROOT}/attention`);
+  const notRecorded = checkRow(page, "Outcome not recorded");
+  const notVerified = checkRow(page, "Outcomes not verified");
+  await expect(notRecorded.locator('[data-part="found"]')).toHaveText(/\d+ of \d+ presentations/);
+  await expect(notVerified.locator('[data-part="answer"]')).toHaveText("Not evaluated");
 });
+
+/** One row of What needs attention's register, by the check's name. */
+function checkRow(page: Page, name: string) {
+  return page
+    .getByRole("list", { name: "Every check, and what it found" })
+    .locator(":scope > li")
+    .filter({ has: page.locator(".sheet-check-name", { hasText: new RegExp(`^${name}$`) }) });
+}
 
 test("R04-5 · no state claims lost revenue or blames an agent", async ({ page }) => {
   for (const path of [`${ROOT}/attention`, `${ROOT}/showroom`]) {

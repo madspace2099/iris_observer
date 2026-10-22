@@ -3,12 +3,11 @@ import {
   ATTENTION_KIND_DEFINITIONS,
   type AttentionCheck,
   type AttentionCheckState,
-  type AttentionKind,
   type AttentionState,
   type PeriodPreset,
 } from "@observer/readmodels";
 
-import { DataTable, type DataColumn, type DataRow } from "@/components/product";
+import { Empty } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 
@@ -28,21 +27,23 @@ import { withPeriod } from "@/lib/period";
  * register does not reshuffle itself between periods — and this renders every
  * one of them with the sentence that says why it is what it is.
  *
- * ## Why a real table, and why it is the paper region of the screen
+ * ## A list, not a table (the owner, 2026-10-22, ADR-0058)
  *
- * A few rows of four short columns is a register, and ADR-0034 puts a register
- * on paper: above the seam what we conclude, below it what we measured. The
- * raised states are a conclusion and stay on graphite; this is the working out.
+ * It was a four-column `DataTable` with each check's question under its name
+ * and a caption over the head; on a phone every row repeated the four column
+ * names. The owner could not take the page in. A row is now the answer, the
+ * check's name, what it found and the next step, in that order at every
+ * width; the questions stand behind the `i` beside the register's title
+ * (`CheckQuestions`), and a refusal — a check that could not be asked — still
+ * says why in its own row.
  *
- * Below 48rem the sheet turns each row into a stacked record and prints the
- * column name in front of every cell, which is what `DataTable` writes
- * `data-label` for. Nothing here has to do anything about that.
+ * ## Every check names its next step (R04-7)
  *
- * ## No column is sortable, on purpose
- *
- * `DataColumn.sort` is left absent rather than set to `none`. A few rows in a
- * fixed declaration order is the whole content, and a sort control on it would
- * be a control whose only effect is to make the reader lose their place.
+ * A raised check's step is its state's own action, the same words and the same
+ * place the raised card sends the reader. A clear check needs nothing; a check
+ * that could not be asked, or a raised state with no permitted list to open,
+ * has nothing a reader can do from here, and says so rather than leaving a
+ * blank that reads as a missing value.
  */
 
 /**
@@ -52,7 +53,7 @@ import { withPeriod } from "@/lib/period";
  * source is broken — the question could not honestly be asked of this period,
  * and the reason beside it says which.
  */
-const STATE_WORDS: Readonly<Record<AttentionCheckState, string>> = {
+export const STATE_WORDS: Readonly<Record<AttentionCheckState, string>> = {
   raised: "Raised",
   clear: "Clear",
   unavailable: "Not evaluated",
@@ -72,34 +73,11 @@ const STATE_TONES: Readonly<Record<AttentionCheckState, string>> = {
   unavailable: "none",
 };
 
-/**
- * The next step where a check has none on this screen (R04-7).
- *
- * A raised check's step is its state's own action, the same words and the same
- * place the raised card sends the reader. A clear check needs nothing; a check
- * that could not be asked, or a raised state with no permitted list to open,
- * has nothing a reader can do from here, and says so rather than leaving a
- * blank cell that reads as a missing value.
- */
 const NO_STEP: Readonly<Record<AttentionCheckState, string>> = {
   raised: "None on this screen",
   clear: "None needed",
   unavailable: "None on this screen",
 };
-
-/** The question a kind asks, from the definitions the read model publishes. */
-function questionOf(kind: AttentionKind): string | null {
-  return (
-    ATTENTION_KIND_DEFINITIONS.find((definition) => definition.kind === kind)?.question ?? null
-  );
-}
-
-const COLUMNS: readonly DataColumn[] = [
-  { key: "check", label: "Check" },
-  { key: "answer", label: "Answer" },
-  { key: "found", label: "What it found" },
-  { key: "next", label: "Next step" },
-];
 
 export function ChecksRegister({
   checks,
@@ -111,48 +89,60 @@ export function ChecksRegister({
   readonly states: readonly AttentionState[];
   readonly period: PeriodPreset;
 }) {
-  const rows: readonly DataRow[] = checks.map((check) => {
-    const question = questionOf(check.kind);
-    const alert =
-      check.state === "raised" ? states.find((s) => s.kind === check.kind)?.alert : undefined;
-    return {
-      key: check.kind,
-      cells: {
-        check: (
-          <>
-            {check.label}
-            {question === null ? null : <div className="ox-section-note">{question}</div>}
-          </>
-        ),
-        answer: (
-          <span className="ox-chip" data-tone={STATE_TONES[check.state]}>
-            <span className="ox-chip-mark" aria-hidden="true" />
-            {STATE_WORDS[check.state]}
-          </span>
-        ),
-        found: check.reason,
-        next:
-          alert === undefined || alert.actionHref === null || alert.actionLabel === null ? (
-            NO_STEP[check.state]
-          ) : (
-            <Link className="ox-link" href={dynamicRoute(withPeriod(alert.actionHref, period))}>
-              {alert.actionLabel}
-            </Link>
-          ),
-      },
-    };
-  });
+  if (checks.length === 0) {
+    return (
+      <Empty
+        title="No check ran"
+        note="The attention read model returned no questions for this period. That is a defect in the read model rather than a quiet project, and nothing on this screen should be read as an all-clear."
+      />
+    );
+  }
 
   return (
-    <DataTable
-      caption="Every question this screen asks of the period, and the answer to each — including the ones that came back clean and the ones that could not be asked."
-      columns={COLUMNS}
-      rows={rows}
-      period={period}
-      empty={{
-        title: "No check ran",
-        note: "The attention read model returned no questions for this period. That is a defect in the read model rather than a quiet project, and nothing on this screen should be read as an all-clear.",
-      }}
-    />
+    <ul className="sheet-checks" aria-label="Every check, and what it found">
+      {checks.map((check) => {
+        const alert =
+          check.state === "raised" ? states.find((s) => s.kind === check.kind)?.alert : undefined;
+        return (
+          <li className="sheet-check" key={check.kind} data-state={check.state}>
+            <span className="ox-chip" data-tone={STATE_TONES[check.state]} data-part="answer">
+              <span className="ox-chip-mark" aria-hidden="true" />
+              {STATE_WORDS[check.state]}
+            </span>
+            <div>
+              <p className="sheet-check-name">{check.label}</p>
+              <p className="sheet-check-found" data-part="found">
+                {check.reason}
+              </p>
+            </div>
+            <p className="sheet-check-step" data-part="step">
+              {alert === undefined || alert.actionHref === null || alert.actionLabel === null ? (
+                NO_STEP[check.state]
+              ) : (
+                <Link className="ox-link" href={dynamicRoute(withPeriod(alert.actionHref, period))}>
+                  {alert.actionLabel}
+                </Link>
+              )}
+            </p>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** What each check asks, from the definitions the read model publishes: the register's `i`. */
+export function CheckQuestions({ checks }: { readonly checks: readonly AttentionCheck[] }) {
+  return (
+    <>
+      {checks.map((check) => {
+        const question = ATTENTION_KIND_DEFINITIONS.find((d) => d.kind === check.kind)?.question;
+        return question === undefined ? null : (
+          <p key={check.kind}>
+            <b>{check.label}.</b> {question}
+          </p>
+        );
+      })}
+    </>
   );
 }

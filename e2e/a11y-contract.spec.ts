@@ -92,7 +92,20 @@ const SURFACES: readonly Surface[] = [
   {
     key: "Briefing",
     path: `${ROOT}/showroom`,
-    popups: [PERIOD],
+    popups: [
+      PERIOD,
+      /* A title's explanation behind its `i` (ADR-0058): a native popover drawn over the page. */
+      { name: "a title's explanation", trigger: "main button.iris-info", kind: "popover" },
+    ],
+    change: changePeriod,
+  },
+  {
+    key: "What needs attention",
+    path: `${ROOT}/attention`,
+    popups: [
+      PERIOD,
+      { name: "a title's explanation", trigger: "main button.iris-info", kind: "popover" },
+    ],
     change: changePeriod,
   },
   {

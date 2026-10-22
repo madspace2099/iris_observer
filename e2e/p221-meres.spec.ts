@@ -71,13 +71,16 @@ test("R04-5 · every raised state names its severity, and the page prints the ru
     ["Tomáš Varga", `${ROOT}/attention`],
     ["Tomáš Varga", "/beta/kingsford/attention"],
   ] as const) {
-    const text = await mainText(page, who, path);
-    expect(text).toContain("Red is kept for a record going missing right now");
-    /* The ordering rule is method, folded since FEJEZET1 (R04-7): read it opened. */
-    await page.locator("main details.iris-method summary").click();
-    expect(await page.locator("main").innerText()).toContain(
-      "Severity first, then how much each one is about.",
-    );
+    await mainText(page, who, path);
+    /*
+     * The colour rule and the ordering rule are method, behind the `i` beside
+     * "Raised in this period" since the owner asked for less text (ADR-0058):
+     * read them opened.
+     */
+    await page.getByRole("button", { name: "About what was raised" }).click();
+    const rule = await page.locator("#info-raised").innerText();
+    expect(rule).toContain("Red is kept for a record going missing right now");
+    expect(rule).toContain("Severity first, then how much each one is about.");
     const headings = await page
       .locator("main h3")
       .evaluateAll((hs) => hs.map((h) => (h.textContent ?? "").replace(/\s+/g, " ").trim()));

@@ -2,21 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { defineMeasurement, type ShowroomSignal, DEFAULT_LANGUAGE } from "@observer/readmodels";
 
+import { InfoTip } from "@/components/iris/InfoTip";
 import {
   Evidence,
   PageHead,
   Sample,
   Sources,
   StackPlan,
+  StackPlanKey,
   Synthetic,
-  Tally,
-  TallyItem,
 } from "@/components/product";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import "@/components/sheet/sheet.css";
 
 export const metadata: Metadata = { title: "Briefing" };
 
@@ -48,10 +49,19 @@ export const metadata: Metadata = { title: "Briefing" };
  * ADR-0034 divides by content: above the seam what we conclude and what a reader
  * may do, below it what was measured.
  *
- *   graphite  the verdict, the clause it rests on, and the one thing worth
- *             acting on today.
- *   paper     the three figures, and the building.
+ *   graphite  the verdict, the headline.
+ *   paper     the three figures, which read first after it.
+ *   graphite  the one thing worth acting on today.
+ *   paper     the building.
  *   graphite  the three doors.
+ *
+ * ## Read at a glance (the owner, 2026-10-22, ADR-0058)
+ *
+ * "Simplify, less text, the rest in an info panel": the verdict is the h1, the
+ * figures are drawn at the type scale's Figure size, and every explanation —
+ * the clause the verdict rests on, a figure's definition, the plan's key, what
+ * each door answers — is the `i` beside the title it explains. What a figure
+ * is against or out of stays under it.
  *
  * ## Why the building is on this screen
  *
@@ -164,15 +174,19 @@ export default async function BriefingPage({
   );
 
   return (
-    <div className="ox-page">
+    <div className="ox-page sheet">
       <PageHead
         language={home.context.language}
         period={period}
         crumbs={[{ label: "Ask IRIS", href: `${root}/ask` }, { label: "Briefing" }]}
-        kicker={`${home.context.project.name} · ${home.context.period.label}`}
-        title="Briefing"
-        answer={home.verdict}
-        lede={home.because}
+        kicker={`Briefing · ${home.context.project.name} · ${home.context.period.label}`}
+        /*
+         * The verdict is the headline (the owner, 2026-10-22, ADR-0058), and
+         * the page's name moves into the kicker, as Sales Flow's does. The
+         * clause it rests on is the `i` beside the figures, which say it in
+         * numbers.
+         */
+        title={home.verdict}
         aside={
           <>
             <span className="ox-chip" data-tone={SIGNAL_TONES[home.signal]}>
@@ -185,14 +199,81 @@ export default async function BriefingPage({
       />
 
       <div className="ox-body">
+        {/*
+         * --- the figures behind the verdict, at the size that reads first.
+         * Measured, so: paper. Each says what it is against or out of in view;
+         * what it measures is the `i` beside its name, and the clause the
+         * verdict rests on, the sources and the sample are the `i` beside the
+         * title.
+         */}
+        <div className="ox-plate ox-paper">
+          <div className="ox-plate-inner">
+            <div className="ox-section-head">
+              <div className="sheet-titled">
+                <h2 className="ox-section-title">The figures behind it</h2>
+                <InfoTip id="figures" label="the figures behind the verdict">
+                  <p>{home.because}</p>
+                  <p>
+                    <Sources language={home.context.language} sources={home.sources} />
+                  </p>
+                  <p>
+                    <Sample n={home.meetingCount} noun="presentations" />
+                  </p>
+                </InfoTip>
+              </div>
+            </div>
+
+            <dl className="sheet-figures">
+              {home.figures.map((figure) => {
+                const definition =
+                  figure.measurementId === null
+                    ? undefined
+                    : defineMeasurement(figure.measurementId);
+                return (
+                  <div className="sheet-figure" key={figure.id}>
+                    <dt>
+                      {figure.label}
+                      {definition === undefined ? null : (
+                        <InfoTip id={`figure-${figure.id}`} label={figure.label}>
+                          <p>{definition.whatItMeasures}</p>
+                          <p>{definition.howItIsComputed}</p>
+                        </InfoTip>
+                      )}
+                    </dt>
+                    <dd>
+                      <span className="sheet-n">{figure.value}</span>
+                      {/*
+                       * A whole clause — "65 last month", "of 150 meetings",
+                       * "no earlier period to compare" — so it wraps under the
+                       * figure rather than sitting in a nowrap delta.
+                       */}
+                      {figure.against === null ? null : (
+                        <span className="sheet-of">{figure.against}</span>
+                      )}
+                    </dd>
+                  </div>
+                );
+              })}
+            </dl>
+
+            <div className="ox-finding-foot">
+              <Evidence language={home.context.language} evidence={home.evidence} period={period} />
+            </div>
+          </div>
+        </div>
+
         {/* --- the one thing worth acting on. A decision, so: graphite. --- */}
         <section className="ox-plane">
           <div className="ox-section-head">
-            <h2 className="ox-section-title">Worth acting on</h2>
-            <p className="ox-section-note">
-              One thing, or none. The read model does not manufacture a second, and neither does
-              this screen.
-            </p>
+            <div className="sheet-titled">
+              <h2 className="ox-section-title">Worth acting on</h2>
+              <InfoTip id="acting" label="what is worth acting on">
+                <p>
+                  One thing, or none: the first state What needs attention raised in this period. A
+                  second is never manufactured to fill the space.
+                </p>
+              </InfoTip>
+            </div>
           </div>
 
           {home.alert === null ? (
@@ -224,105 +305,33 @@ export default async function BriefingPage({
           )}
         </section>
 
-        {/* --- the readings. Measured, so: paper. ------------------------- */}
-        <div className="ox-plate ox-paper">
-          <div className="ox-plate-inner">
-            <div className="ox-section-head">
-              <h2 className="ox-section-title">The figures behind it</h2>
-              <span className="ox-chart-period">{home.context.period.label}</span>
-            </div>
-
-            <Tally>
-              {home.figures.map((figure) => {
-                const definition =
-                  figure.measurementId === null
-                    ? undefined
-                    : defineMeasurement(figure.measurementId);
-
-                return (
-                  <TallyItem
-                    key={figure.id}
-                    /*
-                     * The definition travels with the label rather than beside
-                     * it. Every figure in this product is entitled to say what
-                     * it measures, and the affordance that does that visually —
-                     * the glossary's own info control — belongs to the older
-                     * component sheet and would put an icon beside every label
-                     * in a three-cell row. Until the `ox-` vocabulary has one,
-                     * the definition is carried to hover and to a screen reader,
-                     * and the missing affordance is reported.
-                     */
-                    label={
-                      definition === undefined ? (
-                        figure.label
-                      ) : (
-                        <span title={definition.whatItMeasures}>
-                          {figure.label}
-                          <span className="ox-sr">
-                            {" "}
-                            — {definition.whatItMeasures} {definition.howItIsComputed}
-                          </span>
-                        </span>
-                      )
-                    }
-                    value={
-                      <span className="ox-value">
-                        <span className="ox-figure">{figure.value}</span>
-                      </span>
-                    }
-                    /*
-                     * THE COMPARISON GOES IN THE QUALIFIER SLOT, NOT THE DELTA
-                     * SLOT, AND THAT IS A WIDTH DECISION RATHER THAN A
-                     * SEMANTIC ONE.
-                     *
-                     * `.ox-delta` is written for a compact string — "+18%",
-                     * "−4 days" — and sets `white-space: nowrap` so a movement
-                     * never breaks across two lines. `HomeFigure.against` is not
-                     * that: it is a whole clause, "34% in the previous period",
-                     * "no earlier period to compare", "of 74 meetings". At 390px
-                     * the tally is two columns, and a nowrap clause in a 110px
-                     * cell is clipped by the tally's own `overflow: hidden` —
-                     * the reader was shown "34% in the previous", with the word
-                     * that says which period silently cut off.
-                     *
-                     * `.ox-of` is the denominator-and-qualifier treatment beside
-                     * a figure, it wraps, and it is exactly what these clauses
-                     * are. What is lost is the delta's arrow and its hue; what
-                     * that channel was carrying on this screen is already
-                     * carried, once and better, by the signal chip beside the
-                     * title. A comparison that cannot be read at all is a worse
-                     * failure than one that is not coloured.
-                     *
-                     * The gap is reported: either the sheet needs a comparison
-                     * class that wraps, or `HomeFigure` needs the compact
-                     * `deltaDisplay` that `MetricComparison` already has.
-                     */
-                    evidence={
-                      figure.against === null ? null : (
-                        <span className="ox-of">{figure.against}</span>
-                      )
-                    }
-                  />
-                );
-              })}
-            </Tally>
-
-            <div className="ox-finding-foot">
-              <Sources language={home.context.language} sources={home.sources} />
-              <Evidence language={home.context.language} evidence={home.evidence} period={period} />
-              <Sample n={home.meetingCount} noun="presentations" />
-            </div>
-          </div>
-        </div>
-
         {/* --- the building. Also measured, and the reason this reads as
              real estate rather than as a dashboard about one. ------------- */}
         <div className="ox-plate ox-paper">
           <div className="ox-plate-inner">
             <div className="ox-section-head">
-              <h2 className="ox-section-title">{pulse.buildingLabel}</h2>
-              <span className="ox-chart-period">{pulse.context.period.label}</span>
+              <div className="sheet-titled">
+                <h2 className="ox-section-title">{pulse.buildingLabel}</h2>
+                {/* How the plan is drawn is the `i`; the counts stay in view. */}
+                <InfoTip id="building" label="the stacking plan">
+                  <StackPlanKey peakViews={pulse.peakViews} />
+                  <p>
+                    Every cell opens the unit&rsquo;s own page.
+                    {pulse.totals.soldInPeriod === null
+                      ? " How many were sold in this period is not observed yet."
+                      : null}
+                  </p>
+                </InfoTip>
+              </div>
             </div>
+
+            <p className="sheet-line">
+              {pulse.totals.units} units · {pulse.totals.available} available ·{" "}
+              {pulse.totals.reserved} reserved · {pulse.totals.sold} sold
+              {pulse.totals.soldInPeriod === null
+                ? null
+                : `, ${pulse.totals.soldInPeriod} of them in this period`}
+            </p>
 
             <StackPlan
               language={home.context.language}
@@ -331,16 +340,8 @@ export default async function BriefingPage({
               period={period}
               buildingLabel={pulse.buildingLabel}
               peakViews={pulse.peakViews}
+              keyed={false}
             />
-
-            <p className="ox-section-note">
-              {pulse.totals.units} units · {pulse.totals.available} available ·{" "}
-              {pulse.totals.reserved} reserved · {pulse.totals.sold} sold
-              {pulse.totals.soldInPeriod === null
-                ? "; how many of them in this period is not observed yet"
-                : `, ${pulse.totals.soldInPeriod} of them in this period`}
-              . Every cell opens the unit&rsquo;s own page.
-            </p>
 
             <div className="ox-finding-foot">
               <Evidence
@@ -355,22 +356,29 @@ export default async function BriefingPage({
         {/* --- where to look next. Each door carries what is behind it. --- */}
         <nav className="ox-plane" aria-label="Views">
           <div className="ox-section-head">
-            <h2 className="ox-section-title">Where to look next</h2>
-            <p className="ox-section-note">
-              Each of the three carries the most useful thing behind it, already computed, so
-              choosing is a decision rather than a guess at a label.
-            </p>
+            <div className="sheet-titled">
+              <h2 className="ox-section-title">Where to look next</h2>
+              <InfoTip id="doors" label="where to look next">
+                {home.doors.map((door) => (
+                  <p key={door.id}>
+                    <b>{door.label}.</b> {door.question}
+                  </p>
+                ))}
+              </InfoTip>
+            </div>
           </div>
 
+          {/*
+           * One way in per door (ADR-0058): the name is a heading, the button
+           * the door, so a reader tabs once per view rather than twice to the
+           * same place.
+           */}
           <ul className="ox-list">
             {home.doors.map((door) => (
-              <li className="ox-row" key={door.id}>
+              <li className="ox-row sheet-door" key={door.id}>
                 <div>
-                  <h3 className="ox-row-name">
-                    <Link href={dynamicRoute(withPeriod(door.href, period))}>{door.label}</Link>
-                  </h3>
-                  <p className="ox-alert-detail">{door.headline}</p>
-                  <p className="ox-row-meta">{door.question}</p>
+                  <h3 className="ox-row-name">{door.label}</h3>
+                  <p className="sheet-door-headline">{door.headline}</p>
                 </div>
 
                 <Link className="ox-btn" href={dynamicRoute(withPeriod(door.href, period))}>
