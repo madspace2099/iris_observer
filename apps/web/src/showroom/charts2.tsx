@@ -515,8 +515,10 @@ export function OutcomeRows({
                           aria-label={openLabel(row, k)}
                           title={openLabel(row, k)}
                         >
+                          {/* Named in words as the key names it: a swatch alone is colour alone. */}
                           <i className="iris-outcome-mark" data-outcome={k.id} aria-hidden="true" />
-                          {row.parts[k.id]}
+                          {k.label}
+                          <b>{row.parts[k.id]}</b>
                         </Link>
                       ))}
                     </span>

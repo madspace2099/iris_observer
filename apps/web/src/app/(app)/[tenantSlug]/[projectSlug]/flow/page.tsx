@@ -838,7 +838,8 @@ export default async function FlowPage({
                 period={query.period}
                 canOpen={maySeeSurface(viewer.role, "meetings")}
               />
-              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
+              {/* The outcome is the one recorded in the room; the medians and rates are derived from it. */}
+              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
             </>
           )}
         </div>

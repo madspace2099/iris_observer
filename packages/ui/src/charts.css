@@ -508,10 +508,16 @@ a.iris-orow-part:hover {
   /* Faint at rest, so a phone, which has no hover, still shows a target. */
   border: 1px solid rgb(255 255 255 / 0.1);
   border-radius: 3px;
-  font-family: var(--d-font-numeric, var(--mono));
   font-size: 0.75rem;
   color: var(--d-ink-2, var(--ink-2));
   text-decoration: none;
+}
+
+/* The outcome in words, then its count in the figures face. */
+.iris-orow-count b {
+  font-family: var(--d-font-numeric, var(--mono));
+  font-weight: 600;
+  color: var(--d-ink, var(--ink));
 }
 
 .iris-orow-count i {
@@ -738,6 +744,8 @@ a.iris-orow-part:hover {
  * so the presenter rows stack as the outcome rows do on a narrow card.
  */
 .iris-cohort {
+  /* Its presenter rows stand outside .iris-orows: their count is the card's black on the fill too. */
+  --orow-card: var(--d-card, #000);
   display: grid;
   gap: 1.5rem;
 }

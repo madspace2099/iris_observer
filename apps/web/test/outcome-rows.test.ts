@@ -226,6 +226,14 @@ describe("Sales Flow's outcome rows, with a register to open", () => {
     expect(counts("Lena Fischer")).toContain("outcome=skipped");
   });
 
+  it("name each count's outcome in words on screen, not by its swatch alone", () => {
+    // A phone has no hover title, and the key can stand six rows above.
+    expect(counts("Lena Fischer")).toContain('aria-hidden="true"></i>Purchase<b>8</b></a>');
+    expect(counts("Lena Fischer")).toContain(
+      'aria-hidden="true"></i>Outcome not recorded<b>2</b></a>',
+    );
+  });
+
   it("give the keyboard one link per drawn part, and the bar's parts none", () => {
     const row = at("Lena Fischer");
     // Purchase, interested, not interested, unrecorded: four parts, four counts.
