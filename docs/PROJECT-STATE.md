@@ -6360,11 +6360,11 @@ this stream owns the block's inside.
 - **Clicks are not measured** (the event map deleted the client click map; no click fact exists):
   "Interactions per meeting" is the recorded openings and actions — sections, flats, floor plans,
   floor cuts, balcony views, favourites, screenshots — under its own name, and the `i` says so.
-- **The arrow.** Today's window is the period's slice; the comparison is the same window ending 7
-  calendar days earlier in the project's zone (DST-safe). Unchanged under 2 points for a share or
-  5% for a median; no arrow unless both windows hold 20 meetings that can answer the figure
-  (`AGENT_MIN_SAMPLE`), the shortfall said once for the screen or per figure; the policy-version
-  refusal (docs/10-policies.md §1) takes every arrow away and says why. Green up / red down for
+- **The arrow.** Today's window is the period's slice; the comparison is the same period as it was
+  computed 7 calendar days earlier in the project's zone (DST-safe; review round below). About the
+  same under 2 points for a share, or under 5% (and, for a count, a whole one) for a median; no
+  arrow unless both windows hold 20 meetings that can answer the figure (`AGENT_MIN_SAMPLE`), the
+  shortfall said once for the screen or per figure. Green up / red down for
   Compare, interactions, screenshots and favourites; neutral for Surroundings early, depth and
   length; no arrow for the top feature, which says whether it was the top 7 days earlier. The top
   feature is the most timed presentation time over fully timed meetings; ties go to reach, then the
@@ -6379,11 +6379,35 @@ this stream owns the block's inside.
 - **Ask IRIS.** `detect_showroom_behavior_changes` reads the same read model (facts are the
   screen's figures, samples and arrow words; the draft states no figure a model is not shown).
 
-**Not done, by ownership.** The block's title still reads "What changed since {baseline}" and its
-`i` still speaks of two periods — SCREENS' wrapper; at integration it should say the comparison is
-against 7 days ago. `ShowroomOverview.changes` (the old previous-period deltas) has no reader on
-screen now; removing it is a separate decision. The import of `ChangeKpis` is the one line of
-`page.tsx` outside the block.
+**Not done, by ownership.** `ShowroomOverview.changes` (the old previous-period deltas) has no
+reader on screen now; removing it is a separate decision. Outside the block's inside this stream
+touches the `ChangeKpis` import and, since the review round, the block's title and its `i`, which
+read `summary.kpis.title` and `summary.kpis.about`. `git merge-tree flow-screens-r6 flow-kpis-r6`
+conflicts only on that import line and on this file's two appended sections.
+
+**Review round (2026-10-22).** Eighteen findings, fifteen distinct, each checked in the code first;
+all recorded in ADR-0060's "Review round".
+
+- **Fixed.** The title and `i` named the previous quarter and "not a trend" above 7-day arrows: the
+  read model supplies "What changed since 7 days ago" and the arrow rule. The earlier window was a
+  shifted slice that crossed into the previous quarter or year and gave a closed quarter arrows:
+  it is now the period preset as computed 7 days ago (`periodsAt` on that day), so quarter to date
+  reads 1 Jul – 17 Aug against 1 Jul – 24 Aug, and a completed quarter that was the same quarter
+  then draws no arrow and says so once. Below the floor the top feature reads "Not ranked", its
+  share withheld. A short window's shortfall is said once, not nine times; a figure no meeting
+  could answer is absent, not raw; an earlier timed subset states its sample. A median of counts
+  moves only by a whole count and 5%; flat reads "about the same as 48%, 7 days ago". Interactions
+  leave out returns, so its green arrow is engagement. A closed window's basis names its own last
+  day. Favourites open the meetings register; interactions and screenshots open nothing. The
+  attribution-policy guard is dropped: it governs attributed deals, none of the eight counts one,
+  and it was read for the wrong pair of windows. Ask IRIS names no unranked top and lists the
+  steady figures with semicolons. New tests for each.
+- **Not taken.** A `drillTo` per figure: it names a record kind, not a route, and all eight open
+  onto meetings. "19 against 20 reads unchanged": a whole count at 20 is exactly 5%, a move under
+  the very rule proposed; Shark's interactions now read 18 against 18.
+
+Shark quarter to date now shows one arrow (depth ▼ from 8, neutral) and seven "about the same";
+Kingsford shows Compare ▲ green, interactions ▼ red, Surroundings ▼ neutral.
 
 **Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
 `packages/synthetic/test/change-kpis.test.ts` (22, hand-computed: windows across the clock change,
@@ -6397,7 +6421,13 @@ chart card, with the longest figures: no sideways scroll, nothing clipped. **Not
 running page**; no e2e or unit spec asserted the replaced cards (grep of `e2e/` and
 `apps/web/test/`).
 
-**Next recommended action.** After SCREENS and KPIS are cherry-picked together: retitle the block
-for the 7-day basis, then look at Sales Flow on the demo build at 1440 and 390 — the screen of
-figures inside its full-screen wrapper, Tab through the eight names and `i`s — and run
-`a11y-contract`, `layout-integrity` and `period-travels` on the flow page.
+Review round: `change-kpis.test.ts` is 30 cases; static renders again at 1440, 1280, 390 and 360
+(Shark and Kingsford quarter to date, Riverside's short 28 days, Shark's completed quarter,
+Northgate's timed subsets): no sideways scroll, nothing clipped, nothing under 12px but the `i`
+glyph. The full suite's first run caught Ask's steady-figures sentence restating "7" (fixed, now
+"About the same: …"); see the last line for the final run.
+
+**Next recommended action.** After SCREENS and KPIS are cherry-picked together (resolve the import
+line), look at Sales Flow on the demo build at 1440 and 390 — the screen of figures inside its
+full-screen wrapper, its title, Tab through the eight names and `i`s, and the completed-quarter
+period — and run `a11y-contract`, `layout-integrity` and `period-travels` on the flow page.
