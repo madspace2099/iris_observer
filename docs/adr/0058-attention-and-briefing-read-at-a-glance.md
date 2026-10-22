@@ -54,27 +54,32 @@ behind the `i` when the owner asks for less text, as he decided for the Sales Fl
 4. **Every explanation stands behind the existing InfoTip beside the title it explains**:
    - "Raised in this period": the colour rule (red is kept for a record going missing) and the
      ordering rule. The "How to read this" fold is gone.
-   - Each raised state: its tier and what it claims, its evidence, sample and rank, and its sources
-     in words. Its title, its sentence with the state's own figure and denominator, the subjects it
-     is about and its action stay. A state too thin to rank says so in view ("11 of 20 … — stated,
-     not ranked"): a refusal is never hidden.
+   - Each raised state: its tier and what it claims, its evidence, sample and rank. Its title, its
+     sentence with the state's own figure and denominator, the subjects it is about, its source line
+     and its action stay. A state too thin to rank says so in view ("11 of 20 … — stated, not
+     ranked"): a refusal is never hidden.
    - "Every check, and what it found": what the register is, each check's question, and the sample
      (n = presentations). The evidence link stays under the register.
-   - "The figures behind it": the clause the verdict rests on, the sources and the sample.
+   - "The figures behind it": the clause the verdict rests on and the sample. The source line stays
+     in view under the figures.
    - "Worth acting on": that it is one thing or none.
    - The building: the stacking plan's key (`StackPlanKey`, the plan drawn with `keyed={false}`),
-     that a cell opens its unit, and, where it is not observed, that sales in the period are not.
-     The counts ("60 units · 24 available · 12 reserved · 24 sold") stay in view at body size.
+     and that a cell opens its unit. The counts stay in view at body size, and where the period's
+     sales are not observed the line says so ("… 24 sold; how many of them in this period is not
+     observed yet").
    - "Where to look next": what each view answers.
 5. **The register is a list, not a table.** A row is the answer (the chip), the check's name, what it
    found and the next step, in that order at every width — no column names, no caption. Every check
    still names its next step (R04-7): the raised state's own action, "None needed" or "None on this
-   screen". A check that could not be asked says why in its row.
+   screen". A check that could not be asked says why in its row. A raised check names its card
+   ("Above: Meetings ending without a recorded outcome") rather than repeating the card's sentence.
 6. **A door has one way in.** The view's name is a heading, the "Open …" button the door; a reader
    tabs once per view, not twice to the same place.
-7. **On a phone the controls are a finger's.** Buttons and the `i` are 44px; the Briefing's plan
-   rows are 32px rather than 22, which keeps the building one screen tall and makes it read more
-   like one.
+7. **On a phone the controls are a finger's.** Every button on the two pages, the register's next
+   step and the `i` are 44px; the Briefing's plan rows are 32px rather than 22, which keeps the
+   building one screen tall and makes it read more like one. A raised card's subject chips keep the
+   shared chip's 32px (the units screen draws the same chips), and the breadcrumb and the evidence
+   links stay inline text links.
 
 ## What stays out
 
@@ -95,7 +100,7 @@ behind the `i` when the owner asks for less text, as he decided for the Sales Fl
 - `AttentionView` carries `tally` (raised, clear, unavailable), built in
   `packages/synthetic/src/showroom/attention.ts`; `packages/synthetic/test/screens.test.ts` holds
   that it equals the checks' own answers on every project and that raised equals the states.
-- `apps/web/test/answer-sheets.test.ts` (10) renders the raised states and the register from the
+- `apps/web/test/answer-sheets.test.ts` (10; 14 after the review round) renders the raised states and the register from the
   Shark read model and reads both pages' source: what is in view, what is behind each `i`, a
   shortfall in view and ranked nowhere, the register a list with every check's three parts, one
   link per door.
@@ -109,5 +114,38 @@ behind the `i` when the owner asks for less text, as he decided for the Sales Fl
   Northgate as a manager (replay links), Riverside without a CRM (five states raised, none clear),
   and Northgate's last quarter (no verdict, "no earlier period to compare"). No sideways scroll,
   nothing clipped, no text under 12px but the `i` glyph itself (the mark inside a 44px target);
-  the breadcrumb, a register row's step and the evidence link stay inline text links. **Not looked
+  the breadcrumb and the evidence link stay inline text links. **Not looked
   at on a running page.**
+
+## Review round, 2026-10-22
+
+Adversarial reviewers read the branch; eight findings, two of them duplicates. Each was confirmed
+in the code or rejected:
+
+1. **Fixed — the source line went behind an `i`.** `showroom.source_visible` and ADR-0052's second
+   round (the same morning) say every surface prints it; this ADR did not supersede either. The
+   Briefing's figures and each raised card print `Sources` in view again ("Progressing" reads the
+   CRM's deal stages, and nothing else on the plate said so).
+2. **Fixed — "24 sold" under a period's kicker.** Where `soldInPeriod` is null (every project but
+   one, Shark included) the building's line keeps "; how many of them in this period is not
+   observed yet" in view: a refusal, so not an `i`'s.
+3. **Fixed — the register said each raised thing twice.** A raised row read the card's sentence word
+   for word under another name. It now reads "Above: <card title>"; its step stays the card's own
+   action, as R04-7 (verified) requires. **Rejected in part:** dropping the step (R04-7) and
+   dropping the "Raised" figure, whose split with Clear and Not evaluated is the read model's tally
+   and the reason "nothing raised" and "nothing could be asked" never look alike.
+4. **Fixed — §7 overstated the 44px.** Only the doors were 44px; the card's action, "Look at it",
+   "Today's briefing" (35px) and the register's step (18px) were not. `.sheet .ox-btn` and the
+   step's link are now 44px under 48rem, and §7 says what is and is not.
+5. **Fixed — `authorization.spec` read Riverside's refusal sentence, now in a closed panel** (two
+   findings). The refusal itself is in view — the Progressing figure is "—" with "no outcome
+   recorded on this project", under an h1 saying no outcomes are recorded — so the spec reads that
+   figure; the sentence on why stays the `i`'s.
+6. **Fixed — two guards read hidden text the wrong way.** `quality.spec` passed on the Sample inside
+   a closed panel; it now reads the first figure ("Meetings this …") as visible text. R04-5 read
+   `innerText`, which skips closed panels; it now screens every `.iris-info-panel` too.
+
+`apps/web/test/answer-sheets.test.ts` holds 1 to 4 (14 tests). Static renders at 1440, 390 and 360
+(Shark and Riverside, both pages): no sideways scroll, every button and step at least 44px on a
+phone. E2E edited, not run: `authorization`, `quality`, `p221-render` (R04-3, R04-5), `fejezet1`
+(R04-7 matches a raised row to its card by title).
