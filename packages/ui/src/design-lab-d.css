@@ -2528,6 +2528,24 @@
   stroke-width: 14;
 }
 
+/*
+ * Sales Flow's "Every outcome", drawn large (the owner, 2026-10-22, ADR-0052):
+ * the kit's Large ring is 20 wide at 220, so 22 at 248, and its figure the
+ * kit's 38 grown with it. Butt ends and no glow, as on every outcome ring.
+ */
+[data-charts="d"] .d-card .iris-ring-hero .iris-ring path,
+[data-charts="d"] .d-card .iris-ring-hero .iris-ring circle {
+  stroke-width: 22;
+}
+
+[data-charts="d"] .d-card .iris-ring-hero .iris-ring path:hover {
+  stroke-width: 26;
+}
+
+[data-charts="d"] .d-card .iris-ring-hero .iris-ring-figure {
+  font-size: 42px;
+}
+
 [data-charts="d"] .d-card .iris-ring-figure {
   font-family: var(--d-font-numeric);
   font-weight: 500;

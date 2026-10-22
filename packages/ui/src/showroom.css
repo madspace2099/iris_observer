@@ -2626,6 +2626,94 @@
   }
 }
 
+/*
+ * THE STEPS AND THE RING SHARE A ROW (Sales Flow, ADR-0052).
+ *
+ * The owner saw a black field under the steps: the band stretches both cards
+ * to the taller one, the ring's, and six 6rem columns stood at the top of
+ * theirs. Side by side, the two cards split the row more evenly so the ring
+ * can hold its key beside it, and the columns grow to the height the ring
+ * sets. Each step reserves two lines for its label, so a label that wraps
+ * ("Last week, first 1 day") does not lift its column off the shared floor.
+ * Stacked (75rem and under) each card is its own height and none of this
+ * applies.
+ */
+@media (width > 75rem) {
+  .iris-band.iris-band-even {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+
+  .iris-steps-card {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .iris-steps-card > .dld-draw {
+    flex: 1 1 auto;
+  }
+
+  .iris-steps-card .iris-step-groups,
+  .iris-steps-card .iris-steps {
+    align-items: stretch;
+  }
+
+  .iris-steps-card .iris-step {
+    grid-template-rows: minmax(6rem, 1fr) auto minmax(2rem, auto) auto;
+  }
+
+  .iris-steps-card .iris-step-bar {
+    height: auto;
+  }
+}
+
+/*
+ * The large ring and its key: side by side where the card is wide enough, the
+ * ring centred over the key where it is not (the Hyper kit's ring, ADR-0041).
+ * The drawing shrinks with a card narrower than itself, never past it.
+ */
+.iris-ring-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2rem;
+}
+
+.iris-ring-hero .iris-ring {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Capped, so a count stays within reach of its name. */
+.iris-ring-hero > .iris-ring-key {
+  width: 100%;
+  max-width: 17rem;
+  margin: 0;
+  gap: 0.5rem;
+}
+
+.iris-ring-hero .iris-ring-key li {
+  grid-template-columns: 0.625rem 1fr auto;
+  gap: 0.625rem;
+  font-size: 0.875rem;
+}
+
+.iris-ring-hero .iris-ring-key i {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.iris-ring-hero .iris-ring-key b {
+  font-size: 0.875rem;
+}
+
+@container (width < 28rem) {
+  .iris-ring-hero {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: center;
+    gap: 1.25rem;
+  }
+}
+
 /* --- the detail surfaces, in their own quieter row --------------------------- */
 
 /*

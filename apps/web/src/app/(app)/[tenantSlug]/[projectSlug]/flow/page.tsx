@@ -368,8 +368,14 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
-        <div className="iris-band" key={`steps-${query.period}`}>
-          <div className="d-card">
+        {/*
+         * The steps and the ring share one row (the owner, 2026-10-22,
+         * ADR-0052): the ring large with its key beside it, and the steps
+         * filling the height the ring sets rather than leaving a black field
+         * under six short columns.
+         */}
+        <div className="iris-band iris-band-even" key={`steps-${query.period}`}>
+          <div className="d-card iris-steps-card">
             <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
               <h2 className="iris-kicker iris-kicker-measured">
                 Meetings, and how many progressed
@@ -400,8 +406,10 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
               Every outcome
             </h2>
-            <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={148} measured />
-            <OutcomeKey slices={view.outcomes} />
+            <div className="iris-ring-hero">
+              <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={248} measured />
+              <OutcomeKey slices={view.outcomes} />
+            </div>
           </div>
         </div>
 
