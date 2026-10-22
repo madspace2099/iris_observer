@@ -7,13 +7,10 @@ import type {
   ShowroomFinding,
 } from "@observer/readmodels";
 import type { CSSProperties, ReactNode } from "react";
-import {
-  INSIGHT_SOURCE_LABELS,
-  type InsightSource,
-  type MeasurementAvailability,
-} from "@observer/contracts";
+import type { MeasurementAvailability } from "@observer/contracts";
 import { DATA_SOURCE_MARKER_WORDS, defineMeasurement, type Language } from "@observer/readmodels";
 import { Measure } from "./Measure";
+import { SourceChips } from "./sources";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import Link from "next/link";
@@ -28,24 +25,8 @@ import Link from "next/link";
 
 /* --- provenance ------------------------------------------------------------ */
 
-export function SourceChips({
-  sources,
-  measured = false,
-}: {
-  sources: readonly InsightSource[];
-  /** Opt-in: raises the 10px chip label to the 12px floor. Sales Flow only — see `showroom.css`. */
-  measured?: boolean;
-}) {
-  return (
-    <span className={`iris-srcs${measured ? " iris-srcs-measured" : ""}`}>
-      {sources.map((source) => (
-        <span className="iris-src" key={source} data-src={source}>
-          {INSIGHT_SOURCE_LABELS[source]}
-        </span>
-      ))}
-    </span>
-  );
-}
+/* One quiet source line, in its own file so the client components share it (ADR-0052). */
+export { SourceChips };
 
 /**
  * `MeasurementAvailability`, in the reader's words.

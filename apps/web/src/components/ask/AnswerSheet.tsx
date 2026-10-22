@@ -4,7 +4,8 @@ import type { InsightSource } from "@observer/contracts";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
-import { Evidence, Sources, Tier } from "@/components/product";
+import { Evidence, Tier } from "@/components/product";
+import { SourceChips } from "@/showroom/sources";
 import { isAnswerable } from "./questions";
 
 /**
@@ -51,8 +52,11 @@ import { isAnswerable } from "./questions";
  * What an Ask IRIS answer rests on.
  *
  * Two sources, and the omission is as deliberate as the inclusion. The figures
- * are counts and durations the showroom recorded (`IRIS observed`) turned into
- * shares, medians and rankings by the read models (`IRIS calculated`). Where an
+ * are counts and durations the showroom recorded ("recorded in the showroom by
+ * the IRIS app") turned into shares, medians and rankings by the read models
+ * ("calculated by Observer from showroom recordings"). Said as the one source
+ * line every showroom block prints (`SourceChips`, ADR-0052), in the answer's
+ * language, rather than as two chips a reader had to decode. Where an
  * answer touches a CRM outcome the read model says so in its own prose and in
  * its caveat, which is the honest place for a fact that is true of one answer
  * and not of the six.
@@ -223,7 +227,7 @@ export function AnswerSheet({
 
       <div className="ox-finding-foot">
         {answer.evidence === null ? null : <Tier language={language} tier={answer.evidence.tier} />}
-        <Sources language={language} sources={ANSWER_SOURCES} />
+        <SourceChips language={language} sources={ANSWER_SOURCES} />
         <Evidence language={language} evidence={answer.evidence} period={period} />
 
         {/*

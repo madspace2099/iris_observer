@@ -15,71 +15,36 @@
 /* --- provenance, made visible ---------------------------------------------- */
 
 /*
- * The source chip.
+ * The source line (ADR-0052).
  *
- * ADR-0023 lives or dies on the reader being able to see which class a finding
- * belongs to. Observed and derived carry the accent; CRM context is deliberately
- * neutral, so a screen full of grey chips looks wrong at a glance.
+ * ADR-0023 lives or dies on the reader being able to see which class of fact a
+ * block rests on. That was three chips in the evidence typeface — "IRIS
+ * observed", "IRIS calculated", "CRM outcome" — and the owner could not tell
+ * what they meant. It is one quiet line in words now ("Source: recorded in the
+ * showroom by the IRIS app · deal stages from your CRM"), so the class is told
+ * rather than colour-coded. A model-worded source keeps the watch colour: it is
+ * the one a reader must not miss. 12px everywhere, the product floor.
  */
-.iris-src {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3125rem;
-  padding: 0.125rem 0.4375rem;
-  border-radius: 4px;
-  border: 1px solid var(--rule);
-  font-family: var(--mono);
-  font-size: 0.625rem;
-  letter-spacing: 0.04em;
-  color: var(--ink-2);
-  white-space: nowrap;
-}
-
-.iris-src::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 1px;
-  background: currentColor;
-}
-
-.iris-src[data-src="IRIS_SHOWROOM_OBSERVED"] {
-  color: var(--accent);
-  border-color: color-mix(in oklab, var(--accent) 32%, transparent);
-}
-
-.iris-src[data-src="IRIS_SHOWROOM_DERIVED"] {
-  color: color-mix(in oklab, var(--accent) 70%, var(--ink-2));
-  border-color: color-mix(in oklab, var(--accent) 20%, transparent);
-}
-
-.iris-src[data-src="CRM_OUTCOME_CONTEXT"] {
+.iris-srcs {
+  display: block;
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
   color: var(--ink-3);
 }
 
-.iris-src[data-src="WEBIRIS_CONTEXT"] {
+.iris-srcs > b {
+  font-weight: 600;
   color: var(--ink-2);
+}
+
+/* On a chart card the line stands off the drawing, sentence or action above it. */
+.d-card .iris-srcs {
+  margin-top: 0.75rem;
 }
 
 .iris-src[data-src="AI_INTERPRETATION"] {
   color: var(--watch);
-  border-color: color-mix(in oklab, var(--watch) 30%, transparent);
-}
-
-.iris-srcs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-}
-
-/*
- * Sales Flow opt-in: `SourceChips` renders on eight routes, sharing this one
- * component. Its 10px chip label is the smallest metadata text on Flow;
- * scoped to this flag rather than the shared rule so the other seven routes
- * render exactly as before it.
- */
-.iris-srcs-measured .iris-src {
-  font-size: 0.75rem;
 }
 
 /* The synthetic-data banner. Never subtle: the reader must not mistake it. */

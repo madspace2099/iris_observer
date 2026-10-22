@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { INSIGHT_SOURCE_LABELS } from "@observer/contracts";
+import { SourceChips } from "./sources";
 import { defineMeasurement, type MeasurementIcon } from "@observer/readmodels";
 
 /**
@@ -128,13 +128,7 @@ export function Measure({
             <em>What it does not say</em>
             {definition.limitation}
           </span>
-          <span className="iris-srcs">
-            {definition.sources.map((source) => (
-              <span className="iris-src" key={source} data-src={source}>
-                {INSIGHT_SOURCE_LABELS[source]}
-              </span>
-            ))}
-          </span>
+          <SourceChips sources={definition.sources} />
         </span>
       ) : null}
     </span>

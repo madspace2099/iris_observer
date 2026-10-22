@@ -1,6 +1,6 @@
 "use client";
 
-import { INSIGHT_SOURCE_LABELS } from "@observer/contracts";
+import { SourceChips } from "../sources";
 import { SETTINGS_PATH } from "@/lib/credentials/failure";
 
 /**
@@ -256,13 +256,7 @@ export function ObserverAnswerPanel({
               </ul>
             )}
 
-            <span className="iris-srcs">
-              {outcome.sources.map((source) => (
-                <span className="iris-src" key={source} data-src={source}>
-                  {INSIGHT_SOURCE_LABELS[source]}
-                </span>
-              ))}
-            </span>
+            <SourceChips sources={outcome.sources} />
 
             <div className="obs-answer-refs">
               {answer.evidence.map((bundle) => {
