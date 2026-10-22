@@ -80,6 +80,11 @@ async function agentsNamed(page: Page): Promise<string[]> {
 async function agentFigures(
   page: Page,
 ): Promise<{ name: string; meetings: string; detail: string }[]> {
+  /*
+   * A streamed section lands first in a hidden holder; read before it is swapped
+   * in, innerText falls back to the whole textContent, the i's panel included.
+   */
+  await page.locator(".iris-ring-card").first().waitFor({ state: "visible" });
   return page.evaluate(() =>
     [...document.querySelectorAll(".iris-ring-card")].map((card) => ({
       name: (card.querySelector("h3")?.textContent ?? "").trim(),

@@ -652,7 +652,9 @@
 
   .pr-rows li {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "type change" "stock stock" "interest interest";
+    /* The change beside the interest it qualifies, so the phone paints it in reading order. */
+    grid-template-areas: "type type" "stock stock" "interest change";
+    column-gap: 12px;
     row-gap: 10px;
   }
 
