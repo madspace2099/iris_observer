@@ -4,7 +4,8 @@
 **Decided by:** the product owner, commenting on Sales Flow while recording the Shark Residence demo
 **Extends:** ADR-0043 (company admins), ADR-0044 (the demo's local plane)
 **Keeps:** CLAUDE.md non-negotiable 4 (no personal data in event payloads), `docs/01-foundation.md`
-§2 and §6 (agents belong to the agency), `docs/14-design-system.md` (no fabricated people)
+§1 and §4 (the tenant owns its showroom and its data), `docs/14-design-system.md` (no fabricated
+people)
 **Amends:** the comment on `Initials` in `components/product/Person.tsx`, which said this product
 would never show a photograph
 **Numbered 0054** because 0052 and 0053 are the two streams working on the same page in parallel
@@ -31,29 +32,33 @@ admin. The agent can, however, change their own picture within their own profile
 1. **Observer never creates, renames or deletes an agent.** The roster arrives from the IRIS
    showroom. A portrait is put only on an agent Observer already knows: one who presented on the
    project, in any period a reader can choose (`resolvePortraitScope`). An unknown agent id is a
-   404, the same answer as a project the reader does not hold.
-2. **Which company an agent belongs to: their agency.** `docs/01-foundation.md` §2 ("Agents belong to
-   the agency, act on the project") and §6 (`Organisation (agency) ── Agent`), and the roster's own
-   `organisationName`, place every Shark Residence presenter in **Shark Sales**. ADR-0043 makes a
-   company the capacity's organisation with exactly one admin, so the admin who adds the five
-   presenters' portraits is **Daniel Hart**, admin of Shark Sales. Clara Weiss is the admin of
-   **Shark Developments**, the tenant: the developer owns the behavioural data and its project, not
-   its supplier's staff. Where a developer sells with its own people, their `organisationName` is
-   the developer and its admin is the one. If the owner meant the developer's admin, the change is
-   one comparison in `portraitRight` (`companyName === tenant.name` instead of the agent's
-   organisation) and the matrix's cells.
+   404, the same answer as a project the reader does not hold — except that DELETE also reaches an
+   agent who has left every period's roster while a portrait of theirs is still kept, for those
+   who may change it (§3), so a face never outlives the only path that removes it.
+2. **Which company puts a face to an agent: the tenant's.** The owner's Company is the one that
+   "receives the agents' names from Unreal Engine": the showroom is the tenant's installation and
+   its roster arrives on the tenant's projects. ADR-0043 makes a company the capacity's organisation
+   with exactly one admin, so on Shark Residence the admin who adds the five presenters' portraits
+   is **Clara Weiss**, admin of **Shark Developments**, the tenant; on ISTER TOWER it is Petra
+   Novák, for every presenter there whichever agency they sell for. `portraitRight` compares the
+   actor's company with the tenant's name, the comparison `mayConnectCrm` (ADR-0049) already makes.
+   The agent's own agency is not the test: `docs/01-foundation.md` §2 places an agent in an agency,
+   but the UE5 roster carries only `agent_id` and `display_name`
+   (`packages/contracts/src/ue5/agents.ts`), so every presenter delivered from a showroom reads
+   "Agency not stated" and an agency test would give nobody the right. The first version of this
+   ADR made that mistake and gave the right to Daniel Hart, admin of Shark Sales; see the review
+   round.
 3. **Who may change a portrait** (`lib/portraits/access.ts`, enforced in the route):
 
-   | Who                                                                        | May                                                                         |
-   | -------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-   | The admin of the agent's own company (Daniel Hart for Shark's five)        | add, replace, remove — any agent of it                                      |
-   | The agent, on their own page                                               | replace or remove their own, once there                                     |
-   | An agency manager who is not their company's admin (none in the directory) | nothing: the right is the company role, not the product role                |
-   | The developer's admin (Clara) and its members (Nora)                       | nothing; they see the portraits                                             |
-   | Other agents (Lena on Marek)                                               | nothing                                                                     |
-   | Another company's admin (Tomáš, for Tatra Realty's Sabina on ISTER TOWER)  | nothing                                                                     |
-   | A reader of another tenant                                                 | a 404: the project is not theirs                                            |
-   | MADSPACE administrators                                                    | nothing: MADSPACE runs the platform and does not curate a customer's people |
+   | Who                                                                                 | May                                                                         |
+   | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+   | The admin of the tenant's company (Clara Weiss for Shark's five)                    | add, replace, remove — any agent on its projects, delivered ones included   |
+   | The agent, on their own page                                                        | replace or remove their own, once there                                     |
+   | The agency's manager, its company's admin (Daniel Hart; Tomáš Varga on ISTER TOWER) | nothing: the presenters' faces are the tenant's to set                      |
+   | The tenant's company members (Nora Lind)                                            | nothing; they see the portraits                                             |
+   | Other agents (Lena on Marek)                                                        | nothing                                                                     |
+   | A reader of another tenant                                                          | a 404: the project is not theirs                                            |
+   | MADSPACE administrators                                                             | nothing: MADSPACE runs the platform and does not curate a customer's people |
 
    "The agent can change their own" is read as the owner wrote it: the company adds the first; the
    agent replaces or removes it. An agent with none is told who adds it.
@@ -61,10 +66,12 @@ admin. The agent can, however, change their own picture within their own profile
 4. **A face is personal data, kept apart.** It never enters an event payload or a read model. It is
    kept behind a port (`PortraitStore`, `lib/portraits/store.ts`) with one adapter: a file per
    tenant and agent under the local control plane's state directory
-   (`OBSERVER_LOCAL_STATE_DIR/portraits/<tenantId>/<agentId>`; `.observer-local/demo` on the demo,
-   so `rm -rf` of it resets portraits with everything else). The name is built only from ids that
-   pass `^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$` — no dot, no separator. Written to a temporary name and
-   renamed, so a portrait is whole or absent. **Where there is no local plane** (a hosted
+   (`OBSERVER_LOCAL_STATE_DIR/portraits/<sha256(tenantId)>/<sha256(agentId)>`; `.observer-local/demo`
+   on the demo, so `rm -rf` of it resets portraits with everything else). Each name is the SHA-256 of
+   the id's UTF-8 bytes in hex: the UE5 contract's `agent_id` is any string of 1–128 characters, and
+   hashed, every one of them is a file name, none leaves its directory, and two ids that differ only
+   in case stay two files on NTFS. Written to a temporary name and renamed, so a portrait is whole
+   or absent. **Where there is no local plane** (a hosted
    deployment) there is no store: an upload is refused with "Portraits are kept only on a local
    demonstration server for now. On this deployment every agent shows their initials." and every
    surface draws initials. **The hosted store** — Supabase Storage, a private bucket, RLS by tenant
@@ -72,10 +79,16 @@ admin. The agent can, however, change their own picture within their own profile
 5. **The trust boundary** (`lib/portraits/image.ts`). PNG, JPEG and WebP, recognised by their first
    bytes; the declared type and the file name are never read. At most 2 MB, checked on the
    declared length and again while reading the stream. No image library resolves from `apps/web`
-   (sharp is not installed), so the metadata is cut out by walking each container: JPEG APP1–APP15
-   (EXIF with GPS, XMP, ICC, maker notes) and COM; PNG tEXt, zTXt, iTXt, eXIf and anything after
-   IEND; WebP EXIF and XMP chunks, with VP8X's two flags cleared and the RIFF size rewritten. A file
-   that does not walk cleanly is refused. SVG is never accepted. Every refusal is a sentence.
+   (sharp is not installed), so the metadata is cut out by walking each container. JPEG: APP1–APP15
+   (EXIF with GPS, XMP, ICC, maker notes) and COM go wherever they stand, between progressive scans
+   too; the walk steps through each scan's coded data (FF00 stuffing, RST0–7) and ends at the first
+   EOI, so a second image, a motion-photo video or a vendor trailer after it is not kept. PNG and
+   WebP keep an **allowlist** of the chunks that draw the picture — PNG IHDR, PLTE, IDAT, IEND,
+   tRNS, gAMA, cHRM, sRGB, iCCP, sBIT, pHYs, bKGD and APNG's acTL, fcTL, fdAT; WebP VP8, VP8L, VP8X,
+   ALPH, ANIM, ANMF, ICCP — and drop everything else (text, eXIf and the older exIf, C2PA, tIME,
+   private chunks, anything after IEND), with VP8X's two metadata flags cleared and the RIFF size
+   rewritten. A file that does not walk cleanly, a JPEG scan that never ends included, is refused.
+   SVG is never accepted. Every refusal is a sentence.
 6. **One route** (`/api/observer/portraits/[tenantSlug]/[projectSlug]/[agentId]`). GET serves any
    signed-in reader who holds the project and finds the agent on it, with the type its bytes name,
    `Cache-Control: private, no-store`, `X-Content-Type-Options: nosniff`,
@@ -96,7 +109,12 @@ same-origin`. PUT takes the raw image as the body; DELETE removes the file. **A 
    instead." → Remove portrait (focused) or Keep it. States: saving, refused (the server's own
    sentence), saved. The oversize check runs in the browser too, so a 3 MB photograph is refused
    before it is sent. **The agent's own profile is their agent page**: no new navigation item; the
-   agent's own card on Sales Agents reads "Your profile →".
+   agent's own card on Sales Agents reads "Your profile →". There the control is always the same
+   `PortraitEditor`: with no portrait it says "The admin of Shark Developments adds your portrait.
+   Once it is here you can replace or remove it." and offers no button; with one, "You can replace it
+   or remove it; so can the admin of Shark Developments." — true whoever put it there. Removing her
+   own keeps the control mounted through the page's refresh, so its "Removed." status stays, and the
+   focus moves to its heading.
 9. **Lena Fischer signs in** (`lena.fischer@shark-sales.example`, `acct_lena`, capacity
    `agentShark`, bound to `agt_sharklena01`, a member of Shark Sales), so the demo can show the
    agent's side. The synthetic world now has nine capacities; the access matrix names them.
@@ -113,5 +131,28 @@ same-origin`. PUT takes the raw image as the body; DELETE removes the file. **A 
   colour.
 - Each image request checks the roster in up to four periods: the synthetic repository answers from
   memory; a database repository would want one roster read.
+- An agent who has left every period's roster has no page, so the removal §1 allows has no button
+  yet: the route takes it from the tenant's admin or the agent. The hosted store must also tie a
+  portrait's removal to an agent's erasure (`docs/05-identity.md`).
+- An animated WebP's ANMF frames are kept whole, so a chunk an encoder put inside a frame would be
+  kept with it; the container allows unknown chunks there, and no common encoder writes metadata
+  there. Walking the frame's own chunks is the upgrade if one ever does.
 - The seat colour is the period's: an agent with no meeting in the period shifts the colours after
   them (the same ceiling `seatTone` already records).
+
+## Review round (2026-10-22)
+
+Two adversarial reviewers read the branch: twelve findings, several of them one defect reported
+twice. Each was confirmed in the code before it was changed; none was rejected.
+
+| Finding                                                                                                      | Verdict and change                                                                                                                                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| JPEG stripping stopped at the first SOS: data after EOI and APPn/COM between scans survived (reported twice) | Confirmed: `image.ts` copied `b.subarray(i)` from the first scan. The walk now steps through each scan and ends at the first EOI; fixtures for an appended JPEG with GPS, a motion-photo trailer, and XMP/COM between progressive scans. |
+| An agent id outside `SAFE_ID` threw in `portraitSources` and took three pages down (reported twice)          | Confirmed: the contract's `agent_id` is 1–128 of any character, and the store threw a plain `Error`. File names are now the SHA-256 of the id, so every id has one and case-only twins do not share it.                                  |
+| Every agent from Unreal read "Agency not stated", so nobody could add their portrait (reported twice)        | Confirmed: `presentersIn`, and the UE5 roster has no organisation. The right is now the tenant's company admin (§2), which every delivered agent has; a unit case on a braced GUID with no agency.                                       |
+| The write right went to the agency manager the brief refuses, and not to the tenant's admin                  | Confirmed against the brief's refused list and the owner's "the Company that receives the names". Clara Weiss now holds it and Daniel Hart is refused; the matrix's cells and both e2e specs follow.                                     |
+| PNG and WebP metadata removal was a denylist: exIf, C2PA, tIME kept                                          | Confirmed. Both are allowlists now (§5); a fixture carries exIf, caBX, tIME, a WebP C2PA and a private chunk.                                                                                                                            |
+| A portrait could not be removed once its agent left every period's roster                                    | Confirmed, latent on the synthetic clock. DELETE reaches such an agent while the file exists, for the right-holders only (anyone else gets the same 404); GET and PUT do not. The missing button is a consequence above.                 |
+| Removing her own portrait unmounted the editor: the status vanished and the focus fell to the page           | Confirmed: `portraitRight(..., false)` is null for the agent, so the page swapped elements. Her own page now always renders the same `PortraitEditor`, the focus moves to its heading, and the lab spec asserts both.                    |
+| The roster cards' names lost the kit's card title                                                            | Confirmed: `.d-card > h3:first-child` no longer matched. `portrait.css` restates it; measured equal in Chromium.                                                                                                                         |
+| The agent's own note always said "Your company's admin added this"                                           | Confirmed. The note is now true whoever put the picture there (§8).                                                                                                                                                                      |
