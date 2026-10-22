@@ -745,7 +745,8 @@ export function lagWords(hours: number, language: Language): string {
   return `${days(Math.floor(hours / 24), language)} before`;
 }
 
-type PlacedSale = AssistedSale & { readonly at: number };
+/** A placed sale with its instant, for a reader that must say which period it falls in. */
+export type PlacedSale = AssistedSale & { readonly at: number };
 
 /** `at` is the sort key only; the read model carries the formatted date. */
 function withoutInstant({ at, ...sale }: PlacedSale): AssistedSale {
@@ -823,10 +824,11 @@ function placeSales(
 }
 
 /**
- * The CRM's dated sale of ONE unit, placed the same way — for the unit's own
- * page. The newest when the CRM holds more than one; null when it dates none.
+ * The CRM's newest dated sale of ONE unit, placed the same way and with its
+ * instant; "undated" when the CRM holds a sale of the unit but dates none of
+ * it; null when it holds no sale of the unit at all.
  */
-export function assistedSaleOf(
+export function placedSaleOf(
   unitCode: string,
   deals: DeliveredDeals | null,
   sessions: readonly ShowroomSession[],
@@ -835,11 +837,12 @@ export function assistedSaleOf(
   timeZone: string,
   meetingHref: (meetingId: string) => string,
   language: Language,
-): AssistedSale | null {
+): PlacedSale | "undated" | null {
   if (deals === null) return null;
   const sold = deals.deals.filter(
     (d) => d.unitCode === unitCode && d.stage !== null && SALE_STAGES.has(d.stage),
   );
+  if (sold.length === 0) return null;
   const [newest] = placeSales(
     sold,
     deals.stageObservedAt ?? {},
@@ -851,7 +854,16 @@ export function assistedSaleOf(
     meetingHref,
     language,
   ).sort((a, b) => b.at - a.at);
-  return newest === undefined ? null : withoutInstant(newest);
+  return newest ?? "undated";
+}
+
+/**
+ * The CRM's dated sale of ONE unit, placed the same way — for the unit's own
+ * page. The newest when the CRM holds more than one; null when it dates none.
+ */
+export function assistedSaleOf(...args: Parameters<typeof placedSaleOf>): AssistedSale | null {
+  const sale = placedSaleOf(...args);
+  return sale === null || sale === "undated" ? null : withoutInstant(sale);
 }
 
 /**

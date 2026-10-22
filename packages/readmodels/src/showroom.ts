@@ -470,7 +470,7 @@ export interface UnitPatternFlat {
   readonly favourites: number;
   /** The catalogue's status, which is the status today. */
   readonly status: "available" | "reserved" | "sold";
-  /** "2 rooms · 65 m² · facing S · floor 5 · block S · €218,000"; an unstated attribute says so. */
+  /** "2 rooms · 65 m² · facing south · floor 5 · block S · €218,000"; an unstated attribute says so. */
   readonly attributesDisplay: string;
   /** ADR-0039, for THIS flat: the CRM's dated sale placed against its last showing. Null when none is dated. */
   readonly sale: {
@@ -478,7 +478,13 @@ export interface UnitPatternFlat {
     readonly verdictLabel: string;
     readonly stageLabel: string;
     readonly stageDateDisplay: string;
+    /** The CRM's own date, or the sync that first saw the change (ADR-0039): up to one sync late. */
+    readonly dateBasis: "crm_stated" | "first_observed";
+    /** Dated before the period began: the period's attention did not precede it. */
+    readonly beforePeriod: boolean;
   } | null;
+  /** The CRM holds a sale of this flat but dates none of it; false when it holds none, or a dated one. */
+  readonly saleUndated: boolean;
 }
 
 /**
@@ -499,6 +505,8 @@ export interface UnitPatternLine {
   readonly baseTotal: number;
   /** `baseCount` of `baseTotal`, formatted in the project's locale: "40%". */
   readonly baseShareDisplay: string;
+  /** What `baseTotal` counts: "flats in the catalogue", or "flats in the catalogue that state an aspect". */
+  readonly baseNoun: string;
   /** The most-opened flats it covers. */
   readonly unitCodes: readonly string[];
   readonly evidence: EvidenceRef;
@@ -526,6 +534,8 @@ export interface UnitAttentionPatterns {
   readonly note: string | null;
   /** Reserved or sold now, and the per-flat ADR-0039 placement of their sales. */
   readonly conversion: readonly string[];
+  /** What the conversion lines cannot say (a demonstration CRM, sync-dated sales), printed beside them; null when nothing. */
+  readonly salesNote: string | null;
   readonly caveats: readonly string[];
   readonly evidence: EvidenceRef;
 }

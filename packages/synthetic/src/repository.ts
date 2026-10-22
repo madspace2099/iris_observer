@@ -72,7 +72,7 @@ import { endOfDayIn, periodsAt, periodWords } from "./time";
 import { PROJECTS, TENANTS, TODAY } from "./world";
 import {
   DEMONSTRATION_CRM_SLUGS,
-  assistedSaleOf,
+  placedSaleOf,
   dealsFor,
   provideDeals,
   syntheticDeals,
@@ -858,7 +858,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       demonstration: irisLedCatalogue(project).fromDemonstrationCrm,
       windowHours: DEFAULT_IRIS_ASSIST_POLICY.windowHours,
       saleOf: (unitCode) =>
-        assistedSaleOf(
+        placedSaleOf(
           unitCode,
           deals,
           history,

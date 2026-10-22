@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { PERIOD_PRESETS } from "@observer/readmodels";
 import { VIEWERS } from "@observer/synthetic";
 import {
   CAUSAL_PATTERNS,
@@ -16,7 +17,7 @@ import {
 import { LIVE_QUESTIONS } from "../src/components/ask-iris/live-questions";
 import { rosterOf } from "./support/roster";
 import type { ModelGrant } from "../src/lib/ai/provider";
-import { TOOLS, TOOL_NAMES, type ToolResult } from "../src/lib/ai/tools";
+import { ANSWER_CEILING, TOOLS, TOOL_NAMES, type ToolResult } from "../src/lib/ai/tools";
 import { resetEnvironmentCache } from "../src/lib/env";
 import { repository } from "../src/lib/repository";
 
@@ -312,11 +313,14 @@ describe("the live questions reach their analyses without a model", () => {
     if (answer === null) return;
 
     const text = answer.answer;
-    const pattern = text.indexOf("All 5 most-opened flats are on the middle floors, 4 to 7");
+    const pattern = text.indexOf("All 5 most-opened flats ");
+    /* The owner's own example, "all in this price range": the price the five share. */
+    const price = text.indexOf("They are priced €191,000 to €218,000");
     const sales = text.indexOf("4 of the 5 are reserved or sold now");
     const ranking = text.indexOf("Most opened: ");
     expect(pattern, text).toBe(0);
-    expect(sales, text).toBeGreaterThan(pattern);
+    expect(price, text).toBeGreaterThan(pattern);
+    expect(sales, text).toBeGreaterThan(price);
     expect(ranking, text).toBeGreaterThan(sales);
 
     const counts = [...text.slice(ranking).matchAll(/[A-Z]-\d+ \((\d+)/g)].map((m) => Number(m[1]));
@@ -327,6 +331,48 @@ describe("the live questions reach their analyses without a model", () => {
     expect(text).not.toMatch(/units drawing most attention|dated sales \(/);
     expect(containsCausalClaim(answer)).toBe(false);
     expect(CAUSAL_PATTERNS.test(answer.limitations.join(" "))).toBe(false);
+  });
+
+  /*
+   * The composer keeps whole sentences up to the ceiling and drops the rest, so
+   * a long run of patterns once pushed the ranking out and the answer to
+   * "which units" named none. Every project, every period.
+   */
+  it("names the most-opened flats within the ceiling in every project and period", async () => {
+    const projects = [
+      ["alpha", "northgate"],
+      ["alpha", "riverside"],
+      ["beta", "kingsford"],
+      ["alpha", "ister-tower"],
+      ["shark", "shark-residence"],
+    ] as const;
+    for (const [tenantSlug, projectSlug] of projects) {
+      for (const period of PERIOD_PRESETS) {
+        const query = {
+          viewer: VIEWERS.madspace,
+          tenantSlug,
+          projectSlug,
+          period,
+          language: "en" as const,
+        };
+        const view = await repository.getUnitAttentionPatterns(query);
+        const outcome = await ask(
+          LIVE_QUESTIONS[3] as string,
+          {
+            ...CONTEXT,
+            ...query,
+            projectLabel: projectSlug,
+            roster: await rosterOf(tenantSlug, projectSlug),
+          },
+          NO_KEY,
+        );
+        const text = outcome.answer?.answer ?? "";
+        const where = `${projectSlug} ${period}: ${text}`;
+        expect(text.length, where).toBeLessThanOrEqual(ANSWER_CEILING);
+        if (view.top.length > 0) expect(text, where).toContain(`Most opened: ${view.ranking}.`);
+        expect(CAUSAL.test(text), where).toBe(false);
+      }
+    }
   });
 
   it.each(LIVE_QUESTIONS)("answers from showroom evidence, with no causal claim: %s", async (q) => {
@@ -447,7 +493,8 @@ describe("the tools state each figure's own denominator", () => {
     const digits = (text: string) => new Set(text.match(/\d+/g) ?? []);
     const given = digits(shown);
     expect([...digits(result.draft)].filter((run) => !given.has(run))).toEqual([]);
-    expect(result.facts[0]?.note).toMatch(/^against \d+% of the \d+ in the catalogue \(\d+\)$/);
+    expect(result.facts[0]?.value).toMatch(/^(All \d+|\d+ of \d+)$/);
+    expect(result.facts[0]?.note).toMatch(/^\d+ of the \d+ flats in the catalogue \(\d+%\)$/);
   });
 
   it("gives each behaviour rate in the outcomes comparison its own sample", async () => {

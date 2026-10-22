@@ -31,6 +31,7 @@ import { sampleWords } from "./sample-units";
 import { JsonFieldStreamer, STREAMED_FIELDS } from "./streaming";
 import { addUsage } from "./telemetry";
 import {
+  ANSWER_CEILING,
   PROJECT_WIDE_SALES,
   TOOL_NAMES,
   TOOLS,
@@ -922,7 +923,7 @@ export function composeDeterministic(
   let answer = "";
   for (const line of lines) {
     const next = answer.length === 0 ? line : `${answer} ${line}`;
-    if (next.length > 600) break;
+    if (next.length > ANSWER_CEILING) break;
     answer = next;
   }
 
@@ -948,7 +949,7 @@ export function composeDeterministic(
 
   return {
     /* A first line longer than the ceiling is the one case cut short rather than dropped. */
-    answer: answer.length > 0 ? answer : (lines[0] ?? "").slice(0, 600),
+    answer: answer.length > 0 ? answer : (lines[0] ?? "").slice(0, ANSWER_CEILING),
     headline:
       widest === null || totalSample === 0
         ? "No measured evidence in this period"

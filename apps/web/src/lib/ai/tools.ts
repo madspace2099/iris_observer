@@ -93,6 +93,9 @@ function pct(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
 
+/** The most a composed answer says, in characters; whole sentences past it are dropped (`composeDeterministic`). */
+export const ANSWER_CEILING = 600;
+
 const OBSERVED: readonly InsightSource[] = ["IRIS_SHOWROOM_OBSERVED"];
 const DERIVED: readonly InsightSource[] = ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"];
 const WITH_OUTCOME: readonly InsightSource[] = [
@@ -686,11 +689,38 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
        * flat's own sale is placed instead, so no figure needs PROJECT_WIDE_SALES.
        */
       const patterns = await repository.getUnitAttentionPatterns(query(context));
-      const lead =
-        patterns.patterns.length > 0
-          ? patterns.patterns.map((p) => p.statement)
-          : [...(patterns.note === null ? [] : [patterns.note]), ...patterns.ranges];
       const ranking = patterns.top.length === 0 ? [] : [`Most opened: ${patterns.ranking}.`];
+      const lead =
+        patterns.note === null ? patterns.patterns.map((p) => p.statement) : [patterns.note];
+      /*
+       * Whole sentences up to the answer's ceiling, the ranking always among
+       * them: an answer to "which units" that names none is no answer, and the
+       * composer drops whatever passes the ceiling. What they share is kept
+       * first, then how many are sold, then the spans (the owner asked for the
+       * price), then each sale against its showing; the draft reads patterns,
+       * spans, sales, ranking. A sentence that does not fit is left
+       * out whole, so no clause is parted from the sentence it qualifies.
+       */
+      const room = ANSWER_CEILING - (ranking[0] ?? "").length - 1;
+      const kept = new Set<string>();
+      let used = -1;
+      const [held, ...placed] = patterns.conversion;
+      for (const line of [
+        ...lead,
+        ...(held === undefined ? [] : [held]),
+        ...patterns.ranges,
+        ...placed,
+      ]) {
+        if (used + 1 + line.length > room) continue;
+        kept.add(line);
+        used += 1 + line.length;
+      }
+      const saleNote = (f: (typeof patterns.top)[number]) =>
+        f.sale === null
+          ? f.saleUndated
+            ? " · a sale the CRM does not date"
+            : ""
+          : ` · ${f.sale.stageLabel.toLowerCase()} ${f.sale.stageDateDisplay}${f.sale.beforePeriod ? ", before the period" : ""}${f.sale.dateBasis === "first_observed" ? " (dated by the sync that first saw it)" : ""}: ${f.sale.verdictLabel}`;
       return {
         tool: "analyze_unit_attention",
         /*
@@ -701,30 +731,35 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
         facts: [
           ...patterns.patterns.map((p) => ({
             label: p.label,
-            value: `${String(p.topCount)} of the ${String(p.topTotal)} most opened`,
-            note: `against ${p.baseShareDisplay} of the ${String(p.baseTotal)} in the catalogue (${String(p.baseCount)})`,
+            value:
+              p.topCount === p.topTotal
+                ? `All ${String(p.topTotal)}`
+                : `${String(p.topCount)} of ${String(p.topTotal)}`,
+            note: `${String(p.baseCount)} of the ${String(p.baseTotal)} ${p.baseNoun} (${p.baseShareDisplay})`,
           })),
           ...patterns.top.map((f) => ({
             label: f.unitCode,
             value: `${String(f.meetings)} of ${String(patterns.meetings)} meetings`,
-            note: `${f.attributesDisplay} · ${String(f.favourites)} shortlisted · ${f.status}${f.sale === null ? "" : ` · ${f.sale.verdictLabel}`}`,
+            note: `${f.attributesDisplay} · ${String(f.favourites)} shortlisted · ${f.status} now${saleNote(f)}`,
           })),
-          ...[...(patterns.patterns.length > 0 ? patterns.ranges : []), ...patterns.conversion].map(
-            (line) => ({ label: line, value: "", note: null }),
-          ),
+          ...[...patterns.ranges, ...patterns.conversion].map((line) => ({
+            label: line,
+            value: "",
+            note: null,
+          })),
         ],
         sources: patterns.conversion.length > 0 ? WITH_OUTCOME : OBSERVED,
         evidence: patterns.evidence,
         /* The meetings the flats were opened in: five flats are not five meetings. */
         sampleSize: patterns.meetings,
-        caveats: [...(patterns.tieNote === null ? [] : [patterns.tieNote]), ...patterns.caveats],
+        /* "Nothing concentrates" and "too few meetings" are limitations a model must not contradict. */
+        caveats: [patterns.note, patterns.tieNote, ...patterns.caveats, patterns.salesNote].filter(
+          (c): c is string => c !== null,
+        ),
         action: { label: "Open Units", href: `${root(context)}/units` },
-        /* The ranking before the spans: the ceiling trims the tail, and the spans are on the screen. */
         draft: [
-          ...lead,
-          ...patterns.conversion,
+          ...[...lead, ...patterns.ranges, ...patterns.conversion].filter((line) => kept.has(line)),
           ...ranking,
-          ...(patterns.patterns.length > 0 ? patterns.ranges : []),
         ].join(" "),
       };
     },
