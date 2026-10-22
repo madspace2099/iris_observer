@@ -6246,8 +6246,8 @@ and Presentation (Compare). Run `fixed-covers-nothing`, `mobile-menu-containment
 ## 2026-10-22 — Stream MOBILE: page-level phone fixes (Sales Flow, registers, Presentation, report)
 
 Máté asked "Check mobile responsiveness!"; three reviewers walked the demo at 390 and 360 and
-measured 21 findings for these pages. Branch `worktree-wf_eba45ae8-1e4-6`, from `3373a1c`, eight
-commits, not pushed. No ADR. Every rule is a phone's (`width < 40rem` / `<= 48rem`) or a narrow
+measured 21 findings for these pages. Branch `worktree-wf_eba45ae8-1e4-6`, from `3373a1c`, not
+pushed. No ADR. Every rule is a phone's (`width < 40rem` / `<= 48rem`) or a narrow
 card's (container query), and nearly all are scoped to their page's own class in a page sheet:
 `components/flow/sales-flow.css` (`.iris-salesflow`), `presentation/presentation.css`,
 `audience/audience.css`, `units/[unitCode]/unit.css`, `components/meetings/meetings.css`,
