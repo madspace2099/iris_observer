@@ -173,8 +173,13 @@ test.describe("the ten-second test", () => {
      */
     await page.locator(".ask-page").getByRole("link", { name: /Today.s briefing/ }).click();
     await page.waitForURL(/\/showroom/);
-    /* The heading is the surface's name; the sentence beneath it is the claim. */
-    await expect(page.locator("main").first()).toContainText(/showroom presentation|presentations/i);
+    /*
+     * The verdict is the h1 and the figure that reads first is the showroom's
+     * own count (ADR-0058). Visible text only: a closed `i` does not lead.
+     */
+    await expect(page.locator(".sheet-figure dt").first()).toContainText(/^\s*Meetings (this|in) /, {
+      useInnerText: true,
+    });
   });
 
   test("makes the prompt a primary control, not a footer field", async ({ page }, testInfo) => {

@@ -139,7 +139,15 @@ test("R04-3 · a missing outcome and an unverified one are two checks with two a
   await mainText(page, "Tomáš Varga", `${ROOT}/attention`);
   const notRecorded = checkRow(page, "Outcome not recorded");
   const notVerified = checkRow(page, "Outcomes not verified");
-  await expect(notRecorded.locator('[data-part="found"]')).toHaveText(/\d+ of \d+ presentations/);
+  /* A raised row names its card, and the card carries the figure (ADR-0058). */
+  await expect(notRecorded.locator('[data-part="found"]')).toHaveText(
+    "Above: Meetings ending without a recorded outcome",
+  );
+  await expect(
+    page
+      .locator("main li.ox-alert", { hasText: "Meetings ending without a recorded outcome" })
+      .locator(".ox-alert-detail"),
+  ).toHaveText(/\d+ of \d+ presentations/);
   await expect(notVerified.locator('[data-part="answer"]')).toHaveText("Not evaluated");
 });
 
@@ -153,7 +161,11 @@ function checkRow(page: Page, name: string) {
 
 test("R04-5 · no state claims lost revenue or blames an agent", async ({ page }) => {
   for (const path of [`${ROOT}/attention`, `${ROOT}/showroom`]) {
-    const text = await mainText(page, "Tomáš Varga", path);
+    /* What stands behind a closed `i` is screened too (ADR-0058): innerText skips it. */
+    const text = [
+      await mainText(page, "Tomáš Varga", path),
+      ...(await page.locator("main .iris-info-panel").allTextContents()),
+    ].join("\n");
     expect(text, path).not.toMatch(/lost revenue|revenue lost|missed sales?|fault|blame|negligen/i);
   }
 });

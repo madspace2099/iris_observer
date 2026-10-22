@@ -40,20 +40,22 @@ describe("a raised state", () => {
     createElement(StateList, { states: view.states, period: "quarter_to_date", language: "en" }),
   );
 
-  it("keeps its title, its sentence and its action in view", () => {
+  it("keeps its title, its sentence, its action and its source line in view", () => {
     const state = view.states[0];
     expect(state, "Shark raises a state this quarter").toBeDefined();
     expect(inView(html)).toContain(state?.alert.title);
     expect(inView(html)).toContain(state?.alert.detail.replace(/&/g, "&amp;"));
     expect(inView(html)).toContain(state?.alert.actionLabel ?? "");
+    /* Which system it reads is never behind an `i` (ADR-0052, showroom.source_visible). */
+    expect(inView(html)).toContain('class="iris-srcs"');
+    expect(panels(html)).not.toContain("Source:");
   });
 
-  it("puts its tier, evidence, sample, rank and sources behind the i beside its title", () => {
+  it("puts its tier, evidence, sample and rank behind the i beside its title", () => {
     expect(html).toMatch(/<\/h3><button[^>]*class="iris-info"[^>]*aria-label="About /);
     expect(panels(html)).toMatch(/Observed: These facts were recorded/);
     expect(panels(html)).toMatch(/records · Observed · n = 150 presentations · Rank 1 of 1/);
-    expect(panels(html)).toContain("Source:");
-    for (const gone of ["Rank 1 of", "n = 150", "Source:", "ox-tier", "ox-evidence"]) {
+    for (const gone of ["Rank 1 of", "n = 150", "ox-tier", "ox-evidence"]) {
       expect(inView(html), gone).not.toContain(gone);
     }
   });
@@ -88,6 +90,16 @@ describe("the register", () => {
       );
     }
     expect(html).not.toContain("<table");
+  });
+
+  it("names a raised check's card rather than repeating its sentence", () => {
+    const state = view.states[0];
+    if (state === undefined) throw new Error("no state");
+    expect(html).toContain(`Above: ${state.alert.title}`);
+    expect(html).not.toContain(state.alert.detail.replace(/&/g, "&amp;"));
+    for (const check of view.checks.filter((c) => c.state !== "raised")) {
+      expect(html, check.kind).toContain(check.reason.replace(/&/g, "&amp;"));
+    }
   });
 
   it("asks its questions behind the i, not in the rows", () => {
@@ -138,6 +150,24 @@ describe("the Briefing", () => {
     expect(page).toMatch(/<InfoTip id="figures"[\s\S]*\{home\.because\}[\s\S]*<\/InfoTip>/);
   });
 
+  it("says its sources in view, under the figures, and nowhere behind an i", () => {
+    expect(page).toContain(
+      '<div className="ox-finding-foot"> <Sources language={home.context.language} sources={home.sources} />',
+    );
+    for (const tip of page.match(/<InfoTip[\s\S]*?<\/InfoTip>/g) ?? []) {
+      expect(tip).not.toContain("<Sources");
+    }
+  });
+
+  it("keeps the period's unobserved sales in view beside the sold count", () => {
+    expect(page).toContain(
+      '{pulse.totals.sold} sold {pulse.totals.soldInPeriod === null ? "; how many of them in this period is not observed yet"',
+    );
+    for (const tip of page.match(/<InfoTip[\s\S]*?<\/InfoTip>/g) ?? []) {
+      expect(tip).not.toContain("not observed");
+    }
+  });
+
   it("draws the plan without its key, and the key behind the building's i", () => {
     expect(page).toMatch(/<StackPlan[\s\S]*keyed=\{false\}/);
     expect(page).toMatch(/<InfoTip id="building"[\s\S]*<StackPlanKey[\s\S]*<\/InfoTip>/);
@@ -148,5 +178,19 @@ describe("the Briefing", () => {
     expect(page.match(/href=\{dynamicRoute\(withPeriod\(door\.href, period\)\)\}/g)).toHaveLength(
       1,
     );
+  });
+});
+
+describe("on a phone", () => {
+  const css = readFileSync(
+    resolve(import.meta.dirname, "../src/components/sheet/sheet.css"),
+    "utf8",
+  );
+
+  it("makes every button on both pages and the register's step a 44px target", () => {
+    expect(css).toMatch(
+      /@media \(width < 48rem\) \{[^@]*\.sheet \.ox-btn \{\s*min-height: 2\.75rem;/,
+    );
+    expect(css).toMatch(/\.sheet-check-step a \{[^}]*min-height: 2\.75rem;/);
   });
 });

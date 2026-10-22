@@ -136,9 +136,11 @@ test("R04-7 · every check names its next step, the method stands behind its i, 
         await expect(step.locator("a")).toHaveCount(0);
       } else {
         expect(answer, path).toBe("Raised");
-        const state = raisedList
-          .locator("li.ox-alert")
-          .filter({ has: page.locator(".ox-alert-detail", { hasText: found }) });
+        /* A raised row names its card rather than repeating its sentence (ADR-0058). */
+        expect(found, path).toMatch(/^Above: /);
+        const state = raisedList.locator("li.ox-alert").filter({
+          has: page.locator(".ox-alert-title", { hasText: found.replace(/^Above: /, "") }),
+        });
         await expect(state, `${path}: one raised card per raised row`).toHaveCount(1);
         const own = state.locator(":scope > a.ox-btn");
         if ((await own.count()) === 1) {

@@ -236,7 +236,10 @@ test.describe("projects do not share figures", () => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/riverside/showroom");
     // "0% progressing" reads as "nobody progressed" when the truth is that
-    // nothing recorded whether they did.
-    await expect(page.getByText(/no progression rate can be computed/i)).toBeVisible();
+    // nothing recorded whether they did. The figure says so in view; the
+    // sentence on why stands behind its `i` (ADR-0058).
+    const progressing = page.locator(".sheet-figure").filter({ hasText: /^Progressing/ });
+    await expect(progressing.locator(".sheet-n")).toHaveText("—");
+    await expect(progressing.getByText("no outcome recorded on this project")).toBeVisible();
   });
 });
