@@ -58,6 +58,11 @@ export const COMPARISON_METHODS = [
    * common way a dashboard produces a false alarm.
    */
   "quarter_to_date_equivalent",
+  /**
+   * The same figure computed seven calendar days earlier: a window of the same
+   * length, ending seven days before this one (the owner, ADR-0060).
+   */
+  "seven_days_earlier",
   /** Against the project's own all-time figure. */
   "project_baseline",
   /** Against the tenant's other projects. */

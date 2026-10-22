@@ -12,6 +12,7 @@ export * from "./metric-value";
 export * from "./views";
 export * from "./pulse";
 export * from "./showroom";
+export * from "./change-kpis";
 export * from "./glossary";
 export * from "./views3";
 export * from "./charts";

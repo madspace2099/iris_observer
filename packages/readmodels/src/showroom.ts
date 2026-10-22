@@ -6,6 +6,7 @@ import type {
   TimeOfDayPreset,
   WeatherPreset,
 } from "@observer/contracts";
+import type { ChangeKpisView } from "./change-kpis";
 import type { ViewContext } from "./context";
 import type { AssistVerdict } from "./deal-source";
 import type { EvidenceRef, MetricValue } from "./metric-value";
@@ -59,6 +60,11 @@ export interface ShowroomOverview {
   readonly findings: readonly ShowroomFinding[];
   /** What moved compared with the previous period, behaviour first. */
   readonly changes: readonly BehaviourChange[];
+  /**
+   * Sales Flow's screen of figures (ADR-0060): `changes`' three as figures,
+   * with what else the showroom measures, each against seven days earlier.
+   */
+  readonly kpis: ChangeKpisView;
   readonly coverage: PresentationCoverage;
   /** Outcome mix, present only as context and labelled as such. */
   readonly outcomeContext: readonly {

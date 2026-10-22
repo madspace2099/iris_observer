@@ -461,13 +461,13 @@ function reached(session: ShowroomSession, sectionId: SectionId): boolean {
 }
 
 /** Whether the section landed in the opening third of the presentation. */
-function reachedEarly(session: ShowroomSession, sectionId: SectionId): boolean {
+export function reachedEarly(session: ShowroomSession, sectionId: SectionId): boolean {
   const order = orderOf(session);
   const index = order.indexOf(sectionId);
   return index >= 0 && index < Math.max(1, Math.ceil(order.length / 3));
 }
 
-function usedCompare(session: ShowroomSession): boolean {
+export function usedCompare(session: ShowroomSession): boolean {
   return reached(session, "compare");
 }
 
@@ -702,7 +702,8 @@ export function buildShowroomOverview(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
   previous: readonly ShowroomSession[],
-): ShowroomOverview {
+  // The screen of figures reads a third window; the repository adds it (`buildChangeKpis`).
+): Omit<ShowroomOverview, "kpis"> {
   const locale = context.project.locale;
   const n = sessions.length;
   const coverage = coverageOf(sessions);

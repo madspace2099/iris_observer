@@ -80,7 +80,7 @@ export {
 } from "./shared";
 
 export { EXECUTIVE_METRICS } from "./executive";
-export { FLOW_METRICS } from "./flow";
+export { FLOW_METRICS, CHANGE_FIGURES } from "./flow";
 export { UNIT_METRICS, ROOM_TYPE_SOLD_GAP } from "./units";
 export { PEOPLE_METRICS } from "./people";
 export { JOURNEY_METRICS, JOURNEY_ATTRIBUTION } from "./journey";

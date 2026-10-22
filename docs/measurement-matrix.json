@@ -631,6 +631,179 @@
       ]
     },
     {
+      "id": "flow.compare_use",
+      "displayName": "Compare mode used",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "project.section.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.surroundings_early",
+      "displayName": "Surroundings, early",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "project.section.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.presentation_depth",
+      "displayName": "Presentation depth",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "project.section.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.interactions_per_meeting",
+      "displayName": "Interactions per meeting",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "project.section.viewed",
+        "unit.viewed",
+        "unit.material.opened",
+        "unit.examined.floor_cut",
+        "unit.examined.balcony",
+        "unit.favourited",
+        "visual.captured"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.presentation_length",
+      "displayName": "Presentation length",
+      "kind": "duration",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.top_feature",
+      "displayName": "Top feature",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "project.section.viewed"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.screenshots_per_meeting",
+      "displayName": "Screenshots per meeting",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "visual.captured"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.favourites_per_meeting",
+      "displayName": "Favourites per meeting",
+      "kind": "count",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "unit.favourited"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "seven_days_earlier",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
       "id": "unit.unique_interested_contacts",
       "displayName": "Unique interested contacts",
       "kind": "count",
@@ -2297,6 +2470,14 @@
         "flow.sales_cycle_duration",
         "flow.not_interested_by_agent",
         "flow.not_interested_length",
+        "flow.compare_use",
+        "flow.surroundings_early",
+        "flow.presentation_depth",
+        "flow.interactions_per_meeting",
+        "flow.presentation_length",
+        "flow.top_feature",
+        "flow.screenshots_per_meeting",
+        "flow.favourites_per_meeting",
         "people.meetings_by_agent",
         "people.presentation_coverage",
         "people.follow_up_delay",
@@ -2400,6 +2581,11 @@
       "requiredBy": [
         "flow.not_interested_interactions",
         "flow.not_interested_reach",
+        "flow.compare_use",
+        "flow.surroundings_early",
+        "flow.presentation_depth",
+        "flow.interactions_per_meeting",
+        "flow.top_feature",
         "project.poi_interest",
         "project.amenity_interest",
         "people.presentation_coverage",
@@ -2519,6 +2705,7 @@
         "duration_ms"
       ],
       "requiredBy": [
+        "flow.interactions_per_meeting",
         "project.room_type_examined",
         "unit.deep_dive_rate"
       ]
@@ -2535,6 +2722,7 @@
         "duration_ms"
       ],
       "requiredBy": [
+        "flow.interactions_per_meeting",
         "project.room_type_examined",
         "unit.deep_dive_rate"
       ]
@@ -2554,6 +2742,8 @@
       ],
       "requiredBy": [
         "flow.not_interested_reach",
+        "flow.interactions_per_meeting",
+        "flow.favourites_per_meeting",
         "unit.favourites",
         "journey.preference_agreement",
         "intent.distribution",
@@ -2592,6 +2782,7 @@
         "channel"
       ],
       "requiredBy": [
+        "flow.interactions_per_meeting",
         "unit.pdf_opens",
         "project.room_type_examined",
         "unit.deep_dive_rate"
@@ -2639,6 +2830,7 @@
         "flow.iris_led_sales",
         "flow.not_interested_interactions",
         "flow.not_interested_reach",
+        "flow.interactions_per_meeting",
         "unit.unique_interested_contacts",
         "unit.raw_views",
         "unit.meaningful_views",
@@ -2680,6 +2872,8 @@
         "occurred_at"
       ],
       "requiredBy": [
+        "flow.interactions_per_meeting",
+        "flow.screenshots_per_meeting",
         "project.room_type_examined",
         "project.environment_interest",
         "render.engagement"

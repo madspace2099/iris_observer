@@ -1,4 +1,4 @@
-import { defineMetric } from "../definition";
+import { defineMetric, type MetricDefinition } from "../definition";
 import {
   AGENT_MIN_SAMPLE,
   NOT_ENOUGH,
@@ -370,12 +370,7 @@ export const irisLedSales = defineMetric({
  * made only at AGENT_MIN_SAMPLE a side, as Presentation DNA makes its own.
  * The showroom records openings, not clicks or taps, so no click count exists.
  */
-const NOT_INTERESTED_ROLES = [
-  "developer",
-  "agency_manager",
-  "sales_agent",
-  "madspace_admin",
-] as const;
+const SALES_FLOW_ROLES = ["developer", "agency_manager", "sales_agent", "madspace_admin"] as const;
 const NO_GROUP = 'No meeting ended "not interested" in this period.';
 
 export const notInterestedByAgent = defineMetric({
@@ -403,7 +398,7 @@ export const notInterestedByAgent = defineMetric({
     unavailable: NO_SHOWROOM,
   },
   drillTo: "meetings",
-  roles: NOT_INTERESTED_ROLES,
+  roles: SALES_FLOW_ROLES,
 });
 
 export const notInterestedLength = defineMetric({
@@ -431,7 +426,7 @@ export const notInterestedLength = defineMetric({
     unavailable: NO_SHOWROOM,
   },
   drillTo: "meetings",
-  roles: NOT_INTERESTED_ROLES,
+  roles: SALES_FLOW_ROLES,
 });
 
 export const notInterestedInteractions = defineMetric({
@@ -459,7 +454,7 @@ export const notInterestedInteractions = defineMetric({
     unavailable: NO_SHOWROOM,
   },
   drillTo: "meetings",
-  roles: NOT_INTERESTED_ROLES,
+  roles: SALES_FLOW_ROLES,
 });
 
 export const notInterestedReach = defineMetric({
@@ -492,8 +487,182 @@ export const notInterestedReach = defineMetric({
     unavailable: NO_SHOWROOM,
   },
   drillTo: "meetings",
-  roles: NOT_INTERESTED_ROLES,
+  roles: SALES_FLOW_ROLES,
 });
+
+/*
+ * WHAT CHANGED, AS A SCREEN OF FIGURES (ADR-0060, the owner, 2026-10-22).
+ *
+ * Eight figures of the period's meetings, each set against the same figure
+ * computed seven calendar days earlier, over a window of the same length. The
+ * first three stood on Sales Flow as "what changed" before; the other five are
+ * what else the IRIS showroom sends. The owner asked for "median clicks per
+ * meeting": the showroom records openings and actions, not clicks or taps
+ * (docs/03-event-map.md §7 removed the client's click map), so the figure is
+ * the openings and actions it does record, under that name.
+ *
+ * An arrow needs AGENT_MIN_SAMPLE meetings that can answer the figure in both
+ * windows, the floor Presentation DNA keeps on its cohorts; below it the
+ * figure is raw and the shortfall is stated.
+ */
+function changeFigure(
+  definition: Pick<
+    MetricDefinition,
+    | "id"
+    | "displayName"
+    | "businessDefinition"
+    | "kind"
+    | "calculation"
+    | "numerator"
+    | "denominator"
+    | "exclusions"
+    | "requiredFacts"
+  >,
+) {
+  return defineMetric({
+    ...definition,
+    dimensions: ["project", "period"],
+    timeWindow: "period",
+    requiredCrmFields: [],
+    requiredUnitAttributes: [],
+    minimumSampleSize: AGENT_MIN_SAMPLE,
+    comparison: "seven_days_earlier",
+    evidenceTier: "observed_sequence",
+    states: {
+      empty: NO_MEETINGS,
+      insufficient: insufficient(AGENT_MIN_SAMPLE, "meetings in a window"),
+      unavailable: NO_SHOWROOM,
+    },
+    drillTo: "meetings",
+    roles: SALES_FLOW_ROLES,
+  });
+}
+
+export const compareUse = changeFigure({
+  id: "flow.compare_use",
+  displayName: "Compare mode used",
+  businessDefinition: "The share of the period's meetings that opened Compare mode.",
+  kind: "ratio",
+  calculation:
+    "Meetings with at least one opening of the Compare section over every meeting in the window. Up is drawn as good: a comparison is the buyer weighing flats against each other.",
+  numerator: "meetings that opened Compare",
+  denominator: "meetings in the window",
+  exclusions: [],
+  requiredFacts: ["meeting.attended", "project.section.viewed"],
+});
+
+export const surroundingsEarly = changeFigure({
+  id: "flow.surroundings_early",
+  displayName: "Surroundings, early",
+  businessDefinition:
+    "The share of the period's meetings that opened Surroundings in the opening third of the presentation.",
+  kind: "ratio",
+  calculation:
+    "Meetings whose first opening of Surroundings falls among the first third of their section openings (at least the first), over every meeting in the window. Its arrow is neutral: an order of telling earns no direction.",
+  numerator: "meetings that opened Surroundings in their opening third",
+  denominator: "meetings in the window",
+  exclusions: [],
+  requiredFacts: ["meeting.attended", "project.section.viewed"],
+});
+
+export const presentationDepth = changeFigure({
+  id: "flow.presentation_depth",
+  displayName: "Presentation depth",
+  businessDefinition: "How many section openings a typical meeting of the period made.",
+  kind: "count",
+  calculation:
+    "The median, over the window's meetings, of each meeting's section openings, a return to a section counted again. Its arrow is neutral: more openings can be going further or going back over ground.",
+  numerator: "section openings in a meeting",
+  denominator: "meetings in the window",
+  exclusions: [],
+  requiredFacts: ["meeting.attended", "project.section.viewed"],
+});
+
+export const interactionsPerMeeting = changeFigure({
+  id: "flow.interactions_per_meeting",
+  displayName: "Interactions per meeting",
+  businessDefinition:
+    "How many openings and actions the showroom recorded in a typical meeting of the period.",
+  kind: "count",
+  calculation:
+    "Per meeting: sections opened (a return counted again), flats opened, floor plans opened, floor cuts shown, balcony views, flats favourited and screenshots taken; the median over the window's meetings. The showroom records these, not clicks or taps, so no click count is made.",
+  numerator: "openings and actions recorded in a meeting",
+  denominator: "meetings in the window",
+  exclusions: ["clicks and taps, which the showroom does not record"],
+  requiredFacts: [
+    "meeting.attended",
+    "project.section.viewed",
+    "unit.viewed",
+    "unit.material.opened",
+    "unit.examined.floor_cut",
+    "unit.examined.balcony",
+    "unit.favourited",
+    "visual.captured",
+  ],
+});
+
+export const presentationLength = changeFigure({
+  id: "flow.presentation_length",
+  displayName: "Presentation length",
+  businessDefinition: "How long a typical meeting of the period ran.",
+  kind: "duration",
+  calculation:
+    "The median of the presentation's own length, Start Presentation to End Presentation, over the window's meetings the source could time. Its arrow is neutral, as Typical length's is: longer is not better.",
+  numerator: "presentation length",
+  denominator: "timed meetings in the window",
+  exclusions: ["meetings the source could not time"],
+  requiredFacts: ["meeting.attended"],
+});
+
+export const topFeature = changeFigure({
+  id: "flow.top_feature",
+  displayName: "Top feature",
+  businessDefinition: "The showroom section the period's presentations spent the most time in.",
+  kind: "ratio",
+  calculation:
+    "Each section's timed seconds summed over the window's fully timed meetings; the section with the most, and its share of all of them. A tie goes to the section more meetings opened, then to the inventory's order. Not named below the minimum sample; its arrow is none, as a name does not rise or fall, and the reading says whether it was the top seven days earlier.",
+  numerator: "the top section's timed seconds",
+  denominator: "every section's timed seconds in the window's fully timed meetings",
+  exclusions: ["meetings with any step the source could not time"],
+  requiredFacts: ["meeting.attended", "project.section.viewed"],
+});
+
+export const screenshotsPerMeeting = changeFigure({
+  id: "flow.screenshots_per_meeting",
+  displayName: "Screenshots per meeting",
+  businessDefinition: "How many screenshots a typical meeting of the period took.",
+  kind: "count",
+  calculation:
+    "The median, over the window's meetings, of the screenshots each took. Up is drawn as good: a capture is a view the buyer wanted to take away.",
+  numerator: "screenshots taken in a meeting",
+  denominator: "meetings in the window",
+  exclusions: [],
+  requiredFacts: ["meeting.attended", "visual.captured"],
+});
+
+export const favouritesPerMeeting = changeFigure({
+  id: "flow.favourites_per_meeting",
+  displayName: "Favourites per meeting",
+  businessDefinition: "How many flats a typical meeting of the period favourited.",
+  kind: "count",
+  calculation:
+    "The median, over the window's meetings, of the flats each favourited. Up is drawn as good: a favourite is a flat the buyer singled out.",
+  numerator: "flats favourited in a meeting",
+  denominator: "meetings in the window",
+  exclusions: [],
+  requiredFacts: ["meeting.attended", "unit.favourited"],
+});
+
+export const CHANGE_FIGURES = [
+  compareUse,
+  surroundingsEarly,
+  presentationDepth,
+  interactionsPerMeeting,
+  presentationLength,
+  topFeature,
+  screenshotsPerMeeting,
+  favouritesPerMeeting,
+] as const;
 
 export const FLOW_METRICS = [
   stageCounts,
@@ -512,4 +681,5 @@ export const FLOW_METRICS = [
   notInterestedLength,
   notInterestedInteractions,
   notInterestedReach,
+  ...CHANGE_FIGURES,
 ] as const;
