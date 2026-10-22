@@ -53,8 +53,8 @@ page.
 ### "Across every agent" becomes "Was it the buyer's first meeting?"
 
 A question for a title, rows in plain words ("First meeting", "Second meeting", "Third meeting",
-"Fourth or later", "Buyer not identified"), every row standing even at 0, each with its count and
-share, and the share's base under the title ("Share of all 150 meetings, quarter to date",
+"Fourth or later", "Not linked to a contact" — the Meetings register's words for the same
+meetings), every row standing even at 0, each with its count and share, and the share's base under the title ("Share of all 150 meetings, quarter to date",
 `AgentsView.repeatsOf`). Why an unlinked meeting is neither a first nor a return stands behind the
 `i`.
 
@@ -73,10 +73,13 @@ The tab answers **"How do the presenters differ?"** and nothing else:
 - **At most three concrete differences**: the three widest rows that have a gap name who sits at
   each end, face, name, figure and meetings (`PresenterRow.ends`); ties name everyone at that end.
 - **The key** is the chart's control, one entry per drawn agent with their portrait and count:
-  pointing lifts their dots and prints their figures, pressing hides or draws them, the link opens
-  their page — the screen's action.
-- **Under the floor said, not drawn**: "Not drawn, under 20 meetings: Lena Fischer · 18 meetings, …",
-  each a link to the agent's page.
+  pressing a name lifts their dots and prints their figure on every row (`aria-pressed`), a mouse
+  resting on it previews the same, and the arrow beside it opens their page — the screen's action.
+- **Marks too close to share a line take lanes**: a dot under 7 points from another moves to the
+  next lane (`PresenterRow.lanes`, each mark's `lane`), so every agent's dot is visible.
+- **Under the floor said, not drawn**: "Not drawn, under 20 meetings:" and each agent's face, name
+  (a link to their page) and count. With one agent at the floor there is no chart — one agent has
+  no gap — and that agent is named the same way under the answer.
 - **Behind the `i`**: what a dot is, the order of the rows, the floor, the parts not measured yet
   (Surroundings places, filters, spaceman mode), "a different way of presenting, not a better one",
   and the comparison's own association disclaimer.
@@ -127,3 +130,38 @@ comparison. A `&lens=parallel` address still opens Coaching; the parameter is ig
 - Rendered statically (`react-dom/server`, the product stylesheets, headless Chromium) at 1440, 390
   and 360 on Shark quarter to date, Shark last 28 days (one agent at the floor) and Northgate: no
   sideways scroll, no text under 12px but the shared `i` glyph, one key entry a line on a phone.
+
+## Review round (2026-10-22)
+
+Adversarial reviewers read the branch: fifteen findings, two pairs of them the same defect. Each was confirmed
+in the code or on a static render before it was changed. All are fixed; none was rejected.
+
+- **A flag gave a rate the headline withheld** (two findings). The headline waits for 20 recorded
+  meetings, the flag only for 20 held, so Northgate's Akhilesh Undev (22 held, 19 recorded) read
+  "No rate yet: 1 short" over "26% progressed against 40% for the team, over 19 recorded meetings".
+  The progressed and not-interested flags now wait for the recorded floor in `outcomeFlag`, which
+  Sales Flow reads too; the unrecorded count flag stays. Test: 22 held and 19 recorded, 20 held and
+  18 recorded, no flag (`roster-card.test.ts`, checked against the unfixed code).
+- **Tied agents drew one dot.** Measured at 360: 1 exact and 4 overlapping pairs in one row. Lanes,
+  computed in the read model (`markLanes`, hand-computed tests). One gap for every width, so a
+  desktop row stacks dots that would have fitted side by side; a gap per width is the upgrade.
+- **A tap lifted and hid in one move**, so a phone could never read the unnamed rows' figures.
+  Hiding is gone; a press lifts (`aria-pressed`), a mouse previews, a touch is never taken for
+  pointing.
+- **The not-drawn line had no faces.** Face, name and count each, as the key gives the drawn.
+- **One agent drawn still drew seven rows** under "How do the presenters differ?", and the `i`
+  described a gap order that did not exist. No rows under two drawn; the one agent is named.
+- **The screen-reader summary used the old axis names** in axis order; it now reads the rows' words
+  in the rows' order.
+- **The card's `i` printed a median under the floor** while the workload list beside it withheld
+  it; it is given above the floor only (source assertion in `agents-floor-claims.test.ts`).
+- **"Buyer not identified" against the register's "Not linked to a contact"** (two findings): one
+  group, one name, the register's, and a missing contact link does not say nobody could identify
+  the buyer.
+- **Layout.** The ring's count was 36px against the rate's 34px: now 28px, the rate the largest
+  figure. The repeat chart's value column was `auto`, so tracks differed by 14px: now fixed. The
+  workload list cut every median at 360: the count column is narrower on a phone and the median
+  wraps rather than ending in an ellipsis. The key wrapped two names at 360: the link is an arrow
+  with a 44px target and the accessible name "Agent page for …".
+- **The per-project e2e compared headlines** whose fallback could no longer run; it compares the
+  ring's meeting count with the headline.
