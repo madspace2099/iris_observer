@@ -582,13 +582,25 @@ export default async function FlowPage({
          * starts again at the period's last days.
          */}
         <div className="d-card" key={`lens-${query.period}`}>
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-            Which meetings are nearest a purchase, and whose
-          </h2>
-          <p className="iris-meta iris-meta-measured" style={{ marginBottom: ".875rem" }}>
-            {charts.lens.lead}
-          </p>
-          {charts.lens.meetings.length === 0 ? null : (
+          {/*
+           * What the bubbles are and what their sizes do not claim stand behind
+           * the `i` (the owner, 2026-10-22), in the read model's words. With no
+           * bubble drawn the lead is the card's one sentence, and stays in view.
+           */}
+          <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured">
+              Which meetings are nearest a purchase, and whose
+            </h2>
+            {charts.lens.meetings.length === 0 ? null : (
+              <InfoTip id="lens" label="which meetings are nearest a purchase">
+                <p>{charts.lens.lead}</p>
+                <p>{charts.lens.note}</p>
+              </InfoTip>
+            )}
+          </header>
+          {charts.lens.meetings.length === 0 ? (
+            <p className="iris-meta iris-meta-measured">{charts.lens.lead}</p>
+          ) : (
             <DrawIn kind="bloom">
               <BubbleLens
                 initialSpan="month"
@@ -634,9 +646,6 @@ export default async function FlowPage({
           >
             Every reservation in the register
           </Link>
-          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-            {charts.lens.note}
-          </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
         </div>
 
