@@ -143,6 +143,94 @@ describe("the metadata is cut out", () => {
     expect(kept.length).toBe(JPEG.length - (2 + 2 + 25) - (2 + 2 + 18) - (2 + 2 + 15));
   });
 
+  it("JPEG: nothing after the first EOI is kept — a second image's EXIF, a motion photo", () => {
+    const appended = bytes(
+      JPEG,
+      [0xff, 0xd8],
+      segment(0xe1, enc("Exif\0\0GPSLatitude 48.1486")),
+      segment(0xda, new Uint8Array(10)),
+      enc("second"),
+      [0xff, 0xd9],
+      enc("MotionPhoto_Data ftyp ©xyz+48.1486+017.1077/"),
+    );
+    const admitted = admitPortrait(appended);
+    expect(admitted.ok).toBe(true);
+    if (!admitted.ok) return;
+    for (const gone of ["GPS", "second", "MotionPhoto", "xyz"]) {
+      expect(has(admitted.bytes, gone), gone).toBe(false);
+    }
+    // Exactly what the same JPEG without the appendix keeps.
+    const plain = admitPortrait(JPEG);
+    expect(plain.ok && Buffer.from(admitted.bytes).equals(Buffer.from(plain.bytes))).toBe(true);
+  });
+
+  it("JPEG: APPn and COM between progressive scans go; the coded data stays, stuffing and restarts too", () => {
+    const coded = bytes(enc("scan1"), [0xff, 0x00], enc("x"), [0xff, 0xd3], enc("y"));
+    const progressive = bytes(
+      [0xff, 0xd8],
+      segment(0xdb, new Uint8Array(65)),
+      segment(0xda, new Uint8Array(10)),
+      coded,
+      segment(0xe1, enc("http://ns.adobe.com/xap/1.0/\0GPSLatitude 48.1486")),
+      segment(0xfe, enc("between the scans")),
+      [0xff, 0xff], // a fill byte before the next marker
+      segment(0xda, new Uint8Array(10)),
+      enc("scan2"),
+      [0xff, 0xd9],
+    );
+    const admitted = admitPortrait(progressive);
+    expect(admitted.ok).toBe(true);
+    if (!admitted.ok) return;
+    const kept = admitted.bytes;
+    for (const gone of ["GPS", "adobe", "between the scans"])
+      expect(has(kept, gone), gone).toBe(false);
+    expect(Buffer.from(kept).includes(Buffer.from(coded))).toBe(true);
+    expect(has(kept, "scan2")).toBe(true);
+    expect([...kept.subarray(-2)]).toEqual([0xff, 0xd9]);
+  });
+
+  it("JPEG: a scan that never ends is not a whole image", () => {
+    const open = bytes([0xff, 0xd8], segment(0xda, new Uint8Array(10)), enc("scan"));
+    expect(admitPortrait(open).ok).toBe(false);
+  });
+
+  it("PNG and WebP keep only what draws the picture: the older exIf, C2PA, tIME go", () => {
+    const png = admitPortrait(
+      bytes(
+        [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a],
+        pngChunk("IHDR", new Uint8Array(13)),
+        pngChunk("exIf", enc("MM\0*GPSLatitude 48.1486")),
+        pngChunk("caBX", enc("c2pa stds.exif GPSLatitude")),
+        pngChunk("tIME", new Uint8Array(7)),
+        pngChunk("pHYs", new Uint8Array(9)),
+        pngChunk("IDAT", enc("pixels")),
+        pngChunk("IEND", new Uint8Array(0)),
+      ),
+    );
+    expect(png.ok).toBe(true);
+    if (png.ok) {
+      for (const gone of ["exIf", "caBX", "c2pa", "GPS", "tIME"])
+        expect(has(png.bytes, gone), gone).toBe(false);
+      for (const stays of ["IHDR", "pHYs", "IDAT", "IEND"])
+        expect(has(png.bytes, stays), stays).toBe(true);
+    }
+
+    const webpAdmitted = admitPortrait(
+      webp(
+        riffChunk("VP8X", VP8X),
+        riffChunk("VP8L", enc("pixels!")),
+        riffChunk("C2PA", enc("c2pa stds.exif GPSLatitude")),
+        riffChunk("priv", enc("GPS")),
+      ),
+    );
+    expect(webpAdmitted.ok).toBe(true);
+    if (webpAdmitted.ok) {
+      for (const gone of ["C2PA", "c2pa", "priv", "GPS"])
+        expect(has(webpAdmitted.bytes, gone), gone).toBe(false);
+      expect(has(webpAdmitted.bytes, "VP8L")).toBe(true);
+    }
+  });
+
   it("WebP: EXIF and XMP chunks go, VP8X stops announcing them, RIFF says the new size", () => {
     const admitted = admitPortrait(WEBP);
     expect(admitted.ok).toBe(true);
