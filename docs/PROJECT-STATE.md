@@ -6328,7 +6328,10 @@ changed text.
    12px under a 70px sticky header at 390 and 360.
 
 Tests: `registers-phone` 15 (the head's names, the desktop inset, the anchor), `sales-flow-phone`
-8 (the focus wrap, the window's fold). Full suite: FULLSUITE.
+8 (the focus wrap, the window's fold). Full suite: 285 files, 5198 passed, 1 skipped, 3 failed —
+`no-secret-recipes` (no web build) and `artefact-consistency` (the historical REVIEW token),
+both environmental as above, and `staged-module`, because this section was edited while it ran;
+run alone on the committed tree it passes 8 of 8.
 
 **Next recommended action.** On the demo build at 390 and 360: Sales Flow top to bottom (Tab
 through a presenter's counts; "Summary over"), Meetings ("Show the remaining 130 meetings" lands on
