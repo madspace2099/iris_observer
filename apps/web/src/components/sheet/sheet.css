@@ -294,9 +294,18 @@
   }
 }
 
-/* A door's one way in is a thumb's target on a phone, the width of the row. */
+/*
+ * On a phone every button on the two pages and the register's next step are a
+ * thumb's target (44px), not only the doors.
+ */
 @media (width < 48rem) {
-  .sheet-door .ox-btn {
+  .sheet .ox-btn {
+    min-height: 2.75rem;
+  }
+
+  .sheet-check-step a {
+    display: inline-flex;
+    align-items: center;
     min-height: 2.75rem;
   }
 }
