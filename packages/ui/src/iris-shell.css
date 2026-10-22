@@ -491,15 +491,18 @@
    * anywhere across its full width, most of which is empty space over the
    * brand mark it is stacked on top of.
    *
-   * Fixed, not absolute: the header it sits on is sticky, and an absolute bar
+   * Sticky, like the header it sits on, and pulled up onto the header's band
+   * by its own height, so it takes no room in the flow. An absolute bar
    * scrolled away with the page — 2,000px down Sales Flow the header showed a
-   * wordmark and no way to the menu at all.
+   * wordmark and no way to the menu at all. A fixed one stayed, but a fixed box
+   * across the top of the viewport lies over whatever scrolls under the
+   * header, which `fixed-covers-nothing.spec.ts` rightly fails; a sticky bar is
+   * part of the header's band, as the header is.
    */
   .irs-mobile-bar {
-    position: fixed;
+    position: sticky;
     top: 0;
-    left: 0;
-    right: 0;
+    margin-top: calc(-1 * var(--iris-header-height-mobile));
     /*
      * Above `.irs-header`'s own z-index: 4 (both are `.irs-shell > *`
      * siblings, so a lower value here would paint under the header's own
@@ -658,8 +661,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    /* A thumb's 44px, its extra 12px taken out of the head's padding so the head keeps its height. */
+    width: 44px;
+    height: 44px;
+    margin: -6px -6px -6px 0;
     border: 0;
     border-radius: var(--iris-radius-control);
     background: transparent;
@@ -750,6 +755,9 @@
     min-width: 0;
     max-width: none;
     max-height: none;
+    /* Not a scroller of its own, or a swipe that starts on the list moves nothing. */
+    overflow: visible;
+    overscroll-behavior: auto;
     margin-top: 0.375rem;
     box-shadow: none;
   }
@@ -757,6 +765,19 @@
   .irs-mobile-context .ox-menu-button,
   .irs-mobile-context .ox-menu-row {
     min-height: 44px;
+  }
+
+  /* Thumb-sized, like the rows: the list's foot, the account buttons, Sign out. */
+  .irs-mobile-context .ox-menu-foot,
+  .irs-mobile-account .ox-btn,
+  .irs-mobile-account .irs-signout {
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .irs-mobile-account .irs-signout {
+    border-radius: 22px;
   }
 
   .irs-mobile-who {

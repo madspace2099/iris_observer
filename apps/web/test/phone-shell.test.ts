@@ -100,13 +100,33 @@ describe("an explanation panel is opaque", () => {
 
 describe("the phone menu", () => {
   it("keeps its bar, and the only way to the menu, pinned while the page scrolls", () => {
-    expect(rule(PHONE_SHELL, ".irs-mobile-bar")).toMatch(/position:\s*fixed/);
+    const bar = rule(PHONE_SHELL, ".irs-mobile-bar");
+    expect(bar).toMatch(/position:\s*sticky/);
+    /* Not fixed: a fixed box lies over what scrolls under the header (fixed-covers-nothing). */
+    expect(bar).not.toMatch(/position:\s*fixed/);
+    /* On the header's band, taking no room in the flow. */
+    expect(bar).toMatch(/margin-top:\s*calc\(-1 \* var\(--iris-header-height-mobile\)\)/);
   });
 
   it("opens a switcher's list in the sheet's own flow, so the sheet's scroller holds it", () => {
     const list = rule(PHONE_SHELL, ".irs-mobile-context .ox-menu-panel");
     expect(list).toMatch(/position:\s*static/);
     expect(list).toMatch(/max-height:\s*none/);
+    /* The base panel is a contained scroller; left so, a swipe on the list moves nothing. */
+    expect(list).toMatch(/overflow:\s*visible/);
+    expect(list).toMatch(/overscroll-behavior:\s*auto/);
+  });
+
+  it("makes the sheet's close, account buttons, Sign out and list foot thumb-sized", () => {
+    const close = rule(PHONE_SHELL, ".irs-mobile-menu-close");
+    expect(close).toMatch(/width:\s*44px/);
+    expect(close).toMatch(/height:\s*44px/);
+    expect(
+      rule(
+        PHONE_SHELL,
+        ".irs-mobile-context .ox-menu-foot, .irs-mobile-account .ox-btn, .irs-mobile-account .irs-signout",
+      ),
+    ).toMatch(/min-height:\s*44px/);
   });
 
   it("brings an opened list into view inside the sheet", () => {
