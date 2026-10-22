@@ -2598,7 +2598,7 @@
   min-width: 0;
 }
 
-/* Words, like the source line it repeats (ADR-0052), not an evidence id. */
+/* A row's availability, when it is not "recorded today": words, not an evidence id. */
 .iris-audience-basis {
   font-family: var(--sans);
   font-size: 0.75rem;

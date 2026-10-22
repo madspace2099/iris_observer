@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PLACE_CATEGORIES, PLACE_CATEGORY_LABELS, type PlaceCategory } from "@observer/contracts";
 import { nothingReceivedYet, type PeriodPreset, DEFAULT_LANGUAGE } from "@observer/readmodels";
-import { SOURCE_LINE_WORDS } from "@/components/report/words";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -33,9 +32,10 @@ export const metadata: Metadata = { title: "Audience" };
  * behaviour. "Probably has children" is a reading a human may make from it;
  * Observer states the behaviour and lets them make it.
  *
- * Each row says what it stands on, source and availability, because each row
- * is a claim; a kind of place with nothing recorded behind it gets no list and
- * a sentence naming what is missing, not "nothing matched" (P2-18).
+ * Each row is a claim, so what it stands on is said: the source once, above
+ * the list, and on a row only a place today's showroom does not record whole;
+ * a kind of place with nothing recorded behind it gets no list and a sentence
+ * naming what is missing, not "nothing matched" (P2-18).
  */
 export default async function AudiencePage({
   params,
@@ -216,12 +216,17 @@ export default async function AudiencePage({
                     <span className="iris-bar-label" title={m.because}>
                       {m.because}
                     </span>
-                    {/* The source line's words, then whether today's showroom records it. */}
-                    <span className="iris-audience-basis" data-availability={m.availability}>
-                      {SOURCE_LINE_WORDS[DEFAULT_LANGUAGE].lead}:{" "}
-                      {SOURCE_LINE_WORDS[DEFAULT_LANGUAGE].words[m.source]} ·{" "}
-                      {AVAILABILITY_WORDS[m.availability]}
-                    </span>
+                    {/*
+                     * The source line above the list names where every row comes
+                     * from; a row says only a place that today's showroom does
+                     * not record whole. "Recorded today" on every row beside a
+                     * date read as the day of the meeting.
+                     */}
+                    {m.availability === "legacy_available" ? null : (
+                      <span className="iris-audience-basis" data-availability={m.availability}>
+                        {AVAILABILITY_WORDS[m.availability]}
+                      </span>
+                    )}
                   </span>
                   <span className="iris-matrix-num" style={{ textAlign: "right" }}>
                     {m.outcomeLabel}
