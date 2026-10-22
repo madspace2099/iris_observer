@@ -171,6 +171,8 @@ export interface CohortAgent {
   readonly recordedDisplay: string;
   /** "8 of 22 · 36%"; under `AGENT_MIN_SAMPLE` recorded, "3 of 19 · no rate, 1 short of 20". */
   readonly display: string;
+  /** That rate, 0 to 1, and the bar's length; null under `AGENT_MIN_SAMPLE` recorded, where neither is stated. */
+  readonly share: number | null;
   readonly belowMinimum: boolean;
   /** The register, narrowed to this presenter and the group's outcome; null where they have none in it. */
   readonly href: string | null;
@@ -184,9 +186,9 @@ export interface CohortFigure {
   readonly id: "length" | "features_opened" | "apartments_opened";
   readonly metricId: string;
   readonly label: string;
-  /** The group's median, or "No median" where too few meetings on a side could answer it. */
+  /** The group's median, or "No median" where none of the group could answer it. */
   readonly value: string;
-  /** The others' median, the middle halves where stated, and both samples; or the shortfall. */
+  /** The others' median, the middle halves where stated, and both samples; under the floor, the group's sample and the shortfall. */
   readonly qualifier: string;
 }
 
@@ -221,7 +223,7 @@ export interface BehaviourFunnel {
    * sample sizes, said as association; or why none is said. Null with no group.
    */
   readonly lead: string | null;
-  /** Length, features opened and apartments opened, typical per meeting. Empty with no group, or where no side clears the floor. */
+  /** Length, features opened and apartments opened, typical per meeting. Empty with no group. */
   readonly figures: readonly CohortFigure[];
   /** Every presenter of the period, in the roster's order. Empty with no group. */
   readonly byAgent: readonly CohortAgent[];

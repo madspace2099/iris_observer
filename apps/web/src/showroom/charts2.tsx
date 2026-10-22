@@ -713,12 +713,14 @@ export function Heatmap({
  *
  *   the lead        the clearest difference, both sample sizes, as association
  *   the figures     median length, features and apartments opened, the others' beside
- *   whose they were each presenter's part of the group, opening their meetings
+ *   whose they were each presenter's count against their own, opening their meetings
  *   what they did   each behaviour in the group against the others, widest gap first
  *
  * A presenter's name opens their meetings of the group in the register, for a
- * reader the register admits. Their bar is their part of the group, drawn to
- * the group's size; the figure beside it is of their own recorded meetings.
+ * reader the register admits. Their bar is the rate printed beside it, their
+ * count over their own recorded meetings, and is drawn only where that rate is
+ * stated: a bar of their part of the group beside a rate of their own meetings
+ * drew one proportion next to another (review, 2026-10-22).
  */
 export function Funnel({
   data,
@@ -731,8 +733,6 @@ export function Funnel({
   /** Whether this reader may open the register; never a link that leads to a refusal. */
   readonly canOpen: boolean;
 }) {
-  /* Geometry: each bar against the group, which is every presenter's part together. */
-  const group = data.byAgent.reduce((sum, a) => sum + a.count, 0);
   return (
     <div className="iris-cohort">
       {data.lead === null ? null : <p className="iris-cohort-lead">{data.lead}</p>}
@@ -776,17 +776,20 @@ export function Funnel({
                     )}
                     <span className="iris-orow-total">{a.recordedDisplay}</span>
                   </span>
+                  {/* The bar is the rate beside it, the read model's; under the floor neither is stated. */}
                   <span className="iris-orow-bar" aria-hidden="true">
-                    {a.count === 0 ? null : (
-                      <span
-                        className="iris-orow-part iris-outcome-mark"
-                        data-outcome="not_interested"
-                        style={{ flexGrow: a.count }}
-                      >
-                        <b>{a.count}</b>
-                      </span>
+                    {a.share === null || a.count === 0 ? null : (
+                      <>
+                        <span
+                          className="iris-orow-part iris-outcome-mark"
+                          data-outcome="not_interested"
+                          style={{ flexGrow: a.share }}
+                        >
+                          <b>{a.count}</b>
+                        </span>
+                        <span className="iris-orow-rest" style={{ flexGrow: 1 - a.share }} />
+                      </>
                     )}
-                    <span className="iris-orow-rest" style={{ flexGrow: group - a.count }} />
                   </span>
                   <span className="iris-orow-figure">{a.display}</span>
                 </li>

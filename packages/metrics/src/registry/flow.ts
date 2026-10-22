@@ -366,7 +366,8 @@ export const irisLedSales = defineMetric({
  *
  * Which presenter each was, how long they ran, what they opened, and what they
  * reached, each against the period's other recorded meetings. A description of
- * a group at its sample size: the comparison is an association, never a cause.
+ * a group at its sample size: the comparison is an association, never a cause,
+ * made only at AGENT_MIN_SAMPLE a side, as Presentation DNA makes its own.
  * The showroom records openings, not clicks or taps, so no click count exists.
  */
 const NOT_INTERESTED_ROLES = [
@@ -412,7 +413,7 @@ export const notInterestedLength = defineMetric({
     'How long the meetings that ended "not interested" ran, against the period\'s other recorded meetings.',
   kind: "duration",
   calculation:
-    "The median length of the period's meetings recorded as not interested, and their middle half (the 25th to the 75th percentile, nearest rank); the same of every other meeting with an outcome recorded. Each side needs the minimum sample of timed meetings, and below it no median is stated.",
+    "The median length of the period's meetings recorded as not interested, and their middle half (the 25th to the 75th percentile, nearest rank); the same of every other meeting with an outcome recorded. The two are set side by side only where each side has the minimum sample of timed meetings, the floor Presentation DNA keeps on its outcome cohorts; below it the group's own median is stated alone, with its sample and how far short it is.",
   numerator: "meeting length",
   denominator: "timed meetings on each side",
   exclusions: ["meetings the source could not time", "meetings with no outcome recorded"],
@@ -421,12 +422,12 @@ export const notInterestedLength = defineMetric({
   requiredFacts: ["meeting.attended", "meeting.outcome.recorded"],
   requiredCrmFields: [],
   requiredUnitAttributes: [],
-  minimumSampleSize: 10,
+  minimumSampleSize: AGENT_MIN_SAMPLE,
   comparison: "none",
   evidenceTier: "statistical_association",
   states: {
     empty: NO_GROUP,
-    insufficient: insufficient(10, "timed meetings on a side"),
+    insufficient: insufficient(AGENT_MIN_SAMPLE, "timed meetings on a side"),
     unavailable: NO_SHOWROOM,
   },
   drillTo: "meetings",
@@ -440,7 +441,7 @@ export const notInterestedInteractions = defineMetric({
     'How many showroom features and apartments a typical meeting that ended "not interested" opened, against the period\'s other recorded meetings.',
   kind: "distribution",
   calculation:
-    "Two counts per meeting: features opened, every opening of a showroom section with a return to one counted again; and apartments opened, the distinct units viewed. The median of each over the meetings recorded as not interested and over every other meeting with an outcome recorded. The showroom records openings, not clicks or taps, so no click count is made.",
+    "Two counts per meeting: features opened, every opening of a showroom section with a return to one counted again; and apartments opened, the distinct units viewed. The median of each over the meetings recorded as not interested and over every other meeting with an outcome recorded. The two are set side by side only where each side has the minimum sample, the floor Presentation DNA keeps on its outcome cohorts; below it the group's own median is stated alone. The showroom records openings, not clicks or taps, so no click count is made.",
   numerator: "features or apartments opened in a meeting",
   denominator: "meetings on each side",
   exclusions: ["meetings with no outcome recorded"],
@@ -449,12 +450,12 @@ export const notInterestedInteractions = defineMetric({
   requiredFacts: ["project.section.viewed", "unit.viewed", "meeting.outcome.recorded"],
   requiredCrmFields: [],
   requiredUnitAttributes: [],
-  minimumSampleSize: 10,
+  minimumSampleSize: AGENT_MIN_SAMPLE,
   comparison: "none",
   evidenceTier: "statistical_association",
   states: {
     empty: NO_GROUP,
-    insufficient: insufficient(10, "meetings on a side"),
+    insufficient: insufficient(AGENT_MIN_SAMPLE, "meetings on a side"),
     unavailable: NO_SHOWROOM,
   },
   drillTo: "meetings",
@@ -468,7 +469,7 @@ export const notInterestedReach = defineMetric({
     'For each of six things a presentation can do, the share of the meetings that ended "not interested" that did it, against the share of the period\'s other recorded meetings.',
   kind: "ratio",
   calculation:
-    "Per behaviour — reached Surroundings, opened Amenities, opened three or more units, shortlisted anything, used Compare, returned to a section — the meetings on a side that did it over the meetings on that side, each behaviour on its own. Drawn widest gap first.",
+    "Per behaviour — reached Surroundings, opened Amenities, opened three or more units, shortlisted anything, used Compare, returned to a section — the meetings on a side that did it over the meetings on that side, each behaviour on its own. Drawn widest gap first, and only where each side has the minimum sample, the floor Presentation DNA keeps on its outcome cohorts.",
   numerator: "meetings on a side that did it",
   denominator: "meetings on that side",
   exclusions: ["meetings with no outcome recorded"],
@@ -482,12 +483,12 @@ export const notInterestedReach = defineMetric({
   ],
   requiredCrmFields: [],
   requiredUnitAttributes: [],
-  minimumSampleSize: 10,
+  minimumSampleSize: AGENT_MIN_SAMPLE,
   comparison: "none",
   evidenceTier: "statistical_association",
   states: {
     empty: NO_GROUP,
-    insufficient: insufficient(10, "meetings on a side"),
+    insufficient: insufficient(AGENT_MIN_SAMPLE, "meetings on a side"),
     unavailable: NO_SHOWROOM,
   },
   drillTo: "meetings",

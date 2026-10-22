@@ -240,18 +240,19 @@ test.describe("the chart vocabulary", () => {
    * The not-interested section replaced its nested bands (ADR-0053): the owner
    * could not read "68% on its own · 80% elsewhere". Whose the meetings were is
    * now a row per presenter, each with its own denominator, and each pair of
-   * rates is drawn under the names of both groups.
+   * rates is drawn under the names of both groups. Northgate's group clears
+   * the cohort floor of 20 a side year to date (22), not quarter to date (14).
    */
   test("the not-interested group says whose it was, every count over its denominator", async ({
     page,
   }) => {
     await signInAs(page, "Petra Novák");
-    await page.goto("/alpha/northgate/flow");
+    await page.goto("/alpha/northgate/flow?period=year_to_date");
     const whose = page.getByRole("list", { name: "Whose they were" }).getByRole("listitem");
     /* The section streams in after the verdict; a bare count can run before it lands. */
     await expect(whose.first()).toBeVisible();
     for (const figure of await whose.locator(".iris-orow-figure").allTextContents()) {
-      expect(figure).toMatch(/^[\d,]+ of [\d,]+ · (\d+%|no rate, [\d,]+ short of 20)$/);
+      expect(figure).toMatch(/^[\d,]+ of [\d,]+ · (<?\d+%|no rate, [\d,]+ short of 20)$/);
     }
     await expect(page.locator(".iris-cohort .iris-paired-head")).toContainText("This group");
   });

@@ -679,6 +679,7 @@ export function buildBehaviourFunnel(
         (s) => s.agentId === p.id && !outcomeIsUnknown(s.outcome),
       ).length;
       const belowMinimum = recorded < AGENT_MIN_SAMPLE;
+      const rate = belowMinimum ? null : share(mine, recorded);
       return {
         agentId: p.id,
         name: p.name,
@@ -687,9 +688,10 @@ export function buildBehaviourFunnel(
         display:
           recorded === 0
             ? "no outcome recorded"
-            : belowMinimum
+            : rate === null
               ? `${n(mine)} of ${n(recorded)} · no rate, ${n(AGENT_MIN_SAMPLE - recorded)} short of ${n(AGENT_MIN_SAMPLE)}`
-              : `${n(mine)} of ${n(recorded)} · ${percent(share(mine, recorded), locale)}`,
+              : `${n(mine)} of ${n(recorded)} · ${shareDisplay(rate, locale)}`,
+        share: rate,
         belowMinimum,
         href:
           mine === 0
@@ -698,9 +700,13 @@ export function buildBehaviourFunnel(
       };
     });
 
-  /* Each typical figure, and the lead's clause where it differs enough to say. */
+  /*
+   * Each typical figure, and the lead's clause where it differs enough to say.
+   * Set beside the others' only where both sides clear the floor; below it the
+   * group's own median stands alone with its sample and how far short it is,
+   * the raw figure the doctrine keeps under a floor, and no comparison.
+   */
   const differs: { readonly gap: number; readonly text: string }[] = [];
-  let medians = 0;
   const figures = COHORT_FIGURES.map((f) => {
     const mine = cohort
       .filter(f.answers)
@@ -711,32 +717,34 @@ export function buildBehaviourFunnel(
       .map(f.value)
       .sort((a, b) => a - b);
     const minimum = floor(f.metricId);
-    const sizes = `${n(mine.length)} and ${n(theirs.length)} ${f.sample}`;
+    const say = (v: number) => (f.spread ? duration(v, language) : typical(v, locale));
+    const base = { id: f.id, metricId: f.metricId, label: f.label };
+    if (mine.length === 0) {
+      return { ...base, value: "No median", qualifier: `no ${f.sample} meeting in the group` };
+    }
+    const g = median(mine);
     if (mine.length < minimum || theirs.length < minimum) {
       return {
-        id: f.id,
-        metricId: f.metricId,
-        label: f.label,
-        value: "No median",
-        qualifier: `a side needs ${n(minimum)} ${f.sample} · ${sizes}`,
+        ...base,
+        value: say(g),
+        qualifier: `of ${n(mine.length)} ${f.sample} · not compared with the others' ${n(theirs.length)}: a side needs ${n(minimum)}, ${n(minimum - Math.min(mine.length, theirs.length))} short`,
       };
     }
-    medians += 1;
-    const say = (v: number) => (f.spread ? duration(v, language) : typical(v, locale));
-    const g = median(mine);
     const o = median(theirs);
+    const sizes = `${n(mine.length)} and ${n(theirs.length)} ${f.sample}`;
     if (o > 0 && Math.abs(g - o) / o >= LEAD_GAP) {
+      /* The lead's own sample is the recorded meetings; a figure resting on fewer says so. */
+      const own =
+        mine.length === cohort.length && theirs.length === rest.length ? "" : `, ${sizes}`;
       differs.push({
         gap: Math.abs(g - o) / o,
-        text: `${g < o ? f.fewer : f.more} (median ${say(g)} against ${say(o)})`,
+        text: `${g < o ? f.fewer : f.more} (median ${say(g)} against ${say(o)}${own})`,
       });
     }
     const middle = (xs: readonly number[]) =>
       `${say(nearestRank(xs, 0.25))}–${say(nearestRank(xs, 0.75))}`;
     return {
-      id: f.id,
-      metricId: f.metricId,
-      label: f.label,
+      ...base,
       value: say(g),
       qualifier: f.spread
         ? `others ${say(o)} · middle half ${middle(mine)} against ${middle(theirs)} · ${sizes}`
@@ -758,7 +766,7 @@ export function buildBehaviourFunnel(
           label: b.label,
           share: g,
           comparisonShare: o,
-          text: `${b.label}: ${percent(g, locale)} of the not-interested meetings, against ${percent(o, locale)} of the others.`,
+          text: `${b.label}: ${shareDisplay(g, locale)} of the not-interested meetings, against ${shareDisplay(o, locale)} of the others.`,
         };
       }).sort((a, b) => gapOf(b) - gapOf(a))
     : [];
@@ -770,27 +778,27 @@ export function buildBehaviourFunnel(
   if (widest !== undefined && gapOf(widest) >= LEAD_GAP) {
     const did = BEHAVIOURS.find((b) => b.id === widest.id)?.did ?? widest.label;
     said.push(
-      `${did} ${widest.share < widest.comparisonShare ? "less" : "more"} often (${percent(widest.share, locale)} against ${percent(widest.comparisonShare, locale)})`,
+      `${did} ${widest.share < widest.comparisonShare ? "less" : "more"} often (${shareDisplay(widest.share, locale)} against ${shareDisplay(widest.comparisonShare, locale)})`,
     );
   }
 
   const period = periodLabel.toLowerCase();
-  const lead =
-    !compared && medians === 0
-      ? `${group} ended "not interested", ${period}, against ${others}: a comparison needs ${n(reachFloor)} meetings on each side, so none is made.`
-      : said.length === 0
-        ? `The ${group} that ended "not interested" looked much like the ${others}, ${period}: none of the figures below differs from theirs by ${percent(LEAD_GAP, locale)} or more.`
-        : `The ${group} that ended "not interested" ${AND.format(said)} than the ${others}, ${period}. That is what they had in common, not why they ended so.`;
+  const points = n(Math.round(LEAD_GAP * 100));
+  const short = reachFloor - Math.min(cohort.length, rest.length);
+  const lead = !compared
+    ? `${group} ended "not interested", ${period}, against ${others}: a comparison needs ${n(reachFloor)} meetings on each side, and ${cohort.length < reachFloor ? "the group is" : "the others are"} ${n(short)} short, so none is made.`
+    : said.length === 0
+      ? `The ${group} that ended "not interested" looked much like the ${others}, ${period}: no median below differs from theirs by ${percent(LEAD_GAP, locale)} or more, and no share by ${points} points or more.`
+      : `The ${group} that ended "not interested" ${AND.format(said)} than the ${others}, ${period}. That is what they had in common, not why they ended so.`;
 
   return {
     cohortLabel: `Ended "not interested" · ${group}`,
     steps,
     empty: null,
     comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
-    disclaimer: `Every figure here sets the meetings that ended "not interested" beside every other meeting of the period with an outcome recorded; a meeting with none recorded is on neither side. Whose they were: each bar is the presenter's part of the group, and beside it how many of their own recorded meetings ended so, a rate only from ${n(AGENT_MIN_SAMPLE)} recorded up. Length is the median, with the middle half of the meetings (the 25th to the 75th percentile). Features opened counts every opening of a showroom section, a return counted again: the showroom records what was opened, not clicks. What they did is each behaviour on its own, in the group and among the others, the widest gap first. A median or a share is stated only where a side has ${n(reachFloor)} meetings. This describes what the group had in common at the stated sample sizes; it is not evidence that any of it produced the outcome — buyers who arrive uninterested are also shown less.`,
+    disclaimer: `Every figure here sets the meetings that ended "not interested" beside every other meeting of the period with an outcome recorded; a meeting with none recorded is on neither side. Whose they were: each presenter's count of the group over their own recorded meetings, the bar drawn to that rate, both only from ${n(AGENT_MIN_SAMPLE)} recorded up. Length is the median, with the middle half of the meetings (the 25th to the 75th percentile). Features opened counts every opening of a showroom section, a return counted again: the showroom records what was opened, not clicks. What they did is each behaviour on its own, in the group and among the others, the widest gap first. The two groups are set side by side only where each has ${n(reachFloor)} meetings, the floor Presentation DNA keeps on its own outcome cohorts; below it the group's own medians stand alone. A median is said to differ from the others' at ${percent(LEAD_GAP, locale)} of theirs, a share at ${points} points. This describes what the group had in common at the stated sample sizes; it is not evidence that any of it produced the outcome — buyers who arrive uninterested are also shown less.`,
     lead,
-    /* Three cells of "No median" would be a strip of nothing; the lead says why instead. */
-    figures: medians === 0 ? [] : figures,
+    figures,
     byAgent,
     reach,
     reachOf: compared

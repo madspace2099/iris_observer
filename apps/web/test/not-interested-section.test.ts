@@ -37,6 +37,7 @@ const DATA: BehaviourFunnel = {
       count: 8,
       recordedDisplay: "Oliver's recorded",
       display: "Oliver's figure",
+      share: 0.3125,
       belowMinimum: false,
       href: "/t/p/meetings?agent=agt_oliver&outcome=not_interested",
     },
@@ -46,6 +47,7 @@ const DATA: BehaviourFunnel = {
       count: 0,
       recordedDisplay: "Marek's recorded",
       display: "Marek's figure",
+      share: null,
       belowMinimum: true,
       href: null,
     },
@@ -94,6 +96,17 @@ describe("the not-interested section", () => {
   it("links nobody with no meeting in the group, and nobody for a reader the register refuses", () => {
     expect(html.match(/<a /g)).toHaveLength(1);
     expect(render(DATA, false)).not.toContain("<a ");
+  });
+
+  it("draws a presenter's bar to the rate beside it, and none where no rate is stated", () => {
+    // Oliver's rate as the read model wrote it, never his 8 of the group's 8.
+    expect(html).toContain("flex-grow:0.3125");
+    expect(html).toContain("flex-grow:0.6875");
+    const below = render(
+      { ...DATA, byAgent: [{ ...DATA.byAgent[0]!, share: null, belowMinimum: true }] },
+      true,
+    );
+    expect(below).toContain('<span class="iris-orow-bar" aria-hidden="true"></span>');
   });
 
   it("draws each behaviour's pair under the names of both groups", () => {

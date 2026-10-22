@@ -3,10 +3,11 @@ import type { MeetingOutcome, SectionId, ShowroomSession, ShowroomStep } from "@
 import {
   DEFAULT_LANGUAGE,
   type OverviewQuery,
+  type PeriodPreset,
   type ProjectAddress,
   type Viewer,
 } from "@observer/readmodels";
-import { getMetric } from "@observer/metrics";
+import { AGENT_MIN_SAMPLE, getMetric } from "@observer/metrics";
 import { SyntheticObserverRepository, VIEWERS } from "../src";
 import { buildBehaviourFunnel } from "../src/showroom/charts";
 
@@ -25,14 +26,14 @@ const LENA = "agt_sharklena01";
 const MAREK = "agt_sharkmarek01";
 const OLIVER = "agt_sharkoliver01";
 
-const step = (ordinal: number, sectionId: SectionId): ShowroomStep => ({
+const step = (ordinal: number, sectionId: SectionId, isReturn = false): ShowroomStep => ({
   ordinal,
   sectionId,
   itemId: null,
   itemLabel: null,
   enteredAt: null,
   dwellSeconds: 30,
-  isReturn: false,
+  isReturn,
   availability: "legacy_available",
 });
 
@@ -51,10 +52,22 @@ function meeting(
   agentId: string,
   outcome: MeetingOutcome,
   durationSeconds: number,
-  timed = true,
+  {
+    timed = true,
+    returns = 0,
+    units = 3,
+    like = outcome === "not_interested" ? "group" : "others",
+  }: {
+    readonly timed?: boolean;
+    /** Returns to Residences after the sections shown: each is one more opening. */
+    readonly returns?: number;
+    readonly units?: number;
+    /** Whose habits the meeting has, whatever its outcome. */
+    readonly like?: "group" | "others";
+  } = {},
 ): ShowroomSession {
   id += 1;
-  const group = outcome === "not_interested";
+  const shown = like === "group" ? GROUP_STEPS : OTHER_STEPS;
   return {
     sessionId: `s-${id}`,
     meetingId: `m-${id}`,
@@ -66,22 +79,28 @@ function meeting(
     endedAt: "2026-09-01T11:00:00.000Z",
     durationSeconds,
     outcome,
-    steps: (group ? GROUP_STEPS : OTHER_STEPS).map((s, i) => step(i + 1, s)),
-    units: ["A-1", "A-2", "A-3"].map((unitCode) => ({
-      unitId: unitCode,
-      unitCode,
-      views: 1,
-      dwellSeconds: 60,
-      longestViewSeconds: 60,
-      favourited: !group,
-      pdfOpened: false,
-      balconyViews: 0,
-      floorCutViews: 0,
-      screenshots: 0,
-      comparedWith: [],
-      keptFromComparison: null,
-      shared: false,
-    })),
+    steps: [
+      ...shown.map((s, i) => step(i + 1, s)),
+      ...Array.from({ length: returns }, (_, i) => step(shown.length + i + 1, "residences", true)),
+    ],
+    units: Array.from({ length: units }, (_, i) => {
+      const unitCode = `A-${i + 1}`;
+      return {
+        unitId: unitCode,
+        unitCode,
+        views: 1,
+        dwellSeconds: 60,
+        longestViewSeconds: 60,
+        favourited: like === "others",
+        pdfOpened: false,
+        balconyViews: 0,
+        floorCutViews: 0,
+        screenshots: 0,
+        comparedWith: [],
+        keptFromComparison: null,
+        shared: false,
+      };
+    }),
     environment: [],
     filters: [],
     places: [],
@@ -95,39 +114,66 @@ function meeting(
 const times = (n: number, make: () => ShowroomSession) => Array.from({ length: n }, make);
 
 /*
- * The group, ten: Lena's two (300s, 360s) and Oliver's eight (420s to 840s,
- * 60s apart). Sorted, 300…840: median (540 + 600) / 2 = 570s = 9m 30s; the
- * 25th percentile by nearest rank is the ceil(2.5) = 3rd, 420s = 7m 00s; the
- * 75th the ceil(7.5) = 8th, 720s = 12m 00s.
+ * The group, twenty, skewed so that a mean and a median part (a regression to
+ * a mean fails every figure below): Lena's two (300s, 300s), Marek's one (360s)
+ * and Oliver's seventeen (360s, 420s twice, 480s twice … 720s twice, 780s,
+ * 840s, then 1800s and 3600s, the two long ones also returning to a section
+ * sixteen times and opening ten apartments).
  *
- * The others, 27 recorded: Lena's twenty follow-ups, Oliver's four
- * presentations, Marek's three "interested" — two of which the source could
- * not time (60s each, which must not count). Timed: 25, all 900s = 15m 00s.
+ *   Length, sorted: 300 300 360 360 420 420 480 480 540 540 | 600 600 660 660
+ *   720 720 780 840 1800 3600. Median (540 + 600) / 2 = 570s = 9m 30s; the mean
+ *   would be 15180 / 20 = 759s. 25th percentile by nearest rank, the
+ *   ceil(5) = 5th: 420s = 7m 00s; 75th, the ceil(15) = 15th: 720s = 12m 00s.
+ *   Features opened: eighteen 4s and two 20s, median 4 (mean 5.6).
+ *   Apartments opened: eighteen 3s and two 10s, median 3 (mean 3.7).
+ *
+ * The others, 27 recorded: Lena's twenty follow-ups (900s, eight openings,
+ * three apartments), Oliver's four presentations (3600s, eight openings and
+ * eight returns, six apartments), Marek's three "interested", two of which the
+ * source could not time (60s each, which must not count).
+ *
+ *   Length, the 25 timed: twenty-one 900s and four 3600s; median, the 13th,
+ *   900s = 15m 00s (mean 33300 / 25 = 1332s); middle half, the 7th and 19th,
+ *   900s–900s.
+ *   Features opened: twenty-three 8s and four 16s, median 8 (mean 9.2).
+ *   Apartments opened: twenty-three 3s and four 6s, median 3 (mean 3.4).
+ *
  * Lena's one skipped meeting is on neither side.
  */
 function fixture(groupTimed = true): ShowroomSession[] {
   id = 0;
   return [
     meeting(LENA, "not_interested", 300),
-    meeting(LENA, "not_interested", 360),
-    ...[420, 480, 540, 600, 660, 720, 780, 840].map((d, i) =>
-      meeting(OLIVER, "not_interested", d, groupTimed || i > 0),
+    meeting(LENA, "not_interested", 300),
+    meeting(MAREK, "not_interested", 360),
+    ...[360, 420, 420, 480, 480, 540, 540, 600, 600, 660, 660, 720, 720, 780, 840].map((d, i) =>
+      meeting(OLIVER, "not_interested", d, { timed: groupTimed || i > 0 }),
     ),
+    meeting(OLIVER, "not_interested", 1800, { returns: 16, units: 10 }),
+    meeting(OLIVER, "not_interested", 3600, { returns: 16, units: 10 }),
     ...times(20, () => meeting(LENA, "follow_up_needed", 900)),
     meeting(LENA, "skipped", 900),
-    ...times(4, () => meeting(OLIVER, "presentation_only", 900)),
+    ...times(4, () => meeting(OLIVER, "presentation_only", 3600, { returns: 8, units: 6 })),
     meeting(MAREK, "interested", 900),
-    meeting(MAREK, "interested", 60, false),
-    meeting(MAREK, "interested", 60, false),
+    meeting(MAREK, "interested", 60, { timed: false }),
+    meeting(MAREK, "interested", 60, { timed: false }),
   ];
 }
 
 const funnel = buildBehaviourFunnel(fixture(), "en-GB", "en", AT, "Quarter to date");
+/* Marek's one meeting of the group left out: nineteen, one short of the floor. */
+const nineteen = buildBehaviourFunnel(
+  fixture().filter((_, i) => i !== 2),
+  "en-GB",
+  "en",
+  AT,
+  "Quarter to date",
+);
 
 describe("whose they were", () => {
   it("lists every presenter of the period in the roster's order, never by count", () => {
     expect(funnel.byAgent.map((a) => a.agentId)).toEqual([LENA, MAREK, OLIVER]);
-    expect(funnel.byAgent.map((a) => a.count)).toEqual([2, 0, 8]);
+    expect(funnel.byAgent.map((a) => a.count)).toEqual([2, 1, 17]);
   });
 
   it("states each count against the presenter's own recorded meetings, a rate only from 20", () => {
@@ -135,21 +181,44 @@ describe("whose they were", () => {
     expect(funnel.byAgent[0]).toMatchObject({
       recordedDisplay: "22 recorded",
       display: "2 of 22 · 9%",
+      share: 2 / 22,
       belowMinimum: false,
     });
-    // Oliver: 8 of 12, which is 8 short of 20: no rate.
-    expect(funnel.byAgent[2]).toMatchObject({
-      recordedDisplay: "12 recorded",
-      display: "8 of 12 · no rate, 8 short of 20",
+    // Marek: 1 of 4, which is 16 short of 20: no rate, and no bar.
+    expect(funnel.byAgent[1]).toMatchObject({
+      recordedDisplay: "4 recorded",
+      display: "1 of 4 · no rate, 16 short of 20",
+      share: null,
       belowMinimum: true,
     });
+    // Oliver: 17 of 21 = 80.95%. The bar is this rate, not his 17 of the group's 20.
+    expect(funnel.byAgent[2]).toMatchObject({ display: "17 of 21 · 81%", share: 17 / 21 });
+  });
+
+  it("never prints a share of something that happened as 0%", () => {
+    // Lena's one of 210 recorded is 0.48%, which a whole percent would round to nought.
+    const rare = buildBehaviourFunnel(
+      [
+        meeting(LENA, "not_interested", 600),
+        ...times(209, () => meeting(LENA, "follow_up_needed", 900)),
+        ...times(19, () => meeting(OLIVER, "not_interested", 600)),
+      ],
+      "en-GB",
+      "en",
+      AT,
+      "Quarter to date",
+    );
+    expect(rare.byAgent.map((a) => a.display)).toEqual([
+      "1 of 210 · <1%",
+      "19 of 19 · no rate, 1 short of 20",
+    ]);
   });
 
   it("opens each presenter's meetings of the group in the register, and none where there are none", () => {
     expect(funnel.byAgent[0]?.href).toBe(
       "/t/p/meetings?agent=agt_sharklena01&outcome=not_interested",
     );
-    expect(funnel.byAgent[1]?.href).toBeNull();
+    expect(nineteen.byAgent[1]).toMatchObject({ count: 0, href: null });
   });
 });
 
@@ -161,75 +230,97 @@ describe("how long they ran and what was opened in them", () => {
       metricId: "flow.not_interested_length",
       value: "9m 30s",
       qualifier:
-        "others 15m 00s · middle half 7m 00s–12m 00s against 15m 00s–15m 00s · 10 and 25 timed",
+        "others 15m 00s · middle half 7m 00s–12m 00s against 15m 00s–15m 00s · 20 and 25 timed",
     });
   });
 
   it("counts features opened as section openings, and apartments as units, per meeting", () => {
     expect(figure("features_opened")).toMatchObject({
       value: "4",
-      qualifier: "others 8 · 10 and 27 meetings",
+      qualifier: "others 8 · 20 and 27 meetings",
     });
     expect(figure("apartments_opened")).toMatchObject({
       value: "3",
-      qualifier: "others 3 · 10 and 27 meetings",
+      qualifier: "others 3 · 20 and 27 meetings",
     });
   });
 
-  it("states no median for a side under the registry's floor, and says by how much", () => {
-    // One of Oliver's eight untimed: 9 timed in the group, one short of 10.
+  it("under the floor, states the group's own median alone, with its sample and the shortfall", () => {
+    // One of Oliver's untimed: 19 timed in the group. Without its 360s: the 10th of 19, 600s.
     const short = buildBehaviourFunnel(fixture(false), "en-GB", "en", AT, "Quarter to date");
     expect(short.figures.find((f) => f.id === "length")).toMatchObject({
-      value: "No median",
-      qualifier: "a side needs 10 timed · 9 and 25 timed",
+      value: "10m 00s",
+      qualifier: "of 19 timed · not compared with the others' 25: a side needs 20, 1 short",
     });
-    expect(short.figures.find((f) => f.id === "features_opened")?.value).toBe("4");
+    expect(short.figures.find((f) => f.id === "features_opened")?.qualifier).toBe(
+      "others 8 · 20 and 27 meetings",
+    );
   });
 });
 
 describe("what they did, against the others", () => {
   it("states each behaviour on its own in both groups, the widest gap first", () => {
-    // Shortlisting and Compare: 0 of 10 against 27 of 27, a gap of 1, in the list's own order.
+    // Shortlisting and Compare: 0 of 20 against 27 of 27. Returning: 2 of 20 against 4 of 27.
     expect(funnel.reach.map((r) => [r.id, r.share, r.comparisonShare])).toEqual([
       ["shortlisted", 0, 1],
       ["used_compare", 0, 1],
+      ["returned", 2 / 20, 4 / 27],
       ["reached_surroundings", 1, 1],
       ["opened_amenities", 1, 1],
       ["three_units", 1, 1],
-      ["returned", 0, 0],
     ]);
   });
 
   it("says what a pair of rates is, where the old band said 'on its own · elsewhere'", () => {
-    expect(funnel.reach[1]?.text).toBe(
-      "Used Compare: 0% of the not-interested meetings, against 100% of the others.",
+    expect(funnel.reach[2]?.text).toBe(
+      "Returned to a section before closing: 10% of the not-interested meetings, against 15% of the others.",
     );
     expect(funnel.reachOf).toBe(
-      'The share of meetings that did each: of the 10 meetings that ended "not interested", and of the 27 other recorded meetings. Each on its own; the widest gap first.',
+      'The share of meetings that did each: of the 20 meetings that ended "not interested", and of the 27 other recorded meetings. Each on its own; the widest gap first.',
     );
   });
 });
 
 describe("the lead", () => {
-  it("names the two widest typical differences and the widest behaviour, with both samples, as association", () => {
-    // Features 4 against 8 is a gap of 0.5; length 570 against 900 one of 0.37; apartments none.
+  it("names the two widest typical differences and the widest behaviour, each at its own samples, as association", () => {
+    // Features 4 against 8 is a gap of 0.5; length 570 against 900 one of 0.37, over
+    // 20 and 25 timed rather than the 20 and 27 recorded; apartments none.
     expect(funnel.lead).toBe(
-      'The 10 meetings that ended "not interested" opened fewer features (median 4 against 8), ran shorter (median 9m 30s against 15m 00s) and shortlisted anything less often (0% against 100%) than the 27 other recorded meetings, quarter to date. That is what they had in common, not why they ended so.',
+      'The 20 meetings that ended "not interested" opened fewer features (median 4 against 8), ran shorter (median 9m 30s against 15m 00s, 20 and 25 timed) and shortlisted anything less often (0% against 100%) than the 27 other recorded meetings, quarter to date. That is what they had in common, not why they ended so.',
     );
   });
 
-  it("makes no comparison under the floor, and says why instead of drawing nothing", () => {
-    // Drop one of Lena's: nine in the group.
-    const nine = buildBehaviourFunnel(fixture().slice(1), "en-GB", "en", AT, "Quarter to date");
-    expect(nine.lead).toBe(
-      '9 meetings ended "not interested", quarter to date, against 27 other recorded meetings: a comparison needs 10 meetings on each side, so none is made.',
+  it("says no difference in the units each test uses: percent for a median, points for a share", () => {
+    const alike = buildBehaviourFunnel(
+      [
+        ...times(20, () => meeting(LENA, "not_interested", 900, { like: "others" })),
+        ...times(20, () => meeting(OLIVER, "follow_up_needed", 900)),
+      ],
+      "en-GB",
+      "en",
+      AT,
+      "Quarter to date",
     );
-    expect(nine.figures).toEqual([]);
-    expect(nine.reach).toEqual([]);
-    expect(nine.reachOf).toBe(
-      "Not compared: a side needs 10 meetings, and the group has 9 against 27.",
+    expect(alike.lead).toBe(
+      'The 20 meetings that ended "not interested" looked much like the 20 other recorded meetings, quarter to date: no median below differs from theirs by 15% or more, and no share by 15 points or more.',
     );
-    expect(nine.byAgent.map((a) => a.count)).toEqual([1, 0, 8]);
+  });
+
+  it("makes no comparison under the floor, and says how far short", () => {
+    expect(nineteen.lead).toBe(
+      '19 meetings ended "not interested", quarter to date, against 27 other recorded meetings: a comparison needs 20 meetings on each side, and the group is 1 short, so none is made.',
+    );
+    expect(nineteen.reach).toEqual([]);
+    expect(nineteen.reachOf).toBe(
+      "Not compared: a side needs 20 meetings, and the group has 19 against 27.",
+    );
+    // The group's own medians still stand: length the 10th of 19, 600s; features 4; apartments 3.
+    expect(nineteen.figures.map((f) => [f.value, f.qualifier])).toEqual([
+      ["10m 00s", "of 19 timed · not compared with the others' 25: a side needs 20, 1 short"],
+      ["4", "of 19 meetings · not compared with the others' 27: a side needs 20, 1 short"],
+      ["3", "of 19 meetings · not compared with the others' 27: a side needs 20, 1 short"],
+    ]);
+    expect(nineteen.byAgent.map((a) => a.count)).toEqual([2, 0, 17]);
   });
 
   it("describes nothing for a period with no such meeting", () => {
@@ -246,7 +337,7 @@ describe("the lead", () => {
 });
 
 describe("the registry declares every figure", () => {
-  it("with a denominator and a minimum sample", () => {
+  it("with a denominator, and the floor Presentation DNA keeps on its outcome cohorts", () => {
     for (const id of [
       "flow.not_interested_by_agent",
       "flow.not_interested_length",
@@ -255,28 +346,29 @@ describe("the registry declares every figure", () => {
     ]) {
       const metric = getMetric(id);
       expect(metric?.denominator, id).toBeTruthy();
-      expect(metric?.minimumSampleSize, id).toBeGreaterThanOrEqual(10);
+      expect(metric?.minimumSampleSize, id).toBe(AGENT_MIN_SAMPLE);
       expect(metric?.evidenceTier, id).not.toBe("causal_claim");
     }
   });
 });
 
 /*
- * SHARK RESIDENCE, QUARTER TO DATE. Read off Sales Flow's own outcome rows
- * (`getSalesFlow`, the rings) on 2026-10-22: 150 meetings, 19 "not interested",
+ * SHARK RESIDENCE. Read off Sales Flow's own outcome rows (`getSalesFlow`, the
+ * rings) on 2026-10-22: quarter to date, 150 meetings, 19 "not interested",
  * 131 recorded. Lena 2 of 36, Marek 1 of 28, Oliver 8 of 22, Zsófia 5 of 26,
- * Iva 3 of 19.
+ * Iva 3 of 19. Year to date, 29 "not interested" against 214 others.
  */
-describe("Shark Residence, quarter to date", () => {
-  const SHARK: OverviewQuery = {
+describe("Shark Residence", () => {
+  const query = (period: PeriodPreset): OverviewQuery => ({
     viewer: VIEWERS.developerShark as Viewer,
     tenantSlug: "shark",
     projectSlug: "shark-residence",
-    period: "quarter_to_date",
+    period,
     language: DEFAULT_LANGUAGE,
-  };
+  });
   const repo = new SyntheticObserverRepository();
-  const read = () => repo.getFlowCharts(SHARK, "month").then((c) => c.funnel);
+  const read = (period: PeriodPreset = "quarter_to_date") =>
+    repo.getFlowCharts(query(period), "month").then((c) => c.funnel);
   const CAUSAL =
     /\b(because|caused|causes|causing|drives|drove|leads to|led to|results in|resulted in|due to|therefore|proves)\b/i;
 
@@ -293,7 +385,7 @@ describe("Shark Residence, quarter to date", () => {
   });
 
   it("agrees with the rings it stands under, presenter by presenter", async () => {
-    const [shark, flow] = await Promise.all([read(), repo.getSalesFlow(SHARK)]);
+    const [shark, flow] = await Promise.all([read(), repo.getSalesFlow(query("quarter_to_date"))]);
     expect(shark.byAgent.map((a) => a.agentId)).toEqual(flow.rings.map((r) => r.agentId));
     for (const ring of flow.rings) {
       const row = shark.byAgent.find((a) => a.agentId === ring.agentId);
@@ -303,8 +395,22 @@ describe("Shark Residence, quarter to date", () => {
     }
   });
 
-  it("prints each behaviour's pair as the design lab's bands print it, widest gap first", async () => {
+  it("quarter to date, compares nothing: the 19 are one short of the cohort floor", async () => {
     const shark = await read();
+    expect(shark.lead).toBe(
+      '19 meetings ended "not interested", quarter to date, against 112 other recorded meetings: a comparison needs 20 meetings on each side, and the group is 1 short, so none is made.',
+    );
+    expect(shark.reach).toEqual([]);
+    expect(shark.figures.map((f) => f.id)).toEqual([
+      "length",
+      "features_opened",
+      "apartments_opened",
+    ]);
+    for (const f of shark.figures) expect(f.qualifier, f.id).toContain("1 short");
+  });
+
+  it("year to date, prints each behaviour's pair as the design lab's bands print it, widest gap first", async () => {
+    const shark = await read("year_to_date");
     expect(shark.reach).toHaveLength(6);
     const gaps = shark.reach.map((r) => Math.abs(r.share - r.comparisonShare));
     expect(gaps).toEqual([...gaps].sort((a, b) => b - a));
@@ -315,16 +421,11 @@ describe("Shark Residence, quarter to date", () => {
     }
   });
 
-  it("leads with both sample sizes and claims no cause", async () => {
-    const shark = await read();
-    expect(shark.lead).toContain('The 19 meetings that ended "not interested"');
-    expect(shark.lead).toContain("than the 112 other recorded meetings, quarter to date");
+  it("year to date, leads with both sample sizes and claims no cause", async () => {
+    const shark = await read("year_to_date");
+    expect(shark.lead).toContain('The 29 meetings that ended "not interested"');
+    expect(shark.lead).toContain("than the 214 other recorded meetings, year to date");
     expect(shark.lead).not.toMatch(CAUSAL);
     expect(shark.disclaimer).not.toMatch(CAUSAL);
-    expect(shark.figures.map((f) => f.id)).toEqual([
-      "length",
-      "features_opened",
-      "apartments_opened",
-    ]);
   });
 });
