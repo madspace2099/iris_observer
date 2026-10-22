@@ -8,7 +8,8 @@ import { signInAs } from "./sign-in";
  * as the viewport under the sticky chrome, the document snaps from one to the
  * next, Page Down moves a screen, and a screen taller than the viewport (a
  * phone's, nearly all of them) is read through to its end, never held at its
- * top. One measured assertion per test.
+ * top. Under reduced motion, which the suite runs in, the page does not snap:
+ * Chrome animates every snap. One measured assertion per test.
  */
 
 const FLOW = "/shark/shark-residence/flow";
@@ -45,46 +46,63 @@ test("every screen fills the viewport under the header, so the next one starts b
   expect(short, "a screen shorter than the room under the header").toEqual([]);
 });
 
-test("Page Down moves one screen and lands it under the header", async ({ page }, info) => {
+test("under reduced motion the page does not snap", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop", "measured once, at the desktop width");
   await open(page);
-  const top = await chromeBottom(page);
-  const ids = await page.locator(".flow-screen").evaluateAll((els) => els.map((e) => e.id));
-  await page.locator("body").click({ position: { x: 4, y: 300 } });
-  const landed: string[] = [];
-  for (const id of ids.slice(1, 4)) {
-    await page.keyboard.press("PageDown");
-    await page.waitForTimeout(400);
-    const at = await page.locator(`#${id}`).evaluate((el) => el.getBoundingClientRect().top);
-    if (Math.abs(at - top) > 2) landed.push(`${id} at ${Math.round(at)}, not ${Math.round(top)}`);
-  }
-  expect(landed).toEqual([]);
+  const snap = await page.evaluate(() => getComputedStyle(document.documentElement).scrollSnapType);
+  expect(snap).toBe("none");
 });
 
-test("on a phone a screen taller than the viewport is read to its end", async ({ page }, info) => {
-  test.skip(info.project.name !== "mobile", "a phone is where screens outgrow the viewport");
-  await open(page);
-  const tallest = await page.locator(".flow-screen").evaluateAll((els) => {
-    const best = els.reduce((a, b) =>
-      b.getBoundingClientRect().height > a.getBoundingClientRect().height ? b : a,
-    );
-    return { id: best.id, height: best.getBoundingClientRect().height };
+test.describe("where motion is wanted", () => {
+  test.use({ contextOptions: { reducedMotion: "no-preference" } });
+
+  /* A snap glides for about half a second; the screen is read where it comes to rest. */
+  test("Page Down moves one screen and lands it under the header", async ({ page }, info) => {
+    test.skip(info.project.name !== "desktop", "measured once, at the desktop width");
+    await open(page);
+    const top = await chromeBottom(page);
+    const ids = await page.locator(".flow-screen").evaluateAll((els) => els.map((e) => e.id));
+    await page.locator("body").click({ position: { x: 4, y: 300 } });
+    for (const id of ids.slice(1, 4)) {
+      await page.keyboard.press("PageDown");
+      await expect
+        .poll(() => offset(page, id, top), { message: `${id} under the header` })
+        .toBeLessThanOrEqual(2);
+    }
   });
-  expect(tallest.height, "no screen is taller than the viewport here").toBeGreaterThan(
-    page.viewportSize()?.height ?? 0,
-  );
-  await page.locator(`#${tallest.id}`).evaluate((el) => el.scrollIntoView({ block: "start" }));
-  await page.waitForTimeout(300);
-  const from = await page.evaluate(() => window.scrollY);
-  /* The arrow key, 40px a press: a wheel is not a phone's, and a press is the smallest step there is. */
-  for (let i = 0; i < 15; i += 1) {
-    await page.keyboard.press("ArrowDown");
-    await page.waitForTimeout(120);
-  }
-  const to = await page.evaluate(() => window.scrollY);
-  expect(to - from, `${tallest.id} held its reader at its top`).toBeGreaterThan(400);
+
+  test("on a phone a screen taller than the viewport is read to its end", async ({
+    page,
+  }, info) => {
+    test.skip(info.project.name !== "mobile", "a phone is where screens outgrow the viewport");
+    await open(page);
+    const tallest = await page.locator(".flow-screen").evaluateAll((els) => {
+      const best = els.reduce((a, b) =>
+        b.getBoundingClientRect().height > a.getBoundingClientRect().height ? b : a,
+      );
+      return { id: best.id, height: best.getBoundingClientRect().height };
+    });
+    expect(tallest.height, "no screen is taller than the viewport here").toBeGreaterThan(
+      page.viewportSize()?.height ?? 0,
+    );
+    await page.locator(`#${tallest.id}`).evaluate((el) => el.scrollIntoView({ block: "start" }));
+    await page.waitForTimeout(300);
+    const from = await page.evaluate(() => window.scrollY);
+    /* The arrow key, 40px a press: a wheel is not a phone's, and a press is the smallest step there is. */
+    for (let i = 0; i < 15; i += 1) {
+      await page.keyboard.press("ArrowDown");
+      await page.waitForTimeout(120);
+    }
+    const to = await page.evaluate(() => window.scrollY);
+    expect(to - from, `${tallest.id} held its reader at its top`).toBeGreaterThan(400);
+  });
 });
 
+/*
+ * A dot replaces the address rather than pushing a fragment entry: the App
+ * Router ignores a popped entry it did not write, so Back after a dot and a
+ * window pick showed one window's figures under another's address.
+ */
 test("the rail names every screen and goes to it", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop", "the rail is drawn from a tablet's width up");
   await open(page);

@@ -44,6 +44,18 @@ html:has(.iris-salesflow) {
   }
 }
 
+/*
+ * Under reduced motion the page does not snap: Chrome animates every snap, so
+ * after each turn of the wheel the page glided on by itself (review round 1).
+ * The screens still fill the viewport, and Page Down and the rail still go from
+ * one to the next.
+ */
+@media (prefers-reduced-motion: reduce) {
+  html:has(.iris-salesflow) {
+    scroll-snap-type: none;
+  }
+}
+
 /* The Ask IRIS composer after the last screen: the scroller's end is a place it may rest. */
 .iris-salesflow ~ * {
   scroll-snap-align: end;
@@ -116,6 +128,21 @@ html:has(.iris-salesflow) {
     grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 1fr);
   }
 
+  /*
+   * A group nothing measures is as tall as its sentence, and a row of only
+   * such groups takes no free height (review round 1): stretched, a project
+   * without a CRM got two frames of black under "Not measured yet". Three
+   * groups make a row and empty groups are drawn last, so an empty fourth
+   * group means the whole second row is empty.
+   */
+  .iris-salesflow #flow-summary .iris-kpi-group[data-empty] > .iris-kpis {
+    align-self: start;
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi-groups:has(> :nth-child(4)[data-empty]) {
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+  }
+
   .iris-salesflow #flow-summary .iris-kpi {
     align-content: space-between;
     padding: 1.25rem 1.5rem 1.5rem;
@@ -150,14 +177,32 @@ html:has(.iris-salesflow) {
   }
 }
 
-/* The ladder: a rung each, the bar thicker and the count read first. */
+/*
+ * The ladder: its rungs share the screen's height, the bar thicker and the
+ * count read first. It draws in, so the two `DrawIn` wrappers carry the height
+ * down to the rungs; a rung's own padding is small, so six fit a 591px screen
+ * and spread on a taller one (review round 1). Inside the card the ladder is
+ * not a second box, as `design-lab-d.css` says for a ladder that is the card's
+ * own child, which the wrappers stopped this one being.
+ */
+.iris-salesflow #flow-ladder > .dld-draw,
+.iris-salesflow #flow-ladder .dld-draw-body,
 .iris-salesflow #flow-ladder .ox-funnel {
+  display: flex;
+  flex-direction: column;
   flex: 1 0 auto;
+}
+
+.iris-salesflow #flow-ladder .ox-funnel {
+  border: 0;
+  border-radius: 0;
+  background: none;
 }
 
 .iris-salesflow #flow-ladder .ox-stage {
   flex: 1 0 auto;
   align-content: center;
+  padding: 0.375rem 0;
 }
 
 .iris-salesflow #flow-ladder .ox-stage-bar {
@@ -198,15 +243,20 @@ html:has(.iris-salesflow) {
   justify-items: stretch;
 }
 
+/*
+ * Never under the dial's drawn 430 where its card holds that much: shrunk by a
+ * short window's height, its hour labels fell to 10.5px (review round 1). A
+ * short window scrolls the screen instead.
+ */
 .iris-salesflow #flow-day .dld-radial {
-  width: min(100%, calc(var(--flow-h) - 9rem));
+  width: min(100%, max(430px, calc(var(--flow-h) - 9rem)));
   margin-inline: auto;
 }
 
 /* Stacked, the busiest hour stands under the dial, so the dial leaves it room on the screen. */
 @media (width <= 75rem) {
   .iris-salesflow #flow-day .dld-radial {
-    width: min(100%, calc(var(--flow-h) - 17rem));
+    width: min(100%, max(430px, calc(var(--flow-h) - 17rem)));
   }
 }
 
@@ -244,19 +294,59 @@ html:has(.iris-salesflow) {
   font-size: 0.875rem;
 }
 
-/* Presentations over time: the weekly line drawn to its column, as tall as the screen gives it. */
-.iris-salesflow #flow-trend .iris-trend {
-  max-height: calc(var(--flow-h) - 11rem);
+/*
+ * How each agent's meetings end, simplified (review round 1): every count once,
+ * and every count linked, as on a phone (`sales-flow.css`). The team's row
+ * names each outcome with its count, so the key above it steps aside; a bar's
+ * parts drop the counts the line under them carries. The lines wrap here, so
+ * no count is behind a fade a pointer cannot scroll, and the rows sit closer.
+ */
+.iris-salesflow #flow-agents .iris-orows:has([data-lead] .iris-orow-open) .iris-orows-key {
+  display: none;
+}
+
+.iris-salesflow #flow-agents .iris-orow-plot .iris-orow-part b {
+  display: none;
+}
+
+.iris-salesflow #flow-agents .iris-orows-list {
+  row-gap: 0.5rem;
+}
+
+/* The agents’ cards five to a line from a 1086px card, not four and one under them. */
+.iris-salesflow #flow-agents .iris-changes {
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.iris-salesflow #flow-agents .iris-change {
+  padding-block: 0.75rem;
 }
 
 /*
  * A ranked list (stalled deals, IRIS-assisted sales, the longest presentations,
- * who gave them) spreads its five rows down the screen, its bar thicker.
+ * who gave them) spreads its five rows down the screen, its bar thicker. Where
+ * a sale is named, a name gets a third more width in a wide card, so "H-1003 ·
+ * Reservation 30 Jul" stays one line at 16px; only there, so everywhere else
+ * the bars keep the width (review round 1).
  */
-/* In a wide card a name gets a third more width, so "H-1003 · Reservation 30 Jul" stays one line at 16px. */
 @container (width >= 44rem) {
-  .iris-salesflow .flow-screen .iris-ranked li {
+  .iris-salesflow :is(#flow-stalled, #flow-assisted) .iris-ranked li {
     grid-template-columns: 1.5rem minmax(0, 16rem) minmax(0, 1fr) 6rem;
+  }
+}
+
+/*
+ * The longest presentations and who gave them, each half its own columns
+ * (review round 1): a date over its presenter, steps and outcome stays whole
+ * at 12px; a count of a few figures needs no 5rem, so the bars take the room.
+ */
+@media (width > 60rem) {
+  .iris-salesflow #flow-presentations > div:first-child .iris-ranked li {
+    grid-template-columns: 1.5rem minmax(0, 15rem) minmax(0, 1fr) 5rem;
+  }
+
+  .iris-salesflow #flow-presentations .iris-band-side .iris-ranked li {
+    grid-template-columns: 1.5rem minmax(0, 12rem) minmax(0, 1fr) 3rem;
   }
 }
 

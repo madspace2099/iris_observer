@@ -646,11 +646,12 @@ export default async function FlowPage({
               {/*
                * No count line here: the owner asked for the lead, counts and
                * all, behind the `i` (2026-10-22, ADR-0052 amended). The lens
-               * still says what it holds in view ("35 of 35 in view").
+               * still says what it holds in view ("10 of 10 in view"). It opens
+               * on its own seven days, where a bubble is drawn at full size and
+               * takes its screen; a month is one press away (ADR-0059, review).
                */}
               <DrawIn kind="bloom">
                 <BubbleLens
-                  initialSpan="month"
                   data={{
                     ...charts.lens,
                     meetings: charts.lens.meetings.map((m) => ({
@@ -743,19 +744,21 @@ export default async function FlowPage({
               Week by week
             </h3>
             {/*
-             * Drawn for a screen of its own (ADR-0059): the wide drawings 460
-             * units tall, so the line takes the screen's height beside the
-             * month rows, and never taller than the screen holds
-             * (`flow-screens.css`); a phone's drawing 260, about a third of its
-             * screen. It was as tall as the month rows beside it (ADR-0052); on
-             * a screen of its own the line is the drawing that leads.
+             * Drawn for a screen of its own (ADR-0059): the wide drawing 400
+             * units tall, 720 wide, so the line takes most of the screen beside
+             * the month rows and still fits a 600px screen at its column's
+             * width; a phone's drawing 260, about a third of its screen. Never
+             * capped by the screen's height, which scaled its 12px ticks under
+             * 12 (review round 1). It was as tall as the month rows beside it
+             * (ADR-0052); on a screen of its own the line is the drawing that
+             * leads.
              */}
             <TrendLine
               points={charts.trend.points}
               annotation={charts.trend.annotation}
               valueLabel={charts.trend.valueLabel}
               height={260}
-              wideHeight={460}
+              wideHeight={400}
               measured
             />
             {/* The line needs two points; below that the sentence says why there is none. */}
@@ -784,7 +787,7 @@ export default async function FlowPage({
         </div>
 
         <div className="flow-screen d-card" id="flow-agents" key={`agents-${query.period}`}>
-          <header className="iris-titled" style={{ marginBottom: "1.25rem" }}>
+          <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
             <h2 className="iris-kicker iris-kicker-measured">
               How each agent&rsquo;s meetings end
             </h2>
@@ -886,7 +889,7 @@ export default async function FlowPage({
          * What a count of presentations does not claim stands behind the `i`.
          */}
         <div
-          className="flow-screen d-card iris-band flow-pair"
+          className="flow-screen d-card iris-band iris-band-even flow-pair"
           id="flow-presentations"
           key={`longest-${query.period}`}
         >

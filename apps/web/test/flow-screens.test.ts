@@ -21,6 +21,17 @@ const SHEET = readFileSync(
   resolve(import.meta.dirname, "../src/components/flow/flow-screens.css"),
   "utf8",
 ).replace(/\/\*[\s\S]*?\*\//g, "");
+const RAIL = readFileSync(
+  resolve(import.meta.dirname, "../src/components/flow/FlowRail.tsx"),
+  "utf8",
+);
+
+/** One rule's body, by its exact selector. */
+function rule(selector: string): string {
+  const at = SHEET.indexOf(`${selector} {`);
+  expect(at, selector).toBeGreaterThan(-1);
+  return SHEET.slice(at, SHEET.indexOf("}", at));
+}
 
 /** The page from one screen's opening to the next one's. */
 function screen(id: string): string {
@@ -53,6 +64,22 @@ describe("Sales Flow's screens", () => {
     const presentations = screen("flow-presentations");
     expect(presentations).toContain("Longest presentations this period");
     expect(presentations).toContain("Presentations given");
+  });
+
+  /*
+   * Review round 1: the rail's observer kept watching the elements a period
+   * pick replaced, and marked one screen for every other. It is keyed on what
+   * the screens are keyed on, so it is replaced with them.
+   */
+  it("re-keys the rail on everything a screen is keyed on", () => {
+    expect(FLOW).toContain("<FlowRail key={`rail-${query.period}-${kpiWindow}`}");
+    const keys = [...FLOW.matchAll(/className="flow-screen[^"]*"[^>]*?key=\{`([^`]*)`\}/g)].map(
+      (m) => m[1] ?? "",
+    );
+    expect(keys.length).toBeGreaterThan(5);
+    for (const key of keys)
+      for (const [, name] of key.matchAll(/\$\{([^}]*)\}/g))
+        expect(["query.period", "kpiWindow"], key).toContain(name);
   });
 
   it("keeps the reader on the summary screen when a window is picked", () => {
@@ -88,9 +115,78 @@ describe("the screens' stylesheet", () => {
     );
     expect(SHEET).not.toContain("scroll-behavior: smooth");
   });
+
+  /* Review round 1: Chrome animates a snap, so under reduced motion the page glided by itself. */
+  it("does not snap under reduced motion, whatever the size", () => {
+    const off = SHEET.indexOf("scroll-snap-type: none;");
+    expect(SHEET.lastIndexOf("@media", off)).toBe(
+      SHEET.indexOf("@media (prefers-reduced-motion: reduce)"),
+    );
+    expect(off, "after every rule that turns snapping on").toBeGreaterThan(
+      SHEET.lastIndexOf("scroll-snap-type: y"),
+    );
+  });
+
+  /*
+   * Review round 1: a drawing with a viewBox scales its type with it, so a
+   * height cap on the weekly line and a height-shrunk clock face set their 12px
+   * labels at 10.8 and 10.5. Neither is sized under its drawn size by the screen.
+   */
+  it("never shrinks a drawing under its drawn size to fit a short screen", () => {
+    expect(SHEET).not.toMatch(/\.iris-trend\s*\{[^}]*max-height/);
+    const dials = [...SHEET.matchAll(/#flow-day \.dld-radial \{([^}]*)\}/g)].map((m) => m[1]);
+    expect(dials).toHaveLength(2);
+    for (const dial of dials) expect(dial).toContain("max(430px,");
+  });
+
+  it("widens a ranked list's names only where a sale is named", () => {
+    expect(rule("  .iris-salesflow :is(#flow-stalled, #flow-assisted) .iris-ranked li")).toContain(
+      "minmax(0, 16rem)",
+    );
+    expect(SHEET).not.toMatch(/\.iris-salesflow \.flow-screen \.iris-ranked li \{\s*grid-template/);
+  });
+
+  /* Review round 1: the agents' screen showed every count three times; it shows each once, linked. */
+  it("shows each agent's counts once on the agents' screen", () => {
+    expect(rule(".iris-salesflow #flow-agents .iris-orow-plot .iris-orow-part b")).toContain(
+      "display: none;",
+    );
+    expect(
+      rule(
+        ".iris-salesflow #flow-agents .iris-orows:has([data-lead] .iris-orow-open) .iris-orows-key",
+      ),
+    ).toContain("display: none;");
+  });
+
+  /* Review round 1: the ladder's draw-in wrappers stopped its rungs taking the screen. */
+  it("carries the screen's height through the ladder's wrappers to its rungs", () => {
+    expect(SHEET).toMatch(
+      /#flow-ladder > \.dld-draw,\s*\.iris-salesflow #flow-ladder \.dld-draw-body,\s*\.iris-salesflow #flow-ladder \.ox-funnel \{\s*display: flex;\s*flex-direction: column;\s*flex: 1 0 auto;/,
+    );
+  });
 });
 
 describe("the rail", () => {
+  /* Review round 1: on a landscape phone its fifteen dots ran under the header and off the screen. */
+  it("is drawn only where its dots fit under the chrome, and is as tall as they are", () => {
+    expect(SHEET).toContain("@media (width >= 40rem) and (height >= 33rem) {");
+    const rail = rule("  .iris-salesflow .flow-rail");
+    expect(rail).toContain("align-self: start;");
+    expect(rail).toContain("var(--flow-dots, 15) * 26px");
+    expect(rail).not.toContain("height:");
+  });
+
+  /*
+   * Review round 1: a native fragment link pushed a history entry the App
+   * Router ignores, so Back after a dot and a window pick showed the wrong
+   * figures. A dot goes to its screen and replaces the address instead.
+   */
+  it("goes to a screen without a history entry the router does not know", () => {
+    expect(RAIL).toContain("event.preventDefault();");
+    expect(RAIL).toContain('history.replaceState(history.state, "", `#${id}`);');
+    expect(RAIL).not.toContain("pushState");
+  });
+
   it("links every screen by its name and marks the first as current before script runs", () => {
     const html = renderToStaticMarkup(
       createElement(FlowRail, {
