@@ -2719,6 +2719,15 @@
 }
 
 /*
+ * The weekly line is drawn as tall as the month rows beside it (the page sets
+ * its height), so the two columns end together; the shared 11rem cap would
+ * letterbox it back to the black field under it.
+ */
+.iris-band-titled .iris-trend {
+  max-height: none;
+}
+
+/*
  * The large ring and its key: side by side where the card is wide enough, the
  * ring centred over the key where it is not (the Hyper kit's ring, ADR-0041).
  * The drawing shrinks with a card narrower than itself, never past it.

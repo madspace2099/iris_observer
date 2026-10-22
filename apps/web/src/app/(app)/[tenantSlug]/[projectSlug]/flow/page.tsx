@@ -704,10 +704,18 @@ export default async function FlowPage({
             <h3 className="iris-kicker" style={{ marginBottom: ".75rem" }}>
               Week by week
             </h3>
+            {/*
+             * As tall as the month rows beside it, so the two columns end
+             * together (ADR-0052, review): one month is the default 150, each
+             * further month about 80 more. ponytail: tuned to the rows' measured
+             * height at 1210–1440 and capped at three months; a longer period
+             * (year to date) still leaves its later months below the line.
+             */}
             <TrendLine
               points={charts.trend.points}
               annotation={charts.trend.annotation}
               valueLabel={charts.trend.valueLabel}
+              height={150 + 80 * (Math.min(Math.max(charts.composition.columns.length, 1), 3) - 1)}
               measured
             />
             {/* The line needs two points; below that the sentence says why there is none. */}
