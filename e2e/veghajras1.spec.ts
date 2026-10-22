@@ -176,8 +176,9 @@ async function standsOnRecordedPlace(page: Page): Promise<number> {
 test("R06-5 · Build audience lists only meetings that stand on a recorded place, every row a meeting", async ({
   page,
 }) => {
-  await open(page, "Tomáš Varga", "/alpha/northgate/project?segment=rooms-2");
-  const pill = page.locator("main a.iris-action", { hasText: "Build an audience from this" });
+  await open(page, "Tomáš Varga", "/alpha/northgate/project");
+  /* The two-room column's link since the room types stand side by side (ADR-0056). */
+  const pill = page.getByRole("link", { name: "Build an audience of two-room buyers", exact: true });
   await expect(pill).toHaveCount(1);
   await pill.click();
   await page.waitForURL(/\/audience\?/);
@@ -189,7 +190,7 @@ test("R06-5 · Build audience lists only meetings that stand on a recorded place
   await page.waitForURL(/all=1/);
   await standsOnRecordedPlace(page);
 
-  await page.goto("/alpha/northgate/project?segment=rooms-2", { waitUntil: "networkidle" });
+  await page.goto("/alpha/northgate/project", { waitUntil: "networkidle" });
   const finding = page.locator("main article.iris-finding", { hasText: "places take" });
   await expect(finding).toHaveCount(1);
   await finding.getByRole("link", { name: "Build an audience", exact: true }).click();

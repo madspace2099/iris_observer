@@ -28,7 +28,7 @@ import { signInAs } from "./sign-in";
 const ROUTES = [
   ["showroom overview", "/alpha/northgate/showroom"],
   ["sales flow", "/alpha/northgate/flow"],
-  ["project", "/alpha/northgate/project?segment=rooms-2"],
+  ["project", "/alpha/northgate/project"],
   ["sales agents", "/alpha/northgate/agents"],
   ["sales agents, detail", "/alpha/northgate/agents/agt_monika"],
   ["audience", "/alpha/northgate/audience?rooms=2&category=family"],

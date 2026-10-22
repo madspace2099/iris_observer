@@ -16,9 +16,13 @@ import { signInAs } from "./sign-in";
  * `innerText`, which carries what is visible — the register's head is
  * uppercase on screen, so it is uppercase here — and never an attribute. One
  * measured assertion per test, so a red run names the figure.
+ *
+ * Since ADR-0056 the room types stand side by side: the parity scale, the
+ * scatter and the one-segment band are gone, and their sets are said by the
+ * blocks that replaced them.
  */
 
-const PROJECT = "/alpha/northgate/project?segment=rooms-2";
+const PROJECT = "/alpha/northgate/project";
 const SHARE = "(?:<1%|\\d+%)";
 
 async function open(page: Page): Promise<void> {
@@ -27,27 +31,32 @@ async function open(page: Page): Promise<void> {
   await page.evaluate(() => document.fonts.ready);
 }
 
-test("the parity scale prints, beside each index, the two shares it is a quotient of", async ({
-  page,
-}) => {
+test("each flat type prints its flats and its share of the stock", async ({ page }) => {
   await open(page);
-  const rows = await page.locator(".iris-parity-row").allInnerTexts();
-  /* The stock is the unsold stock since the index took one population (decided 2026-09-27). */
+  const rows = await page.locator(".pr-rows .pr-type").allInnerTexts();
+  expect(rows.length, "no flat type drawn").toBeGreaterThan(0);
   const bare = rows.filter(
-    (text) => !new RegExp(`${SHARE} of looking time on ${SHARE} of the unsold stock`).test(text),
+    (text) => !new RegExp(`\\d+ flats? · ${SHARE} of the stock`).test(text),
   );
-  expect(bare, "an index with its shares in a tooltip, or nowhere").toEqual([]);
+  expect(bare, "a type without its flats or its share of the stock").toEqual([]);
 });
 
-test("the paired rates print what set the rates are of", async ({ page }) => {
+test("the interest shares print the meetings they are of", async ({ page }) => {
   await open(page);
   await expect(
-    page.locator(".iris-band .iris-paired").first(),
-    "five rates with their set in a tooltip",
-  ).toContainText(
-    /of the unit openings in these meetings: \d+ openings of .+ units on the left, \d+ of other units on the right/,
-    { useInnerText: true },
-  );
+    page.locator(".pr-rooms-set"),
+    "an interest share with no set of meetings",
+  ).toContainText(/\d+ meetings? in (the last \d+ days|all time)/, { useInnerText: true });
+});
+
+test("the side-by-side columns print the openings every rate is of", async ({ page }) => {
+  await open(page);
+  const heads = await page
+    .locator('.pr-grid-head [role="columnheader"]:not(.pr-grid-corner)')
+    .allInnerTexts();
+  expect(heads.length, "no room type column drawn").toBeGreaterThan(1);
+  const bare = heads.filter((text) => !/\d+ openings?/.test(text));
+  expect(bare, "a column of rates without its openings").toEqual([]);
 });
 
 test("the search register says what a count of applications is of", async ({ page }) => {
@@ -66,19 +75,30 @@ test("the search register says what a count of matching units is of", async ({ p
   ).toContainText(/units matching, of \d+ available/i, { useInnerText: true });
 });
 
-test("the attention index says what it is a multiple of, everywhere it is drawn", async ({
+test("the attention index says what it is a multiple of, and each reading its sample", async ({
   page,
 }) => {
   /*
-   * The claim that moved here from the file-reading guard, which matched a
-   * regex against `charts.tsx`'s source. Read off the rendered frame instead,
-   * the scatter's key since ADR-0041: every placed segment, and every one
-   * listed under the frame as not placed. Not empty, or the filter below
-   * would pass on a key nobody drew.
+   * The index is read off the readings since ADR-0056: the column head says
+   * what the multiple is against, and every type says how many meetings
+   * opened it, the sample its reading stands on.
    */
   await open(page);
-  const rows = await page.locator(".dld-scatter-key li, .dld-withheld li").allInnerTexts();
-  expect(rows.length, "the frame's key drew no segment").toBeGreaterThan(0);
-  const bare = rows.filter((text) => !/× attention for its share of\s+stock/.test(text));
-  expect(bare, "an index drawn as a bare multiple").toEqual([]);
+  await expect(page.locator(".pr-read-head"), "an index drawn as a bare multiple").toContainText(
+    "against its share of the stock",
+    { useInnerText: true },
+  );
+  const samples = await page.locator(".pr-read-type small").allInnerTexts();
+  expect(samples.length, "no reading drawn").toBeGreaterThan(0);
+  const bare = samples.filter((text) => !/\d+ meetings? opened one/.test(text));
+  expect(bare, "a reading without its sample").toEqual([]);
+});
+
+test("the journey's title states the presentations every band is of", async ({ page }) => {
+  await open(page);
+  await expect(page.locator(".pr-path-card h2")).toHaveText(/^How far \d+ presentations? got$/);
+  const bands = await page.locator(".pr-path-say").allInnerTexts();
+  expect(bands.length, "no band drawn").toBeGreaterThan(1);
+  const bare = bands.filter((text) => !/^\d+ \p{L}/u.test(text));
+  expect(bare, "a band with a bare count").toEqual([]);
 });

@@ -59,7 +59,7 @@ function Rows({ view }: { readonly view: RoomTypesView }) {
         {view.readings.map((r) => {
           const look = r.lookedAt === null ? null : Math.min(r.lookedAt, PARITY_SPAN);
           return (
-            <li key={r.id} data-verdict={r.verdict ?? "none"}>
+            <li key={r.id} data-type={r.id} data-verdict={r.verdict ?? "none"}>
               <span className="pr-read-type">
                 <b>{r.label}</b>
                 <small>{r.basis}</small>

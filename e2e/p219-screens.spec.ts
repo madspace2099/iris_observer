@@ -24,14 +24,18 @@ test.beforeEach(({ isMobile }, testInfo) => {
   test.skip(isMobile || testInfo.project.name !== "desktop", "a reading of the page, not of its width");
 });
 
-/* K4: the method paragraphs, and the claims beside them. */
+/*
+ * K4: the method, and the claims beside it. Since ADR-0056 the Project page
+ * keeps each block's method behind the `i` beside its title (a native
+ * popover, out of the page's text until opened) rather than a "How to read
+ * this" fold, and the claims stay in view.
+ */
 const METHOD = [
-  "A segment is placed only with 20 or more decided meetings",
-  "Four different acts, kept apart",
-  "Share of the time these meetings spent on any named place.",
-  "Share of all time spent on named places, by what kind of place it is.",
-  "Ordered by total time.",
-  "Each band is what survived the previous step.",
+  "Interest is the share of a window's meetings that opened at least one flat of the type",
+  "It pairs attention with sales and says nothing about which caused which.",
+  "An opening is one flat opened in one meeting.",
+  "Each bar is a kind of place",
+  "Ordered by total time, in minutes.",
 ];
 const CLAIMS = [
   /* Northgate configures no sell-out date, and its four dated sales are below the pace's floor (ADR-0055). */
@@ -39,21 +43,25 @@ const CLAIMS = [
   /units take \d+% of looking time on \d+% of the unsold stock\./,
 ];
 
-test("K4 · Project folds its method behind How to read this, closed, and keeps every claim in view", async ({
+test("K4 · Project keeps its method behind an i, closed, and every claim in view", async ({
   page,
 }) => {
   const closed = await open(page, `${ROOT}/project`);
-  for (const text of METHOD) expect(closed, `"${text}" waits behind its fold`).not.toContain(text);
+  for (const text of METHOD) expect(closed, `"${text}" waits behind its i`).not.toContain(text);
   for (const claim of CLAIMS) expect(closed).toMatch(claim);
+  await expect(page.locator("main details.iris-method")).toHaveCount(0);
 
-  const folds = page.locator("main details.iris-method");
-  expect(await folds.count()).toBe(METHOD.length);
-  for (const fold of await folds.all()) {
-    await expect(fold.locator("summary")).toHaveText("How to read this");
-    await fold.locator("summary").click();
+  const opened: string[] = [];
+  for (const button of await page.locator("main button.iris-info").all()) {
+    const panel = page.locator(`[id="${(await button.getAttribute("popovertarget")) ?? ""}"]`);
+    await button.click();
+    await expect(panel).toBeVisible();
+    opened.push(await panel.innerText());
+    await page.keyboard.press("Escape");
   }
-  const opened = await page.locator("main").innerText();
-  for (const text of METHOD) expect(opened, `"${text}" is there once opened`).toContain(text);
+  for (const text of METHOD) {
+    expect(opened.join("\n"), `"${text}" is there once its i is opened`).toContain(text);
+  }
 });
 
 /* K5: the radars and their scale live on the Coaching tab, and the period goes with the reader. */

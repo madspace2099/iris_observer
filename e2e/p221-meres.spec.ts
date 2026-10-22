@@ -155,8 +155,12 @@ test("R05-8 · a long list shows five rows and keeps every other row, numbered o
 });
 
 test("R06-3 · /project and /units read one attention index for the same rooms", async ({ page }) => {
-  const project = await mainText(page, "Tomáš Varga", `${ROOT}/project`);
-  const onProject = /Two-room\n+([\d.]+)× attention for its share of stock/.exec(project)?.[1];
+  await mainText(page, "Tomáš Varga", `${ROOT}/project`);
+  /* The readings' "Looked at" since the room types stand side by side (ADR-0056). */
+  const looked = await page
+    .locator('.pr-read-rows li[data-type="rooms-2"] .pr-meter[data-kind="look"] .pr-meter-figure')
+    .innerText();
+  const onProject = /([\d.]+)×/.exec(looked)?.[1];
   await page.goto(`${ROOT}/units`, { waitUntil: "networkidle" });
   const units = await page.locator("main").innerText();
   const onUnits = /Two-room units are [^\n]+\n+against an index of ([\d.]+)× their share/.exec(units)?.[1];

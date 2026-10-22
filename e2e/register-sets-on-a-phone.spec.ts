@@ -22,7 +22,7 @@ import { signInAs } from "./sign-in";
 test("a count on the phone's register carries its set", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "the record layout exists only below 30rem");
   await signInAs(page, "Petra Novák");
-  await page.goto("/alpha/northgate/project?segment=rooms-2", { waitUntil: "networkidle" });
+  await page.goto("/alpha/northgate/project", { waitUntil: "networkidle" });
 
   const painted = await page.evaluate(() => {
     const cell = document.querySelector(

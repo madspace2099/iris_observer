@@ -23,7 +23,7 @@ const OUT = process.env["OBSERVER_VIEWS_SHOTS"] ?? "_review/views";
 const SHOTS = [
   ["01-home", "/alpha/northgate/showroom"],
   ["02-flow", "/alpha/northgate/flow"],
-  ["03-project", "/alpha/northgate/project?segment=rooms-2"],
+  ["03-project", "/alpha/northgate/project"],
   ["04-agents", "/alpha/northgate/agents"],
   ["05-agent-detail", "/alpha/northgate/agents/agt_monika"],
   ["06-audience", "/alpha/northgate/audience?rooms=2&category=family"],

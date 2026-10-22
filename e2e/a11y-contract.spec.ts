@@ -132,12 +132,13 @@ const SURFACES: readonly Surface[] = [
       /* Sold against the plan explains itself behind its `i` (ADR-0055). */
       { name: "a card's explanation", trigger: "main button.iris-info", kind: "popover" },
     ],
+    /* The room types' window switches in place, with no request (ADR-0056); the live region says the new set. */
     change: async (page) => {
-      const tab = page.locator('[role="tablist"][aria-label="Unit segment"] [role="tab"][aria-selected="false"]').first();
-      const label = ((await tab.textContent()) ?? "").trim();
-      await tab.click();
-      await page.waitForURL(/segment=/);
-      return label;
+      await page
+        .getByRole("group", { name: "Interest over" })
+        .getByRole("button", { name: "Quarter", exact: true })
+        .click();
+      return "in the last 91 days";
     },
   },
   {
