@@ -1759,12 +1759,29 @@ export function buildJourney(
     ? shortlisted.filter((s) => outcomeIsUnknown(s.outcome)).length
     : 0;
   const stages = [
-    { id: "all", label: "Presented", count: sessions.length },
-    { id: "opened", label: "Opened a unit", count: opened.length },
-    { id: "shortlisted", label: "Shortlisted one", count: shortlisted.length },
+    {
+      id: "all",
+      label: "Presented",
+      phrase: sessions.length === 1 ? "presentation" : "presentations",
+      count: sessions.length,
+    },
+    { id: "opened", label: "Opened a unit", phrase: "opened a flat", count: opened.length },
+    {
+      id: "shortlisted",
+      label: "Shortlisted one",
+      phrase: "shortlisted a flat",
+      count: shortlisted.length,
+    },
     ...(progressed === null
       ? []
-      : [{ id: "progressed", label: "Progressed", count: progressed.length }]),
+      : [
+          {
+            id: "progressed",
+            label: "Progressed",
+            phrase: "progressed",
+            count: progressed.length,
+          },
+        ]),
   ];
   const end = stages[stages.length - 1]?.count ?? 0;
   const one = unrecorded === 1;
@@ -1801,29 +1818,45 @@ export function buildJourney(
         unrecorded === 0
           ? null
           : `${count(unrecorded, locale)} of the ${count(shortlisted.length, locale)} that shortlisted one ${one ? "has" : "have"} no recorded outcome, so whether ${one ? "it" : "they"} progressed is not known; "Progressed" counts recorded outcomes only.`,
+      notes:
+        unrecorded === 0
+          ? {}
+          : {
+              progressed: `${count(unrecorded, locale)} ${one ? "has" : "have"} no recorded outcome`,
+            },
     }),
   };
 }
 
 /**
  * The same stages as one narrowing path. Every stage is a subset of the one
- * before it, so no band is wider than the band above; a stage nobody stopped
- * before would add a band exactly as wide as the last, and is named instead.
- * So is a stage no meeting reached, once: every stage after it is empty too.
+ * before it, so no band is wider than the band above. Every stage some meeting
+ * reached is drawn, one as wide as the band above it included: "150 opened a
+ * flat" says plainly what a merged stage's sentence had to explain, and the
+ * owner could not read the merged path (ADR-0056). A stage no meeting reached
+ * is named instead, once: every stage after it is empty too.
  */
 function journeyFunnel(
-  stages: readonly { readonly id: string; readonly label: string; readonly count: number }[],
+  stages: readonly {
+    readonly id: string;
+    readonly label: string;
+    readonly phrase: string;
+    readonly count: number;
+  }[],
   locale: string,
   more: {
     readonly merged: string | null;
     readonly of: string | null;
     /** Said instead of "No meeting reached" when only the last stage is empty and that is not known. */
     readonly lastEmpty: string | null;
+    /** A step's short note, by stage id: what its count leaves out. */
+    readonly notes: Readonly<Record<string, string>>;
   },
 ): JourneyFunnel {
   const first = stages[0];
   if (first === undefined || first.count === 0) {
     return {
+      title: "How far a presentation gets",
       steps: [],
       merged: null,
       of: "No meeting was presented in this period, so there is no journey to draw.",
@@ -1831,15 +1864,7 @@ function journeyFunnel(
   }
   const empty = stages.findIndex((s) => s.count === 0);
   const reached = empty === -1 ? stages : stages.slice(0, empty);
-  const drawn = reached.filter((s, i) => s.count !== reached[i - 1]?.count);
-  const merged = reached.flatMap((s, i) => {
-    const before = reached[i - 1];
-    return before === undefined || drawn.includes(s)
-      ? []
-      : [
-          `"${s.label}" is not drawn: all ${count(s.count, locale)} at "${before.label}" reached it, so nobody stopped between the two.`,
-        ];
-  });
+  const merged: string[] = [];
   const none = stages[empty];
   if (none !== undefined) {
     const last = empty === stages.length - 1;
@@ -1852,9 +1877,12 @@ function journeyFunnel(
   if (more.merged !== null) merged.push(more.merged);
   const of = `Each share is out of the first band: the ${count(first.count, locale)} ${first.count === 1 ? "meeting" : "meetings"} presented in the period.`;
   return {
-    steps: drawn.map((s) => ({
+    title: `How far ${count(first.count, locale)} ${first.phrase} got`,
+    steps: reached.map((s) => ({
       id: s.id,
       label: s.label,
+      phrase: s.phrase,
+      note: more.notes[s.id] ?? null,
       count: s.count,
       countDisplay: count(s.count, locale),
       share: s.count / first.count,

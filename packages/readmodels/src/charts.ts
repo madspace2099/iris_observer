@@ -537,6 +537,14 @@ export interface JourneyLink {
 export interface JourneyFunnelStep {
   readonly id: string;
   readonly label: string;
+  /**
+   * What the step is, read after its count (ADR-0056): "presentations",
+   * "opened a flat", "shortlisted a flat", "progressed". The owner could not
+   * tell what a bare "150" on the first band was.
+   */
+  readonly phrase: string;
+  /** What the count leaves out, short: "18 have no recorded outcome"; null when nothing. */
+  readonly note: string | null;
   readonly count: number;
   readonly countDisplay: string;
   /** `count` over the first band's count, 0 to 1. */
@@ -545,13 +553,16 @@ export interface JourneyFunnelStep {
 }
 
 /**
- * The journey drawn as one narrowing path. A stage nobody stopped before would
- * add a band exactly as wide as the one above it, so it is named in `merged`
- * rather than drawn; so is a stage no meeting reached, and "Progressed" on a
- * project with no CRM to record an outcome. `steps` is empty when the period
- * holds no meeting, and `of` then says so instead of stating the first band.
+ * The journey drawn as one narrowing path. Every stage some meeting reached is
+ * a band, even one as wide as the band above it: "150 opened a flat" says what
+ * a merged stage's note had to explain (ADR-0056). A stage no meeting reached
+ * is named in `merged`, and so is "Progressed" on a project with no CRM to
+ * record an outcome. `steps` is empty when the period holds no meeting, and
+ * `of` then says so instead of stating the first band.
  */
 export interface JourneyFunnel {
+  /** "How far 150 presentations got": the title states the set every share is of. */
+  readonly title: string;
   readonly steps: readonly JourneyFunnelStep[];
   /** Every stage named rather than drawn, and why; null when every stage is drawn. */
   readonly merged: string | null;

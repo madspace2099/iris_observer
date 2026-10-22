@@ -42,16 +42,24 @@ describe("the journey funnel", () => {
     expect(funnel.steps.map((s) => s.share)).toEqual(funnel.steps.map((s) => s.count / first));
   });
 
-  it("draws no band as wide as the one above it, and names any it merged", () => {
-    const repeated = charts.journey.stages.filter(
-      (s, i) => s.count === charts.journey.stages[i - 1]?.count,
-    );
-    expect(funnel.steps.length + repeated.length).toBe(charts.journey.stages.length);
-    for (const stage of repeated) expect(funnel.merged).toContain(`"${stage.label}" is not drawn`);
+  it("draws every stage a meeting reached, one as wide as the band above it included", () => {
+    const reached = charts.journey.stages.filter((s) => s.count > 0);
+    expect(funnel.steps.map((s) => s.id)).toEqual(reached.map((s) => s.id));
   });
 
   it("says what its shares are out of", () => {
     expect(funnel.of).toContain(`the ${funnel.steps[0]?.countDisplay ?? "?"} meetings presented`);
+  });
+
+  /* The owner could not tell what a bare "150" on the first band was (ADR-0056). */
+  it("states its set in the title and names every step after its count", () => {
+    expect(funnel.title).toBe(`How far ${funnel.steps[0]?.countDisplay ?? "?"} presentations got`);
+    expect(funnel.steps.map((s) => s.phrase)).toEqual(
+      ["presentations", "opened a flat", "shortlisted a flat", "progressed"].slice(
+        0,
+        funnel.steps.length,
+      ),
+    );
   });
 });
 
@@ -127,6 +135,14 @@ describe("the journey funnel's last stage is an outcome, and absent is never nou
     expect(journey.funnel.of).toContain(
       "1 of the 3 that shortlisted one has no recorded outcome, so whether it progressed is not known",
     );
+    /* Hand-counted: meeting 5 shortlisted and recorded nothing. */
+    expect(journey.funnel.steps.map((s) => s.note)).toEqual([
+      null,
+      null,
+      null,
+      "1 has no recorded outcome",
+    ]);
+    expect(journey.funnel.title).toBe("How far 5 presentations got");
     expect(journey.droppedLabel).toBe(
       "3 did not reach the end of this path, and 1 has no recorded outcome",
     );
@@ -169,16 +185,23 @@ describe("the journey funnel's last stage is an outcome, and absent is never nou
     );
   });
 
-  it("names the last stage alone when only it is empty", () => {
+  it("names the last stage alone when only it is empty, and draws the full band above it", () => {
     const journey = buildJourney(
       [meeting(1, 1, true, "not_interested"), meeting(2, 1, false, "interested")],
       "en-GB",
       true,
     );
-    expect(journey.funnel.steps.map((s) => s.id)).toEqual(["all", "shortlisted"]);
-    expect(journey.funnel.merged).toBe(
-      '"Opened a unit" is not drawn: all 2 at "Presented" reached it, so nobody stopped between the two. No meeting reached "Progressed", so it is not drawn.',
-    );
+    expect(journey.funnel.steps.map((s) => [s.id, s.count, s.shareDisplay])).toEqual([
+      ["all", 2, "100%"],
+      ["opened", 2, "100%"],
+      ["shortlisted", 1, "50%"],
+    ]);
+    expect(journey.funnel.merged).toBe('No meeting reached "Progressed", so it is not drawn.');
+  });
+
+  it("says one presentation in the singular", () => {
+    const journey = buildJourney([meeting(1, 1, false, "interested")], "en-GB", true);
+    expect(journey.funnel.title).toBe("How far 1 presentation got");
   });
 });
 
