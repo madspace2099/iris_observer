@@ -7,7 +7,7 @@ import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 import { UnitPatterns } from "@/components/units/UnitPatterns";
 
 /**
- * THE UNITS PAGE'S PANEL PRINTS THE READ MODEL'S SENTENCES (ADR-0050): the
+ * THE UNITS PAGE'S PANEL PRINTS THE READ MODEL'S SENTENCES (ADR-0051): the
  * patterns before the sales, the flats as links that keep the reader's period.
  */
 describe("What the most-opened flats share, on Units", () => {

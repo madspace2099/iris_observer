@@ -459,7 +459,7 @@ export interface UnitAttentionView {
   readonly evidence: EvidenceRef;
 }
 
-/* --- D2. What the most-opened flats share (ADR-0050) ------------------------- */
+/* --- D2. What the most-opened flats share (ADR-0051) ------------------------- */
 
 /** One of the most-opened flats, with what the catalogue states about it. */
 export interface UnitPatternFlat {

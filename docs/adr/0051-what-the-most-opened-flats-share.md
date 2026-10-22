@@ -1,10 +1,10 @@
-# ADR-0050 — The most-opened flats are answered by what they share
+# ADR-0051 — The most-opened flats are answered by what they share
 
 **Status:** accepted · **Date:** 2026-10-20
 **Decided by:** the product owner, while recording the Shark Residence demo
 **Extends:** ADR-0010 (evidence tiers), ADR-0039 (an IRIS-assisted sale is an observed sequence),
 ADR-0049 (the demonstration CRM's deals are made from meetings)
-**Numbered 0050** because 0049 is the highest taken; 0046 is held for a parallel stream.
+**Numbered 0051** because 0050 is taken on the feature branch by the report-print stream (ADR-0050, the report prints as a document); 0046 is held for a parallel stream.
 
 ## Context
 

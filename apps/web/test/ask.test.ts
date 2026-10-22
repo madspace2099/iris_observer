@@ -292,7 +292,7 @@ describe("the live questions reach their analyses without a model", () => {
   });
 
   /*
-   * ADR-0050, the owner on 2026-10-20: not "The units drawing most attention
+   * ADR-0051, the owner on 2026-10-20: not "The units drawing most attention
    * are S-503 (29 meetings), S-603 (22 meetings), S-403 (23 meetings)…" — out of
    * order, and a list rather than an answer — but what those flats share.
    */

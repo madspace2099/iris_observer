@@ -16,7 +16,7 @@ import { catalogueFor, type RawUnit } from "../pulse";
 import { buildUnitAttention } from "./project";
 
 /**
- * WHAT THE MOST-OPENED FLATS SHARE (ADR-0050).
+ * WHAT THE MOST-OPENED FLATS SHARE (ADR-0051).
  *
  * The owner, 2026-10-20: a list of the most-opened flats with their meeting
  * counts is not an answer; the answer is what those flats have in common —

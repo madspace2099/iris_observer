@@ -14,7 +14,7 @@ import { buildUnitAttentionPatterns, type UnitPatternSales } from "../src/showro
 import { viewContext } from "./view-context";
 
 /**
- * WHAT THE MOST-OPENED FLATS SHARE (ADR-0050). Every figure below is worked out
+ * WHAT THE MOST-OPENED FLATS SHARE (ADR-0051). Every figure below is worked out
  * by hand from the catalogue and the meetings in this file, never read back from
  * the function under test.
  *

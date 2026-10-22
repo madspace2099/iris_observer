@@ -677,7 +677,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
       }
 
       /*
-       * WHAT THE MOST-OPENED FLATS SHARE (ADR-0050), not a list of them.
+       * WHAT THE MOST-OPENED FLATS SHARE (ADR-0051), not a list of them.
        *
        * The owner asked for the pattern — aspect, floors, rooms, price — and
        * the list only as its evidence. Every sentence is the read model's; the
@@ -939,7 +939,7 @@ const getMetricEvidence: ToolDefinition<z.ZodObject<{ metricId: z.ZodString }>> 
  * Read beside a list of units, the share reads as a per-unit rate unless it is
  * said not to be one. A limitation every answer using these sales carries, the
  * model's included (`askStream`). "Which units draw the most attention, and do
- * they convert?" no longer asks for it: it places each flat's own sale (ADR-0050).
+ * they convert?" no longer asks for it: it places each flat's own sale (ADR-0051).
  */
 export const PROJECT_WIDE_SALES =
   "These are the whole project's dated sales, counted across every unit; no figure here is a rate for any one unit.";

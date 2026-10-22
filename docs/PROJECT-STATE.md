@@ -5520,7 +5520,7 @@ your CRM"); every reference in this stream was renumbered.
 **Next recommended action.** Máté exports the same summary from the demo build in Chrome ("Save as
 PDF", Default margins) and looks at the six pages; the footer needs Chrome 131 or later.
 
-## 2026-10-20 — What the most-opened flats share (ADR-0050)
+## 2026-10-20 — What the most-opened flats share (ADR-0051)
 
 Máté, recording the Shark demo, asked Ask IRIS "Which units draw the most attention, and do they
 convert?" and got a list ranked by looking time under meeting counts (29, 22, 23 — out of order)

@@ -279,7 +279,7 @@ export interface ObserverRepository {
   /** Buyer attention on the building, unit by unit. */
   getUnitAttention(query: OverviewQuery, unitCode: string | null): Promise<UnitAttentionView>;
 
-  /** What the period's most-opened flats share, against the whole catalogue (ADR-0050). */
+  /** What the period's most-opened flats share, against the whole catalogue (ADR-0051). */
   getUnitAttentionPatterns(query: OverviewQuery): Promise<UnitAttentionPatterns>;
 
   /** How the IRIS story itself is being used. */

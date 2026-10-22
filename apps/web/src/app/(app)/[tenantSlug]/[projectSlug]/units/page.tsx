@@ -221,7 +221,7 @@ export default async function UnitsPage({
         </section>
 
         {/*
-         * What the most-opened flats share (ADR-0050): a conclusion, so above
+         * What the most-opened flats share (ADR-0051): a conclusion, so above
          * the seam beside the building it reads. No catalogue, no comparison:
          * the band above already says so once.
          */}

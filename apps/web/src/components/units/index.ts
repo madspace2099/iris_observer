@@ -20,7 +20,7 @@
  *   UnitStatus     availability, and the one place that still restates it.
  *   UnitFunnel     only a verified stage may look verified.
  *   DemandAttention  high interest, never shortlisted.
- *   UnitPatterns   what the most-opened flats share, never why (ADR-0050).
+ *   UnitPatterns   what the most-opened flats share, never why (ADR-0051).
  */
 
 export { UnitRegister } from "./UnitRegister";

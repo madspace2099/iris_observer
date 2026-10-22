@@ -14,7 +14,7 @@ const COLUMNS = {
 const STACK = { display: "grid", gap: ".5rem", alignContent: "start" } as const;
 
 /**
- * WHAT THE MOST-OPENED FLATS SHARE (ADR-0050).
+ * WHAT THE MOST-OPENED FLATS SHARE (ADR-0051).
  *
  * The owner's question of the most-opened flats is what they have in common —
  * aspect, floors, rooms, price — and the list only as its evidence. Every
