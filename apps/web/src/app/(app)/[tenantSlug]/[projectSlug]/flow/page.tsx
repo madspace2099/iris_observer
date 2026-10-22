@@ -601,19 +601,31 @@ export default async function FlowPage({
           {charts.lens.meetings.length === 0 ? (
             <p className="iris-meta iris-meta-measured">{charts.lens.lead}</p>
           ) : (
-            <DrawIn kind="bloom">
-              <BubbleLens
-                initialSpan="month"
-                data={{
-                  ...charts.lens,
-                  meetings: charts.lens.meetings.map((m) => ({
-                    ...m,
-                    href:
-                      canOpenMeeting && m.href !== null ? withPeriod(m.href, query.period) : null,
-                  })),
-                }}
-              />
-            </DrawIn>
+            <>
+              {/*
+               * The lead went behind the `i`; its count stays in view (InfoTip's
+               * rule): what is drawn of the period and what is not, every figure
+               * the read model's own.
+               */}
+              <p className="iris-meta iris-meta-measured">
+                {charts.lens.meetings.length} of {charts.lens.total} meetings drawn · not drawn:{" "}
+                {charts.lens.notDrawn.purchase} Purchase, {charts.lens.notDrawn.presentationOnly}{" "}
+                Presentation only, {charts.lens.notDrawn.unrecorded} with no outcome recorded
+              </p>
+              <DrawIn kind="bloom">
+                <BubbleLens
+                  initialSpan="month"
+                  data={{
+                    ...charts.lens,
+                    meetings: charts.lens.meetings.map((m) => ({
+                      ...m,
+                      href:
+                        canOpenMeeting && m.href !== null ? withPeriod(m.href, query.period) : null,
+                    })),
+                  }}
+                />
+              </DrawIn>
+            </>
           )}
           <p className="ox-sr">{charts.lens.summary}</p>
           {charts.lens.nearest.length === 0 ? null : (

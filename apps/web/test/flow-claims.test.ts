@@ -37,3 +37,20 @@ describe("Sales Flow's agents block", () => {
     );
   });
 });
+
+describe("Sales Flow's bubble lens", () => {
+  /*
+   * Its lead stands behind the `i` now. InfoTip may hide a definition, never a
+   * figure's denominator: how many of the period's meetings are drawn, and how
+   * many are not and why, stays a visible line.
+   */
+  it("keeps what it draws, and what it leaves out, in view", () => {
+    const lens = block("Which meetings are nearest a purchase, and whose");
+    expect(lens).toMatch(
+      /\{charts\.lens\.meetings\.length\} of \{charts\.lens\.total\} meetings drawn/,
+    );
+    for (const part of ["purchase", "presentationOnly", "unrecorded"]) {
+      expect(lens).toContain(`{charts.lens.notDrawn.${part}}`);
+    }
+  });
+});
