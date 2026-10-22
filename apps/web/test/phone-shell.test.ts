@@ -269,3 +269,18 @@ describe("a segmented control on a phone", () => {
     expect(segment).toMatch(/min-height:\s*44px/);
   });
 });
+
+describe("a tally tile on a phone", () => {
+  const NARROW = within(PRODUCT, "@media screen and (width <= 30rem)");
+
+  it("drops a caption beneath its figure when the two do not fit side by side", () => {
+    expect(rule(NARROW, ".ox-value")).toMatch(/flex-wrap:\s*wrap/);
+    expect(rule(NARROW, ".ox-tally-item .ox-figure")).toMatch(/white-space:\s*nowrap/);
+    /* The rule it replaces could not apply: `.ox-of` is a child of `.ox-value`. */
+    expect(rule(NARROW, ".ox-tally-item .ox-of")).toBe("");
+  });
+
+  it("insets a tile by 14px, so a tracked uppercase label fits a 2-up tile at 360", () => {
+    expect(rule(NARROW, ".ox-tally-item")).toMatch(/padding-inline:\s*0\.875rem/);
+  });
+});

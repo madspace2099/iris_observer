@@ -2935,15 +2935,25 @@
   }
 
   /*
-   * The caption gets the row's own width, not whatever `dd`'s flex layout
-   * has left over after the figure and its delta. At a 2-up tally width a
-   * leftover column measured ~70px — enough for one word per line, ragged
-   * against its sibling cells' plain single-line captions. `.ox-of` is a
-   * flex child of `.ox-tally-item dd`, so `flex-basis: 100%` drops it to
-   * its own line, where it wraps across the item's real width instead.
+   * A caption shares its figure's line while both fit ("65 m²") and drops
+   * beneath it, across the tile's width, when they do not. Beside the figure
+   * at a 2-up width it had ~54px: one word per line, seven lines for "against
+   * the same 54 days of the previous quarter", overrunning the tile. A
+   * `flex-basis: 100%` on `.ox-of` stood here and never applied — the caption
+   * is a child of `.ox-value`, which did not wrap. A tile's figure is one
+   * figure: "15m 06s" no longer breaks over two lines.
    */
-  .ox-tally-item .ox-of {
-    flex-basis: 100%;
+  .ox-value {
+    flex-wrap: wrap;
+  }
+
+  .ox-tally-item .ox-figure {
+    white-space: nowrap;
+  }
+
+  /* "PRESENTATIONS", tracked uppercase, is 109px; the tile's 20px insets left 95. */
+  .ox-tally-item {
+    padding-inline: 0.875rem;
   }
 
   .ox-title {
