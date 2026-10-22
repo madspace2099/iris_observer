@@ -133,8 +133,9 @@ comparison. A `&lens=parallel` address still opens Coaching; the parameter is ig
 
 ## Review round (2026-10-22)
 
-Adversarial reviewers read the branch: fifteen findings, two pairs of them the same defect. Each was confirmed
-in the code or on a static render before it was changed. All are fixed; none was rejected.
+Adversarial reviewers read the branch: fifteen findings, two pairs of them the same defect. Each
+was confirmed in the code or on a static render before it was changed. All are fixed; none was
+rejected.
 
 - **A flag gave a rate the headline withheld** (two findings). The headline waits for 20 recorded
   meetings, the flag only for 20 held, so Northgate's Akhilesh Undev (22 held, 19 recorded) read

@@ -5980,7 +5980,8 @@ with "Needed a month 9.7", then set them back; ask Ask IRIS "Are we on track to 
 Máté's four comments on `/shark/shark-residence/agents`: portraits beside every name and bigger,
 centred rings; cards oversaturated, no hierarchy by size, the same seven outcomes on every card
 with 0 printed; "Across every agent" not understood; Coaching (both lenses) "a complete mess".
-Branch `worktree-wf_eba45ae8-1e4-3`, from `3373a1c`, four commits, not pushed.
+Branch `worktree-wf_eba45ae8-1e4-3`, from `3373a1c`, eight commits with the review round, not
+pushed.
 
 - **Roster card, three levels.** Portrait and name at Section size; a 176px ring centred; one
   headline figure, the progressed rate at Figure size with "progressed · 29 of 36 recorded" under
@@ -5988,14 +5989,16 @@ Branch `worktree-wf_eba45ae8-1e4-3`, from `3373a1c`, four commits, not pushed.
   size on every card, 0 where none (`AgentProfile.outcomes`), aligned across the row by subgrid.
   Length, habit and the floor's sentence behind the card's `i`; a flag stays in sight.
 - **"Was it the buyer's first meeting?"** replaces "Across every agent": plain rows (First,
-  Second, Third meeting, Fourth or later, Buyer not identified), each count and share, the base
-  under the title ("Share of all 150 meetings, quarter to date", `AgentsView.repeatsOf`).
+  Second, Third meeting, Fourth or later, Not linked to a contact — the register's words), each
+  count and share, the base under the title
+  ("Share of all 150 meetings, quarter to date", `AgentsView.repeatsOf`).
 - **Coaching, one question.** "How do the presenters differ?", the answer in one sentence
   (`PresenterComparison.headline`: "They differ most in comparing two apartments side by side:
   Marek Dvořák did it in 76% of 33 meetings, Oliver Grant in 19% of 26 meetings."), one dot-row
   chart of the parts of the showroom, each agent at the share of their own meetings, the widest gap
-  first, the three widest naming both ends with faces and samples; the key with portraits lifts,
-  hides and opens; under the floor said, not drawn; method, floor and unmeasured parts behind the
+  first, the three widest naming both ends with faces and samples; the key with portraits lifts on a
+  press and opens the agent's page; close dots in lanes; under the floor said with faces, not
+  drawn; method, floor and unmeasured parts behind the
   `i`. The radar lens and `CoachingReading` (`readAgents`, `outcomeSplit`, `behaviourTest`) are
   retired; the radar stays on the agent's own page. ADR-0057 records why.
 
@@ -6012,10 +6015,31 @@ date, Shark last 28 days (one agent at the floor) and Northgate: no sideways scr
 12px but the shared `i` glyph, one key entry a line on a phone. `e2e/p219-screens.spec.ts` and
 `e2e/quality.spec.ts` edited for the new words and classes, not run.
 
+**Review round.** Fifteen adversarial findings (two pairs the same defect), each confirmed on the
+code or a static render, all fixed, none rejected; ADR-0057 lists them. The ones that change
+behaviour: the progressed and not-interested flags wait for 20 recorded meetings in `outcomeFlag`
+(Northgate's Akhilesh Undev, 22 held and 19 recorded, read "No rate yet" over a rate; Sales Flow
+reads the same flag); Coaching's dots take lanes when under 7 points apart (`markLanes`; ties had
+shown five agents as four dots); a press lifts an agent and hiding is gone (a tap lifted and hid in
+one move); under two agents drawn no rows are drawn and the lone agent is named with face and count;
+the unlinked repeat row is "Not linked to a contact" again, as in the Meetings register; the card's
+`i` gives the median above the floor only. Layout: ring count 28px under the 34px rate, fixed value
+column on the repeat chart, the workload median uncut at 360, the key's link an arrow with a 44px
+target. Verified after the round: typecheck, eslint and prettier clean on every changed file; the
+agent suites 123 passed (`roster-card` 12, `coaching-comparison` 16, `coaching-chart` 9,
+`agents-floor-claims` 13, `flag-baseline`, `views3`, `flow-claims` among them), the new flag test
+failing against the unfixed `outcomeFlag`; full suite 284 files, 5195 passed, 1 skipped, the same 2
+environmental failures as above; static renders of the roster and Coaching (Shark quarter to date,
+last quarter and last 28 days, Northgate) at 1440, 390 and 360: no sideways scroll, no text under
+12px but the shared `i` glyph, five distinct dots on every row at 360, every key entry one line.
+`e2e/agent-authorisation`, `p219-screens`, `p221-meres`, `p221-render` and `quality` edited, not
+run.
+
 **Left for others.** The `.iris-coach*` rules in `packages/ui/src/charts.css` and the
 `.iris-coach-plot` rules in `design-lab-d.css` are now unused; both files are SHELL's this round, so
 they stay for a later sweep. The design lab still composes its own parallel-plot summary.
 
 **Next recommended action.** On the demo build (after the cherry-pick) open
-`/shark/shark-residence/agents` and `?view=coaching` as Clara at 1440 and on a phone, point at each
-name in the key, open the `i`; run `p219-screens`, `quality` and `a11y-contract` for Sales Agents.
+`/shark/shark-residence/agents` and `?view=coaching` as Clara at 1440 and on a phone, press each
+name in the key, open the `i`, switch to Last 28 days (one agent at the floor);
+run `p219-screens`, `quality` and `a11y-contract` for Sales Agents.
