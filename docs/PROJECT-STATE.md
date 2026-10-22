@@ -5972,3 +5972,5 @@ Shark unit figure and belongs to whoever owns the unit surfaces.
 `/shark/shark-residence/project` at 1440 and 390, set the dates to 31 Dec 2026 and read "Behind"
 with "Needed a month 9.7", then set them back; ask Ask IRIS "Are we on track to sell out?". Run
 `p219-screens` and `a11y-contract`.
+
+**Full unit suite** (after `pnpm release:wrappers`, at `b2be482`): 285 files, 5218 passed, 1 skipped, 2 failed, neither this stream's. `no-secret-recipes` needs a web build (environmental). `artefact-consistency` cannot account for `b872d6e1…` in `docs/release/REVIEW.txt`: the shared object store has outgrown git's 7-character auto-abbreviation, so `git diff 7ac84fa..c16b94f` prints 8-character `index` lines and hashes differently (`-c core.abbrev=7` reproduces it); every worktree on this `.git` fails it, and the one-line fix (`--abbrev=7` in `accountableHashes`, `scripts/release/build-package.ts`) belongs to whoever owns the release scripts.
