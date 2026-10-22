@@ -1,0 +1,75 @@
+/*
+ * PRESENTATION ON A PHONE (the owner, 2026-10-22: "Check mobile responsiveness!").
+ *
+ * Page-level rules for `presentation/page.tsx`, every one under
+ * `.iris-presentation` so the shared sheets stay as they are elsewhere.
+ */
+
+/*
+ * "What differs" drops its gap bar under 75rem (`showroom.css`) and its rows
+ * become three columns, but the head kept four cells: "Marek" fell to a second
+ * line and the right-hand figures stood under "gap". The head drops its gap
+ * cell where the rows drop theirs.
+ */
+@media (max-width: 75rem) {
+  .iris-presentation .iris-diff-row > .iris-diff-gaphead {
+    display: none;
+  }
+}
+
+@media (width < 40rem) {
+  /*
+   * A lane of nine sections scrolled inside a 252px track with nothing to say
+   * so: about half of each lane showed, cut mid-code, and the hidden half was
+   * Compare and Shortlist, the end of the story the chart is for. On a phone
+   * the lane wraps, every code in order and in view. Width still follows
+   * reach, between a code's floor and a cap, so a section left alone on the
+   * last row does not stretch into the widest block of the lane.
+   */
+  .iris-presentation .iris-dna-track {
+    flex-wrap: wrap;
+    overflow: visible;
+    padding-bottom: 0;
+  }
+
+  .iris-presentation .iris-dna-step {
+    flex: var(--reach) 1 2.75rem;
+    min-width: 2.75rem;
+    max-width: 4.5rem;
+    font-size: 0.75rem;
+  }
+
+  /* Text at 12px: the lane's count line and each agent chip's sample size were 10px. */
+  .iris-presentation .iris-dna-name span,
+  .iris-presentation .iris-chip b {
+    font-size: 0.75rem;
+  }
+
+  /* Two figures beside a behaviour that wraps, inside a 222px card at 360. */
+  .iris-presentation .iris-diff-row {
+    grid-template-columns: minmax(0, 1fr) 3.25rem 3.25rem;
+    gap: 0.5rem;
+  }
+
+  /*
+   * The three comparison modes as three equal parts of one row, a long name
+   * on two lines inside its own part, rather than a pill folded onto two
+   * lines with the third mode alone under the first.
+   */
+  .iris-presentation .iris-segmented {
+    display: flex;
+    flex-wrap: nowrap;
+    border-radius: 1.375rem;
+  }
+
+  .iris-presentation .iris-segmented a {
+    display: grid;
+    flex: 1 1 0;
+    place-items: center;
+    min-height: 2.25rem;
+    padding-inline: 0.5rem;
+    border-radius: 1.125rem;
+    line-height: 1.2;
+    text-align: center;
+  }
+}

@@ -8,6 +8,7 @@ import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { DnaLane, Finding, Gaps, SourceChips, shortCode } from "@/showroom/parts";
 import { DrawIn } from "@/showroom/DrawIn";
+import "./presentation.css";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Presentation" };
@@ -78,7 +79,7 @@ export default async function PresentationPage({
   );
 
   return (
-    <div className="iris-two" data-lead="aside">
+    <div className="iris-two iris-presentation" data-lead="aside">
       {/*
        * The comparison first in the DOM — the question before the material.
        * Stacked under 90rem this is the reading order; side by side the grid
@@ -218,7 +219,8 @@ export default async function PresentationPage({
                       <span className="iris-code" style={{ textAlign: "right" }}>
                         {comparison.left.label.split(" ")[0]}
                       </span>
-                      <span className="iris-code" style={{ textAlign: "center" }}>
+                      {/* Where a row drops its bar, the head drops this (`presentation.css`). */}
+                      <span className="iris-code iris-diff-gaphead" style={{ textAlign: "center" }}>
                         gap
                       </span>
                       <span className="iris-code" style={{ textAlign: "right" }}>
