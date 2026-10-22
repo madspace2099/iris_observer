@@ -5672,18 +5672,21 @@ changed only the two `OutcomeRows` call sites' props and the not-interested sect
   did not move): a lead sentence (the two widest typical differences and the widest behaviour, 15%
   or more, both samples, association), three figures on the KPI strip (median length with middle
   halves, median features opened, median apartments opened), whose they were (roster order, each
-  presenter's part of the group, "8 of 22 · 36%", under 20 recorded no rate; the name opens those
-  meetings), and each behaviour in the group against the others on `PairedRates`, widest gap first,
+  presenter's count over their own recorded meetings, "8 of 22 · 36%", the bar drawn to that rate;
+  under 20 recorded no rate and no bar; the name opens those meetings), and each behaviour in the group against the others on `PairedRates`, widest gap first,
   under the line that says what the pair is. "Clicks" are not in the event contract: the measure is
-  openings, and the `i` says so. Floor 10 a side; below it the lead says how many against how many.
+  openings, and the `i` says so. Floor `AGENT_MIN_SAMPLE` (20) a side, Presentation DNA's cohort
+  floor; below it nothing is compared, the lead says how far short, and the group's own medians
+  stand alone with their sample.
 - **Four metrics**: `flow.not_interested_by_agent`, `_length`, `_interactions`, `_reach`; matrix
   regenerated. The nested bands stay in the read model for the design lab; their CSS is gone.
 
 **Shark, quarter to date:** 19 not interested of 131 recorded. Lena 2 of 36 (6%), Marek 1 of 28
-(4%), Oliver 8 of 22 (36%), Zsófia 5 of 26 (19%), Iva 3 of 19 (no rate, 1 short). Median length
-9m 52s against 14m 19s; features 6 against 8; apartments 3 against 4; Compare 11% against 58%,
-returned to a section 21% against 63%, Amenities 63% against 90%. Last 28 days: 9 in the group, so
-no comparison is made and the lead says so.
+(4%), Oliver 8 of 22 (36%), Zsófia 5 of 26 (19%), Iva 3 of 19 (no rate, 1 short). One short of
+the cohort floor, so nothing is compared: the group's own medians are 9m 52s long, 6 features and
+3 apartments opened. **Year to date** (29 against 214) compares: shorter (median 10m 09s against
+13m 44s), fewer apartments (3 against 4), Compare less often (10% against 53%). For the demo, the
+comparison is on year to date.
 
 **Verified.** Typecheck clean; eslint and prettier clean on every changed file;
 `not-interested-drill` (16: a hand-computed fixture, and a Shark check against the rings),
@@ -5696,7 +5699,31 @@ focused count: no sideways overflow. Not looked at on a running page; no dev ser
 Playwright. `e2e/quality.spec.ts` was edited (the bands test now asserts the new section; the outcome
 lists are counted by their names) and not run.
 
-**Next recommended action.** After the three streams are cherry-picked together, open
-`/shark/shark-residence/flow` at 1440 and 390 as the developer and as a sales agent: click Lena's
+**Review round** (two adversarial reviewers, eleven findings, nine distinct; all confirmed and
+fixed, none rejected; ADR-0053 §Review round). The cohort floor had been set to 10 so Shark's 19
+would clear it — threshold-fitting, and a disagreement with Presentation DNA, which refuses the
+same outcome-cohort comparison under 20 a side; the three metrics now keep `AGENT_MIN_SAMPLE`
+(matrix regenerated). The lead's length clause names its own timed samples where they differ from
+the recorded counts; the no-difference lead names both thresholds (15% for a median, 15 points for
+a share); every new share prints through `shareDisplay`; the presenter bar is their own rate
+(`CohortAgent.share`), not their part of the group, and absent under the floor; `.iris-cohort`
+defines `--orow-card` (the bar counts were white on terracotta, about 3.5:1); the section's chips
+say observed and derived, not CRM outcome (the outcome is the room's); each count link names its
+outcome in words ("Purchase 7"), not by swatch alone. The test fixture is skewed so a mean and a
+median part: a mean in place of the median fails five cases (checked by mutation).
+`e2e/quality.spec.ts` now reads Northgate year to date (22 clears the floor; quarter to date's 14
+does not) and allows "<1%"; not run.
+
+**Verified, review round.** Typecheck clean; eslint and prettier clean on every changed file;
+`not-interested-drill` (19), `outcome-rows` (16), `not-interested-section` (6), the metrics
+suites and the matrix drift check. Full unit suite (after `pnpm release:wrappers`, clean tree):
+277 files, 5122 passed, 1 skipped, 1 failed — `no-secret-recipes`, whose auditor reports "browser
+bundle NOT SCANNED — no build present" (environmental: no web build here). Static render on the
+product stylesheets in headless Chromium at 1440 and 390, Shark quarter to date and year to date:
+no sideways overflow, the bar counts dark on the fill, every count named.
+
+**Next recommended action.** The owner decides whether 20 a side stays the cohort floor — a lower
+one would have to apply to Presentation DNA too, so the two surfaces cannot disagree. Then, after
+the three streams are cherry-picked together, open `/shark/shark-residence/flow` at 1440 and 390 as the developer and as a sales agent: click Lena's
 Purchase part, tap a count on a phone, Tab through one agent row, and run `e2e/quality.spec.ts` and
 `e2e/a11y-contract.spec.ts` on Sales Flow.
