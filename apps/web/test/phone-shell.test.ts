@@ -284,3 +284,22 @@ describe("a tally tile on a phone", () => {
     expect(rule(NARROW, ".ox-tally-item")).toMatch(/padding-inline:\s*0\.875rem/);
   });
 });
+
+describe("no text under 12px on a phone", () => {
+  const IRIS_PHONE = within(sheet("iris.css"), "@media (width < 40rem)");
+  const SHOWROOM_PHONE = within(SHOWROOM, "@media (width < 40rem)");
+  const DEMAND = within(SHOWROOM, "@media (max-width: 30rem)");
+
+  it("raises the eyebrow and the evidence line", () => {
+    expect(rule(IRIS_PHONE, ".iris-kicker,\n  .iris-evidence")).toMatch(/font-size:\s*0\.75rem/);
+  });
+
+  it("raises the finding's foot, which carries its sample size, and an agent chip's count", () => {
+    expect(rule(SHOWROOM_PHONE, ".iris-finding-foot")).toMatch(/font-size:\s*0\.75rem/);
+    expect(rule(SHOWROOM_PHONE, ".iris-chip b")).toMatch(/font-size:\s*0\.75rem/);
+  });
+
+  it("raises the searched-for filter's name and each figure's label", () => {
+    expect(DEMAND).not.toMatch(/font-size:\s*0\.6875rem/);
+  });
+});

@@ -960,6 +960,14 @@ a.iris-evidence:hover {
   border-bottom-color: var(--rule-firm);
 }
 
+/* A phone's floor is 12px: the eyebrow and the evidence line rise to it there; a desktop keeps 11. */
+@media (width < 40rem) {
+  .iris-kicker,
+  .iris-evidence {
+    font-size: 0.75rem;
+  }
+}
+
 .iris-evidence i {
   width: 0.375rem;
   height: 0.375rem;
