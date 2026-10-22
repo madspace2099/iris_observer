@@ -51,6 +51,8 @@ cause. Refusals and sample shortfalls stay in view.
    screen is at least as tall as the viewport under the sticky chrome — `100svh` less the 70px
    header and the 59px context band above 1199px, less the 58px bar below — so the next screen
    starts below the fold. The rules between blocks are gone: a screen's edge parts it from the next.
+   Picking a summary window keeps the reader on the summary's screen (`scroll={false}` on its
+   chips): Next otherwise scrolls to a page's top when that top is out of view.
 2. **The page's scroller snaps.** `html:has(.iris-salesflow)` sets `scroll-padding-top` to the
    chrome's height and `scroll-snap-type: y proximity`; from 64rem wide and 40rem tall, where the
    screens are drawn to fit, `mandatory`, so a turn of the wheel is a screen. A screen taller than the
