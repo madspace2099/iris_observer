@@ -1,5 +1,12 @@
 import { defineMetric } from "../definition";
-import { NOT_ENOUGH, NO_CRM, NO_MEETINGS, insufficient } from "./shared";
+import {
+  AGENT_MIN_SAMPLE,
+  NOT_ENOUGH,
+  NO_CRM,
+  NO_MEETINGS,
+  NO_SHOWROOM,
+  insufficient,
+} from "./shared";
 
 /**
  * Sales Flow — how selling actually works here.
@@ -354,6 +361,139 @@ export const irisLedSales = defineMetric({
   roles: ["developer", "agency_manager"],
 });
 
+/*
+ * WHY MEETINGS ENDED "NOT INTERESTED" (ADR-0053, the owner, 2026-10-22).
+ *
+ * Which presenter each was, how long they ran, what they opened, and what they
+ * reached, each against the period's other recorded meetings. A description of
+ * a group at its sample size: the comparison is an association, never a cause.
+ * The showroom records openings, not clicks or taps, so no click count exists.
+ */
+const NOT_INTERESTED_ROLES = [
+  "developer",
+  "agency_manager",
+  "sales_agent",
+  "madspace_admin",
+] as const;
+const NO_GROUP = 'No meeting ended "not interested" in this period.';
+
+export const notInterestedByAgent = defineMetric({
+  id: "flow.not_interested_by_agent",
+  displayName: "Not interested, by presenter",
+  businessDefinition:
+    'Of a presenter\'s meetings with an outcome recorded in the period, how many ended "not interested".',
+  kind: "ratio",
+  calculation:
+    "Per presenter, the meetings whose recorded outcome is not interested over that presenter's meetings with any outcome recorded in the period. The count is always shown; the rate only from the minimum sample up. Presenters keep the roster's order and are never ranked.",
+  numerator: "the presenter's meetings recorded as not interested",
+  denominator: "the presenter's meetings with an outcome recorded",
+  exclusions: ["meetings with no outcome recorded", "presenters with no meeting in the period"],
+  dimensions: ["project", "period", "agent", "outcome"],
+  timeWindow: "period",
+  requiredFacts: ["meeting.attended", "meeting.outcome.recorded"],
+  requiredCrmFields: [],
+  requiredUnitAttributes: [],
+  minimumSampleSize: AGENT_MIN_SAMPLE,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: NO_GROUP,
+    insufficient: insufficient(AGENT_MIN_SAMPLE, "recorded meetings for this presenter"),
+    unavailable: NO_SHOWROOM,
+  },
+  drillTo: "meetings",
+  roles: NOT_INTERESTED_ROLES,
+});
+
+export const notInterestedLength = defineMetric({
+  id: "flow.not_interested_length",
+  displayName: "Length of the not-interested meetings",
+  businessDefinition:
+    'How long the meetings that ended "not interested" ran, against the period\'s other recorded meetings.',
+  kind: "duration",
+  calculation:
+    "The median length of the period's meetings recorded as not interested, and their middle half (the 25th to the 75th percentile, nearest rank); the same of every other meeting with an outcome recorded. Each side needs the minimum sample of timed meetings, and below it no median is stated.",
+  numerator: "meeting length",
+  denominator: "timed meetings on each side",
+  exclusions: ["meetings the source could not time", "meetings with no outcome recorded"],
+  dimensions: ["project", "period", "outcome"],
+  timeWindow: "period",
+  requiredFacts: ["meeting.attended", "meeting.outcome.recorded"],
+  requiredCrmFields: [],
+  requiredUnitAttributes: [],
+  minimumSampleSize: 10,
+  comparison: "none",
+  evidenceTier: "statistical_association",
+  states: {
+    empty: NO_GROUP,
+    insufficient: insufficient(10, "timed meetings on a side"),
+    unavailable: NO_SHOWROOM,
+  },
+  drillTo: "meetings",
+  roles: NOT_INTERESTED_ROLES,
+});
+
+export const notInterestedInteractions = defineMetric({
+  id: "flow.not_interested_interactions",
+  displayName: "What the not-interested meetings opened",
+  businessDefinition:
+    'How many showroom features and apartments a typical meeting that ended "not interested" opened, against the period\'s other recorded meetings.',
+  kind: "distribution",
+  calculation:
+    "Two counts per meeting: features opened, every opening of a showroom section with a return to one counted again; and apartments opened, the distinct units viewed. The median of each over the meetings recorded as not interested and over every other meeting with an outcome recorded. The showroom records openings, not clicks or taps, so no click count is made.",
+  numerator: "features or apartments opened in a meeting",
+  denominator: "meetings on each side",
+  exclusions: ["meetings with no outcome recorded"],
+  dimensions: ["project", "period", "outcome"],
+  timeWindow: "period",
+  requiredFacts: ["project.section.viewed", "unit.viewed", "meeting.outcome.recorded"],
+  requiredCrmFields: [],
+  requiredUnitAttributes: [],
+  minimumSampleSize: 10,
+  comparison: "none",
+  evidenceTier: "statistical_association",
+  states: {
+    empty: NO_GROUP,
+    insufficient: insufficient(10, "meetings on a side"),
+    unavailable: NO_SHOWROOM,
+  },
+  drillTo: "meetings",
+  roles: NOT_INTERESTED_ROLES,
+});
+
+export const notInterestedReach = defineMetric({
+  id: "flow.not_interested_reach",
+  displayName: "What the not-interested meetings reached",
+  businessDefinition:
+    'For each of six things a presentation can do, the share of the meetings that ended "not interested" that did it, against the share of the period\'s other recorded meetings.',
+  kind: "ratio",
+  calculation:
+    "Per behaviour — reached Surroundings, opened Amenities, opened three or more units, shortlisted anything, used Compare, returned to a section — the meetings on a side that did it over the meetings on that side, each behaviour on its own. Drawn widest gap first.",
+  numerator: "meetings on a side that did it",
+  denominator: "meetings on that side",
+  exclusions: ["meetings with no outcome recorded"],
+  dimensions: ["project", "period", "outcome"],
+  timeWindow: "period",
+  requiredFacts: [
+    "project.section.viewed",
+    "unit.viewed",
+    "unit.favourited",
+    "meeting.outcome.recorded",
+  ],
+  requiredCrmFields: [],
+  requiredUnitAttributes: [],
+  minimumSampleSize: 10,
+  comparison: "none",
+  evidenceTier: "statistical_association",
+  states: {
+    empty: NO_GROUP,
+    insufficient: insufficient(10, "meetings on a side"),
+    unavailable: NO_SHOWROOM,
+  },
+  drillTo: "meetings",
+  roles: NOT_INTERESTED_ROLES,
+});
+
 export const FLOW_METRICS = [
   stageCounts,
   stageConversion,
@@ -367,4 +507,8 @@ export const FLOW_METRICS = [
   stalledOpportunities,
   irisAssistedSales,
   irisLedSales,
+  notInterestedByAgent,
+  notInterestedLength,
+  notInterestedInteractions,
+  notInterestedReach,
 ] as const;

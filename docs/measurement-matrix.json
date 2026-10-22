@@ -440,6 +440,93 @@
       ]
     },
     {
+      "id": "flow.not_interested_by_agent",
+      "displayName": "Not interested, by presenter",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 20,
+      "comparison": "none",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.not_interested_length",
+      "displayName": "Length of the not-interested meetings",
+      "kind": "duration",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "meeting.attended",
+        "meeting.outcome.recorded"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "none",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.not_interested_interactions",
+      "displayName": "What the not-interested meetings opened",
+      "kind": "distribution",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "project.section.viewed",
+        "unit.viewed",
+        "meeting.outcome.recorded"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "none",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "flow.not_interested_reach",
+      "displayName": "What the not-interested meetings reached",
+      "kind": "ratio",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "project.section.viewed",
+        "unit.viewed",
+        "unit.favourited",
+        "meeting.outcome.recorded"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 10,
+      "comparison": "none",
+      "drillTo": "meetings",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
       "id": "unit.unique_interested_contacts",
       "displayName": "Unique interested contacts",
       "kind": "count",
@@ -2000,6 +2087,8 @@
         "flow.reservation_to_sale",
         "flow.time_between_meetings",
         "flow.sales_cycle_duration",
+        "flow.not_interested_by_agent",
+        "flow.not_interested_length",
         "people.meetings_by_agent",
         "people.presentation_coverage",
         "people.follow_up_delay",
@@ -2057,6 +2146,10 @@
       "requiredBy": [
         "exec.performance_status",
         "exec.data_completeness",
+        "flow.not_interested_by_agent",
+        "flow.not_interested_length",
+        "flow.not_interested_interactions",
+        "flow.not_interested_reach",
         "people.agent_conversion",
         "people.agency_conversion",
         "people.skipped_outcomes",
@@ -2097,6 +2190,8 @@
         "channel"
       ],
       "requiredBy": [
+        "flow.not_interested_interactions",
+        "flow.not_interested_reach",
         "project.poi_interest",
         "project.amenity_interest",
         "people.presentation_coverage",
@@ -2240,6 +2335,7 @@
         "active"
       ],
       "requiredBy": [
+        "flow.not_interested_reach",
         "unit.favourites",
         "journey.preference_agreement",
         "intent.distribution",
@@ -2321,6 +2417,8 @@
         "flow.showroom_sale_cycle",
         "flow.iris_assisted_sales",
         "flow.iris_led_sales",
+        "flow.not_interested_interactions",
+        "flow.not_interested_reach",
         "unit.unique_interested_contacts",
         "unit.raw_views",
         "unit.meaningful_views",
