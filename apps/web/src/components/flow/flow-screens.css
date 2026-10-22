@@ -193,6 +193,13 @@ html:has(.iris-salesflow) {
   margin-inline: auto;
 }
 
+/* Stacked, the busiest hour stands under the dial, so the dial leaves it room on the screen. */
+@media (width <= 75rem) {
+  .iris-salesflow #flow-day .dld-radial {
+    width: min(100%, calc(var(--flow-h) - 17rem));
+  }
+}
+
 .iris-salesflow #flow-day .iris-band-side {
   display: grid;
   align-content: center;
