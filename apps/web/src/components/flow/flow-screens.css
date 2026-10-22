@@ -24,10 +24,11 @@ html:has(.iris-salesflow) {
   --flow-h: calc(100svh - var(--flow-top));
   scroll-padding-top: var(--flow-top);
   /*
-   * Proximity, not mandatory, where a screen can be taller than the viewport
-   * (a phone, a short window): mandatory snapping may hold a reader at a
-   * screen's top while its rest is below. Where the screens are drawn to fit,
-   * mandatory makes one turn of the wheel one screen.
+   * Proximity, at every size. Mandatory was tried where the screens fit
+   * (64rem × 40rem and up) and, on the demo build at 1440 × 900, held the page
+   * at its first screen: a turn of the wheel and Page Down both snapped back to
+   * it (2026-10-23). Proximity lets the reader scroll and settles on a screen's
+   * top when they stop near one.
    */
   scroll-snap-type: y proximity;
 }
@@ -35,12 +36,6 @@ html:has(.iris-salesflow) {
 @media (width <= 1199px) {
   html:has(.iris-salesflow) {
     --flow-top: var(--iris-header-height-mobile);
-  }
-}
-
-@media (width >= 64rem) and (height >= 40rem) {
-  html:has(.iris-salesflow) {
-    scroll-snap-type: y mandatory;
   }
 }
 

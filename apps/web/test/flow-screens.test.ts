@@ -106,13 +106,14 @@ describe("the screens' stylesheet", () => {
         expect(selector.trim()).toMatch(/^(\.iris-salesflow( |$| ~)|html:has\(\.iris-salesflow\))/);
   });
 
-  it("snaps by proximity unless the screens fit, and never scrolls smoothly", () => {
+  /*
+   * Mandatory, where the screens fit, held the demo at its first screen at
+   * 1440 × 900: the wheel and Page Down both snapped back (2026-10-23).
+   */
+  it("snaps by proximity at every size, never mandatory, and never scrolls smoothly", () => {
     const base = SHEET.slice(0, SHEET.indexOf("@media"));
     expect(base).toMatch(/scroll-snap-type: y proximity;/);
-    const mandatory = SHEET.indexOf("scroll-snap-type: y mandatory;");
-    expect(SHEET.lastIndexOf("@media", mandatory)).toBe(
-      SHEET.indexOf("@media (width >= 64rem) and (height >= 40rem)"),
-    );
+    expect(SHEET).not.toContain("scroll-snap-type: y mandatory");
     expect(SHEET).not.toContain("scroll-behavior: smooth");
   });
 

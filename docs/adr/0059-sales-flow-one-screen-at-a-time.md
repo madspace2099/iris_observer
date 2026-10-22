@@ -176,3 +176,12 @@ and 360×780 (and the rail at 844×390, 915×412 and 1024×768): no sideways scr
 | 12  | The clock face's labels fall under 12px on short windows                             | `min(100%, --flow-h − 9rem)` goes under the drawn 430 below a 574px screen                                                                         | floored at 430px; a short window scrolls the screen                                                                                                              |
 | 13  | On a landscape phone the rail overflows its sticky box                               | fifteen dots need 390px; 844×390 leaves 332                                                                                                        | drawn only from 33rem tall; hidden at 844×390 and 915×412                                                                                                        |
 | 14  | The rail's fragment links write history the router ignores                           | `app-router.js:285-288` returns on a popped entry with no state                                                                                    | a dot scrolls, moves focus and replaces the address with the router's state carried over; the e2e checks no entry is added                                       |
+
+## On the demo build, 2026-10-23: proximity at every size
+
+Looked at in a browser at 1440 × 900, the mandatory snap (64rem × 40rem and up) held the page at its
+first screen: a turn of the wheel and Page Down both snapped back to it. The page now snaps by
+proximity at every size: the reader scrolls freely and the page settles on a screen's top when they
+stop near one; the screens still fill the viewport, so a screen at rest shows nothing of the next.
+Reduced motion still turns snapping off. `apps/web/test/flow-screens.test.ts` holds that no rule asks
+for mandatory.
