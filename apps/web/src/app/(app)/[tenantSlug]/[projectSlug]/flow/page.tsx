@@ -14,6 +14,7 @@ import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AssistedSales, FlowLadder } from "@/components/flow";
+import { ChangeKpis } from "@/components/flow/ChangeKpis";
 import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -455,37 +456,13 @@ export default async function FlowPage({
             </InfoTip>
           </header>
           {/*
-           * THE POLICY-VERSION GUARD (docs/10-policies.md §1): a comparison
-           * across two attribution policies is refused with its reason, never
-           * silently drawn. Under one policy the figures are drawn and the
-           * version is stated behind the `i` above them, so a reader can see
-           * what "comparable" rested on.
+           * A SCREEN OF FIGURES (ADR-0060): the three that stood here, and what
+           * else the showroom measures, each against the same figure 7 days
+           * earlier. The policy-version guard (docs/10-policies.md §1) is the
+           * read model's: a refused comparison takes the arrows, said once.
            */}
-          {view.context.attribution.comparisonRefusal !== null ? (
-            <p className="iris-meta iris-meta-measured">
-              This comparison is refused: {view.context.attribution.comparisonRefusal} Both periods
-              have to be measured under a compatible attribution policy before their figures can be
-              set against each other.
-            </p>
-          ) : (
-            <div className="iris-changes">
-              {summary.changes.map((change) => (
-                <article className="iris-change" key={change.id}>
-                  <p className="iris-change-label">{change.label}</p>
-                  <p className="iris-change-delta" data-direction={change.direction}>
-                    {change.deltaDisplay}
-                  </p>
-                  <p className="iris-change-detail">{change.detail}</p>
-                  <Link
-                    className="iris-action"
-                    href={dynamicRoute(withPeriod(change.href, query.period))}
-                  >
-                    Look at it
-                  </Link>
-                </article>
-              ))}
-            </div>
-          )}
+          <ChangeKpis kpis={summary.kpis} period={query.period} />
+
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 

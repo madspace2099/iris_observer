@@ -1,0 +1,324 @@
+/*
+ * WHAT CHANGED, AS A SCREEN OF FIGURES (ADR-0060, `ChangeKpis.tsx`).
+ *
+ * One plane cut by hairlines, never a row of boxes: the cells are transparent,
+ * so the plane is whatever the block stands on, and the lines are the cells'
+ * own borders. The layout reads the block's width, not the window's, so the
+ * screen it is given decides it:
+ *
+ *   wide    the three that stood here first across the top, the five beneath
+ *   middle  three across, then three, then two halves
+ *   narrow  one figure a row, its name on the left and the figure on the right
+ *
+ * Figures are the kit's mono (ADR-0041) in the type scale's Figure role, the
+ * lead three larger with the width they have; a section's name is text, so it
+ * keeps Manrope and a smaller size, and a long one wraps between its words.
+ */
+
+.iris-ckpis {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+.iris-ckpi-grid {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block: 1px solid var(--rule-firm, rgb(255 255 255 / 16%));
+}
+
+/*
+ * Each figure is four rows of the grid it stands in — name, figure, arrow,
+ * sample — through a subgrid, so a name that wraps pushes every figure in its
+ * row down alike and the four lines of a row stay on one level. A figure with
+ * no arrow leaves its row empty rather than lifting its sample.
+ */
+.iris-ckpi {
+  display: grid;
+  grid-column: span 3;
+  grid-row: span 4;
+  grid-template-rows: subgrid;
+  row-gap: 0.375rem;
+  align-content: start;
+  min-width: 0;
+  padding: 1.25rem 1.25rem 1.375rem;
+  border-left: 1px solid var(--rule, rgb(255 255 255 / 8%));
+}
+
+.iris-ckpi > .iris-ckpi-head {
+  grid-row: 1;
+}
+
+.iris-ckpi > .iris-ckpi-figure {
+  grid-row: 2;
+}
+
+.iris-ckpi > .iris-ckpi-trend {
+  grid-row: 3;
+}
+
+.iris-ckpi > .iris-ckpi-sample {
+  grid-row: 4;
+}
+
+.iris-ckpi[data-lead] {
+  grid-column: span 5;
+  padding: 1.75rem 1.5rem 1.75rem;
+}
+
+/* The first of each row stands on the block's own left edge; the second row has a line above it. */
+.iris-ckpi:nth-child(1),
+.iris-ckpi:nth-child(4) {
+  border-left: 0;
+  padding-left: 0;
+}
+
+.iris-ckpi:nth-child(n + 4) {
+  border-top: 1px solid var(--rule, rgb(255 255 255 / 8%));
+}
+
+.iris-ckpi-head {
+  display: flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
+.iris-ckpi-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  color: var(--d-ink-2, var(--ink-2));
+  text-decoration: none;
+}
+
+.iris-ckpi[data-lead] .iris-ckpi-name {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+a.iris-ckpi-name:hover {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.iris-ckpi-figure {
+  margin: 0.25rem 0 0;
+  font-family: var(--d-font-numeric, var(--mono));
+  font-size: 2.75rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--d-ink, var(--ink));
+  white-space: nowrap;
+}
+
+.iris-ckpi[data-lead] .iris-ckpi-figure {
+  font-size: clamp(2.75rem, 5.5cqi, 4.5rem);
+}
+
+.iris-ckpi-figure[data-name] {
+  font-family: inherit;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  white-space: normal;
+}
+
+/* A bare number's unit, beside it and smaller, in the text face. */
+.iris-ckpi-unit {
+  font-family: var(--font-sans, inherit);
+  font-size: max(0.875rem, 0.36em);
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--d-ink-2, var(--ink-2));
+}
+
+/* Below the floor the figure is raw: secondary ink, its shortfall under it (docs/14 §10). */
+.iris-ckpi-figure[data-short] {
+  color: var(--ink-2);
+}
+
+.iris-ckpi-trend {
+  margin: 0.25rem 0 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  color: var(--d-ink-2, var(--ink-2));
+}
+
+.iris-ckpi[data-lead] .iris-ckpi-trend {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+/* The arrow carries the colour; the words beside it stay in the label's ink. */
+.iris-ckpi-arrow {
+  display: inline-block;
+  margin-right: 0.4375rem;
+  font-size: 1.125em;
+  line-height: 1;
+  vertical-align: -0.0625em;
+}
+
+.iris-ckpi-trend[data-tone="good"] .iris-ckpi-arrow {
+  color: var(--gain);
+}
+
+.iris-ckpi-trend[data-tone="bad"] .iris-ckpi-arrow {
+  color: var(--loss);
+}
+
+.iris-ckpi-trend[data-tone="neutral"] .iris-ckpi-arrow {
+  color: var(--d-ink-2, var(--ink-2));
+}
+
+.iris-ckpi-sample {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--d-ink-4, var(--ink-3));
+}
+
+.iris-ckpi-basis {
+  margin-top: 0.875rem;
+}
+
+/* --- middle: three across, then three, then two halves ---------------------- */
+
+@container (width < 60rem) {
+  .iris-ckpi-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .iris-ckpi,
+  .iris-ckpi[data-lead] {
+    grid-column: span 2;
+    padding: 1.25rem 1rem 1.375rem;
+  }
+
+  .iris-ckpi:nth-child(n + 7) {
+    grid-column: span 3;
+  }
+
+  .iris-ckpi:nth-child(1),
+  .iris-ckpi:nth-child(4),
+  .iris-ckpi:nth-child(7) {
+    border-left: 0;
+    padding-left: 0;
+  }
+
+  .iris-ckpi[data-lead] .iris-ckpi-figure {
+    font-size: 2.75rem;
+  }
+}
+
+/* --- narrow: a figure a row ---------------------------------------------------- */
+
+@container (width < 36rem) {
+  .iris-ckpi-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* Its own little grid, no longer a slice of the plane's rows. */
+  .iris-ckpi,
+  .iris-ckpi[data-lead],
+  .iris-ckpi:nth-child(n + 7) {
+    grid-column: auto;
+    grid-row: auto;
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head figure"
+      "trend trend"
+      "sample sample";
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0.125rem;
+    padding: 0.875rem 0;
+    border-left: 0;
+  }
+
+  .iris-ckpi:nth-child(n + 2) {
+    border-top: 1px solid var(--rule, rgb(255 255 255 / 8%));
+  }
+
+  .iris-ckpi > .iris-ckpi-head {
+    grid-area: head;
+  }
+
+  .iris-ckpi > .iris-ckpi-figure,
+  .iris-ckpi[data-lead] > .iris-ckpi-figure {
+    grid-area: figure;
+    margin: 0;
+    font-size: 1.75rem;
+    text-align: right;
+  }
+
+  .iris-ckpi > .iris-ckpi-figure[data-name] {
+    font-size: 1.25rem;
+  }
+
+  .iris-ckpi > .iris-ckpi-trend {
+    grid-area: trend;
+    margin: 0;
+  }
+
+  .iris-ckpi > .iris-ckpi-sample {
+    grid-area: sample;
+  }
+
+  .iris-ckpi[data-lead] .iris-ckpi-name,
+  .iris-ckpi[data-lead] .iris-ckpi-trend {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+}
+
+/*
+ * The entry: the plane blooms in (`DrawIn`), each figure after the one before
+ * it, and an arrow arrives travelling the way it points — the motion says the
+ * direction before the words do. Only while `DrawIn` plays; reduced motion and
+ * no script see the last frame at once (`design-lab-d.css`).
+ */
+@keyframes iris-ckpi-in {
+  from {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+}
+
+@keyframes iris-ckpi-up {
+  from {
+    opacity: 0;
+    translate: 0 0.5em;
+  }
+}
+
+@keyframes iris-ckpi-down {
+  from {
+    opacity: 0;
+    translate: 0 -0.5em;
+  }
+}
+
+@media screen and (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .dld-draw[data-draw="run"] .iris-ckpi {
+    animation: iris-ckpi-in 600ms var(--d-ease, ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
+  }
+
+  .dld-draw[data-draw="run"] [data-direction="up"] .iris-ckpi-arrow {
+    animation: iris-ckpi-up 500ms var(--d-ease, ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms + 300ms);
+  }
+
+  .dld-draw[data-draw="run"] [data-direction="down"] .iris-ckpi-arrow {
+    animation: iris-ckpi-down 500ms var(--d-ease, ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms + 300ms);
+  }
+}
