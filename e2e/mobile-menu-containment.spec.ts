@@ -191,8 +191,8 @@ test.describe("the open mobile menu contains focus and pointer", () => {
 
     await page.setViewportSize({ width: 412, height: 915 });
     expect(await inertState(page)).toEqual({ main: false, dock: false, open: false });
-    // The page is interactive again: a control in <main> can take focus.
-    await page.locator("#main a[href]").first().focus();
+    // The page is interactive again: a control in <main> can take focus (the first one a phone shows).
+    await page.locator("#main a[href]:visible").first().focus();
     expect((await focused(page)).insidePanel).toBe(false);
     expect(await page.evaluate(() => document.activeElement?.closest("#main") !== null)).toBe(true);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
