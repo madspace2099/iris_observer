@@ -6246,7 +6246,7 @@ and Presentation (Compare). Run `fixed-covers-nothing`, `mobile-menu-containment
 ## 2026-10-22 — Stream MOBILE: page-level phone fixes (Sales Flow, registers, Presentation, report)
 
 Máté asked "Check mobile responsiveness!"; three reviewers walked the demo at 390 and 360 and
-measured 21 findings for these pages. Branch `worktree-wf_eba45ae8-1e4-6`, from `3373a1c`, three
+measured 21 findings for these pages. Branch `worktree-wf_eba45ae8-1e4-6`, from `3373a1c`, five
 commits, not pushed. No ADR. Every rule is a phone's (`width < 40rem` / `<= 48rem`) or a narrow
 card's (container query), and nearly all are scoped to their page's own class in a page sheet:
 `components/flow/sales-flow.css` (`.iris-salesflow`), `presentation/presentation.css`,
@@ -6290,7 +6290,12 @@ component).
 **Verified.** Typecheck clean; eslint and prettier clean on every changed file; new suites
 `sales-flow-phone` (6) and `registers-phone` (12: the order control, twenty records and the
 offer of the rest, every row still sent, the folded row number matching the component, the
-denominator in one element, the comparison head, every page sheet scoped). Static renders
+denominator in one element, the comparison head, every page sheet scoped). Full suite (after
+`pnpm release:wrappers`): 285 files, 5193 passed, 1 skipped, 3 failed — `no-secret-recipes` (no
+web build), `release-operation` (a 30s timeout under the parallel streams' load; passes alone)
+and `artefact-consistency`, whose REVIEW token is the sha256 of `git diff 7ac84fa..c16b94f`: this
+machine's git now prints that fixed, historical diff with another hash (`54f81969…`), so it fails
+whatever the HEAD — environmental; nothing in this stream touches it. Static renders
 (react-dom/server, the product stylesheets, headless Chromium) of Sales Flow, IRIS-led, Meetings,
 Units, S-503, Features, Audience, Presentation and the report at 1440, 390 and 360: no sideways
 page scroll at 390 or 360; at 1440 every page pixel-identical to the base except Meetings and

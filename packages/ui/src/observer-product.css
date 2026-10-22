@@ -2215,6 +2215,11 @@
     align-items: center;
     min-height: 2rem;
   }
+
+  /* Safari draws a disclosure triangle on a summary whatever its display. */
+  .ox-table-order summary::-webkit-details-marker {
+    display: none;
+  }
 }
 
 .ox-table-prefs fieldset {
