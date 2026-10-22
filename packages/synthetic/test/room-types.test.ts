@@ -3,6 +3,7 @@ import type { ShowroomSession } from "@observer/contracts";
 import type { SegmentInterest, ViewContext } from "@observer/readmodels";
 import { VIEWERS, provideCatalogue, syntheticRepository } from "@observer/synthetic";
 import { buildRoomTypes } from "../src/showroom/room-types";
+import { viewContext } from "./view-context";
 
 /**
  * THE ROOM TYPES, BY HAND (ADR-0056).
@@ -38,8 +39,7 @@ function flat(code: string, rooms: number, status: "sold" | "reserved" | "availa
 }
 
 function context(crm: boolean): ViewContext {
-  return {
-    language: "en",
+  return viewContext({
     tenant: { slug: "test" },
     project: {
       id: PROJECT,
@@ -48,7 +48,7 @@ function context(crm: boolean): ViewContext {
       timeZone: "UTC",
       connectedSources: crm ? ["catalogue", "crm"] : ["catalogue"],
     },
-  } as unknown as ViewContext;
+  });
 }
 
 let serial = 0;
