@@ -203,28 +203,19 @@ describe("missing data is stated, never borrowed and never zero", () => {
     expect(project?.connectedSources).not.toContain("crm");
 
     const charts = await syntheticRepository.getProjectCharts(query(petra, "alpha", "riverside"));
-    expect(charts.targets.length).toBeGreaterThan(0);
-    for (const target of charts.targets) {
-      // Null, not zero — sold/reserved is a CRM outcome and this project has
-      // no CRM to report one. Zero would read as "nothing has sold", which
-      // is a different, unearned claim.
-      expect(target.actual, `${target.id} must be unavailable, not a number`).toBeNull();
-      expect(target.note).toMatch(/unavailable/i);
-      // The schedule itself is still known even though the actual is not.
-      expect(target.pace).toBeGreaterThan(0);
-      expect(target.total).toBeGreaterThan(0);
-    }
+    // Null, not zero: sold and reserved are the CRM's word and this project
+    // has no CRM. Zero would read as "nothing has sold", an unearned claim.
+    expect(charts.plan.total).toBeGreaterThan(0);
+    expect(charts.plan.parts).toEqual([]);
+    expect(charts.plan.pace).toBeNull();
+    expect(charts.plan.verdictText).toMatch(/CRM is not connected/);
+    expect(charts.plan.verdict).toBe("unavailable");
 
     // And a project whose CRM IS connected still gets a real number.
     const northgateCharts = await syntheticRepository.getProjectCharts(
       query(petra, "alpha", "northgate"),
     );
-    for (const target of northgateCharts.targets) {
-      expect(
-        target.actual,
-        `${target.id} should be a real count on a connected project`,
-      ).not.toBeNull();
-    }
+    expect(northgateCharts.plan.parts.map((p) => p.id)).toEqual(["sold", "reserved", "available"]);
   });
 
   it("does not invent a previous period for a project that has none", async () => {
@@ -700,7 +691,7 @@ describe("a project shows its own stock", () => {
             period: "quarter_to_date" as const,
             language: DEFAULT_LANGUAGE,
           })
-          .then((c) => c.targets.map((t) => `${t.actual}/${t.total}`).join(" ")),
+          .then((c) => `${String(c.plan.total)}: ${c.plan.parts.map((p) => p.count).join("/")}`),
       ),
     );
 
@@ -725,6 +716,6 @@ describe("a project shows its own stock", () => {
       }),
     ]);
 
-    expect(alpha.targets[0]?.total).not.toBe(beta.targets[0]?.total);
+    expect(alpha.plan.total).not.toBe(beta.plan.total);
   });
 });

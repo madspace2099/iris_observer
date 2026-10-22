@@ -302,22 +302,12 @@ export function GalleryD({ data }: { readonly data: LabChartsD }) {
             id="bullet"
             group="A · Bullet"
             title="Sold against the plan"
-            reads={`ProjectCharts.targets · ${data.projectName}`}
+            reads={`ProjectCharts.plan · ${data.projectName}`}
             facts={data.bullet.facts}
             wide
           >
             <div className="dld-bullets">
-              <BulletChart
-                rows={data.bullet.targets.map((t) => ({
-                  id: t.id,
-                  label: t.label,
-                  actual: t.actual,
-                  target: t.target,
-                  pace: t.pace,
-                  total: t.total,
-                  note: t.note,
-                }))}
-              />
+              <BulletChart rows={data.bullet.rows} />
             </div>
           </DCard>
 

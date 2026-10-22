@@ -1,5 +1,12 @@
 import { defineMetric } from "../definition";
-import { NOT_ENOUGH, NO_CATALOGUE, NO_CRM, NO_MEETINGS, insufficient } from "./shared";
+import {
+  NOT_ENOUGH,
+  NO_CATALOGUE,
+  NO_CRM,
+  NO_MEETINGS,
+  SALES_PACE_MIN_SAMPLE,
+  insufficient,
+} from "./shared";
 
 /**
  * Executive intelligence — the first screen.
@@ -242,6 +249,121 @@ export const activeBuyers = defineMetric({
   roles: ["developer", "agency_manager", "sales_agent"],
 });
 
+/* --- sold against the plan (ADR-0055) ------------------------------------ */
+
+const NO_WINDOW = "No sell-out date is set for this project.";
+
+export const stockPosition = defineMetric({
+  id: "plan.stock_position",
+  displayName: "Stock position",
+  businessDefinition:
+    "How many of the project's flats are sold, reserved and still available, out of every flat it has.",
+  kind: "distribution",
+  calculation:
+    "Every flat in the catalogue the project's connector delivers, split by the status the CRM states for it now: sold, reserved, and available (every other flat). Each part over the total.",
+  numerator: "flats sold, reserved or available",
+  denominator: "every flat in the catalogue",
+  exclusions: ["nothing: a withdrawn flat leaves the catalogue, and the total with it"],
+  dimensions: ["project", "unit_status"],
+  timeWindow: "point_in_time",
+  requiredFacts: ["unit.attributes.published", "unit.availability.changed", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit"],
+  requiredUnitAttributes: ["status"],
+  minimumSampleSize: 1,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "The catalogue holds no flat.",
+    insufficient: NOT_ENOUGH,
+    unavailable: NO_CRM,
+  },
+  drillTo: "units",
+  roles: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+});
+
+export const salesPace = defineMetric({
+  id: "plan.sales_pace",
+  displayName: "Sales pace",
+  businessDefinition: "How many flats the project is selling a month, now.",
+  kind: "ratio",
+  calculation:
+    "Distinct flats whose deal the CRM dates at purchase in the last 90 days (or since selling began, if later), divided by that window in months of 30.4375 days. A deal the CRM states no date for is dated by the sync that first saw it at purchase, or left out.",
+  numerator: "flats with a dated purchase in the window",
+  denominator: "the window's length in months",
+  exclusions: ["reservations", "purchases with no date", "lost deals"],
+  dimensions: ["project"],
+  timeWindow: "trailing_90d",
+  requiredFacts: ["deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit", "deal.stage_date"],
+  requiredUnitAttributes: [],
+  minimumSampleSize: SALES_PACE_MIN_SAMPLE,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "No flat was sold in the last 90 days.",
+    insufficient: insufficient(SALES_PACE_MIN_SAMPLE, "dated sales in the last 90 days"),
+    unavailable: NO_CRM,
+  },
+  drillTo: "deals",
+  roles: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+});
+
+export const neededPace = defineMetric({
+  id: "plan.needed_pace",
+  displayName: "Pace needed to sell out",
+  businessDefinition:
+    "How many flats a month the project must sell from today to have none left by its sell-out date.",
+  kind: "ratio",
+  calculation:
+    "Flats not yet sold (every flat less the sold ones; a reservation is not a sale) divided by the months from today to the sell-out date the company admin set, in months of 30.4375 days.",
+  numerator: "flats not yet sold",
+  denominator: "months left to the sell-out date",
+  exclusions: ["a project with no sell-out date", "a date already past"],
+  dimensions: ["project"],
+  timeWindow: "point_in_time",
+  requiredFacts: ["unit.attributes.published", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit"],
+  requiredUnitAttributes: ["status"],
+  minimumSampleSize: 1,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "Every flat is sold.",
+    insufficient: NOT_ENOUGH,
+    unavailable: NO_WINDOW,
+  },
+  drillTo: "units",
+  roles: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+});
+
+export const planVerdict = defineMetric({
+  id: "plan.verdict",
+  displayName: "On pace to sell out",
+  businessDefinition:
+    "Whether the project, selling at its current pace, sells out by its sell-out date, and when it would sell out at that pace.",
+  kind: "status",
+  calculation:
+    "On pace when the sales pace, to one decimal, is at least the pace needed; behind otherwise, stating both. At the current pace the unsold flats take unsold × window days ÷ dated sales more days, which dates the sell-out. No verdict below the pace's minimum sample, without a sell-out date, before selling begins or after the date has passed.",
+  numerator: "the sales pace",
+  denominator: "the pace needed",
+  exclusions: ["the same as the two paces"],
+  dimensions: ["project"],
+  timeWindow: "trailing_90d",
+  requiredFacts: ["unit.attributes.published", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit", "deal.stage_date"],
+  requiredUnitAttributes: ["status"],
+  minimumSampleSize: SALES_PACE_MIN_SAMPLE,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "Every flat is sold.",
+    insufficient: insufficient(SALES_PACE_MIN_SAMPLE, "dated sales in the last 90 days"),
+    unavailable: NO_CRM,
+  },
+  drillTo: "deals",
+  roles: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+});
+
 export const EXECUTIVE_METRICS = [
   performanceStatus,
   unrealisedPotential,
@@ -251,4 +373,8 @@ export const EXECUTIVE_METRICS = [
   revenue,
   averageDaysToClose,
   activeBuyers,
+  stockPosition,
+  salesPace,
+  neededPace,
+  planVerdict,
 ] as const;

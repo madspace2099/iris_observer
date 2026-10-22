@@ -9,7 +9,7 @@ import type {
 } from "@observer/readmodels";
 
 import { ChartFrame, Evidence, Unavailable } from "@/components/product";
-import { BulletChart, JourneyFlow } from "@/showroom/charts2";
+import { JourneyFlow } from "@/showroom/charts2";
 import { Plane } from "./Section";
 
 /**
@@ -38,13 +38,13 @@ import { Plane } from "./Section";
  * decision
  *
  * "33% sold" is neither good nor bad until the reader knows the schedule wanted
- * 41% by today. That is why `SalesTarget` carries `pace` and why the shape is a
- * bullet with a marker on the same axis rather than a ring or a percentage.
+ * 41% by today. That is why `SalesPlan` carries the pace and the pace needed
+ * (ADR-0055), and the Project page draws them; this region states the verdict.
  *
  * ## `ProjectCharts` carries no evidence reference, and the screen says so
  *
  * Every other read model on this screen returns an `EvidenceRef`. `ProjectCharts`
- * returns `targets` and `journey` and nothing to check either against, so the
+ * returns `plan` and `journey` and nothing to check either against, so the
  * region's provenance line renders `Evidence evidence={null}`, which states **No
  * evidence** in words. An absent evidence line and a line nobody thought to add
  * look identical on a screenshot and only one of them is honest. Reported.
@@ -122,24 +122,14 @@ export function SalesCoverage({
       </ul>
 
       <div className="ox-cols" data-cols="2">
-        {charts.targets.length === 0 ? null : (
+        {charts.plan.total === null ? null : (
           <ChartFrame
             title="Sold against the plan"
             period={periodLabel}
-            note="The bar is what has actually moved, the vertical mark is where the schedule wanted the project to be by today, and the outline is the target. A reservation is not a sale, so the two are counted separately."
-            summary={charts.targets.map((target) => target.note).join(" ")}
+            note={charts.plan.definition}
+            summary={charts.plan.summary}
           >
-            <BulletChart
-              rows={charts.targets.map((target) => ({
-                id: target.id,
-                label: target.label,
-                actual: target.actual,
-                target: target.target,
-                pace: target.pace,
-                total: target.total,
-                note: target.note,
-              }))}
-            />
+            <p className="ox-section-note">{charts.plan.verdictText}</p>
           </ChartFrame>
         )}
 
@@ -156,13 +146,6 @@ export function SalesCoverage({
           </ChartFrame>
         )}
       </div>
-
-      {charts.targets.map((target) => (
-        <p className="ox-section-note" key={target.id}>
-          {target.label} · {target.note} Measured from {target.startedOn} against{" "}
-          {target.targetDate}.
-        </p>
-      ))}
     </Plane>
   );
 }

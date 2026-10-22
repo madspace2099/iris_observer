@@ -9,6 +9,7 @@ import { projectIdFromUuid } from "@/lib/directory/identity";
 import { liveProjectDirectory } from "@/lib/directory/live";
 import { directoryRows } from "@/lib/directory/rows";
 import { entitled } from "@/lib/entitled-repository";
+import { liveSalesWindowSource } from "@/lib/project-plan/store";
 
 function normalised(name: string): string {
   return name
@@ -120,6 +121,7 @@ export const repository: ObserverRepository = entitled(
     dealSource: liveDealSource,
     sessionSource: liveSessionSource,
     projectDirectory: liveProjectDirectory,
+    salesWindowSource: liveSalesWindowSource,
   }),
 );
 

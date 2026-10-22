@@ -6,7 +6,13 @@ import {
   type ProjectId,
   type TenantId,
 } from "@observer/contracts";
-import type { ProjectSource, ProjectSummary, TenantSummary, Viewer } from "@observer/readmodels";
+import type {
+  ProjectSource,
+  ProjectSummary,
+  SalesWindow,
+  TenantSummary,
+  Viewer,
+} from "@observer/readmodels";
 
 /**
  * The synthetic world.
@@ -367,6 +373,26 @@ export const PROJECTS: readonly ProjectSummary[] = [
     ],
   },
 ] as const;
+
+/**
+ * EACH PROJECT'S SALES WINDOW, AS CONFIGURED (ADR-0055).
+ *
+ * When selling began and the date by which every flat is meant to be sold. A
+ * developer's decision, so it is configuration and never a constant in a
+ * builder: a project listed here has one, a project absent has none and says
+ * "No sell-out date set". The admin of the tenant's company changes it on the
+ * Project page; what they set is kept beside the local control plane and
+ * stands in front of this.
+ *
+ * Shark Residence's is demonstration configuration: selling began with its
+ * first showroom presentation on 12 January 2026, and sixty flats sold out by
+ * the end of June 2027 is an eighteen-month campaign, the ordinary length for
+ * a scheme of its size. No other project states one; inventing a date for them
+ * would be a plan nobody made.
+ */
+export const SALES_WINDOWS: Readonly<Record<string, SalesWindow>> = {
+  prj_sharkres001: { startsOn: "2026-01-12", sellOutBy: "2027-06-30" },
+};
 
 /**
  * Viewers.

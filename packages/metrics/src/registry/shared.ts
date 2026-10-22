@@ -18,6 +18,12 @@ export const AGENT_MIN_SAMPLE = 20;
 /** Below this many observations, no unit-level trend is presented as a verdict. */
 export const UNIT_MIN_SAMPLE = 10;
 
+/**
+ * Below this many dated sales in the pace window, no sales pace is stated and
+ * the plan gives no verdict (ADR-0055); the floor IRIS-assisted sales use too.
+ */
+export const SALES_PACE_MIN_SAMPLE = 5;
+
 export function insufficient(n: number, noun: string): string {
   return `Fewer than ${n} ${noun} — shown as a raw figure, not as a verdict.`;
 }

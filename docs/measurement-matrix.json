@@ -183,6 +183,110 @@
       ]
     },
     {
+      "id": "plan.stock_position",
+      "displayName": "Stock position",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.attributes.published",
+        "unit.availability.changed",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit"
+      ],
+      "requiredUnitAttributes": [
+        "status"
+      ],
+      "minimumSampleSize": 1,
+      "comparison": "none",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "plan.sales_pace",
+      "displayName": "Sales pace",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit",
+        "deal.stage_date"
+      ],
+      "requiredUnitAttributes": [],
+      "minimumSampleSize": 5,
+      "comparison": "none",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "plan.needed_pace",
+      "displayName": "Pace needed to sell out",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.attributes.published",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit"
+      ],
+      "requiredUnitAttributes": [
+        "status"
+      ],
+      "minimumSampleSize": 1,
+      "comparison": "none",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
+      "id": "plan.verdict",
+      "displayName": "On pace to sell out",
+      "kind": "status",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.attributes.published",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit",
+        "deal.stage_date"
+      ],
+      "requiredUnitAttributes": [
+        "status"
+      ],
+      "minimumSampleSize": 5,
+      "comparison": "none",
+      "drillTo": "deals",
+      "roles": [
+        "developer",
+        "agency_manager",
+        "sales_agent",
+        "madspace_admin"
+      ]
+    },
+    {
       "id": "flow.stage_counts",
       "displayName": "Pipeline by stage",
       "kind": "distribution",
@@ -1991,6 +2095,10 @@
         "exec.revenue",
         "exec.avg_days_to_close",
         "exec.active_buyers",
+        "plan.stock_position",
+        "plan.sales_pace",
+        "plan.needed_pace",
+        "plan.verdict",
         "flow.stage_counts",
         "flow.stage_conversion",
         "flow.viewing_to_offer",
@@ -2243,6 +2351,9 @@
       ],
       "requiredBy": [
         "exec.revenue",
+        "plan.stock_position",
+        "plan.needed_pace",
+        "plan.verdict",
         "unit.availability_price_context",
         "project.segment_interest",
         "project.attention_index",
@@ -2268,6 +2379,7 @@
       ],
       "requiredBy": [
         "exec.unrealised_potential",
+        "plan.stock_position",
         "unit.sharp_demand_decline",
         "unit.available_demand",
         "unit.availability_price_context",

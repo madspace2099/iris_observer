@@ -585,6 +585,16 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     contracts: ["opaque server-validated session id", "ADR-0022"],
   },
   {
+    id: "madspace.sold_against_the_plan",
+    source: "madspace",
+    family: "executive",
+    requirement:
+      "Show clearly how many flats the project has and how many are sold, read from the CRM; how long the sales run, against a date by which everything must be sold; and whether the project is on pace to meet it.",
+    metrics: ["plan.stock_position", "plan.sales_pace", "plan.needed_pace", "plan.verdict"],
+    readModels: ["SalesPlan"],
+    contracts: ["ADR-0055", "SalesWindow"],
+  },
+  {
     id: "webiris.funnel",
     source: "webiris_addendum",
     family: "cross_channel",

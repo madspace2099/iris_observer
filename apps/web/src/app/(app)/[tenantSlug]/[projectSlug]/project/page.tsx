@@ -8,11 +8,11 @@ import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { Finding, Gaps, Method, SourceChips } from "@/showroom/parts";
 import { PairedRates, ParityScale } from "@/showroom/charts";
-import { BulletChart } from "@/showroom/charts2";
 import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
 import { DrawIn } from "@/showroom/DrawIn";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { ExportReport } from "@/components/report";
+import { SalesPlanBlock } from "@/components/project-plan/SalesPlanBlock";
 import { withPeriod, withPeriodOnLinks } from "@/lib/period";
 
 export const metadata: Metadata = { title: "Project" };
@@ -180,38 +180,17 @@ export default async function ProjectPage({
           <ExportReport language={view.context.language} report={report} pageHref={reportHref} />
         </p>
 
-        {/* --- the plan, and where the project stands against it ---------- */}
+        {/* --- the plan, and where the project stands against it (ADR-0055) --- */}
 
-        <div className="d-card" key={`plan-${query.period}`}>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-            Sold against the plan
-          </p>
-          <BulletChart
-            rows={charts.targets.map((t) => ({
-              id: t.id,
-              label: t.label,
-              actual: t.actual,
-              target: t.target,
-              pace: t.pace,
-              total: t.total,
-              note: t.note,
-            }))}
-          />
-          {charts.targets.map((t) => (
-            <p className="iris-meta" key={t.id} style={{ marginTop: ".625rem" }}>
-              {t.note}
-            </p>
-          ))}
-          {/*
-            The provenance tag names the source these figures actually came
-            from. A "CRM outcome" chip claimed on every project regardless of
-            whether one is connected is the same lie in miniature as the
-            zero-standing-in-for-unmeasured this project exists to prevent.
-          */}
-          {view.context.project.connectedSources.includes("crm") ? (
-            <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} />
-          ) : null}
-        </div>
+        <SalesPlanBlock
+          key={`plan-${query.period}`}
+          plan={charts.plan}
+          role={viewer.role}
+          tenant={view.context.tenant}
+          tenantSlug={tenantSlug}
+          projectSlug={projectSlug}
+          crmConnected={view.context.project.connectedSources.includes("crm")}
+        />
 
         <hr className="iris-rule" />
 

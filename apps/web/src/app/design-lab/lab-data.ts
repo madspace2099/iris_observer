@@ -51,16 +51,20 @@ import type {
   PeriodPreset,
   RadarProfile,
   RankedRow,
-  SalesTarget,
   SegmentInterest,
   Viewer,
 } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
 import { QUADRANT_NAME } from "@/showroom/forms";
+import type { BulletChart } from "@/showroom/charts2";
 /* The rehearsal only: never a read of the project, so never through `repository`. See the bubble lens. */
 import { showroomPaceRehearsal } from "@observer/synthetic";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
+
+/** One row of the bullet form, as `BulletChart` draws it. */
+type BulletRow = Parameters<typeof BulletChart>[0]["rows"][number];
+
 /**
  * ONE READ, EVERY SCREEN, EVERY VARIANT.
  *
@@ -611,7 +615,7 @@ export interface LabChartsD {
   readonly bubble: DBubbleLens;
   readonly heatmapBasic: DHeatCard;
   readonly heatmapGradient: DHeatCard;
-  readonly bullet: { readonly targets: readonly SalesTarget[]; readonly facts: DFacts };
+  readonly bullet: { readonly rows: readonly BulletRow[]; readonly facts: DFacts };
   readonly stacked: { readonly composition: OutcomeComposition; readonly facts: DFacts };
   readonly trend: {
     readonly agentLabel: string;
@@ -1837,47 +1841,48 @@ export async function labChartsD(viewer: Viewer): Promise<LabChartsD> {
 
   /* --- plan, composition, the project's weeks and the KPI panel -------------------- */
 
-  const targets = projectCharts.targets;
-  const firstTarget = targets[0];
+  /*
+   * The bullet form, on the plan's own figures (ADR-0055): the flats sold
+   * against every flat, with the mark where the share of the sales window
+   * gone by today would put them. No window, or no CRM, and nothing is drawn.
+   */
+  const plan = projectCharts.plan;
+  const soldPart = plan.parts.find((p) => p.id === "sold");
+  const bulletRows: BulletRow[] =
+    plan.window === null || plan.total === null || soldPart === undefined
+      ? []
+      : [
+          {
+            id: "sold",
+            label: "Sold",
+            actual: soldPart.count,
+            target: plan.total,
+            pace: plan.window.elapsed * plan.total,
+            total: plan.total,
+            note: plan.verdictText,
+          },
+        ];
   const bullet = {
-    targets,
+    rows: bulletRows,
     facts: {
-      note:
-        targets.length === 0
-          ? "The plan holds no target, so there is nothing to measure against."
-          : `${targets.map((t) => `${t.label}: ${t.note}`).join(" ")} "Needed by now" is where a straight line from the plan's start to its target date stands today.`,
-      summary:
-        targets.length === 0
-          ? "The plan holds no target."
-          : `${targets
-              .map(
-                (t) =>
-                  `${t.label}: ${t.actual === null ? "unavailable" : n(t.actual)} against a target of ${n(t.target)}, with ${n(Math.round(t.pace))} needed by now`,
-              )
-              .join("; ")}.`,
+      note: plan.definition,
+      summary: plan.summary,
       figures: [
-        firstTarget === undefined
-          ? figure("Sold", "Unavailable", "the plan holds no target")
-          : figure(
-              firstTarget.label,
-              firstTarget.actual === null ? "Unavailable" : n(firstTarget.actual),
-              `against a target of ${n(firstTarget.target)}`,
-            ),
-        firstTarget === undefined
-          ? figure("Needed by now", "Unavailable", null)
-          : figure("Needed by now", n(Math.round(firstTarget.pace)), "on the plan's own schedule"),
+        figure(
+          "Sold",
+          soldPart === undefined ? "Unavailable" : n(soldPart.count),
+          plan.total === null ? null : `of ${n(plan.total)} flats`,
+        ),
+        figure(
+          "Sell out by",
+          plan.window === null ? "Not set" : plan.window.sellOutByDisplay,
+          plan.window === null ? null : plan.window.remainingDisplay,
+        ),
       ] as const,
-      rankingTitle: "The plan's targets",
-      ranking: targets.slice(0, 3).map((t) => ({
-        id: t.id,
-        label: t.label,
-        value:
-          t.actual === null ? `Unavailable / ${n(t.target)}` : `${n(t.actual)} / ${n(t.target)}`,
-      })),
+      rankingTitle: "The stock",
+      ranking: plan.parts.map((p) => ({ id: p.id, label: p.label, value: n(p.count) })),
       rankingNote:
-        targets.length < 3
-          ? `The plan holds ${n(targets.length)} ${targets.length === 1 ? "target" : "targets"}, in its own order.`
-          : "In the plan's own order.",
+        plan.parts.length === 0 ? (plan.stockNote ?? "No stock to split.") : "Every flat, once.",
     },
   };
 

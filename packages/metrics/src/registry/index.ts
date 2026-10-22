@@ -72,6 +72,7 @@ export function validateRegistry(): readonly string[] {
 export {
   AGENT_MIN_SAMPLE,
   UNIT_MIN_SAMPLE,
+  SALES_PACE_MIN_SAMPLE,
   NO_CRM,
   NO_MEETINGS,
   NOT_ENOUGH,

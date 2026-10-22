@@ -14,7 +14,7 @@ Coverage is not always a metric. Some requirements are answered by a read model,
 or a decision, and some are still open — those are listed in full at the end rather than counted as
 done.
 
-- Requirements tracked: **62**
+- Requirements tracked: **63**
 - Uncovered: **0**
 - Open decisions: **0**
 - Decided, waiting on a review gate: **1**
@@ -69,7 +69,7 @@ done.
 
 ## MADSPACE decisions
 
-14 requirements.
+15 requirements.
 
 | Requirement | Family | Covered by | Status |
 | --- | --- | --- | --- |
@@ -87,6 +87,7 @@ done.
 | Lead temperature is an Observer signal, not a CRM stage. Stage conversion must never be computed through it. | sales flow | `intent.distribution`<br>`intent.high_to_offer`<br>`intent.high_to_reservation`<br>`intent.high_to_purchase`<br>`intent.lift_over_baseline`<br>`intent.signal_freshness`<br>DEAL_STAGES<br>IntentSignal<br>ADR-0021 | ✅ metric |
 | Manrope is self-hosted from a reproducible package, with no runtime dependency on a third-party font host. | platform | @fontsource-variable/manrope<br>apps/web/src/app/layout.tsx | ✅ contract |
 | The scenario session adapter must not let a browser grant itself a tenant or role, and must not be described as production authentication. | platform | opaque server-validated session id<br>ADR-0022 | ✅ contract |
+| Show clearly how many flats the project has and how many are sold, read from the CRM; how long the sales run, against a date by which everything must be sold; and whether the project is on pace to meet it. | executive | `plan.stock_position`<br>`plan.sales_pace`<br>`plan.needed_pace`<br>`plan.verdict`<br>_SalesPlan_<br>ADR-0055<br>SalesWindow | ✅ metric |
 
 ---
 

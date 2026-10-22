@@ -27,12 +27,17 @@ import type {
   KpiWindowId,
   MeetingLens,
   OutcomeComposition,
+  PlanVerdict,
   ProjectCharts,
   RankedRow,
-  SalesTarget,
+  SalesPlan,
+  SalesWindow,
+  StockPart,
   TrendSeries,
   ViewContext,
 } from "@observer/readmodels";
+import { SALES_PACE_MIN_SAMPLE } from "@observer/metrics";
+import { dealsFor } from "../deals";
 import {
   KPI_WINDOWS,
   duration,
@@ -1594,80 +1599,263 @@ export function buildTrend(
   };
 }
 
-/* --- progress against the plan ---------------------------------------------------- */
+/* --- sold against the plan (ADR-0055) ------------------------------------------------ */
+
+/** A month, in days: the calendar's average, so a pace and a deadline count months alike. */
+const MONTH_DAYS = 365.25 / 12;
+/** How far back the pace looks. */
+const PACE_DAYS = 90;
+
+/** "2026-08-24": the project's calendar day at an instant. */
+function isoDayIn(at: Date, timeZone: string): string {
+  const p = zoneParts(at, timeZone);
+  return `${String(p.year)}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}
+
+/** Whole days from one calendar date to another. */
+function daysFrom(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS);
+}
+
+/** A calendar date some days on. */
+function isoDayAfter(day: string, days: number): string {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + days * DAY_MS).toISOString().slice(0, 10);
+}
+
+/** "12 Jan 2026" for a calendar date, read as the date it is (not as an instant in a zone). */
+function calendarDay(day: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${day}T00:00:00Z`));
+}
+
+/** "Apr 2027" for a calendar date. */
+function calendarMonth(day: string, locale: string): string {
+  return monthYearLabel(`${day}T12:00:00Z`, locale, "UTC");
+}
+
+/** One decimal, in the project's locale: "4.7". */
+function oneDecimal(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(value);
+}
+
+const flats = (n: number, locale: string) => `${count(n, locale)} ${n === 1 ? "flat" : "flats"}`;
+const sales = (n: number, locale: string) => `${count(n, locale)} ${n === 1 ? "sale" : "sales"}`;
+
+/** "10 months left", "12 days left": the time to a date still ahead. */
+function timeLeft(days: number, locale: string): string {
+  const months = Math.round(days / MONTH_DAYS);
+  if (months >= 1) return `${count(months, locale)} ${months === 1 ? "month" : "months"} left`;
+  return `${count(days, locale)} ${days === 1 ? "day" : "days"} left`;
+}
+
+const STOCK_LABELS = { sold: "Sold", reserved: "Reserved", available: "Available" } as const;
 
 /**
- * The project's own sales plan.
+ * WHERE THE PROJECT STANDS AGAINST ITS OWN PLAN, IN THREE ANSWERS.
  *
- * MADSPACE has not supplied a real one, so this is derived from the catalogue
- * and a stated target date, and the surface says so. What matters is the shape
- * of the answer: actual, target, and where a straight-line plan wanted this to
- * be by now — because 33% sold is neither good nor bad until you know the plan
- * expected 41%.
+ * The owner, recording the Shark demo (2026-10-22): the block must say how many
+ * flats there are, how many are sold — both read from the CRM — and how long
+ * the sales run, against a date by which everything must be sold.
+ *
+ *   - **The stock.** Every flat in the catalogue the project's connector
+ *     delivers; which are sold and reserved is the status the CRM states for
+ *     each flat now. Without a CRM the split is unavailable, never zero.
+ *   - **The window.** The project's configured start and sell-out-by dates,
+ *     and how much of that time has gone. None configured: none is drawn.
+ *   - **The pace.** Distinct flats the CRM dates at purchase over the last 90
+ *     days (or since selling began, if later), a month; the pace the unsold
+ *     flats need to be gone by the date; and when they would be gone at the
+ *     current pace. Below the floor no pace is stated and no verdict given.
+ *
+ * Every figure is computed here and formatted here; the page draws them.
  */
-export function buildTargets(
-  projectId: string,
-  today: Date,
-  locale: string,
-  timeZone: string,
-  crmConnected: boolean,
-): SalesTarget[] {
-  // This project's stock. The sales plan was Northgate's on every project.
-  const catalogue = catalogueFor(projectId);
-  const total = catalogue.length;
-  const sold = catalogue.filter((u) => u.status === "sold").length;
-  const reserved = catalogue.filter((u) => u.status === "reserved").length;
+export function buildSalesPlan(input: {
+  readonly units: readonly { readonly status: string }[];
+  readonly deals: DeliveredDeals | null;
+  readonly crmConnected: boolean;
+  readonly window: SalesWindow | null;
+  readonly today: Date;
+  readonly locale: string;
+  readonly timeZone: string;
+}): SalesPlan {
+  const { units, deals, crmConnected, window, today, locale, timeZone } = input;
+  const todayIso = isoDayIn(today, timeZone);
+  const minimum = SALES_PACE_MIN_SAMPLE;
 
-  const startedOn = new Date("2026-01-15T00:00:00Z");
-  const targetDate = new Date("2028-06-30T00:00:00Z");
-  const elapsed = today.getTime() - startedOn.getTime();
-  const span = targetDate.getTime() - startedOn.getTime();
-  const pace = (elapsed / span) * total;
+  const total = units.length === 0 ? null : units.length;
+  const sold = units.filter((u) => u.status === "sold").length;
+  const reserved = units.filter((u) => u.status === "reserved").length;
+  const known = total !== null && crmConnected;
+  const unsold = total === null ? 0 : total - sold;
 
-  const format = (d: Date) => monthYearLabel(d, locale, timeZone);
+  const parts: StockPart[] =
+    total === null || !crmConnected
+      ? []
+      : (
+          [
+            ["sold", sold],
+            ["reserved", reserved],
+            ["available", total - sold - reserved],
+          ] as const
+        ).map(([id, n]) => ({ id, label: STOCK_LABELS[id], count: n, share: n / total }));
 
-  /*
-   * SOLD AND RESERVED ARE CRM OUTCOMES, NOT CATALOGUE ATTRIBUTES.
-   *
-   * The catalogue can be connected on a project whose CRM is not — Riverside
-   * Walk is built to prove exactly that split. `sold`/`reserved` on a unit
-   * records a closed deal, which is a fact the CRM tells and the catalogue
-   * cannot originate on its own, so `catalogue`'s own figures are read here
-   * only when `crmConnected` says the project actually has that source.
-   */
-  const soldActual = crmConnected ? sold : null;
-  const committedActual = crmConnected ? sold + reserved : null;
+  const stockNote =
+    total === null
+      ? "Flats are counted from the project's unit catalogue."
+      : crmConnected
+        ? null
+        : "Sold, reserved and available flats are read from the CRM.";
 
-  return [
-    {
-      id: "sold",
-      label: "Sold",
-      total,
-      actual: soldActual,
-      target: total,
-      pace,
-      startedOn: format(startedOn),
-      targetDate: format(targetDate),
-      note:
-        soldActual === null
-          ? "Unavailable — this project's CRM is not connected, and sold counts come from CRM outcomes."
-          : `${soldActual} of ${total} sold. A straight line from ${format(startedOn)} to ${format(targetDate)} wants ${Math.round(pace)} by now.`,
-    },
-    {
-      id: "committed",
-      label: "Sold or reserved",
-      total,
-      actual: committedActual,
-      target: total,
-      pace,
-      startedOn: format(startedOn),
-      targetDate: format(targetDate),
-      note:
-        committedActual === null
-          ? "Unavailable — this project's CRM is not connected, and reservations come from CRM outcomes."
-          : `${committedActual} of ${total} sold or reserved. A reservation is not a sale, so both figures are shown.`,
-    },
-  ];
+  /* --- the window ------------------------------------------------------------ */
+
+  const started = window === null || window.startsOn <= todayIso;
+  const passed = window !== null && window.sellOutBy <= todayIso;
+  const windowModel =
+    window === null
+      ? null
+      : (() => {
+          const span = daysFrom(window.startsOn, window.sellOutBy);
+          const gone = daysFrom(window.startsOn, todayIso);
+          return {
+            startsOn: window.startsOn,
+            sellOutBy: window.sellOutBy,
+            startsOnDisplay: calendarDay(window.startsOn, locale),
+            sellOutByDisplay: calendarDay(window.sellOutBy, locale),
+            elapsed: span <= 0 ? 1 : Math.min(1, Math.max(0, gone / span)),
+            remainingDisplay: !started
+              ? `Starts in ${timeLeft(-gone, locale).replace(/ left$/, "")}`
+              : passed
+                ? "Past the date"
+                : timeLeft(daysFrom(todayIso, window.sellOutBy), locale),
+          };
+        })();
+
+  /* --- the pace -------------------------------------------------------------- */
+
+  const days =
+    window === null
+      ? PACE_DAYS
+      : Math.min(PACE_DAYS, Math.max(0, daysFrom(window.startsOn, todayIso)));
+  const from = today.getTime() - days * DAY_MS;
+  const dated = new Set<string>();
+  let undated = 0;
+  for (const deal of deals?.deals ?? []) {
+    if (deal.stage !== "purchase") continue;
+    const at = deal.stageEnteredAt ?? deals?.stageObservedAt?.[deal.externalId] ?? null;
+    if (at === null) {
+      undated += 1;
+      continue;
+    }
+    const t = Date.parse(at);
+    if (t > from && t <= today.getTime()) dated.add(deal.unitCode ?? deal.externalId);
+  }
+  const paceSales = dated.size;
+  const enough = days > 0 && paceSales >= minimum;
+  const perMonth = days > 0 ? (paceSales / days) * MONTH_DAYS : 0;
+  const monthsLeft =
+    window === null || passed ? null : daysFrom(todayIso, window.sellOutBy) / MONTH_DAYS;
+  const neededPerMonth =
+    monthsLeft === null || !started || unsold === 0 ? null : unsold / monthsLeft;
+  const sellingDisplay = enough ? oneDecimal(perMonth, locale) : null;
+  const neededDisplay = neededPerMonth === null ? null : oneDecimal(neededPerMonth, locale);
+  const sellsOutDisplay =
+    enough && unsold > 0
+      ? calendarMonth(isoDayAfter(todayIso, Math.round((unsold * days) / paceSales)), locale)
+      : null;
+
+  const pace =
+    !known || deals === null
+      ? null
+      : {
+          sales: paceSales,
+          days,
+          minimum,
+          sellingDisplay,
+          neededDisplay,
+          sellsOutDisplay,
+          basis: `${sales(paceSales, locale)} dated in the last ${count(days, locale)} days${
+            undated === 0 ? "" : ` · ${sales(undated, locale)} with no date, not counted`
+          }`,
+        };
+
+  /* --- the one line ---------------------------------------------------------- */
+
+  const [verdict, verdictText]: readonly [PlanVerdict, string] =
+    total === null
+      ? ["unavailable", "No unit catalogue has reached this project"]
+      : !crmConnected
+        ? ["unavailable", "Unavailable: the CRM is not connected"]
+        : unsold === 0
+          ? ["sold_out", "Sold out"]
+          : windowModel === null
+            ? ["no_date", "No sell-out date set"]
+            : !started
+              ? ["not_started", `Selling starts on ${windowModel.startsOnDisplay}`]
+              : passed
+                ? [
+                    "date_passed",
+                    `The sell-out date has passed with ${flats(unsold, locale)} unsold`,
+                  ]
+                : pace === null
+                  ? ["unavailable", "Pace unknown: the CRM delivers no dated sale"]
+                  : !enough
+                    ? [
+                        "too_few_sales",
+                        `Too few sales to judge the pace: ${count(paceSales, locale)} in ${count(days, locale)} days, ${count(minimum, locale)} needed`,
+                      ]
+                    : Math.round(perMonth * 10) >= Math.round((neededPerMonth ?? 0) * 10)
+                      ? [
+                          "on_pace",
+                          `On pace: needs ${neededDisplay ?? ""} a month, selling ${sellingDisplay ?? ""}`,
+                        ]
+                      : [
+                          "behind",
+                          `Behind: needs ${neededDisplay ?? ""} a month, selling ${sellingDisplay ?? ""}`,
+                        ];
+
+  const definition =
+    "Flats: every flat in the project's catalogue. Sold and reserved: the status the CRM states for each flat now; a reservation is not a sale, and available is every other flat. " +
+    `Selling: flats the CRM dates at purchase over the last ${PACE_DAYS} days (or since selling began, if later), a month. ` +
+    "Needed: the flats not yet sold, over the months left to the sell-out date. On pace when selling is at least what is needed; " +
+    `below ${count(minimum, locale)} dated sales no pace is stated. The sales window is the project's own, set by the developer's company admin.`;
+
+  const summary = [
+    total === null
+      ? stockNote
+      : parts.length === 0
+        ? `${flats(total, locale)}. ${stockNote ?? ""}`
+        : `${flats(total, locale)}: ${parts.map((p) => `${count(p.count, locale)} ${p.label.toLowerCase()}`).join(", ")}.`,
+    windowModel === null
+      ? "No sell-out date set."
+      : `Sales window ${windowModel.startsOnDisplay} to ${windowModel.sellOutByDisplay}, ${windowModel.remainingDisplay.toLowerCase()}.`,
+    pace === null
+      ? null
+      : `${pace.basis}${sellingDisplay === null ? "" : `: selling ${sellingDisplay} a month`}${
+          neededDisplay === null ? "" : `, ${neededDisplay} a month needed`
+        }.`,
+    `${verdictText}${sellsOutDisplay === null ? "" : `; at this pace the project sells out in ${sellsOutDisplay}`}.`,
+  ]
+    .filter((s): s is string => s !== null)
+    .join(" ");
+
+  return {
+    total,
+    parts,
+    stockNote,
+    window: windowModel,
+    pace,
+    verdict,
+    verdictText,
+    definition,
+    summary,
+  };
 }
 
 /* --- where journeys go, and where they stop ---------------------------------------- */
@@ -2001,9 +2189,18 @@ export function buildProjectCharts(
   locale: string,
   timeZone: string,
   crmConnected: boolean,
+  window: SalesWindow | null,
 ): ProjectCharts {
   return {
-    targets: buildTargets(projectId, today, locale, timeZone, crmConnected),
+    plan: buildSalesPlan({
+      units: catalogueFor(projectId),
+      deals: dealsFor(projectId),
+      crmConnected,
+      window,
+      today,
+      locale,
+      timeZone,
+    }),
     journey: buildJourney(sessions, locale, crmConnected),
   };
 }

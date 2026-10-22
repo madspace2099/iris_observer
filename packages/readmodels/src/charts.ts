@@ -369,33 +369,96 @@ export interface RankedRow {
   readonly href: string | null;
 }
 
-/* --- progress against a target -------------------------------------------------- */
+/* --- sold against the plan (ADR-0055) -------------------------------------------- */
 
 /**
- * How the project is selling against its own plan.
- *
- * Actual, the target, and where the schedule wanted it to be by now. The last
- * is what turns a percentage into a decision: 33% sold is neither good nor bad
- * until you know the plan wanted 41%.
- *
- * `actual` is a CRM-outcome fact — a unit's `sold`/`reserved` status is a
- * closed-deal state, not a catalogue attribute — so it is `null` on a project
- * whose CRM is not connected. `null` here, not `0`: a project with nothing
- * sold and a project with no CRM to say so are two different facts, and
- * writing the second as the first is exactly the fabrication the "unavailable
- * is never zero" rule exists to prevent.
+ * A project's sales window: when selling began and the date by which every
+ * flat is meant to be sold. Project configuration, set by the admin of the
+ * tenant's company; calendar dates, `YYYY-MM-DD`.
  */
-export interface SalesTarget {
-  readonly id: string;
+export interface SalesWindow {
+  readonly startsOn: string;
+  readonly sellOutBy: string;
+}
+
+/**
+ * Where a sales window set in Observer is kept. `null`: none was set here, and
+ * the project's own configuration stands (which may be none at all).
+ */
+export interface SalesWindowSource {
+  windowFor(projectId: string): Promise<SalesWindow | null>;
+}
+
+/** One state of the plan's one-line verdict. Only `on_pace` and `behind` judge the pace. */
+export type PlanVerdict =
+  | "on_pace"
+  | "behind"
+  | "sold_out"
+  | "date_passed"
+  | "too_few_sales"
+  | "not_started"
+  | "no_date"
+  | "unavailable";
+
+/** One part of the stock: sold, reserved or available, and its share of every flat. */
+export interface StockPart {
+  readonly id: "sold" | "reserved" | "available";
   readonly label: string;
-  readonly total: number;
-  readonly actual: number | null;
-  readonly target: number;
-  /** Straight-line expectation at today's date. Schedule-derived, not CRM-derived — known even when `actual` is not. */
-  readonly pace: number;
-  readonly startedOn: string;
-  readonly targetDate: string;
-  readonly note: string;
+  readonly count: number;
+  /** `count` over every flat in the catalogue, 0 to 1. */
+  readonly share: number;
+}
+
+/**
+ * How the project is selling against its own plan, read in seconds.
+ *
+ * The stock is the catalogue's flats; which of them are sold or reserved is the
+ * CRM's word, so without a CRM `parts` is empty and `note` says why — never a
+ * row of zeros. The pace is the CRM's dated sales over the last 90 days; the
+ * needed pace is the unsold flats over the months left to the sell-out date.
+ * Below `pace.minimum` dated sales no pace is stated and no verdict is given.
+ */
+export interface SalesPlan {
+  /** Every flat in the catalogue; null where no catalogue has reached the project. */
+  readonly total: number | null;
+  /** Sold, reserved, available — in that order; empty where the CRM cannot say. */
+  readonly parts: readonly StockPart[];
+  /** Why `parts` is empty, in a sentence; null when it is not. */
+  readonly stockNote: string | null;
+  /** The configured window, formatted; null where none is set. */
+  readonly window: {
+    readonly startsOn: string;
+    readonly sellOutBy: string;
+    readonly startsOnDisplay: string;
+    readonly sellOutByDisplay: string;
+    /** How much of the window has gone by today, 0 to 1. */
+    readonly elapsed: number;
+    /** "10 months left", "Ended 3 Aug 2026", "Starts in 2 months". */
+    readonly remainingDisplay: string;
+  } | null;
+  /** Null where no CRM delivers dated sales. */
+  readonly pace: {
+    /** Dated sales in the pace window: the pace's sample. */
+    readonly sales: number;
+    /** The window's length: 90 days, or fewer when selling began later. */
+    readonly days: number;
+    readonly minimum: number;
+    /** Flats sold a month, one decimal; null below `minimum`. */
+    readonly sellingDisplay: string | null;
+    /** Flats a month the sell-out date needs; null without a window, sold out, or past the date. */
+    readonly neededDisplay: string | null;
+    /** The month the project sells out at the current pace; null below `minimum` or with nothing left. */
+    readonly sellsOutDisplay: string | null;
+    /** What the pace stands on, always in view: "14 sales dated in the last 90 days". */
+    readonly basis: string;
+  } | null;
+  readonly verdict: PlanVerdict;
+  /** The line itself: "On pace", "Behind: needs 3.1 a month, selling 2.0", "No sell-out date set". */
+  readonly verdictText: string;
+  /** What every figure means, for the block's `i`. */
+  readonly definition: string;
+  /** The whole block in one paragraph, for a screen reader and for Ask IRIS. */
+  readonly summary: string;
 }
 
 /* --- composition over time ------------------------------------------------------ */
@@ -572,7 +635,7 @@ export interface FlowCharts {
 }
 
 export interface ProjectCharts {
-  readonly targets: readonly SalesTarget[];
+  readonly plan: SalesPlan;
   readonly journey: JourneyFlowModel;
 }
 

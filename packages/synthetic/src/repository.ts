@@ -29,7 +29,13 @@ import {
   type Language,
 } from "@observer/readmodels";
 import type { ReportScopeSelector } from "@observer/readmodels";
-import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "@observer/readmodels";
+import type {
+  AgentCharts,
+  FlowCharts,
+  KpiWindowId,
+  ProjectCharts,
+  SalesWindowSource,
+} from "@observer/readmodels";
 import type {
   AgentsView,
   AudienceCriteria,
@@ -69,7 +75,7 @@ import {
   comparisonRefusalReason,
 } from "@observer/metrics";
 import { endOfDayIn, periodsAt, periodWords } from "./time";
-import { PROJECTS, TENANTS, TODAY } from "./world";
+import { PROJECTS, SALES_WINDOWS, TENANTS, TODAY } from "./world";
 import {
   DEMONSTRATION_CRM_SLUGS,
   placedSaleOf,
@@ -212,6 +218,12 @@ export interface SyntheticRepositoryOptions {
    * synthetic world never reads it.
    */
   readonly now?: () => Date;
+  /**
+   * Where a sales window set in Observer is kept (ADR-0055): asked for the
+   * Project page's plan, in front of the project's own configuration
+   * (`SALES_WINDOWS`). Absent, or answering null, the configuration stands.
+   */
+  readonly salesWindowSource?: SalesWindowSource;
 }
 
 /** Everything that can be resolved: the synthetic world, then the directory's additions. */
@@ -648,6 +660,9 @@ export class SyntheticObserverRepository implements ObserverRepository {
       context.project.locale,
       context.project.timeZone,
       context.project.connectedSources.includes("crm"),
+      (await this.options.salesWindowSource?.windowFor(context.project.id as string)) ??
+        SALES_WINDOWS[context.project.id as string] ??
+        null,
     );
   }
 

@@ -1,0 +1,355 @@
+/*
+ * SOLD AGAINST THE PLAN (ADR-0055), the Project page's first card.
+ *
+ * Type by role, largest first: the card's title (the kit's 20/28), the verdict
+ * 22/30, the figures 40/44 (32/36 on a phone), labels and dates 13/18, never
+ * under 12. Everything is scoped to `.iris-plan`, so no other card moves.
+ * The card is its own container (`.d-card`), so the columns follow its width.
+ */
+
+.iris-plan > .iris-titled {
+  display: block;
+  margin-bottom: 12px;
+}
+
+/* --- the one line ----------------------------------------------------------------- */
+
+.iris-plan-verdict {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  font-size: 22px;
+  line-height: 30px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--d-ink, #fff);
+  font-variant-numeric: tabular-nums;
+  text-wrap: balance;
+}
+
+.iris-plan-mark {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--d-ink-4, #85858f);
+  transform: translateY(-1px);
+}
+
+.iris-plan-verdict[data-verdict="on_pace"] .iris-plan-mark,
+.iris-plan-verdict[data-verdict="sold_out"] .iris-plan-mark {
+  border-color: var(--gain, #3ecf8e);
+  background: var(--gain, #3ecf8e);
+}
+
+.iris-plan-verdict[data-verdict="behind"] .iris-plan-mark {
+  border-color: var(--watch, #e8b339);
+  background: var(--watch, #e8b339);
+}
+
+.iris-plan-verdict[data-verdict="date_passed"] .iris-plan-mark {
+  border-color: var(--loss, #f0616d);
+  background: var(--loss, #f0616d);
+}
+
+/* What the pace stands on, under the verdict's words. */
+.iris-plan-basis {
+  margin: 4px 0 0 20px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--d-ink-3, #b3b3c5);
+}
+
+/* --- the stock and the window, side by side ---------------------------------------- */
+
+/* One column per part present, equal; the hairline between them stands in the middle of the gutter. */
+.iris-plan-cols {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  margin-top: 28px;
+}
+
+.iris-plan-col {
+  min-width: 0;
+}
+
+.iris-plan-col:not(:last-child) {
+  padding-right: 40px;
+}
+
+.iris-plan-col + .iris-plan-col {
+  padding-left: 40px;
+  border-left: 1px solid var(--d-guide, rgb(255 255 255 / 0.1));
+}
+
+.iris-plan-figures {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 12px;
+  margin: 0;
+}
+
+.iris-plan-figures[data-figures="window"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.iris-plan-figures dt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--d-ink-3, #b3b3c5);
+  white-space: nowrap;
+}
+
+.iris-plan-figures dt i {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+}
+
+.iris-plan-figures dd {
+  margin: 2px 0 0;
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--d-ink, #fff);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* No date set: the slot stays, quieter, so the reader sees where the date goes. */
+.iris-plan-figures [data-absent="true"] dd {
+  font-size: 24px;
+  line-height: 44px;
+  letter-spacing: -0.01em;
+  color: var(--d-ink-3, #b3b3c5);
+}
+
+/* The parts wear one hue: sold full, reserved part-way, available the track. */
+.iris-plan [data-part="sold"] > dt i,
+.iris-plan-stock > [data-part="sold"] {
+  background: var(--d-accent-2, #15ffab);
+}
+
+.iris-plan [data-part="reserved"] > dt i,
+.iris-plan-stock > [data-part="reserved"] {
+  background: rgb(21 255 171 / 0.4);
+}
+
+.iris-plan [data-part="available"] > dt i,
+.iris-plan-stock > [data-part="available"] {
+  background: rgb(255 255 255 / 0.16);
+}
+
+.iris-plan-stock {
+  display: flex;
+  gap: 2px;
+  height: 14px;
+  margin-top: 18px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.iris-plan-stock > span {
+  flex: var(--share) 1 0;
+  min-width: 2px;
+}
+
+.iris-plan-note {
+  max-width: 46ch;
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--d-ink-3, #b3b3c5);
+}
+
+/* --- the window: start to sell-out-by, today marked -------------------------------- */
+
+.iris-plan-time {
+  position: relative;
+  margin-top: 16px;
+  padding-top: 24px;
+}
+
+/* Anchored at today, and slid by the same share so it never leaves the track. */
+.iris-plan-today {
+  position: absolute;
+  top: 0;
+  left: calc(var(--at) * 100%);
+  transform: translateX(calc(var(--at) * -100%));
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--d-ink-2, #d0d0da);
+  white-space: nowrap;
+}
+
+.iris-plan-track {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.16);
+}
+
+.iris-plan-track i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: calc(var(--at) * 100%);
+  border-radius: 4px 0 0 4px;
+  background: rgb(255 255 255 / 0.45);
+}
+
+.iris-plan-track b {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  left: calc(var(--at) * 100%);
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--d-ink, #fff);
+}
+
+.iris-plan-ends {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--d-ink-3, #b3b3c5);
+  font-variant-numeric: tabular-nums;
+}
+
+.iris-plan-out {
+  margin: 16px 0 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--d-ink-2, #d0d0da);
+}
+
+.iris-plan-out b {
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--d-ink, #fff);
+}
+
+.iris-plan > .iris-srcs {
+  margin-top: 24px;
+}
+
+/* --- the company admin's two dates ---------------------------------------------------- */
+
+.iris-plan-edit {
+  margin-top: 20px;
+}
+
+.iris-plan-edit .iris-action {
+  min-height: 40px;
+  justify-content: center;
+}
+
+.iris-plan-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.iris-plan-form label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--d-ink-3, #b3b3c5);
+}
+
+.iris-plan-form input {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--d-hairline, rgb(255 255 255 / 0.2));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--d-ink, #fff);
+  color-scheme: dark;
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.iris-plan-form .iris-plan-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.iris-plan-said {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--d-ink-2, #d0d0da);
+}
+
+.iris-plan-said[data-tone="bad"] {
+  color: var(--watch, #e8b339);
+}
+
+/* --- narrower cards ------------------------------------------------------------------- */
+
+@container (width < 46rem) {
+  .iris-plan-cols {
+    grid-auto-flow: row;
+    margin-top: 24px;
+  }
+
+  .iris-plan-col:not(:last-child) {
+    padding-right: 0;
+  }
+
+  .iris-plan-col + .iris-plan-col {
+    margin-top: 24px;
+    padding: 24px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--d-guide, rgb(255 255 255 / 0.1));
+  }
+}
+
+@container (width < 30rem) {
+  .iris-plan-verdict {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .iris-plan-figures {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .iris-plan-figures dd {
+    font-size: 32px;
+    line-height: 36px;
+  }
+
+  .iris-plan-edit .iris-action {
+    min-height: 44px;
+  }
+
+  .iris-plan-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .iris-plan-form .iris-plan-buttons .iris-action {
+    flex: 1 1 0;
+  }
+}

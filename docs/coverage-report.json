@@ -1,5 +1,5 @@
 {
-  "total": 62,
+  "total": 63,
   "uncovered": [],
   "unresolved": [],
   "gated": [
@@ -11,7 +11,7 @@
   "bySource": {
     "stano": 15,
     "sales_agent_flow": 13,
-    "madspace": 14,
+    "madspace": 15,
     "webiris_addendum": 5,
     "showroom_refocus": 15
   }
