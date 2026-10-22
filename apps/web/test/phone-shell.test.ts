@@ -198,3 +198,35 @@ describe("Ask IRIS on a phone", () => {
     expect(flow).not.toContain("irs-signout");
   });
 });
+
+describe("content on a phone is inset once", () => {
+  const PHONE = within(SHELL, "@media (width < 40rem)");
+
+  it("gives the wide column the header's gutter, not the desktop's 24px", () => {
+    expect(rule(PHONE, ".irs-main--wide")).toMatch(
+      /width:\s*calc\(100vw - 2 \* var\(--iris-shell-pad\)\)/,
+    );
+  });
+
+  it("lets a plane give up its side padding and its tint, leaving the card's edge as the frame", () => {
+    const plane = rule(PHONE, ".irs-main .iris-plane");
+    expect(plane).toMatch(/padding:\s*1\.25rem 0;/);
+    expect(plane).toMatch(/background:\s*none/);
+  });
+});
+
+describe("a ranked list on a narrow screen", () => {
+  const NARROW = within(sheet("charts.css"), "@media (max-width: 60rem)");
+
+  it("wraps the line under a name instead of ending it in an ellipsis a phone cannot hover", () => {
+    const line = rule(NARROW, ".iris-ranked-name em");
+    expect(line).toMatch(/white-space:\s*normal/);
+    expect(line).toMatch(/font-size:\s*0\.75rem/);
+  });
+
+  it("sizes the value column to its value", () => {
+    expect(rule(NARROW, ".iris-ranked li")).toMatch(
+      /grid-template-columns:\s*1\.25rem minmax\(0, 1fr\) auto/,
+    );
+  });
+});

@@ -390,6 +390,28 @@
   width: min(1440px, calc(100vw - 48px));
 }
 
+/*
+ * ON A PHONE THE CONTENT IS INSET ONCE, NOT THREE TIMES.
+ *
+ * A chart sat inside the page gutter (24px), the plane's padding (28px) and
+ * its card's (16px): 252px of a 390px screen for every chart and list, 222px
+ * at 360, which is what broke deal ids mid-token, ellipsised list lines and
+ * shrank the drawings below their drawn size. Below 40rem the gutter is the
+ * header's own (so the content lines up under the wordmark), the plane gives
+ * up its side padding and its tint, and the card's edge is the one frame left:
+ * 320px at 390. A plane's hairline still parts it from the next.
+ */
+@media (width < 40rem) {
+  .irs-main--wide {
+    width: calc(100vw - 2 * var(--iris-shell-pad));
+  }
+
+  .irs-main .iris-plane {
+    padding: 1.25rem 0;
+    background: none;
+  }
+}
+
 @media (width <= 1199px) {
   :root {
     --iris-shell-pad: 18px;

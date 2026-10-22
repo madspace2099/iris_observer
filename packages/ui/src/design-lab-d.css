@@ -2279,7 +2279,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* The kit's Large card is 375 wide with 24 inside; a phone's plane already insets it by 16. */
+/* The kit's Large card is 375 wide with 24 inside; on a phone its edge is the one frame left (iris-shell.css). */
 @media (width < 40rem) {
   [data-charts="d"] {
     --d-card-pad: 16px;
