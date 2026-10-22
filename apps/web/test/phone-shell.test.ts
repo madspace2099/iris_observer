@@ -63,6 +63,7 @@ function rule(code: string, selector: string): string {
 
 const SHELL = sheet("iris-shell.css");
 const SHOWROOM = sheet("showroom.css");
+const PRODUCT = sheet("observer-product.css");
 const PHONE_SHELL = within(SHELL, "@media (width <= 1199px)");
 
 describe("the guards read what they claim to", () => {
@@ -82,6 +83,18 @@ describe("an explanation panel is opaque", () => {
 
   it("sets its labels at the 12px floor", () => {
     expect(rule(SHOWROOM, ".iris-measure-panel em")).toMatch(/font-size:\s*0\.75rem/);
+  });
+
+  it("draws the export dialog on a solid ground, not the 5% panel tint", () => {
+    const ground = rule(PRODUCT, ".ox-dialog-panel");
+    expect(ground).toMatch(/background:\s*#0b111b/);
+    expect(ground).not.toMatch(/var\(--ox-panel\)/);
+  });
+
+  it("points at the period control, not at a bar a phone does not have", () => {
+    const copy = source("components/report/ExportReport.tsx");
+    expect(copy).not.toMatch(/bar at the top/);
+    expect(copy).toMatch(/period control \(on a phone, in the menu\)/);
   });
 });
 

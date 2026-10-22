@@ -2408,7 +2408,12 @@
   flex-direction: column;
   border-radius: var(--ox-radius);
   border: 1px solid var(--ox-line-panel);
-  background: var(--ox-panel);
+  /*
+   * Opaque, the menu panel's ground. `--ox-panel` is a 5% tint: over a 72%
+   * scrim the page's own headline read through the dialog's Scope, Period and
+   * Audience rows on a phone.
+   */
+  background: #0b111b;
   box-shadow: var(--ox-lift);
   overflow: hidden;
 }

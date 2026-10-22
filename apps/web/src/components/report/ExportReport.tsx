@@ -287,11 +287,9 @@ export function ExportReport({
           </ul>
 
           <p className="ox-section-note">
-            The period is set in the bar at the top of the screen and applies to the whole document;
-            there is one period control in this product and it is not in here. Everything produced
-            here is the internal report. A document meant to be shared with a buyer is a separate,
-            sanitised contract with no field the internal pre-meeting brief could reach, and that
-            contract is not built.
+            The period is the one chosen with the period control (on a phone, in the menu), and it
+            covers the whole document. Everything made here is the internal report; a document for a
+            buyer is a separate, sanitised contract, and it is not built.
           </p>
 
           {/* --- what would be in it -------------------------------------- */}
