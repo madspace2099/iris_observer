@@ -521,8 +521,8 @@ export const VIEWERS = {
   },
   /*
    * One of Shark Residence's five presenters, signing in as herself (ADR-0054):
-   * her own page is her profile, where she replaces the portrait her company's
-   * admin, Daniel Hart, adds. Bound to the roster's own id for her, so every
+   * her own page is her profile, where she replaces the portrait the tenant's
+   * company admin, Clara Weiss, adds. Bound to the roster's own id for her, so every
    * read about "my meetings" is about the meetings the showroom recorded.
    */
   agentShark: {

@@ -15,7 +15,11 @@ import { AgentPortrait } from "./Portrait";
  * the metadata — and what it refuses is printed here as it said it.
  *
  * Where this server keeps no portraits (a hosted deployment), the control is a
- * sentence and the initials, never a button that cannot work.
+ * sentence and the initials, never a button that cannot work. On the agent's
+ * own page with no portrait it is a sentence too, saying who adds it — and it
+ * stays the same element, so when she removes her own the status that says so
+ * survives the page's refresh, and the focus moves to the heading rather than
+ * falling with the buttons that went.
  */
 
 type State =
@@ -33,6 +37,7 @@ export function PortraitEditor({
   src,
   tone,
   mode,
+  owner,
   available,
   unavailable,
   maxBytes,
@@ -44,6 +49,8 @@ export function PortraitEditor({
   readonly tone?: string | undefined;
   /** The company admin's control, or the agent's own. */
   readonly mode: "company_admin" | "self";
+  /** The company whose admin adds portraits: the tenant's. */
+  readonly owner: string;
   /** Whether this server keeps portraits at all. */
   readonly available: boolean;
   /** What to say where it does not. */
@@ -55,8 +62,9 @@ export function PortraitEditor({
   const input = useRef<HTMLInputElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
   const section = useRef<HTMLElement>(null);
-  /* Set when a press replaces the buttons under the reader's focus. */
-  const refocus = useRef(false);
+  const heading = useRef<HTMLHeadingElement>(null);
+  /* Set when a press replaces the buttons under the reader's focus: where the focus goes next. */
+  const refocus = useRef<"button" | "heading" | null>(null);
   const [state, setState] = useState<State>(IDLE);
 
   const preview = "preview" in state ? state.preview : null;
@@ -67,16 +75,22 @@ export function PortraitEditor({
   /*
    * Each step swaps the buttons, so the focus goes to the step's first button
    * rather than falling to the page: Remove portrait when asked, Save portrait
-   * once an image is chosen, Replace once it is saved.
+   * once an image is chosen, Replace once it is saved. When the agent removes
+   * her own, no button follows, so the focus goes to the heading.
    */
   useEffect(() => {
     if (state.kind === "confirm") {
       confirmButton.current?.focus();
       return;
     }
-    if (state.kind === "busy" || !refocus.current) return;
-    refocus.current = false;
-    section.current?.querySelector<HTMLButtonElement>(".ox-btn-row button:not(:disabled)")?.focus();
+    const target = refocus.current;
+    if (state.kind === "busy" || target === null) return;
+    refocus.current = null;
+    if (target === "heading") heading.current?.focus();
+    else
+      section.current
+        ?.querySelector<HTMLButtonElement>(".ox-btn-row button:not(:disabled)")
+        ?.focus();
   }, [state.kind]);
 
   const title = mode === "self" ? "Your portrait" : "Portrait";
@@ -96,12 +110,12 @@ export function PortraitEditor({
   }
 
   const cancel = () => {
-    refocus.current = true;
+    refocus.current = "button";
     setState(IDLE);
   };
 
   const send = async (method: "PUT" | "DELETE", body: File | null, doing: string) => {
-    refocus.current = true;
+    refocus.current = "button";
     setState({ kind: "busy", preview: state.kind === "chosen" ? state.preview : null, doing });
     try {
       const response = await fetch(endpoint, {
@@ -119,6 +133,7 @@ export function PortraitEditor({
         setState({ kind: "refused", reason: message, preview: null });
         return;
       }
+      if (method === "DELETE" && mode === "self") refocus.current = "heading";
       setState({ kind: "idle", message, tone: "saved" });
       router.refresh();
     } catch {
@@ -142,22 +157,26 @@ export function PortraitEditor({
       });
       return;
     }
-    refocus.current = true;
+    refocus.current = "button";
     setState({ kind: "chosen", file, preview: URL.createObjectURL(file) });
   };
 
   const shown = preview ?? src;
   const busy = state.kind === "busy";
+  /* The agent with none has nothing to press: the company adds the first. */
+  const waiting = mode === "self" && src === null && preview === null;
   const note =
     mode === "self"
-      ? "Your company's admin added this. You can replace it or remove it."
+      ? src === null
+        ? `The admin of ${owner} adds your portrait. Once it is here you can replace or remove it.`
+        : `You can replace it or remove it; so can the admin of ${owner}.`
       : src === null
         ? `PNG, JPEG or WebP, up to ${maxBytes / (1024 * 1024)} MB. Location and camera details are removed before it is kept.`
         : `Shown beside ${name} wherever they appear in Observer.`;
 
   return (
     <section className="ag-editor" aria-labelledby={titleId} ref={section}>
-      <h2 className="ag-editor-title" id={titleId}>
+      <h2 className="ag-editor-title" id={titleId} ref={heading} tabIndex={-1}>
         {title}
       </h2>
       <div className="ag-editor-body">
@@ -213,7 +232,7 @@ export function PortraitEditor({
                 Cancel
               </button>
             </div>
-          ) : (
+          ) : waiting ? null : (
             <div className="ox-btn-row">
               <button
                 type="button"

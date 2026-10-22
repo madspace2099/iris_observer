@@ -387,14 +387,16 @@ export const ADDRESS_CELLS: readonly AddressCell[] = [
 /* --- the portrait axis (ADR-0054) ------------------------------------------ */
 
 /**
- * One (capacity, agent) expectation against `portraitRight`, and through the
- * route. `right` is what the capacity may do to that agent's portrait when one
+ * One (account, agent) expectation against `portraitRight`, and through the
+ * route. `right` is what the account may do to that agent's portrait when one
  * is there; `first` is whether it may add the first one.
  *
- * Agents belong to the agency they present for, so the admin of Shark Sales,
- * not the developer's admin, puts a face to Shark Residence's presenters; the
- * presenter replaces or removes her own once it is there. The company role
- * comes from the account (`accounts.ts`), named here by account id.
+ * The Company that receives the agents' names from its showroom puts a face to
+ * them: the admin of the tenant's own company, for every presenter on its
+ * projects, whatever agency they sell for. The presenter replaces or removes
+ * her own once it is there. Everyone else is refused, the agency's manager
+ * included. The company role comes from the account (`accounts.ts`), named
+ * here by account id.
  */
 export interface PortraitCell {
   readonly accountId: string;
@@ -408,13 +410,13 @@ export interface PortraitCell {
 
 export const PORTRAIT_CELLS: readonly PortraitCell[] = [
   {
-    accountId: "acct_daniel",
+    accountId: "acct_clara",
     tenantSlug: "shark",
     projectSlug: "shark-residence",
     agentId: "agt_sharkoliver01",
     right: "company_admin",
     first: true,
-    note: "the admin of the agents' own company, for any of them",
+    note: "the admin of the tenant's company, for any presenter on its project",
   },
   {
     accountId: "acct_lena",
@@ -435,13 +437,13 @@ export const PORTRAIT_CELLS: readonly PortraitCell[] = [
     note: "a colleague's portrait is not hers to change",
   },
   {
-    accountId: "acct_clara",
+    accountId: "acct_daniel",
     tenantSlug: "shark",
     projectSlug: "shark-residence",
     agentId: "agt_sharklena01",
     right: null,
     first: false,
-    note: "the developer's admin: the presenters are the agency's people",
+    note: "the agency manager, admin of the agency: the faces are the tenant's to set",
   },
   {
     accountId: "acct_nora",
@@ -450,7 +452,7 @@ export const PORTRAIT_CELLS: readonly PortraitCell[] = [
     agentId: "agt_sharklena01",
     right: null,
     first: false,
-    note: "a developer member",
+    note: "a member of the tenant's company, not its admin",
   },
   {
     accountId: "acct_madspace",
@@ -462,22 +464,22 @@ export const PORTRAIT_CELLS: readonly PortraitCell[] = [
     note: "MADSPACE runs the platform and does not curate a customer's people",
   },
   {
-    accountId: "acct_tomas",
+    accountId: "acct_petra",
     tenantSlug: "alpha",
     projectSlug: "ister-tower",
-    agentId: "agt_luciahorvath",
+    agentId: "agt_sabina",
     right: "company_admin",
     first: true,
-    note: "another company's admin, for his own agency's presenter",
+    note: "another tenant's admin, for a presenter of another agency on her project",
   },
   {
     accountId: "acct_tomas",
     tenantSlug: "alpha",
     projectSlug: "ister-tower",
-    agentId: "agt_sabina",
+    agentId: "agt_luciahorvath",
     right: null,
     first: false,
-    note: "a presenter of another agency on a project he holds",
+    note: "an agency's admin, for his own agency's presenter on a project he holds",
   },
 ];
 

@@ -21,6 +21,7 @@ const editor = (props: Partial<Parameters<typeof PortraitEditor>[0]>) =>
       name: "Lena Fischer",
       src: null,
       mode: "company_admin",
+      owner: "Shark Developments",
       available: true,
       unavailable: HOSTED,
       maxBytes: 2 * 1024 * 1024,
@@ -72,11 +73,23 @@ describe("the control", () => {
     expect(html).toContain('accept="image/png,image/jpeg,image/webp"');
   });
 
-  it("offers the agent her own replace and remove", () => {
+  it("offers the agent her own replace and remove, in words true whoever put it there", () => {
     const html = editor({ mode: "self", src: "/x?v=1" });
     expect(html).toContain(">Your portrait<");
     expect(html).toContain(">Replace<");
     expect(html).toContain(">Remove<");
+    expect(html).toContain(
+      "You can replace it or remove it; so can the admin of Shark Developments.",
+    );
+  });
+
+  it("is the same control on her own page with none: who adds it, no button, the status kept", () => {
+    const html = editor({ mode: "self", src: null });
+    expect(html).toContain(">Your portrait<");
+    expect(html).toContain("The admin of Shark Developments adds your portrait.");
+    expect(html).not.toContain("<button");
+    expect(html).toContain('role="status"');
+    expect(html).toMatch(/<h2[^>]+tabindex="-1"/);
   });
 
   it("is a sentence and no button where the server keeps no portraits", () => {

@@ -193,8 +193,9 @@ const DIRECTORY: readonly Account[] = Object.freeze([
   },
   /*
    * A Shark Residence presenter, a member of Daniel's agency, so a recording
-   * can show the agent's side of a portrait (ADR-0054): her company's admin
-   * adds it, and she replaces or removes it on her own page.
+   * can show the agent's side of a portrait (ADR-0054): Clara, the admin of
+   * the tenant's company, adds it, and she replaces or removes it on her own
+   * page.
    */
   {
     accountId: "acct_lena",

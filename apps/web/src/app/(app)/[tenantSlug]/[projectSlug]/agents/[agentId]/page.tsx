@@ -41,7 +41,6 @@ import {
 import { ExportReport } from "@/components/report";
 import { AgentPortrait } from "@/components/agents/Portrait";
 import { PortraitEditor } from "@/components/agents/PortraitEditor";
-import { companyOf } from "@/lib/accounts";
 import { portraitRight } from "@/lib/portraits/access";
 import { PORTRAIT_MAX_BYTES } from "@/lib/portraits/image";
 import { actorFor, portraitEndpoint, portraitSources } from "@/lib/portraits/server";
@@ -153,45 +152,36 @@ export default async function AgentPage({
    * THE PORTRAIT, AND WHO MAY CHANGE IT HERE (ADR-0054).
    *
    * Drawn before the name in the heading for everyone who may open the page.
-   * The control appears for the admin of the agent's company, and for the agent
-   * on their own page, which is their profile; the route checks the same right
-   * again. An agent without a portrait is told who adds it rather than shown a
-   * button the server would refuse.
+   * The control appears for the admin of the tenant's company, and for the
+   * agent on their own page, which is their profile; the route checks the same
+   * right again. On her own page it is always the same control, so removing her
+   * portrait does not swap it for another element: without one it says who
+   * adds it rather than offering a button the server would refuse.
    */
+  const tenant = view.context.tenant;
   const portrait =
-    (await portraitSources(view.context.tenant, projectSlug, [view.agentId]))[view.agentId] ?? null;
+    (await portraitSources(tenant, projectSlug, [view.agentId]))[view.agentId] ?? null;
   const account = await currentAccount();
   const portraitBy =
     account === null
       ? null
-      : portraitRight(
-          actorFor(account, viewer),
-          { agentId: view.agentId, organisationName: view.organisationName },
-          portrait !== null,
-        );
-  const stored = portraitStore() !== null;
+      : portraitRight(actorFor(account, viewer), tenant, view.agentId, portrait !== null);
+  const portraitMode =
+    portraitBy ?? (account !== null && viewer.agentId === view.agentId ? "self" : null);
   const portraitControl =
-    portraitBy !== null ? (
+    portraitMode === null ? null : (
       <PortraitEditor
         endpoint={portraitEndpoint(tenantSlug, projectSlug, view.agentId)}
         name={view.name}
         src={portrait}
         tone={shape?.tone}
-        mode={portraitBy}
-        available={stored}
+        mode={portraitMode}
+        owner={tenant.name}
+        available={portraitStore() !== null}
         unavailable={NO_PORTRAIT_STORE}
         maxBytes={PORTRAIT_MAX_BYTES}
       />
-    ) : account !== null && viewer.agentId === view.agentId ? (
-      <section className="ag-editor" aria-label="Your portrait">
-        <h2 className="ag-editor-title">Your portrait</h2>
-        <p className="ag-editor-note">
-          {stored
-            ? `${companyOf(account).adminName}, as ${view.organisationName}'s admin, adds your portrait. Once it is here you can replace or remove it.`
-            : NO_PORTRAIT_STORE}
-        </p>
-      </section>
-    ) : null;
+    );
 
   /* The ten-second answer: `agentAnswer`, shared with the printed summary. */
   const answer = agentAnswer(view, view.context.language);

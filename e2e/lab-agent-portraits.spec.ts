@@ -25,7 +25,7 @@ async function choose(page: Page, name: string, buffer: Buffer, mimeType = "imag
 }
 
 test("the company admin adds, replaces and removes a presenter's portrait", async ({ page }) => {
-  await signIn(page, "Daniel Hart");
+  await signIn(page, "Clara Weiss");
   await page.goto(`${ROOT}/agents/agt_sharkiva01`);
   const control = page.getByRole("region", { name: "Portrait", exact: true });
   await expect(control.getByRole("button", { name: "Choose image" })).toBeVisible();
@@ -59,7 +59,7 @@ test("the company admin adds, replaces and removes a presenter's portrait", asyn
 test("refuses what is not an image by its bytes, and what is too large before sending", async ({
   page,
 }) => {
-  await signIn(page, "Daniel Hart");
+  await signIn(page, "Clara Weiss");
   await page.goto(`${ROOT}/agents/agt_sharkiva01`);
   const control = page.getByRole("region", { name: "Portrait", exact: true });
 
@@ -75,7 +75,7 @@ test("refuses what is not an image by its bytes, and what is too large before se
 });
 
 test("the agent replaces and removes her own, and only her own", async ({ page }) => {
-  await signIn(page, "Daniel Hart");
+  await signIn(page, "Clara Weiss");
   await page.goto(`${ROOT}/agents/agt_sharklena01`);
   await choose(page, "lena.png", PIXEL);
   await page.getByRole("button", { name: "Save portrait" }).click();
@@ -97,5 +97,10 @@ test("the agent replaces and removes her own, and only her own", async ({ page }
   await page.goto(`${ROOT}/agents/agt_sharklena01`);
   await own.getByRole("button", { name: "Remove", exact: true }).click();
   await own.getByRole("button", { name: "Remove portrait" }).click();
+  // The same control stays: its status says so, the focus is on its heading, no button is left.
+  await expect(own.getByRole("status")).toContainText("Removed.");
+  await expect(own.getByRole("heading", { name: "Your portrait" })).toBeFocused();
+  await expect(own).toContainText("The admin of Shark Developments adds your portrait.");
+  await expect(own.getByRole("button")).toHaveCount(0);
   await expect(own.getByRole("status")).toContainText("Removed.");
 });

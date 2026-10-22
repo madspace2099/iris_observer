@@ -25,18 +25,18 @@ test("every presenter on Presentations given wears initials, not a picture", asy
   await expect(card.locator(".ag-portrait").first()).toHaveAttribute("aria-hidden", "true");
 });
 
-test("the agents' company admin is told portraits are kept only on a local server", async ({
+test("the tenant's company admin is told portraits are kept only on a local server", async ({
   page,
 }) => {
-  await signIn(page, "Daniel Hart");
+  await signIn(page, "Clara Weiss");
   await page.goto(LENA);
   const control = page.getByRole("region", { name: "Portrait", exact: true });
   await expect(control).toContainText(HOSTED);
   await expect(control.getByRole("button")).toHaveCount(0);
 });
 
-test("the developer's admin sees the initials and no control", async ({ page }) => {
-  await signIn(page, "Clara Weiss");
+test("the agency's manager sees the initials and no control", async ({ page }) => {
+  await signIn(page, "Daniel Hart");
   await page.goto(LENA);
   await expect(page.locator("h1 .ag-portrait")).toHaveText("LF");
   await expect(page.locator(".ag-editor")).toHaveCount(0);
@@ -54,7 +54,7 @@ test("the agent finds her profile and is told why there is nothing to change", a
 });
 
 test("an upload is refused in the same sentence by the server", async ({ page }) => {
-  await signIn(page, "Daniel Hart");
+  await signIn(page, "Clara Weiss");
   const origin = new URL(page.url()).origin;
   const response = await page.request.put(`/api/observer/portraits/shark/shark-residence/agt_sharklena01`, {
     headers: { origin, "content-type": "application/octet-stream" },

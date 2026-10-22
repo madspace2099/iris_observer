@@ -39,7 +39,8 @@ export type PortraitScope =
       readonly account: Account;
       readonly viewer: Viewer;
       readonly tenant: TenantSummary;
-      readonly agent: AgentSummary;
+      /** Null for an id on none of the project's rosters: only a portrait left behind is known of it. */
+      readonly agent: AgentSummary | null;
     }
   | { readonly ok: false; readonly status: 401 | 404 };
 
@@ -47,10 +48,12 @@ export type PortraitScope =
  * The signed-in reader, the tenant, and the agent, or why not.
  *
  * The reader must hold the project (the repository's own tenant and project
- * check, the one every page makes), and the agent must be one Observer already
- * knows on it: a presenter in any of the periods a reader can choose. A
- * project the reader does not hold and an agent who is not on it answer the
- * same 404, so the route cannot be used to learn who presents elsewhere.
+ * check, the one every page makes). The agent is the one Observer knows on it,
+ * a presenter in any of the periods a reader can choose, or null: the caller
+ * answers that 404 except to remove a portrait an agent who has since left
+ * every period's roster still has on disk. A project the reader does not hold
+ * answers the same 404, so the route cannot be used to learn who presents
+ * elsewhere.
  */
 export async function resolvePortraitScope(
   tenantSlug: string,
@@ -82,7 +85,7 @@ export async function resolvePortraitScope(
     const agent = roster.find((a) => a.agentId === agentId);
     if (agent !== undefined) return { ok: true, account, viewer, tenant, agent };
   }
-  return { ok: false, status: 404 };
+  return { ok: true, account, viewer, tenant, agent: null };
 }
 
 /**

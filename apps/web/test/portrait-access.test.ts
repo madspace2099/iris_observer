@@ -4,6 +4,7 @@ import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PORTRAIT_CELLS } from "../../../test-support/access-matrix";
+import { portraitRight } from "../src/lib/portraits/access";
 import type * as StoreModule from "../src/lib/portraits/store";
 
 /**
@@ -16,7 +17,7 @@ import type * as StoreModule from "../src/lib/portraits/store";
  */
 
 const state = vi.hoisted(() => ({
-  accountId: "acct_daniel" as string | null,
+  accountId: "acct_clara" as string | null,
   dir: "",
   plane: true,
 }));
@@ -121,7 +122,7 @@ const fileOf = (tenantId: string, agentId: string) =>
 beforeEach(() => {
   state.dir = mkdtempSync(join(tmpdir(), "observer-portraits-"));
   state.plane = true;
-  state.accountId = "acct_daniel";
+  state.accountId = "acct_clara";
 });
 afterEach(() => {
   rmSync(state.dir, { recursive: true, force: true });
@@ -170,7 +171,42 @@ describe("the authorisation matrix", () => {
   it("knows only agents on the project's roster", async () => {
     const nobody = { ...lena, agentId: "agt_nobodyhere01" };
     expect((await call("PUT", nobody, { body: PNG })).status).toBe(404);
+    expect((await call("DELETE", nobody)).status).toBe(404);
     expect(existsSync(fileOf(SHARK, "agt_nobodyhere01"))).toBe(false);
+  });
+
+  it("removes a portrait left behind by an agent who is on no roster now, and only that", async () => {
+    const gone = { ...lena, agentId: "agt_leftlastyear" };
+    await store.filePortraitStore(state.dir).write({ tenantId: SHARK, agentId: gone.agentId }, PNG);
+
+    state.accountId = "acct_nora"; // a member: as if there were nothing there
+    expect((await call("DELETE", gone)).status).toBe(404);
+    expect(existsSync(fileOf(SHARK, gone.agentId))).toBe(true);
+
+    state.accountId = "acct_clara";
+    expect((await call("GET", gone)).status).toBe(404);
+    expect((await call("PUT", gone, { body: PNG })).status).toBe(404);
+    const removed = await call("DELETE", gone);
+    expect(removed.status).toBe(200);
+    expect(((await removed.json()) as { message: string }).message).toBe("Removed.");
+    expect(existsSync(fileOf(SHARK, gone.agentId))).toBe(false);
+  });
+
+  it("gives the right on the tenant, so an agent the showroom names with no agency has an admin", () => {
+    const clara = {
+      role: "developer",
+      agentId: null,
+      companyName: "Shark Developments",
+      companyRole: "admin",
+    } as const;
+    const tenant = { name: "Shark Developments" };
+    // The UE5 roster carries an id and a name, never an organisation.
+    expect(portraitRight(clara, tenant, "{9A2D7C44-1B3E-4F5A-8C6D-7E8F9A0B1C2D}", false)).toBe(
+      "company_admin",
+    );
+    expect(
+      portraitRight({ ...clara, companyName: "Shark Sales" }, tenant, "agt_x", false),
+    ).toBeNull();
   });
 
   it("refuses a change not sent from this site's own page", async () => {
@@ -199,7 +235,7 @@ describe("what is kept, and how it is served", () => {
     expect(kept.includes(Buffer.from("GPS"))).toBe(false);
     expect(kept.includes(Buffer.from("IDAT"))).toBe(true);
 
-    state.accountId = "acct_clara"; // the developer may see it, and not change it
+    state.accountId = "acct_daniel"; // the agency's manager may see it, and not change it
     const served = await call("GET", lena);
     expect(served.status).toBe(200);
     expect(served.headers.get("content-type")).toBe("image/png");
