@@ -5834,3 +5834,56 @@ and no row basis on Northgate) edited, not run; no other spec quoted the old wor
 **Next recommended action.** On the demo build open a Shark meeting from Sales Flow's lens and
 Lena's agent page at 1440 and 390 and read the source lines; run `veghajras1` and
 `frame-language` on the report in SK and HU.
+
+## 2026-10-22 — Stream PAGES: What needs attention and the Briefing read at a glance (ADR-0058)
+
+Máté, on `/shark/shark-residence/attention` and `/showroom`: hard to take in; design the
+information hierarchy by type size; simplify, less text, put what is needed in an "info" floating
+panel. Branch `worktree-wf_eba45ae8-1e4-4` from `3373a1c`, one of six parallel streams, not pushed.
+
+| What                                                                                 | Where                                                    |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| The answer is the h1 at Sales Flow's verdict size; the page's name is in the kicker  | both `page.tsx`, `components/sheet/sheet.css` (`.sheet`) |
+| The figures read first at 44/600: raised · clear · not evaluated "of 7 checks"       | `AttentionView.tally` (readmodels, synthetic)            |
+| The Briefing's three figures, each with what it is against; a row each on a phone    | showroom `page.tsx`, `sheet.css`                         |
+| Section titles 20/28/600, scoped to the two pages                                    | `sheet.css`                                              |
+| Every explanation behind the InfoTip beside its title; refusals stay in view         | both pages, `StateList.tsx` (a state's provenance, rank) |
+| The register is a list: answer, name, what it found, next step (R04-7 kept)          | `ChecksRegister.tsx` (+ `CheckQuestions` for its `i`)    |
+| The plan's key behind the building's `i`; plan rows 32px on a phone; one link a door | `StackPlan.tsx` (`keyed`, `StackPlanKey`), showroom page |
+
+**What is behind an `i` now.** Attention: the colour and ordering rules ("Raised in this period"),
+each state's tier, evidence, sample, rank and sources, the register's caption, each check's question
+and n. Briefing: the clause the verdict rests on, sources and n ("The figures behind it"), a
+figure's definition, "one thing or none", the plan's key and the sold-in-period caveat, what each
+door answers. **In view:** every figure with what it is out of or against, each state's sentence,
+subjects and action, a state too thin to rank ("stated, not ranked"), a check not evaluated and
+why, the building's counts, the evidence links.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
+`apps/web/test/answer-sheets.test.ts` (10); `screens.test.ts` +1 (the tally equals the checks'
+answers on every project). Full suite (after `pnpm release:wrappers`): 284 files, 5187 passed,
+1 skipped, 3 failed, none in this stream's files — `no-secret-recipes` (no web build;
+environmental); `artefact-consistency`, whose REVIEW.txt token is the sha256 of
+`git diff 7ac84fa..c16b94f`, two fixed historical commits, which this machine's git 2.55 now
+hashes differently (nothing here touches `docs/release` or `scripts/release`); `staged-module`,
+whose nested release run timed out in `release-operation`'s `git am` replay (180 s, six streams
+running). Static renders (the pages through `react-dom/server`, the product stylesheets and
+`sheet.css`, headless Chromium) at 1440, 390 and 360 — Shark QTD and YTD as Clara, Northgate as a
+manager, Riverside without a CRM, Northgate's last quarter (no verdict) — and three InfoTips open:
+no sideways scroll, nothing clipped, no text under 12px but the `i` glyph. **Not looked at on a
+running page.** E2E edited, not run: `fejezet1` (R04-7), `p221-render` (R02-2, R02-5, R04-2,
+R04-3), `p221-meres` (R04-5), `showroom`, `dontesek1`, `a11y-contract` (What needs attention
+added; the InfoTip popover on both pages).
+
+**Integration.** Files outside the two pages: `components/attention/**` (only these pages use
+`StateList`/`ChecksRegister`; units imports `SUBJECTS_SHOWN`, unchanged), `components/sheet/` (new),
+`components/product/StackPlan.tsx` (an optional `keyed`, default true — Units and Project unchanged;
+ROOMS may touch the same file), `Provenance.tsx` (`tierSentence`), `product/index.ts` (two
+exports), `readmodels/src/screens.ts` and `synthetic/src/showroom/attention.ts` (`tally`). No shared
+CSS rule changed.
+
+**Next recommended action.** After the six streams are cherry-picked, open both pages on the demo
+build as Clara at 1440 and 390, open each `i`, Tab through them; run `fejezet1`, `p221-render`,
+`p221-meres`, `showroom`, `dontesek1` and `a11y-contract` (Briefing and What needs attention).
+Ask Máté whether "None needed" / "None on this screen" on every register row (R04-7) is still wanted
+now that he asked for less text.
