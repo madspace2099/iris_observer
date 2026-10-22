@@ -434,32 +434,19 @@ export default async function FlowPage({
 
         <div>
           {/*
-           * The policy the two periods were measured under, and what a direction
-           * does not claim, stand behind the `i`; a refusal never does.
+           * The title and its `i` are the read model's words, so they name the
+           * comparison the arrows make, and what an arrow does not claim (ADR-0060).
            */}
           <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
-            <h2 className="iris-kicker iris-kicker-measured">
-              What changed since {view.context.period.baselineLabel}
-            </h2>
+            <h2 className="iris-kicker iris-kicker-measured">{summary.kpis.title}</h2>
             <InfoTip id="what-changed" label="what changed">
-              {/* Only true when nothing was refused; a refusal states its own reason. */}
-              {view.context.attribution.comparisonRefusal === null ? (
-                <p>
-                  Both periods measured under attribution policy {view.context.attribution.version},
-                  effective {view.context.attribution.effectiveFrom.slice(0, 10)}.
-                </p>
-              ) : null}
-              <p>
-                How the presentations were run, not how many there were. A direction compares two
-                periods at the stated sample size — it is not a trend, and not a cause.
-              </p>
+              <p>{summary.kpis.about}</p>
             </InfoTip>
           </header>
           {/*
            * A SCREEN OF FIGURES (ADR-0060): the three that stood here, and what
            * else the showroom measures, each against the same figure 7 days
-           * earlier. The policy-version guard (docs/10-policies.md §1) is the
-           * read model's: a refused comparison takes the arrows, said once.
+           * earlier. A screen without arrows says why once, in the read model's words.
            */}
           <ChangeKpis kpis={summary.kpis} period={query.period} />
 
