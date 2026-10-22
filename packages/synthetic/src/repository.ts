@@ -120,6 +120,8 @@ import {
 import { buildAgentDetail, buildMeetings, buildUnitDetail } from "./showroom/screens";
 import { buildUnitAttentionPatterns } from "./showroom/unit-patterns";
 import { buildAttention } from "./showroom/attention";
+import { buildRoomTypes } from "./showroom/room-types";
+import type { RoomTypesView } from "@observer/readmodels";
 import { buildAskHistory, buildAskThread } from "./ask-history";
 import { buildAgentReportScope, buildReportScope } from "./reports";
 
@@ -685,6 +687,22 @@ export class SyntheticObserverRepository implements ObserverRepository {
   async getProjectView(query: OverviewQuery, segmentId: string | null): Promise<ProjectView> {
     const { context, current } = await this.slices(query);
     return buildProjectView(context, current, segmentId);
+  }
+
+  async getRoomTypes(query: OverviewQuery): Promise<RoomTypesView> {
+    const { context, current, today } = await this.slices(query);
+    /*
+     * The period's segments are built again here rather than passed in: the
+     * readings and the rates are then the very figures the rest of the page
+     * states. ponytail: the project view is computed twice per page render;
+     * cache it per query if that ever shows.
+     */
+    return buildRoomTypes(
+      context,
+      buildProjectView(context, current, null).segments,
+      sessionsForProject(context.project.id as string),
+      today,
+    );
   }
 
   async getAgentsView(query: OverviewQuery): Promise<AgentsView> {

@@ -27,5 +27,6 @@ export * from "./showroom/views3";
 export * from "./showroom/charts";
 export * from "./showroom/screens";
 export * from "./showroom/attention";
+export * from "./showroom/room-types";
 export { buildAskHistory, buildAskThread } from "./ask-history";
 export { buildReportScope } from "./reports";

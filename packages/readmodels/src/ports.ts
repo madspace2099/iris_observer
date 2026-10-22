@@ -14,6 +14,7 @@ import type {
 } from "./screens";
 import type { AgentCharts, FlowCharts, KpiWindowId, ProjectCharts } from "./charts";
 import type { IrisLedSalesView } from "./iris-led";
+import type { RoomTypesView } from "./room-types";
 import type {
   AgentsView,
   AudienceCriteria,
@@ -156,6 +157,13 @@ export interface ObserverRepository {
 
   /** What buyers want, what they linger on, and what the project does not have. */
   getProjectView(query: OverviewQuery, segmentId: string | null): Promise<ProjectView>;
+
+  /**
+   * The catalogue's room types side by side (ADR-0056): stock and sales, the
+   * interest each draws over every window the page offers, a reading of
+   * interest against sales, and how each was examined in the period.
+   */
+  getRoomTypes(query: OverviewQuery): Promise<RoomTypesView>;
 
   /** How each agent presents, and how their meetings end. */
   getAgentsView(query: OverviewQuery): Promise<AgentsView>;

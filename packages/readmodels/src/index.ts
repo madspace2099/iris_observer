@@ -15,6 +15,7 @@ export * from "./showroom";
 export * from "./glossary";
 export * from "./views3";
 export * from "./charts";
+export * from "./room-types";
 export * from "./screens";
 export * from "./sale-cycle";
 export * from "./report";

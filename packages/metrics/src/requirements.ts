@@ -253,7 +253,15 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "project_unit",
     requirement:
       "Statistics by unit type — do two-room flats sell well, how many clients were interested, how long did they spend on them.",
-    metrics: ["project.segment_interest", "project.attention_index", "project.sold_by_segment"],
+    metrics: [
+      "project.segment_interest",
+      "project.attention_index",
+      "project.sold_by_segment",
+      "project.room_type_stock",
+      "project.room_type_interest",
+      "project.room_type_reading",
+      "project.room_type_examined",
+    ],
   },
   {
     id: "stano.floor_and_unit_analysis",

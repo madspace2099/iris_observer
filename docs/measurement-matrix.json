@@ -1008,6 +1008,104 @@
       ]
     },
     {
+      "id": "project.room_type_stock",
+      "displayName": "Flats and sales by room type",
+      "kind": "distribution",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.attributes.published",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit"
+      ],
+      "requiredUnitAttributes": [
+        "rooms",
+        "status"
+      ],
+      "minimumSampleSize": 1,
+      "comparison": "none",
+      "drillTo": "units",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.room_type_interest",
+      "displayName": "Interest by room type",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms"
+      ],
+      "minimumSampleSize": 10,
+      "comparison": "previous_period",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.room_type_reading",
+      "displayName": "Interest against sales, by room type",
+      "kind": "status",
+      "evidenceTier": "statistical_association",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.attributes.published",
+        "deal.stage.changed"
+      ],
+      "requiredCrmFields": [
+        "deal.stage",
+        "deal.unit"
+      ],
+      "requiredUnitAttributes": [
+        "rooms",
+        "status"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "project_baseline",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
+      "id": "project.room_type_examined",
+      "displayName": "How each room type was examined",
+      "kind": "ratio",
+      "evidenceTier": "observed_sequence",
+      "requiredFacts": [
+        "unit.viewed",
+        "unit.examined.balcony",
+        "unit.examined.floor_cut",
+        "unit.material.opened",
+        "visual.captured",
+        "unit.shared",
+        "unit.attributes.published"
+      ],
+      "requiredCrmFields": [],
+      "requiredUnitAttributes": [
+        "rooms"
+      ],
+      "minimumSampleSize": 20,
+      "comparison": "none",
+      "drillTo": "segments",
+      "roles": [
+        "developer",
+        "agency_manager"
+      ]
+    },
+    {
       "id": "project.poi_interest",
       "displayName": "Surroundings and POI interest",
       "kind": "distribution",
@@ -2111,6 +2209,8 @@
         "flow.iris_assisted_sales",
         "flow.iris_led_sales",
         "project.sold_by_segment",
+        "project.room_type_stock",
+        "project.room_type_reading",
         "people.follow_up_delay",
         "people.share_to_offer",
         "people.agent_conversion",
@@ -2358,6 +2458,10 @@
         "project.segment_interest",
         "project.attention_index",
         "project.sold_by_segment",
+        "project.room_type_stock",
+        "project.room_type_interest",
+        "project.room_type_reading",
+        "project.room_type_examined",
         "demand.by_rooms",
         "demand.by_orientation",
         "demand.by_floor_band",
@@ -2415,6 +2519,7 @@
         "duration_ms"
       ],
       "requiredBy": [
+        "project.room_type_examined",
         "unit.deep_dive_rate"
       ]
     },
@@ -2430,6 +2535,7 @@
         "duration_ms"
       ],
       "requiredBy": [
+        "project.room_type_examined",
         "unit.deep_dive_rate"
       ]
     },
@@ -2487,6 +2593,7 @@
       ],
       "requiredBy": [
         "unit.pdf_opens",
+        "project.room_type_examined",
         "unit.deep_dive_rate"
       ]
     },
@@ -2504,6 +2611,7 @@
       ],
       "requiredBy": [
         "unit.shares",
+        "project.room_type_examined",
         "people.follow_up_delay",
         "people.share_to_offer",
         "people.team_comparison",
@@ -2542,6 +2650,9 @@
         "unit.available_demand",
         "project.segment_interest",
         "project.attention_index",
+        "project.room_type_interest",
+        "project.room_type_reading",
+        "project.room_type_examined",
         "project.environment_interest",
         "unit.deep_dive_rate",
         "people.coaching_signals",
@@ -2569,6 +2680,7 @@
         "occurred_at"
       ],
       "requiredBy": [
+        "project.room_type_examined",
         "project.environment_interest",
         "render.engagement"
       ]

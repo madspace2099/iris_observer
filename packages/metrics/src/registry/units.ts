@@ -489,6 +489,146 @@ export const soldBySegment = defineMetric({
   roles: ["developer", "agency_manager"],
 });
 
+/* --- the project, by room type (ADR-0056) -------------------------------- */
+
+/**
+ * The four figures of the Project page's room-type blocks, which the owner
+ * asked for in his own words on 2026-10-22: how many flats of each room count
+ * there are and how many sold, how much interest each draws over a window he
+ * picks, and a plain reading of interest against sales. The room types are
+ * the catalogue's own room counts, never a fixed four.
+ */
+
+/** Below this many meetings in a window (or in one point of its line), no share is ranked or compared. */
+const ROOM_TYPE_WINDOW_MIN = 10;
+
+export const roomTypeStock = defineMetric({
+  id: "project.room_type_stock",
+  displayName: "Flats and sales by room type",
+  businessDefinition:
+    "How many flats of each room count the project has, and how many of them are sold or reserved.",
+  kind: "distribution",
+  calculation:
+    "Flats in the catalogue per room count, with the flats the CRM records as sold (a purchase) and reserved, as the catalogue stands now. The sold share is sold flats of the type over all its flats. Without a CRM, sold and reserved are unavailable, never zero.",
+  numerator: "flats of the room type, and of them sold",
+  denominator: "flats of the room type in the catalogue",
+  exclusions: ["flats whose room count the catalogue does not state, which form their own type"],
+  dimensions: ["project", "rooms", "unit_status"],
+  timeWindow: "point_in_time",
+  requiredFacts: ["unit.attributes.published", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit"],
+  requiredUnitAttributes: ["rooms", "status"],
+  minimumSampleSize: 1,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "The catalogue holds no flat.",
+    insufficient: insufficient(1, "flats"),
+    unavailable: NO_CATALOGUE,
+  },
+  drillTo: "units",
+  roles: ["developer", "agency_manager"],
+});
+
+export const roomTypeInterest = defineMetric({
+  id: "project.room_type_interest",
+  displayName: "Interest by room type",
+  businessDefinition:
+    "Which flat sizes buyers ask to see: the share of meetings that opened a flat of each room count, over a window the reader picks.",
+  kind: "ratio",
+  calculation:
+    "Meetings in the window that opened at least one flat of the room type, divided by every meeting in the window. A meeting that opened a two-room and a three-room flat counts for both, so the shares do not add up to 100%. The change is in percentage points against the same length of time immediately before; the line splits the window into equal parts and draws a part only from its own meetings.",
+  numerator: "meetings in the window that opened a flat of the room type",
+  denominator: "meetings in the window",
+  exclusions: [
+    "openings of flats the catalogue does not list",
+    `a window, or a part of its line, with fewer than ${ROOM_TYPE_WINDOW_MIN} meetings: shown raw, never ranked, compared or drawn`,
+  ],
+  dimensions: ["project", "period", "rooms"],
+  timeWindow: "period",
+  requiredFacts: ["unit.viewed", "unit.attributes.published"],
+  requiredCrmFields: [],
+  requiredUnitAttributes: ["rooms"],
+  minimumSampleSize: ROOM_TYPE_WINDOW_MIN,
+  comparison: "previous_period",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "No meeting in this window.",
+    insufficient: insufficient(ROOM_TYPE_WINDOW_MIN, "meetings"),
+    unavailable: NO_CATALOGUE,
+  },
+  drillTo: "segments",
+  roles: ["developer", "agency_manager"],
+});
+
+export const roomTypeReading = defineMetric({
+  id: "project.room_type_reading",
+  displayName: "Interest against sales, by room type",
+  businessDefinition:
+    "Whether a room type is looked at more or less than its share of the stock, and whether a larger or smaller share of it has sold than of the project, in one plain line.",
+  kind: "status",
+  calculation:
+    "Two readings side by side. Looked at: the attention index (`project.attention_index`) of the room type in the period, above or below 1.00×. Sold: the type's sold share (`project.room_type_stock`) at or above, or below, the project's own. The pair names one of four readings, each with the action it suggests. It is an association between what buyers look at and what has sold, never a cause.",
+  numerator: "the room type's attention index and sold share",
+  denominator: "parity (1.00×) and the project's sold share",
+  exclusions: [
+    "a room type opened in fewer than the minimum number of meetings in the period",
+    "a room type with no attention index: all of it sold, or nobody looked at its unsold flats",
+    "a project with no CRM, which cannot say what sold",
+  ],
+  dimensions: ["project", "period", "rooms"],
+  timeWindow: "period",
+  requiredFacts: ["unit.viewed", "unit.attributes.published", "deal.stage.changed"],
+  requiredCrmFields: ["deal.stage", "deal.unit"],
+  requiredUnitAttributes: ["rooms", "status"],
+  minimumSampleSize: 20,
+  comparison: "project_baseline",
+  evidenceTier: "statistical_association",
+  states: {
+    empty: "No room type was opened in this period.",
+    insufficient: insufficient(20, "meetings that opened the room type"),
+    unavailable: NO_CRM,
+  },
+  drillTo: "segments",
+  roles: ["developer", "agency_manager"],
+});
+
+export const roomTypeExamined = defineMetric({
+  id: "project.room_type_examined",
+  displayName: "How each room type was examined",
+  businessDefinition:
+    "What buyers did with the flats of each room count once they opened one: the balcony view, the floor plan, the floor cut, a screenshot, sharing it.",
+  kind: "ratio",
+  calculation:
+    "Openings of flats of the room type with the act, divided by every opening of a flat of that type in the period's meetings. The room types stand side by side, so each rate is read against the same act on the other types. The highest rate of a row is marked only among types with the minimum number of openings.",
+  numerator: "openings of flats of the room type with the act",
+  denominator: "openings of flats of the room type",
+  exclusions: ["a room type below the minimum openings is shown raw and never marked highest"],
+  dimensions: ["project", "period", "rooms"],
+  timeWindow: "period",
+  requiredFacts: [
+    "unit.viewed",
+    "unit.examined.balcony",
+    "unit.examined.floor_cut",
+    "unit.material.opened",
+    "visual.captured",
+    "unit.shared",
+    "unit.attributes.published",
+  ],
+  requiredCrmFields: [],
+  requiredUnitAttributes: ["rooms"],
+  minimumSampleSize: 20,
+  comparison: "none",
+  evidenceTier: "observed_sequence",
+  states: {
+    empty: "No flat of this room type was opened in this period.",
+    insufficient: insufficient(20, "openings"),
+    unavailable: NO_CATALOGUE,
+  },
+  drillTo: "segments",
+  roles: ["developer", "agency_manager"],
+});
+
 /* --- what surrounds the building ---------------------------------------- */
 
 export const poiInterest = defineMetric({
@@ -628,6 +768,10 @@ export const UNIT_METRICS = [
   segmentInterest,
   attentionIndex,
   soldBySegment,
+  roomTypeStock,
+  roomTypeInterest,
+  roomTypeReading,
+  roomTypeExamined,
   poiInterest,
   amenityInterest,
   environmentInterest,
