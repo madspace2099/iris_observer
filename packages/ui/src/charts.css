@@ -1129,6 +1129,14 @@
   color: var(--ink-2);
 }
 
+/*
+ * The reading's action may wrap. Unbroken, its label set the column's width
+ * and ran the reading past its card: 33px at 1440, 112px of page at 390.
+ */
+.iris-coach-reading .iris-action {
+  white-space: normal;
+}
+
 @container (width < 62rem) {
   .iris-coach-body {
     grid-template-columns: minmax(0, 1fr);
