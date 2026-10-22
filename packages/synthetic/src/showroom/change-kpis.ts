@@ -153,15 +153,15 @@ function trendOf(direction: "up" | "down" | "flat", better: Better, then: string
     return {
       direction,
       tone,
-      display: `no change, ${then} ${AGO}`,
-      spoken: `No change: ${then} ${AGO}.`,
+      display: `unchanged from ${AGO}`,
+      spoken: `Unchanged: ${then} ${AGO}.`,
     };
   }
   return {
     direction,
     tone,
-    display: `from ${then} ${AGO}`,
-    spoken: `${direction === "up" ? "Up" : "Down"} from ${then} ${AGO}.`,
+    display: `from ${then}, ${AGO}`,
+    spoken: `${direction === "up" ? "Up" : "Down"} from ${then}, ${AGO}.`,
   };
 }
 
@@ -186,7 +186,7 @@ export function buildChangeKpis(
     earlierMeetings: earlier.length,
     minimumSample: floor,
     sources: DERIVED,
-    basis: `Each arrow sets the figure against the same figure ${AGO}: ${days(windows.earlier)}, ${meetings(earlier.length)}.`,
+    basis: `Each arrow sets the figure against the same figure ${AGO}: ${days(windows.earlier)}, ${meetings(earlier.length)}. A share that moved under ${String(Math.round(RATE_STEP * 100))} points, or a median under ${String(Math.round(MEDIAN_STEP * 100))}% of where it stood, is unchanged.`,
   };
 
   if (current.length === 0) {
@@ -238,7 +238,9 @@ export function buildChangeKpis(
       href,
       sample,
       short:
-        answering < floor ? `raw: ${String(floor - answering)} short of ${String(floor)}` : null,
+        answering < floor
+          ? `raw figure, ${String(floor - answering)} short of ${String(floor)}`
+          : null,
     };
   };
 
@@ -247,8 +249,8 @@ export function buildChangeKpis(
     if (now >= floor && then >= floor) return null;
     const words =
       then < floor
-        ? `${count(then, locale)} ${AGO}, ${String(floor - then)} short of ${String(floor)}`
-        : `${count(now, locale)} now, ${String(floor - now)} short of ${String(floor)}`;
+        ? `${count(then, locale)} of the ${String(floor)} meetings needed, ${AGO}`
+        : `${count(now, locale)} of the ${String(floor)} meetings needed, now`;
     return {
       direction: null,
       tone: "neutral",
@@ -274,6 +276,7 @@ export function buildChangeKpis(
         current.length,
       ),
       display: shareDisplay(now, locale),
+      unit: null,
       isName: false,
       trend:
         withheld !== null
@@ -289,11 +292,15 @@ export function buildChangeKpis(
     better: Better,
     show: (value: number) => string,
     answers: (s: ShowroomSession) => boolean = () => true,
+    unitOf: ((value: number) => string) | null = null,
   ): ChangeKpi => {
     const nowSet = current.filter(answers);
     const thenSet = earlier.filter(answers);
     const now = median(nowSet.map(of));
     const then = median(thenSet.map(of));
+    /* The figure and its unit apart, so the unit can be set smaller; whole in the arrow's words. */
+    const said = (value: number) =>
+      unitOf === null ? show(value) : `${show(value)} ${unitOf(value)}`;
     const sample =
       nowSet.length === current.length
         ? `median of ${meetings(current.length)}`
@@ -302,6 +309,7 @@ export function buildChangeKpis(
       ...frame(metricId, href, sample, nowSet.length),
       // Null only when no meeting here can answer it: absent, never nought.
       display: now === null ? "—" : show(now),
+      unit: now === null || unitOf === null ? null : unitOf(now),
       isName: false,
       trend:
         withheld !== null
@@ -309,7 +317,7 @@ export function buildChangeKpis(
           : (ownShortfall(nowSet.length, thenSet.length) ??
             (now === null || then === null
               ? null
-              : trendOf(directionOf(now, then, MEDIAN_STEP, true), better, show(then)))),
+              : trendOf(directionOf(now, then, MEDIAN_STEP, true), better, said(then)))),
     };
   };
 
@@ -333,6 +341,7 @@ export function buildChangeKpis(
     ),
     // A top is a rank, and below the floor nothing is ranked (docs/10-policies.md §6).
     display: named ? sectionLabel(top.sectionId) : "—",
+    unit: null,
     isName: named,
     trend:
       withheld !== null
@@ -374,7 +383,9 @@ export function buildChangeKpis(
         `${base}/storytelling`,
         (s) => s.steps.length,
         null,
-        (v) => `${whole(v)} ${v === 1 ? "step" : "steps"}`,
+        whole,
+        () => true,
+        (v) => (v === 1 ? "step" : "steps"),
       ),
       middle("flow.interactions_per_meeting", `${base}/meetings`, interactionsOf, "up", whole),
       middle(

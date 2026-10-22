@@ -513,9 +513,12 @@ describe("the tools state each figure's own denominator", () => {
     const result = await run("detect_showroom_behavior_changes");
     const { kpis } = (await repository.getShowroomOverview({ ...SHARK, language: "en" })).kpis;
     expect(result.facts.map((f) => [f.label, f.value])).toEqual(
-      kpis.map((k) => [k.label, k.display]),
+      kpis.map((k) => [k.label, k.unit === null ? k.display : `${k.display} ${k.unit}`]),
     );
-    expect(result.facts[0]?.note).toMatch(/^\d+ of \d+ meetings · /);
+    // Shark's Compare use against 7 days earlier: its sample, then the arrow's words, earlier figure and all.
+    expect(result.facts[0]?.note).toMatch(
+      /^\d+ of \d+ meetings · (Up from|Down from|Unchanged:) \d+%/,
+    );
     const shown = [
       ...result.facts.map((f) => `${f.label} ${f.value} ${f.note ?? ""}`),
       ...result.caveats,

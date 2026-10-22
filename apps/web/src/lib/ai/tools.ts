@@ -786,12 +786,15 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
     );
     const still = view.kpis.filter((k) => k.trend?.direction === "flat" && !k.isName);
     const top = view.kpis.find((k) => k.isName);
+    const figure = (k: (typeof view.kpis)[number]) =>
+      k.unit === null ? k.display : `${k.display} ${k.unit}`;
     return {
       tool: "detect_showroom_behavior_changes",
       facts: view.kpis.map((k) => ({
         label: k.label,
-        value: k.display,
-        note: [k.sample, k.short, k.trend?.display ?? null].filter((n) => n !== null).join(" · "),
+        value: figure(k),
+        // The spoken words carry the earlier figure, which "unchanged" leaves out of view.
+        note: [k.sample, k.short, k.trend?.spoken ?? null].filter((n) => n !== null).join(" · "),
       })),
       sources: DERIVED,
       evidence: overview.evidence,
@@ -803,7 +806,7 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
       action: { label: "Open Sales Flow", href: `${root(context)}/flow` },
       draft: [
         ...(view.empty === null ? [] : [view.empty]),
-        ...moved.map((k) => `${k.label} is ${k.display}, ${k.trend?.spoken.toLowerCase() ?? ""}`),
+        ...moved.map((k) => `${k.label} is ${figure(k)}, ${k.trend?.spoken.toLowerCase() ?? ""}`),
         ...(top === undefined ? [] : [`${top.display} took the most presentation time.`]),
         ...(still.length === 0
           ? []

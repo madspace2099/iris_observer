@@ -60,7 +60,7 @@ function session(over: Partial<ShowroomSession> = {}): ShowroomSession {
   };
 }
 
-const times = (n: number, make: () => ShowroomSession) => Array.from({ length: n }, make);
+const times = <T>(n: number, make: () => T): T[] => Array.from({ length: n }, make);
 
 const CONTEXT = viewContext({ project: { id: PROJECT_ID } });
 
@@ -123,8 +123,8 @@ describe("medians, not means", () => {
     expect(shots.trend).toEqual({
       direction: "up",
       tone: "good",
-      display: "from 1 7 days ago",
-      spoken: "Up from 1 7 days ago.",
+      display: "from 1, 7 days ago",
+      spoken: "Up from 1, 7 days ago.",
     });
   });
 
@@ -165,7 +165,9 @@ describe("the threshold", () => {
   it("reads a share that moved under two points as no change", () => {
     const view = buildChangeKpis(CONTEXT, share(100, 50), share(100, 49));
     expect(kpi(view, "compare_use").trend?.direction).toBe("flat");
-    expect(kpi(view, "compare_use").trend?.display).toBe("no change, 49% 7 days ago");
+    expect(kpi(view, "compare_use").trend?.display).toBe("unchanged from 7 days ago");
+    // The earlier figure is still said, to a screen reader and in the definition's terms.
+    expect(kpi(view, "compare_use").trend?.spoken).toBe("Unchanged: 49% 7 days ago.");
   });
 
   it("reads two points as a movement, and a rise in Compare as good", () => {
@@ -195,7 +197,7 @@ describe("the threshold", () => {
         ),
         "presentation_length",
       ).trend,
-    ).toMatchObject({ direction: "up", tone: "neutral", display: "from 9m 31s 7 days ago" });
+    ).toMatchObject({ direction: "up", tone: "neutral", display: "from 9m 31s, 7 days ago" });
   });
 
   it("moves off nought whatever the step", () => {
@@ -228,7 +230,7 @@ describe("the threshold", () => {
     expect(kpi(fewer, "interactions_per_meeting").trend).toMatchObject({
       direction: "down",
       tone: "bad",
-      display: "from 2 7 days ago",
+      display: "from 2, 7 days ago",
     });
   });
 });
@@ -252,8 +254,10 @@ describe("the floor", () => {
       times(19, () => session()),
       times(20, () => session()),
     );
-    expect(kpi(view, "presentation_depth").display).toBe("2 steps");
-    expect(kpi(view, "presentation_depth").short).toBe("raw: 1 short of 20");
+    expect([kpi(view, "presentation_depth").display, kpi(view, "presentation_depth").unit]).toEqual(
+      ["2", "steps"],
+    );
+    expect(kpi(view, "presentation_depth").short).toBe("raw figure, 1 short of 20");
   });
 
   it("withholds one figure's arrow when only that figure's meetings are short", () => {
@@ -269,8 +273,8 @@ describe("the floor", () => {
     expect(kpi(view, "presentation_length").trend).toEqual({
       direction: null,
       tone: "neutral",
-      display: "no arrow: 15 7 days ago, 5 short of 20",
-      spoken: "No arrow: 15 7 days ago, 5 short of 20.",
+      display: "no arrow: 15 of the 20 meetings needed, 7 days ago",
+      spoken: "No arrow: 15 of the 20 meetings needed, 7 days ago.",
     });
     expect(kpi(view, "presentation_depth").trend?.direction).toBe("flat");
   });
@@ -336,7 +340,9 @@ describe("refusals and absence", () => {
     );
     expect(view.withheld).toMatch(/^No arrows: this comparison is refused\. Attribution window/);
     expect(view.kpis.map((k) => k.trend)).toEqual(Array.from({ length: 8 }, () => null));
-    expect(kpi(view, "presentation_depth").display).toBe("2 steps");
+    expect([kpi(view, "presentation_depth").display, kpi(view, "presentation_depth").unit]).toEqual(
+      ["2", "steps"],
+    );
   });
 
   it("states a period with no meeting in one sentence, and draws no nought", () => {

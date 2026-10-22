@@ -40,6 +40,8 @@ export interface ChangeKpi {
   readonly label: string;
   /** The figure as read: "38%", "11m 05s", "Residences"; "—" when below the floor for a name. */
   readonly display: string;
+  /** The unit after a bare number, set smaller beside it: "steps". Null where the figure says its own. */
+  readonly unit: string | null;
   /** A section's name rather than a number: set smaller, so a long name wraps rather than overflows. */
   readonly isName: boolean;
   /** Its sample and denominator, in view: "57 of 150 meetings", "median of 150 meetings". */
@@ -63,8 +65,8 @@ export interface ChangeKpiTrend {
   readonly direction: "up" | "down" | "flat" | null;
   /** The arrow's colour: good and bad where more is plainly better, neutral where it is not. */
   readonly tone: "good" | "bad" | "neutral";
-  /** In view beside the arrow: "from 34% 7 days ago", "no change, 37% 7 days ago". */
+  /** In view beside the arrow: "from 34%, 7 days ago", "unchanged from 7 days ago". */
   readonly display: string;
-  /** The same, said whole for a screen reader: "Up from 34% 7 days ago." */
+  /** The same, said whole for a screen reader: "Up from 34%, 7 days ago." */
   readonly spoken: string;
 }
