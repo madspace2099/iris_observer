@@ -5911,54 +5911,64 @@ run.
 
 Máté could not read the "Sold against the plan" bullet chart on the Project page: show the flats,
 how many are sold (from the CRM), and how long the sales run against a date by which everything
-must be sold. Branch `worktree-wf_eba45ae8-1e4-1`, from `3373a1c`, four commits, not pushed. The
-first session was cut off after its main commit; this one finished the e2e edits, the ADR and this
-section.
+must be sold. Branch `worktree-wf_eba45ae8-1e4-1`, from `3373a1c`, not pushed. The first session
+was cut off after its main commit; the second finished the e2e edits, the ADR and this section; the
+third took the reviewers' second round.
 
-- **The block** (`components/project-plan/`): one verdict line at the block's largest size ("On
-  pace: needs 3.5 a month, selling 4.7"), what it stands on ("14 sales dated in the last 90
-  days"), Flats / Sold / Reserved / Available as large figures over one bar of the whole stock,
-  "Sell out by 30 Jun 2027" over one track from the sales start with today marked, and "At this
-  pace, sold out in Apr 2027". Definitions behind the `i`. Without a CRM the split is a sentence,
-  never zeros; below five dated sales no pace and no verdict.
+- **The block** (`components/project-plan/`): a short verdict first ("On pace", "Behind", or the
+  state), in the type scale's Verdict role; Flats / Sold / Reserved / Available as large figures
+  over one bar of the whole stock; "Sell out by 30 Jun 2027" over one track from the sales start
+  with today marked; "Selling a month 4.7" and "Needed a month 4.0" as figures; under a stated
+  pace only, "14 sales dated in the last 90 days" and "At this pace, sold out in May 2027".
+  Definitions behind the `i`. Without a CRM the split is a sentence, never zeros; below five dated
+  sales no selling pace and no verdict, the needed pace still shown.
+- **The stock is the CRM's** (second round): sold = a deal at purchase on the catalogued flat,
+  reserved = at reservation and none at purchase; the catalogue's status is not read. Shark now
+  reads 60 / 19 / 13 / 28 (the catalogue had 24 sold: five are the synthetic building's own), and
+  "1 reservation or purchase in the CRM names no flat in the catalogue, not counted." Northgate
+  reads 48 / 4 / 2 / 42. The pace is always the last 90 days, each flat dated by its first
+  purchase; delayed and unknown delivered flats count as flats to sell.
 - **The window is configuration**: `SALES_WINDOWS` in `world.ts` (Shark Residence 2026-01-12 to
   2027-06-30, demonstration configuration; no other project has one, so they say "No sell-out
-  date set"). The hard-coded 2026-01-15 to 2028-06-30 plan is gone (non-negotiable 6).
+  date set"). The hard-coded 2026-01-15 to 2028-06-30 plan is gone (non-negotiable 6). "By"
+  includes the day.
 - **The company admin sets it** (`maySetSalesWindow`, the `mayConnectCrm` comparison): Clara sees
   "Change the dates" (two native date fields, Save dates, Cancel); Daniel, members and presenters
   read. Saved through the server action `saveSalesWindow` into `SalesWindowStore`, a JSON file
   per project under `OBSERVER_LOCAL_STATE_DIR/plans/`; refused with a sentence where there is no
-  local plane.
+  local plane, which no longer promises configured dates to a project that has none.
+- **Ask IRIS reads the plan** (second round, on the owner's "the AI reads it from the CRM"):
+  `get_sales_plan` returns `SalesPlan`'s figures untouched; "Are we on track to sell out?" routes
+  to it. The pinned tool list in `ask.test.ts` grew by that one name.
 - **Registry**: `plan.stock_position`, `plan.sales_pace`, `plan.needed_pace`, `plan.verdict`,
-  `SALES_PACE_MIN_SAMPLE` = 5, requirement `madspace.sold_against_the_plan`; matrix regenerated.
-  `SalesTarget` became `SalesPlan`.
-- **Not done: Ask IRIS.** It has no tool for the project's sales position, and the tool list is
-  pinned as a product specification (`ask.test.ts`), so none was added; `SalesPlan.summary` is
-  shaped to be its facts. "Are we on track to sell out?" still goes to the period summary.
+  `SALES_PACE_MIN_SAMPLE` = 5, requirement `madspace.sold_against_the_plan`; definitions updated to
+  the deal stages and the trailing 90 days; matrix regenerated. `SalesTarget` became `SalesPlan`.
+- **Review, second round**: fifteen findings (one reported twice), all confirmed and fixed; the
+  table is in ADR-0055. None rejected.
 
-**Verified.** Typecheck clean; eslint and prettier clean on every changed file;
-`sales-plan` 17 (every state by hand, Shark on 24 Aug 2026: 60 / 24 / 12 / 24, 4.7 against 3.5,
-Apr 2027), `sales-plan-window` 17, `isolation` 40. Full suite (after `pnpm release:wrappers`):
-285 files, 5211 passed, 1 skipped, 2 failed, neither caused by this stream: `no-secret-recipes`
-(no web build; environmental) and `artefact-consistency` "finds no token the repository cannot
-account for". The shared object store has grown past git's 7-character auto-abbreviation, so
-`git diff 7ac84fa..c16b94f` now prints 8-character `index` lines and hashes to `54f81969…`
-instead of the `b872d6e1…` REVIEW.txt cites (`-c core.abbrev=7` reproduces it). Every worktree on
-this `.git` fails it; the one-line fix is `--abbrev=7` on that `git diff` in `accountableHashes`
-(`scripts/release/build-package.ts`), left to whoever owns the release scripts. Static renders of
-the Project page for Clara, Daniel, Tomáš and Petra (Northgate, Riverside without a CRM) at 1440, 390
-and 360, and of the open editor: no sideways scroll, nothing past the block, text 12 px or larger,
-date fields and buttons 44 px tall on a phone, 2 px focus ring. `e2e/p219-screens.spec.ts` (K4's
-plan claim is now "N sales dated in the last 90 days") and `e2e/a11y-contract.spec.ts` (the
-block's `i` on Project) edited, not run.
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; `sales-plan` 22
+(every state by hand; Shark on 24 Aug 2026: 60 / 19 / 13 / 28, 4.7 against 4.0, May 2027),
+`sales-plan-window` 17, the Ask suites (`ask`, `ai-security`, `ai-intelligence`, `ai-audit`) 261.
+Static renders of the Project page for Clara, Daniel, Tomáš and Petra (Northgate, Riverside without
+a CRM) and of seven states (behind, too few, past the date, no date, not started, the last day, no
+CRM) at 1440, 390 and 360: no sideways scroll, nothing past the block, text 12 px or larger, 44 px
+controls on a phone, the `i` on the title's last line at 360. `e2e/p219-screens.spec.ts` (K4's plan
+claim on Northgate is now "No sell-out date set") and `e2e/a11y-contract.spec.ts` (the block's `i`)
+edited, not run. Full unit suite: see the last line of this section.
 
-**Integration.** In `project/page.tsx` this stream changed only the plan block (now one
-`<SalesPlanBlock>`) and two import lines; ROOMS owns the rest. It also touched
-`components/project/SalesCoverage.tsx` (mounted nowhere; it read `charts.targets`) and the design
-lab's bullet data, both only to follow the renamed type.
+**Integration.** In `project/page.tsx` this stream changed only the plan block (one
+`<SalesPlanBlock>`) and two import lines; ROOMS owns the rest. Outside its files it touched
+`components/project/SalesCoverage.tsx` and the design lab's bullet data (to follow the renamed
+type), `lib/ai/tools.ts` and `lib/ai/agent.ts` (the tool and its route), and one line of
+`components/ask-iris/AskLiveAnswer.tsx` (the trace's name for the tool; SHELL owns the folder).
 
-**Next recommended action.** On the demo build sign in as Clara, open
-`/shark/shark-residence/project` at 1440 and 390, change the dates to 31 Dec 2026 and read
-"Behind: needs 8.5 a month, selling 4.7", then set them back; sign in as Daniel and see no
-control. Run `p219-screens` and `a11y-contract`. Ask Máté whether Ask IRIS should get a
-sales-position tool, and whether the sell-out date is Clara's (the developer's) to set, as built.
+**Risk for the demo.** The Units register still reads the catalogue's status, so on Shark it says
+24 sold while the plan says 19. `withCrmStatus` (`pulse.ts`) lays the CRM's holds over the
+synthetic building's own sales instead of starting every flat available; changing that moves every
+Shark unit figure and belongs to whoever owns the unit surfaces.
+
+**Next recommended action.** Ask Máté whether the Units register should read the CRM's stages too
+(the `withCrmStatus` change above). On the demo build sign in as Clara, open
+`/shark/shark-residence/project` at 1440 and 390, set the dates to 31 Dec 2026 and read "Behind"
+with "Needed a month 9.7", then set them back; ask Ask IRIS "Are we on track to sell out?". Run
+`p219-screens` and `a11y-contract`.
