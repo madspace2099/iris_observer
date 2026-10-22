@@ -45,6 +45,7 @@ import {
   registerHref,
   type RegisterSearch,
 } from "@/components/units";
+import "./unit.css";
 
 export const metadata: Metadata = { title: "Unit" };
 
@@ -503,31 +504,35 @@ export default async function UnitPage({
               </p>
             </div>
 
-            <DataTable
-              caption={
-                canOpenMeeting
-                  ? `Meetings in ${periodLabel.toLowerCase()} that opened ${unit.unitCode}.`
-                  : `Meetings in ${periodLabel.toLowerCase()} that opened ${unit.unitCode}. ${MEETINGS_NOT_OPENABLE}`
-              }
-              columns={[
-                { key: "meeting", label: "Meeting" },
-                { key: "when", label: "Started" },
-                { key: "agent", label: "Agent" },
-                { key: "visitor", label: "Visitor" },
-                { key: "length", label: "Length" },
-                { key: "units", label: "Units opened", numeric: true },
-                { key: "shortlisted", label: "Shortlisted", numeric: true },
-                { key: "outcome", label: "Outcome" },
-                { key: "followUp", label: "Follow-up" },
-              ]}
-              rows={meetingRows}
-              codeColumn="meeting"
-              period={period}
-              empty={{
-                title: "No meeting opened this unit",
-                note: `Nothing in ${periodLabel.toLowerCase()} shows this flat being opened in front of a buyer.`,
-              }}
-            />
+            {/* A phone reads each meeting as a few lines, not nine labelled rows (`unit.css`). */}
+            <div className="ox-unit-meetings">
+              <DataTable
+                caption={
+                  canOpenMeeting
+                    ? `Meetings in ${periodLabel.toLowerCase()} that opened ${unit.unitCode}.`
+                    : `Meetings in ${periodLabel.toLowerCase()} that opened ${unit.unitCode}. ${MEETINGS_NOT_OPENABLE}`
+                }
+                columns={[
+                  { key: "meeting", label: "Meeting" },
+                  /* The meeting's own title already gives its day: a phone's record leaves this off. */
+                  { key: "when", label: "Started", className: "ox-col-wide" },
+                  { key: "agent", label: "Agent" },
+                  { key: "visitor", label: "Visitor" },
+                  { key: "length", label: "Length" },
+                  { key: "units", label: "Units opened", numeric: true },
+                  { key: "shortlisted", label: "Shortlisted", numeric: true },
+                  { key: "outcome", label: "Outcome" },
+                  { key: "followUp", label: "Follow-up" },
+                ]}
+                rows={meetingRows}
+                codeColumn="meeting"
+                period={period}
+                empty={{
+                  title: "No meeting opened this unit",
+                  note: `Nothing in ${periodLabel.toLowerCase()} shows this flat being opened in front of a buyer.`,
+                }}
+              />
+            </div>
 
             <div className="ox-section-head">
               <h2 className="ox-section-title">Weighed against</h2>

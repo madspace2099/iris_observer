@@ -61,10 +61,18 @@ export function TablePreferences({
 
   /* Keys come from the register's own columns, never from storage: a stored key that is not one is dropped on read. */
   const scope = `[data-prefs-scope="${id}"]`;
+  /*
+   * Compact tightens a row on a wide screen and a stacked record on a phone.
+   * Its row padding once reached the stacked cells too, and a phone's record
+   * grew (329px to 356px at 390): the stacked cell's own padding is smaller.
+   */
   const css = [
     ...preferences.hidden.map((key) => `${scope} [data-col="${key}"] { display: none; }`),
     ...(preferences.density === "compact"
-      ? [`${scope} .ox-table td, ${scope} .ox-table th { padding-block: .3rem; }`]
+      ? [
+          `@media not screen and (width <= 48rem) { ${scope} .ox-table td, ${scope} .ox-table th { padding-block: .3rem; } }`,
+          `@media screen and (width <= 48rem) { ${scope} .ox-table td { padding-block: 0; } ${scope} .ox-table tr { padding-block: var(--ox-tight); } }`,
+        ]
       : []),
   ].join("\n");
 

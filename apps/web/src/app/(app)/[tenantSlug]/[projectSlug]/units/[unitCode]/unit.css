@@ -1,0 +1,56 @@
+/*
+ * A UNIT'S MEETINGS ON A PHONE (the owner, 2026-10-22: "Check mobile responsiveness!").
+ *
+ * Below 48rem a table is stacked records, one labelled line a cell: S-503's
+ * twenty-nine meetings were 285px each, 9,148px after a forty-step timeline.
+ * Here a meeting is a few lines: when and who presented, then the visitor,
+ * then its figures side by side, then what was recorded. Every cell is still
+ * drawn (the day the title already gives is the wide screen's only, `ox-col-wide`),
+ * and a label stays wherever a bare value would not say what it is.
+ */
+@media screen and (width <= 48rem) {
+  .ox-unit-meetings .ox-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+  }
+
+  /* Keyed on the column labels the page gives (`data-label`): this table keeps no column preferences. */
+  .ox-unit-meetings .ox-table td {
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  /* A label sits beside its value, not at the far side of the line from it. */
+  .ox-unit-meetings .ox-table td[data-label]::before {
+    margin-inline-end: 0;
+  }
+
+  .ox-unit-meetings .ox-table td.ox-table-code {
+    flex: 1 1 auto;
+    padding: 0;
+    font-size: var(--ox-body);
+  }
+
+  .ox-unit-meetings .ox-table td[data-label="Agent"] {
+    color: var(--ox-ink-2);
+  }
+
+  .ox-unit-meetings
+    .ox-table
+    td:is([data-label="Agent"], [data-label="Visitor"], [data-label="Follow-up"])::before {
+    content: none;
+  }
+
+  .ox-unit-meetings
+    .ox-table
+    td:is([data-label="Visitor"], [data-label="Outcome"], [data-label="Follow-up"]) {
+    flex-basis: 100%;
+  }
+
+  .ox-unit-meetings .ox-table td:is([data-label="Visitor"], [data-label="Follow-up"]) {
+    font-size: var(--ox-caption);
+    color: var(--ox-ink-3);
+  }
+}

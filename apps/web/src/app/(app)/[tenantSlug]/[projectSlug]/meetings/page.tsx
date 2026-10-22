@@ -10,6 +10,7 @@ import {
   MeetingRegister,
   meetingFilterFields,
   parseMeetingFilters,
+  withMeetingFilters,
   type MeetingSearch,
 } from "@/components/meetings";
 
@@ -59,7 +60,7 @@ export default async function MeetingsPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<MeetingSearch & { period?: string }>;
+  searchParams: Promise<MeetingSearch & { period?: string; more?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
@@ -156,6 +157,9 @@ export default async function MeetingsPage({
               canOpen={maySeeSurface(viewer.role, "[meetingId]")}
               caption={`Showroom presentations on ${context.project.name}, newest first. ${view.total} of ${view.periodTotal} in ${periodLabel}.`}
               emptyState={view.emptyState}
+              // A phone draws twenty and offers the rest (`MeetingRegister`); a wide screen draws all.
+              all={search.more === "1"}
+              moreHref={withMeetingFilters(`${base}/meetings?more=1`, view.filters)}
             />
           </div>
         </div>

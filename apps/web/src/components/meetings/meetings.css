@@ -1,0 +1,98 @@
+/*
+ * THE MEETING REGISTER ON A PHONE (the owner, 2026-10-22: "Check mobile responsiveness!").
+ *
+ * Below 48rem every table becomes stacked records, one labelled line a cell:
+ * nine lines a meeting, 150 meetings 50,650px at 390. Here a meeting is a few
+ * lines that read as one: when and who, then the visitor, the channel and the
+ * length, then the units it opened, then what was recorded. Every cell is
+ * still drawn; only the labels the values already say are left off. The
+ * phone shows the first twenty and offers the rest in one press
+ * (`MeetingRegister`); a wide screen draws every row, as before.
+ */
+
+.ox-meetings-more {
+  display: none;
+}
+
+@media screen and (width <= 48rem) {
+  .ox-meetings .ox-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.25rem 0.75rem;
+  }
+
+  /* No `display` here: a column the reader hid (`TablePreferences`) stays hidden. */
+  .ox-meetings .ox-table td {
+    justify-content: flex-start;
+    padding: 0;
+  }
+
+  .ox-meetings .ox-table td::before {
+    content: none;
+  }
+
+  /* When it was, and who presented: the record's first line. */
+  .ox-meetings .ox-table td.ox-table-code {
+    flex: 1 1 auto;
+    padding: 0;
+    font-size: var(--ox-body);
+  }
+
+  .ox-meetings .ox-table td[data-col="agent"] {
+    color: var(--ox-ink-2);
+  }
+
+  /*
+   * Who the visitor was on a line of their own, then the channel and the
+   * length on the next: three on one line wrapped at 390 and left a line
+   * starting with its separator.
+   */
+  .ox-meetings .ox-table td:is([data-col="visitor"], [data-col="channel"], [data-col="duration"]) {
+    font-size: var(--ox-caption);
+    color: var(--ox-ink-3);
+  }
+
+  .ox-meetings .ox-table td[data-col="visitor"] {
+    flex-basis: 100%;
+  }
+
+  .ox-meetings .ox-table td[data-col="duration"] {
+    margin-inline-start: -0.375rem;
+  }
+
+  .ox-meetings .ox-table td[data-col="duration"]::before {
+    content: "· ";
+    padding: 0;
+    color: inherit;
+  }
+
+  /* The units it opened, on a line of their own, each a target a thumb can take. */
+  .ox-meetings .ox-table td[data-col="units"] {
+    flex-basis: 100%;
+  }
+
+  .ox-meetings .ox-table td[data-col="units"] .ox-evidence {
+    min-height: 1.5rem;
+    align-items: center;
+  }
+
+  /* A bare count needs its word. */
+  .ox-meetings .ox-table td[data-col="favourites"]::before {
+    content: attr(data-label) " ";
+    font-size: var(--ox-micro);
+    font-weight: var(--weight-semibold);
+    letter-spacing: var(--ox-track-micro);
+    text-transform: uppercase;
+    color: var(--ox-ink-4);
+  }
+
+  .ox-meetings:not([data-all="true"]) .ox-table tbody tr:nth-child(n + 21) {
+    display: none;
+  }
+
+  .ox-meetings-more {
+    display: flex;
+    margin: var(--ox-inner) 0 0;
+  }
+}

@@ -148,7 +148,7 @@ export default async function UnitsPage({
   );
 
   return (
-    <div className="ox-page">
+    <div className="ox-page ox-units-page">
       <PageHead
         language={view.context.language}
         kicker={`${view.context.project.name} · Units · ${view.context.period.label}`}

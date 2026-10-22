@@ -1,0 +1,17 @@
+/*
+ * THE UNITS PAGE ON A PHONE (the owner, 2026-10-22: "Check mobile responsiveness!").
+ *
+ * The building is the page's way into a flat, and its cells were 22px tall
+ * with 3px between them (H-303 was 20x22 at 360): on a phone each is a
+ * thumb's height. Scoped to this page; the stack elsewhere is its own page's.
+ */
+@media screen and (width <= 48rem) {
+  .ox-units-page .ox-stack,
+  .ox-units-page .ox-stack-units {
+    gap: 4px;
+  }
+
+  .ox-units-page .ox-stack-unit {
+    height: 32px;
+  }
+}

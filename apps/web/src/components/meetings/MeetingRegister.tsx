@@ -13,6 +13,10 @@ import { withPeriod } from "@/lib/period";
 import { Chip } from "./Chip";
 import { withMeetingFilters } from "./filters";
 import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
+import "./meetings.css";
+
+/** The records a phone draws before "Show the remaining N": `meetings.css` hides from the 21st. */
+export const PHONE_PAGE = 20;
 
 /**
  * THE MEETING REGISTER — every showroom presentation in the period, as a table.
@@ -59,6 +63,13 @@ import { FOLLOW_UP_TONES, OUTCOME_TONES } from "./vocabulary";
  * produced a fact the showroom had, over follow-ups the agent had recorded.
  *
  * ## It draws every row it is given, and that is the answer rather than a gap
+ *
+ * On a wide screen, that is. A phone is the exception (the owner, 2026-10-22,
+ * "Check mobile responsiveness!"): there a meeting is a record of a few lines,
+ * not nine labelled rows (`meetings.css`), and the first twenty are drawn with
+ * the rest one press away, because 150 records were 50,650px at 390 — sixty
+ * screens before the findings. Every row is still sent and still reachable;
+ * on a wide screen the reasoning below stands.
  *
  * There is no page size and no "show the remaining N". Unfiltered, the longest
  * register in the fixtures is 187 rows; the unit register caps at twenty and
@@ -162,6 +173,8 @@ export function MeetingRegister({
   caption,
   canOpen,
   emptyState,
+  all = false,
+  moreHref = null,
 }: {
   /**
    * Every route a row needs (`href`, each `unitsViewed[].href`) arrives
@@ -197,6 +210,10 @@ export function MeetingRegister({
   readonly canOpen: boolean;
   /** The read model's own words for an empty result. Never composed here. */
   readonly emptyState: string;
+  /** The reader asked for every row on a phone (`?more=1`). A wide screen draws every row regardless. */
+  readonly all?: boolean;
+  /** This register with its filters and `more=1`: where a phone's "Show the remaining N" goes. */
+  readonly moreHref?: string | null;
 }) {
   const data: readonly DataRow[] = rows.map((row) => ({
     key: row.meetingId,
@@ -245,7 +262,7 @@ export function MeetingRegister({
   }));
 
   return (
-    <>
+    <div className="ox-meetings" data-all={all ? "true" : undefined}>
       <DataTable
         caption={canOpen ? caption : `${caption} ${MEETINGS_NOT_OPENABLE}`}
         columns={COLUMNS}
@@ -255,6 +272,13 @@ export function MeetingRegister({
         period={period}
         empty={{ title: "No meetings to show", note: emptyState }}
       />
-    </>
+      {all || moreHref === null || rows.length <= PHONE_PAGE ? null : (
+        <p className="ox-meetings-more">
+          <Link className="ox-btn" href={dynamicRoute(withPeriod(moreHref, period))}>
+            Show the remaining {rows.length - PHONE_PAGE} meetings
+          </Link>
+        </p>
+      )}
+    </div>
   );
 }

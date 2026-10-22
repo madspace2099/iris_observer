@@ -43,11 +43,14 @@ import { shareDisplay, stayDisplay } from "./vocabulary";
  * is passed, and the sheet dims it rather than dropping it.
  */
 export function Count({ n, of = null }: { readonly n: number; readonly of?: number | null }) {
-  return (
-    <>
+  /* One element, so a phone's stacked record keeps "150 of 150" together as one figure. */
+  return of === null ? (
+    <>{n}</>
+  ) : (
+    <span>
       {n}
-      {of === null ? null : <span className="ox-of"> of {of}</span>}
-    </>
+      <span className="ox-of"> of {of}</span>
+    </span>
   );
 }
 

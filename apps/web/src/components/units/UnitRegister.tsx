@@ -15,6 +15,7 @@ import {
   type FilterOption,
 } from "@/components/product";
 import { StatusChip } from "./UnitStatus";
+import "./units.css";
 import {
   REGISTER_PAGE,
   ROOMS_UNSTATED,

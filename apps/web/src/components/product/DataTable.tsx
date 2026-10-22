@@ -128,11 +128,54 @@ export function DataTable({
     return <Empty title={empty.title} note={empty.note} />;
   }
 
+  /*
+   * A phone's way to order the register. Below 48rem the head is off the
+   * screen with its sort links, so the same links stand above the records,
+   * folded under the order in force; a wide screen keeps them in the head and
+   * never draws this (`observer-product.css`).
+   */
+  const sortable = columns.flatMap((column) =>
+    column.sort === undefined || column.sort === null ? [] : [{ ...column, sort: column.sort }],
+  );
+  const current = sortable.find((column) => column.sort.direction !== "none");
+  const arrow = (direction: ColumnSort["direction"]) =>
+    direction === "none" ? null : (
+      <span aria-hidden="true"> {direction === "ascending" ? "▲" : "▼"}</span>
+    );
+
   return (
     <div
       className="ox-table-wrap"
       {...(preferences === null ? {} : { "data-prefs-scope": preferences.id })}
     >
+      {sortable.length === 0 ? null : (
+        <details className="ox-table-order">
+          <summary className="ox-toggle">
+            Order by
+            {current === undefined ? null : (
+              <>
+                : {current.label}
+                {arrow(current.sort.direction)}
+                <span className="ox-sr">, {current.sort.direction}</span>
+              </>
+            )}
+          </summary>
+          <ul className="ox-chipset">
+            {sortable.map((column) => (
+              <li key={column.key}>
+                <Link
+                  className="ox-toggle"
+                  href={dynamicRoute(withPeriod(column.sort.href, period))}
+                  aria-current={column.sort.direction === "none" ? undefined : "true"}
+                >
+                  {column.label}
+                  {arrow(column.sort.direction)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {preferences === null ? null : (
         <TablePreferences
           id={preferences.id}

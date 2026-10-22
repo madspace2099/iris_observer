@@ -9,6 +9,7 @@ import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { maySeeSurface } from "@/lib/routes";
 import { AVAILABILITY_WORDS, Gaps, SourceChips } from "@/showroom/parts";
+import "./audience.css";
 
 export const metadata: Metadata = { title: "Audience" };
 
@@ -101,7 +102,7 @@ export default async function AudiencePage({
   };
 
   return (
-    <div className="iris-one">
+    <div className="iris-one iris-audiencepage">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker">Audience · {view.context.period.label}</p>
         <h1 className="iris-section">
