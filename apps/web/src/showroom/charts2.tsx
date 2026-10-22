@@ -147,6 +147,12 @@ interface TrendProps {
   /** The moment worth pointing at, by index. */
   annotation?: { readonly index: number; readonly text: string } | null;
   height?: number;
+  /**
+   * The XL and middle drawings' height, where a card gives them more room than
+   * a phone's drawing has (Sales Flow's screen of its own, ADR-0059). Omitted,
+   * every drawing takes `height`.
+   */
+  wideHeight?: number;
   valueLabel: string;
   /** Opt-in: raises the 9px axis ticks to the 12px floor. Sales Flow only — see `charts.css`. */
   measured?: boolean;
@@ -212,8 +218,8 @@ export function TrendLine(props: TrendProps) {
   return (
     <DrawIn kind="sweep">
       <Sized
-        xl={<TrendPlot {...props} size="xl" />}
-        m={<TrendPlot {...props} size="m" />}
+        xl={<TrendPlot {...props} height={props.wideHeight ?? props.height} size="xl" />}
+        m={<TrendPlot {...props} height={props.wideHeight ?? props.height} size="m" />}
         l={
           <>
             <TrendPlot {...props} size="l" />

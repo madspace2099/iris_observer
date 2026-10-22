@@ -15,6 +15,8 @@ import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { AssistedSales, FlowLadder } from "@/components/flow";
 import { ChangeKpis } from "@/components/flow/ChangeKpis";
+
+import { FlowRail, type FlowScreen } from "@/components/flow/FlowRail";
 import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
@@ -32,6 +34,7 @@ import { DrawIn } from "@/showroom/DrawIn";
 import { RadialHistogram, Sized } from "@/showroom/forms";
 import { BubbleLens } from "@/showroom/BubbleLens";
 import "@/components/flow/sales-flow.css";
+import "@/components/flow/flow-screens.css";
 
 export const metadata: Metadata = { title: "Sales Flow" };
 
@@ -73,6 +76,14 @@ function windowFrom(value: string | undefined): KpiWindowId {
  * outcome rows, written by the read model with its own denominator
  * (`ProgressedFigure`: "81% progressed · 29 of 36 recorded"), so the page
  * still rounds nothing.
+ *
+ * ONE SCREEN AT A TIME (the owner, 2026-10-22, ADR-0059). Every block is a
+ * screen (`.flow-screen`) as tall as the viewport under the sticky header, and
+ * the page's scroller snaps from one to the next (`flow-screens.css`), so the
+ * next chart is never visible under the one being read. Each screen keeps its
+ * title, its drawing, the figure it stands on and its source; definitions and
+ * method notes stand behind its `i`. Two pairs share a screen: the meetings and
+ * every outcome, and the longest presentations and who gave them.
  */
 export default async function FlowPage({
   params,
@@ -166,20 +177,60 @@ export default async function FlowPage({
     );
   };
 
+  /*
+   * The screens in the page's order, for the rail (ADR-0059). The deal screens
+   * stand only where a CRM delivered deals; without one, the ladder's sentence
+   * closes the summary screen rather than holding a screen of its own.
+   */
+  const crm = view.ladder.source === "crm";
+  const screens: readonly FlowScreen[] = [
+    { id: "flow-verdict", label: "The verdict" },
+    { id: "flow-summary", label: "The summary figures" },
+    ...(crm
+      ? [
+          { id: "flow-ladder", label: "The deal ladder" },
+          { id: "flow-stalled", label: "Stalled deals" },
+        ]
+      : []),
+    ...(view.assisted.source === "crm"
+      ? [{ id: "flow-assisted", label: "IRIS-assisted sales" }]
+      : []),
+    { id: "flow-meetings", label: "Meetings, and every outcome" },
+    { id: "flow-changes", label: "What changed" },
+    { id: "flow-day", label: "The day, hour by hour" },
+    { id: "flow-week", label: "When meetings happen" },
+    { id: "flow-lens", label: "Nearest a purchase" },
+    { id: "flow-trend", label: "Presentations over time" },
+    { id: "flow-agents", label: "How each agent’s meetings end" },
+    { id: "flow-not-interested", label: "The not-interested group" },
+    { id: "flow-presentations", label: "Presentations given" },
+    { id: "flow-findings", label: "Findings" },
+  ];
+
   return (
     <div className="iris-one iris-salesflow">
+      <FlowRail screens={screens} />
       <section className="iris-plane iris-stack">
-        <p className="iris-kicker iris-kicker-measured">Sales flow · {view.context.period.label}</p>
-        <SpokenVerdict
-          sentence={view.verdict}
-          meetings={view.verdictMeetings}
-          locale={view.context.project.locale}
-          replay={`${query.period}-${kpiWindow}`}
-        />
+        {/* The verdict is the first screen, alone (ADR-0048, ADR-0059). */}
+        <div className="flow-screen flow-verdict" id="flow-verdict">
+          <p className="iris-kicker iris-kicker-measured">
+            Sales flow · {view.context.period.label}
+          </p>
+          <SpokenVerdict
+            sentence={view.verdict}
+            meetings={view.verdictMeetings}
+            locale={view.context.project.locale}
+            replay={`${query.period}-${kpiWindow}`}
+          />
+        </div>
 
         {/* --- the figures, over a window the reader picks ---------------- */}
 
-        <div className="d-card" key={`kpi-${query.period}-${kpiWindow}`}>
+        <div
+          className="flow-screen d-card"
+          id="flow-summary"
+          key={`kpi-${query.period}-${kpiWindow}`}
+        >
           <div className="iris-window">
             <p className="iris-kicker iris-kicker-measured" style={{ margin: 0 }}>
               Summary over
@@ -251,9 +302,21 @@ export default async function FlowPage({
               {charts.kpis.caveat}
             </p>
           )}
-        </div>
 
-        <hr className="iris-rule iris-section-rule" />
+          {/*
+           * With no CRM the ladder is one sentence, said here rather than on a
+           * screen of its own: a whole screen for a refusal would be an empty
+           * frame, and the refusal stays in view.
+           */}
+          {view.ladder.source === "crm" ? null : (
+            <div className="flow-aside">
+              <h2 className="iris-kicker iris-kicker-measured">
+                The deal ladder, as the CRM states it
+              </h2>
+              <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
+            </div>
+          )}
+        </div>
 
         {/*
          * The order from here is the plan's (v3 :1039, R05's target layout,
@@ -264,133 +327,124 @@ export default async function FlowPage({
          */}
         {/*
          * The deal ladder is the CRM's (ADR-0021). It is drawn only from deals a
-         * connector delivered, every rung verified because the CRM stated it,
-         * and where none did the sentence says so rather than six rungs at zero.
-         * A chart region like the others on the page, so it wears their card.
+         * connector delivered, every rung verified because the CRM stated it.
+         * The note's own figures stay in view (the denominators the rungs stand
+         * on); its explanation is behind the `i`.
          */}
-        <div className="d-card">
-          <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
-            <h2 className="iris-kicker iris-kicker-measured">
-              The deal ladder, as the CRM states it
-            </h2>
-            {view.ladder.source === "crm" ? (
+        {view.ladder.source === "crm" ? (
+          <div className="flow-screen d-card" id="flow-ladder">
+            <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+              <h2 className="iris-kicker iris-kicker-measured">
+                The deal ladder, as the CRM states it
+              </h2>
               <InfoTip id="deal-ladder" label="the deal ladder">
                 {view.ladder.note}
               </InfoTip>
-            ) : null}
-          </header>
-          {view.ladder.source === "crm" ? (
-            <>
+            </header>
+            <DrawIn kind="sweep">
               <FlowLadder
                 language={view.context.language}
                 stages={view.ladder.stages.map((stage) => ({ ...stage, meta: stage.daysDisplay }))}
                 noun="deals"
               />
-              {/*
-               * The note's own figures stay in view (the denominators the rungs
-               * stand on); its explanation is behind the `i`.
-               */}
-              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                {view.ladder.total}{" "}
-                {view.ladder.total === 1 ? "deal as it stands" : "deals as they stand"} now
-                {view.ladder.unmapped === 0 ? null : ` · ${view.ladder.unmapped} not mapped`}
-                {view.ladder.lost === 0 ? null : ` · ${view.ladder.lost} lost`}
-              </p>
-              <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
-            </>
-          ) : (
-            <p className="iris-meta iris-meta-measured">{view.ladder.note}</p>
-          )}
-        </div>
+            </DrawIn>
+            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+              {view.ladder.total}{" "}
+              {view.ladder.total === 1 ? "deal as it stands" : "deals as they stand"} now
+              {view.ladder.unmapped === 0 ? null : ` · ${view.ladder.unmapped} not mapped`}
+              {view.ladder.lost === 0 ? null : ` · ${view.ladder.lost} lost`}
+            </p>
+            <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+          </div>
+        ) : null}
 
         {/*
          * WHAT IS STUCK, AND FOR HOW LONG (docs/02-views.md §4.1: deals grouped
          * by stage, sorted by time stuck). Time in stage sits on the ladder's
-         * own rungs above; this is the same deals one by one, longest on
-         * their rung first, each opening the unit it is about. The list is
-         * ordered by time and never by outcome, and an undated deal is
-         * counted beside it rather than drawn at zero days.
+         * own rungs; this is the same deals one by one, longest on their rung
+         * first, each opening the unit it is about. The list is ordered by time
+         * and never by outcome, and an undated deal is counted beside it rather
+         * than drawn at zero days.
          */}
         {view.ladder.source === "crm" ? (
-          <>
-            <hr className="iris-rule iris-section-rule" />
-            <div className="d-card">
-              <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
-                <h2 className="iris-kicker iris-kicker-measured">
-                  Stalled deals, longest on their rung first
-                </h2>
-                {view.ladder.stalled.length === 0 ? null : (
-                  <InfoTip id="stalled-deals" label="stalled deals">
-                    {view.ladder.stalledNote}
-                  </InfoTip>
-                )}
-              </header>
-              {view.ladder.stalled.length === 0 ? (
-                <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
-              ) : (
-                <>
-                  <RankedBars
-                    period={query.period}
-                    rows={view.ladder.stalled.map((deal) => ({
-                      id: deal.externalId,
-                      label:
-                        deal.unitCode === null
-                          ? deal.externalId
-                          : `${deal.unitCode} · ${deal.externalId}`,
-                      sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
-                      value: deal.daysInStage,
-                      display: deal.daysDisplay,
-                      href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
-                    }))}
-                    measured
-                    // R05 item 8. No row carries a denominator; the count sits in the note below.
-                    collapseAfter={5}
-                    tone="late"
-                  />
-                  {/*
-                   * The list's denominator stays in view, and so do the open
-                   * deals it cannot place; the rest is behind the `i`.
-                   */}
-                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
-                    {view.ladder.stalled.length} of {view.ladder.open} open{" "}
-                    {view.ladder.open === 1 ? "deal" : "deals"}
-                    {view.ladder.undated === 0
-                      ? null
-                      : ` · ${String(view.ladder.undated)} with no stage date`}
-                  </p>
-                  <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
-                </>
+          <div className="flow-screen d-card" id="flow-stalled">
+            <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+              <h2 className="iris-kicker iris-kicker-measured">
+                Stalled deals, longest on their rung first
+              </h2>
+              {view.ladder.stalled.length === 0 ? null : (
+                <InfoTip id="stalled-deals" label="stalled deals">
+                  {view.ladder.stalledNote}
+                </InfoTip>
               )}
-            </div>
-          </>
+            </header>
+            {view.ladder.stalled.length === 0 ? (
+              <p className="iris-meta iris-meta-measured">{view.ladder.stalledNote}</p>
+            ) : (
+              <>
+                <RankedBars
+                  period={query.period}
+                  rows={view.ladder.stalled.map((deal) => ({
+                    id: deal.externalId,
+                    label:
+                      deal.unitCode === null
+                        ? deal.externalId
+                        : `${deal.unitCode} · ${deal.externalId}`,
+                    sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
+                    value: deal.daysInStage,
+                    display: deal.daysDisplay,
+                    href: deal.unitHref === null ? null : withPeriod(deal.unitHref, query.period),
+                  }))}
+                  measured
+                  // R05 item 8. No row carries a denominator; the count sits in the note below.
+                  collapseAfter={5}
+                  tone="late"
+                />
+                {/*
+                 * The list's denominator stays in view, and so do the open
+                 * deals it cannot place; the rest is behind the `i`.
+                 */}
+                <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                  {view.ladder.stalled.length} of {view.ladder.open} open{" "}
+                  {view.ladder.open === 1 ? "deal" : "deals"}
+                  {view.ladder.undated === 0
+                    ? null
+                    : ` · ${String(view.ladder.undated)} with no stage date`}
+                </p>
+                <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
+              </>
+            )}
+          </div>
         ) : null}
 
         {/*
          * IRIS-ASSISTED SALES (ADR-0039). Drawn only where a CRM is connected,
          * for the ladder's reason: no deal, no sale to place against a showing.
+         * The card is the component's own; the screen is its frame.
          */}
         {view.assisted.source === "crm" ? (
-          <>
-            <hr className="iris-rule iris-section-rule" />
+          <div className="flow-screen" id="flow-assisted">
             <AssistedSales
               assisted={view.assisted}
               period={query.period}
               canOpen={canOpenMeeting}
               irisLedHref={`${base}/iris-led`}
             />
-          </>
+          </div>
         ) : null}
 
-        <hr className="iris-rule iris-section-rule" />
-
         {/*
-         * The steps and the ring share one row (the owner, 2026-10-22,
-         * ADR-0052): the ring large with its key beside it, and the steps
-         * filling the height the ring sets rather than leaving a black field
-         * under six short columns.
+         * THE MEETINGS AND EVERY OUTCOME, ONE SCREEN (the owner, 2026-10-22,
+         * ADR-0059): they were two cards side by side (ADR-0052) and are now one
+         * card, each half keeping its own title. Side by side the steps fill
+         * the height the ring sets; stacked, each is its own height.
          */}
-        <div className="iris-band iris-band-even" key={`steps-${query.period}`}>
-          <div className="d-card iris-steps-card">
+        <div
+          className="flow-screen d-card iris-band iris-band-even flow-pair"
+          id="flow-meetings"
+          key={`steps-${query.period}`}
+        >
+          <div className="iris-steps-card">
             <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
               <h2 className="iris-kicker iris-kicker-measured">
                 Meetings, and how many progressed
@@ -417,7 +471,7 @@ export default async function FlowPage({
             )}
           </div>
 
-          <div className="iris-band-side d-card">
+          <div className="iris-band-side">
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
               Every outcome
             </h2>
@@ -428,11 +482,9 @@ export default async function FlowPage({
           </div>
         </div>
 
-        <hr className="iris-rule iris-section-rule" />
-
         {/* --- what changed in how meetings are run ----------------------- */}
 
-        <div>
+        <div className="flow-screen d-card" id="flow-changes">
           {/*
            * The title and its `i` are the read model's words, so they name the
            * comparison the arrows make, and what an arrow does not claim (ADR-0060).
@@ -453,8 +505,6 @@ export default async function FlowPage({
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
-        <hr className="iris-rule iris-section-rule" />
-
         {/* --- when meetings actually happen ------------------------------ */}
 
         {/*
@@ -463,14 +513,32 @@ export default async function FlowPage({
          * Every meeting of the period by the hour it started, all twenty-four
          * hours and every day together, counted in the weekday grid's own pass
          * (`ActivityMatrix.day`) so the two cannot disagree. It reads the
-         * period, never `?window`, so it is keyed on the period alone.
+         * period, never `?window`, so it is keyed on the period alone. The dial
+         * carries its total; the busiest hour is the one line beside it, and
+         * what the count is and is not stands behind the `i` (ADR-0059).
          */}
-        <div className="d-card" key={`day-${query.period}`}>
+        <div className="flow-screen d-card" id="flow-day" key={`day-${query.period}`}>
           <div className="iris-band">
             <div>
-              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-                The day, hour by hour
-              </h2>
+              <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+                <h2 className="iris-kicker iris-kicker-measured">The day, hour by hour</h2>
+                {charts.activity.day.total === 0 ? null : (
+                  <InfoTip id="day" label="the day, hour by hour">
+                    <p>
+                      {charts.activity.day.total}{" "}
+                      {charts.activity.day.total === 1 ? "meeting" : "meetings"},{" "}
+                      {view.context.period.label.toLowerCase()}, by the hour each started, in the
+                      project&rsquo;s own time zone ({view.context.project.timeZone}).
+                    </p>
+                    <p>
+                      {charts.activity.day.outsideGrid === 0
+                        ? "Every one started inside the weekday grid's hours."
+                        : `${charts.activity.day.outsideGrid} started outside 09:00–19:00 and are counted only here.`}{" "}
+                      A count of when meetings start, not a judgement of which hour sells.
+                    </p>
+                  </InfoTip>
+                )}
+              </header>
               {charts.activity.day.total === 0 ? (
                 <p className="iris-meta iris-meta-measured">
                   No meeting in this period, so there is no hour to draw.
@@ -487,29 +555,13 @@ export default async function FlowPage({
               )}
             </div>
             <div className="iris-band-side">
-              {/* With no meeting the dial says so; these would count nothing. */}
-              {charts.activity.day.total === 0 ? null : (
-                <>
-                  <p className="iris-meta iris-meta-measured">
-                    {charts.activity.day.total}{" "}
-                    {charts.activity.day.total === 1 ? "meeting" : "meetings"},{" "}
-                    {view.context.period.label.toLowerCase()}, by the hour each started, in the
-                    project&rsquo;s own time zone ({view.context.project.timeZone}).
-                  </p>
-                  {charts.activity.day.busiest === null ? null : (
-                    <p className="iris-meta iris-meta-measured">
-                      Busiest: {charts.activity.day.busiest.display},{" "}
-                      {charts.activity.day.busiest.count} of {charts.activity.day.total}
-                      {charts.activity.day.busiest.hours > 1 ? " each" : ""}.
-                    </p>
-                  )}
-                  <p className="iris-meta iris-meta-measured">
-                    {charts.activity.day.outsideGrid === 0
-                      ? "Every one started inside the weekday grid's hours below."
-                      : `${charts.activity.day.outsideGrid} started outside 09:00–19:00 and are counted only here.`}{" "}
-                    A count of when meetings start, not a judgement of which hour sells.
-                  </p>
-                </>
+              {/* With no meeting the dial says so; a busiest hour would count nothing. */}
+              {charts.activity.day.total === 0 || charts.activity.day.busiest === null ? null : (
+                <p className="flow-takeaway">
+                  Busiest: {charts.activity.day.busiest.display},{" "}
+                  {charts.activity.day.busiest.count} of {charts.activity.day.total}
+                  {charts.activity.day.busiest.hours > 1 ? " each" : ""}.
+                </p>
               )}
               <Link
                 className="iris-action"
@@ -524,30 +576,35 @@ export default async function FlowPage({
           </div>
         </div>
 
-        <div className="d-card" key={`heat-${query.period}`}>
-          <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-            When showroom meetings happen
-          </h2>
+        {/*
+         * The grid's caption carries its denominator; the busiest and quietest
+         * slots are its one line, and why an empty square is drawn empty stands
+         * behind the `i` (ADR-0059).
+         */}
+        <div className="flow-screen d-card" id="flow-week" key={`heat-${query.period}`}>
+          <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured">When showroom meetings happen</h2>
+            <InfoTip id="week" label="when showroom meetings happen">
+              An empty square is drawn empty rather than faint — a heatmap whose zero looks like a
+              small value invents activity that never happened.
+            </InfoTip>
+          </header>
           <Heatmap
             rows={charts.activity.rows}
             columns={charts.activity.columns}
             cells={charts.activity.cells}
             caption={`Meetings by weekday and hour, across ${charts.activity.meetingsCounted} of ${charts.activity.day.total} presentations.`}
           />
-          <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+          <p className="flow-takeaway" style={{ marginTop: ".75rem" }}>
             {charts.activity.busiest === null
               ? "Too few meetings to name a busiest slot."
               : `Busiest: ${charts.activity.busiest.weekday} at ${charts.activity.busiest.hour}, ${charts.activity.busiest.meetings} meetings.`}
             {charts.activity.quietest === null
               ? ""
-              : ` Quietest weekday: ${charts.activity.quietest.weekday}, ${charts.activity.quietest.meetings}.`}{" "}
-            An empty square is drawn empty rather than faint — a heatmap whose zero looks like a
-            small value invents activity that never happened.
+              : ` Quietest weekday: ${charts.activity.quietest.weekday}, ${charts.activity.quietest.meetings}.`}
           </p>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
         </div>
-
-        <hr className="iris-rule iris-section-rule" />
 
         {/*
          * EVERY MEETING BY WHO PRESENTED IT AND HOW IT ENDED (gallery D's
@@ -559,7 +616,7 @@ export default async function FlowPage({
          * only for a reader the replay admits. Keyed on the period, so the lens
          * starts again at the period's last days.
          */}
-        <div className="d-card" key={`lens-${query.period}`}>
+        <div className="flow-screen d-card" id="flow-lens" key={`lens-${query.period}`}>
           {/*
            * What the bubbles are and what their sizes do not claim stand behind
            * the `i` (the owner, 2026-10-22), in the read model's words. With no
@@ -634,8 +691,6 @@ export default async function FlowPage({
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
         </div>
 
-        <hr className="iris-rule iris-section-rule" />
-
         {/* --- volume over time, and how it ended -------------------------- */}
 
         {/*
@@ -647,7 +702,11 @@ export default async function FlowPage({
          * by its span; the method of both stands behind the one `i`. A refusal
          * (too few weeks, no meeting) stays in view where the drawing would be.
          */}
-        <div className="d-card iris-band iris-band-titled" key={`trend-${query.period}`}>
+        <div
+          className="flow-screen d-card iris-band iris-band-titled"
+          id="flow-trend"
+          key={`trend-${query.period}`}
+        >
           <header className="iris-titled">
             <h2 className="iris-kicker iris-kicker-measured">
               Presentations over time, and how they ended
@@ -678,17 +737,19 @@ export default async function FlowPage({
               Week by week
             </h3>
             {/*
-             * As tall as the month rows beside it, so the two columns end
-             * together (ADR-0052, review): one month is the default 150, each
-             * further month about 80 more. ponytail: tuned to the rows' measured
-             * height at 1210–1440 and capped at three months; a longer period
-             * (year to date) still leaves its later months below the line.
+             * Drawn for a screen of its own (ADR-0059): the wide drawings 460
+             * units tall, so the line takes the screen's height beside the
+             * month rows, and never taller than the screen holds
+             * (`flow-screens.css`); a phone's drawing 260, about a third of its
+             * screen. It was as tall as the month rows beside it (ADR-0052); on
+             * a screen of its own the line is the drawing that leads.
              */}
             <TrendLine
               points={charts.trend.points}
               annotation={charts.trend.annotation}
               valueLabel={charts.trend.valueLabel}
-              height={150 + 80 * (Math.min(Math.max(charts.composition.columns.length, 1), 3) - 1)}
+              height={260}
+              wideHeight={460}
               measured
             />
             {/* The line needs two points; below that the sentence says why there is none. */}
@@ -716,9 +777,7 @@ export default async function FlowPage({
           </div>
         </div>
 
-        <hr className="iris-rule iris-section-rule" />
-
-        <div className="d-card" key={`agents-${query.period}`}>
+        <div className="flow-screen d-card" id="flow-agents" key={`agents-${query.period}`}>
           <header className="iris-titled" style={{ marginBottom: "1.25rem" }}>
             <h2 className="iris-kicker iris-kicker-measured">
               How each agent&rsquo;s meetings end
@@ -788,11 +847,9 @@ export default async function FlowPage({
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
-        <hr className="iris-rule iris-section-rule" />
-
         {/* --- what the quietest meetings had in common ------------------- */}
 
-        <div className="d-card" key={`funnel-${query.period}`}>
+        <div className="flow-screen d-card" id="flow-not-interested" key={`funnel-${query.period}`}>
           {/* The group's count is in its heading and the comparison's under the bands. */}
           <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
             <h2 className="iris-kicker iris-kicker-measured">{charts.funnel.cohortLabel}</h2>
@@ -817,10 +874,17 @@ export default async function FlowPage({
           )}
         </div>
 
-        <hr className="iris-rule iris-section-rule" />
-
-        <div className="iris-band" key={`longest-${query.period}`}>
-          <div className="d-card">
+        {/*
+         * THE LONGEST PRESENTATIONS AND WHO GAVE THEM, ONE SCREEN (the owner,
+         * 2026-10-22, ADR-0059): one card, each half keeping its own title.
+         * What a count of presentations does not claim stands behind the `i`.
+         */}
+        <div
+          className="flow-screen d-card iris-band flow-pair"
+          id="flow-presentations"
+          key={`longest-${query.period}`}
+        >
+          <div>
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
@@ -836,10 +900,13 @@ export default async function FlowPage({
               collapseAfter={5}
             />
           </div>
-          <div className="iris-band-side d-card">
-            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-              Presentations given
-            </h2>
+          <div className="iris-band-side">
+            <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+              <h2 className="iris-kicker iris-kicker-measured">Presentations given</h2>
+              <InfoTip id="presentations-given" label="presentations given">
+                How many, not how well. Volume is a workload figure.
+              </InfoTip>
+            </header>
             {/* Never collapsed: every row carries its own denominator, "N of M meetings".
                 Each name wears its portrait or initials, in its seat colour (ADR-0054). */}
             <PresenterBars
@@ -850,40 +917,38 @@ export default async function FlowPage({
               seatOrder={charts.lens.agents.map((agent) => agent.id)}
               measured
             />
-            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
-              How many, not how well. Volume is a workload figure.
-            </p>
           </div>
         </div>
 
-        <hr className="iris-rule iris-section-rule" />
+        {/* The findings, and how to read the page, are the last screen. */}
+        <div className="flow-screen flow-findings" id="flow-findings">
+          {view.findings.map((finding, index) => (
+            <Finding
+              key={finding.id}
+              finding={finding}
+              period={query.period}
+              lead={index === 0}
+              measured
+            />
+          ))}
 
-        {view.findings.map((finding, index) => (
-          <Finding
-            key={finding.id}
-            finding={finding}
-            period={query.period}
-            lead={index === 0}
-            measured
+          <Gaps
+            gaps={[
+              "An outcome is what the agent recorded at the end of the meeting. Meetings with none are excluded from every rate here rather than counted as a failure.",
+              "A flag is a prompt to look at how a meeting is run. It is not a ranking.",
+              /*
+               * Measured on 2026-09-25, rendering the page under four periods: the
+               * three deal blocks were byte-identical under all four, and every
+               * section listed as reading the period moved with it. "Everything
+               * below them reads the period" was false for three blocks, and since
+               * R05-a those three stand right under the cards. A new section is
+               * added to one list or the other, not claimed by either.
+               */
+              "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations over time and how they ended, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
+            ]}
+            title="How to read this"
           />
-        ))}
-
-        <Gaps
-          gaps={[
-            "An outcome is what the agent recorded at the end of the meeting. Meetings with none are excluded from every rate here rather than counted as a failure.",
-            "A flag is a prompt to look at how a meeting is run. It is not a ranking.",
-            /*
-             * Measured on 2026-09-25, rendering the page under four periods: the
-             * three deal blocks were byte-identical under all four, and every
-             * section listed as reading the period moved with it. "Everything
-             * below them reads the period" was false for three blocks, and since
-             * R05-a those three stand right under the cards. A new section is
-             * added to one list or the other, not claimed by either.
-             */
-            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations over time and how they ended, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
-          ]}
-          title="How to read this"
-        />
+        </div>
       </section>
     </div>
   );

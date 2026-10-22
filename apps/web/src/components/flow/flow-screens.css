@@ -1,0 +1,387 @@
+/*
+ * SALES FLOW, ONE SCREEN AT A TIME (the owner, 2026-10-22, ADR-0059).
+ *
+ * "On the Sales Flow page I want to switch between the charts by scrolling …
+ * it should fill a whole screen, and I should not see the next charts under
+ * it." Every block of `flow/page.tsx` is a `.flow-screen`: at least as tall as
+ * the viewport under the sticky header, so the next one starts below the fold,
+ * and the page's own scroller snaps from screen to screen. Page Down, Space and
+ * the arrow keys move the same scroller, so they come with it.
+ *
+ * Every rule is scoped to the page: `.iris-salesflow`, or the document only
+ * while it holds that page (`:has`), so no other surface scrolls differently.
+ */
+
+/*
+ * The height the sticky chrome takes. Above 1199px that is the header and the
+ * context band under it (70 + 59: the band's 12px padding twice, its 34px
+ * switchers and its 1px rule, measured); below, the one 58px bar. ponytail: the
+ * band's 59px is a measurement, not a variable — a band that wraps to a second
+ * row would cover that much more of a screen's top until it is one.
+ */
+html:has(.iris-salesflow) {
+  --flow-top: calc(var(--iris-header-height) + 59px);
+  --flow-h: calc(100svh - var(--flow-top));
+  scroll-padding-top: var(--flow-top);
+  /*
+   * Proximity, not mandatory, where a screen can be taller than the viewport
+   * (a phone, a short window): mandatory snapping may hold a reader at a
+   * screen's top while its rest is below. Where the screens are drawn to fit,
+   * mandatory makes one turn of the wheel one screen.
+   */
+  scroll-snap-type: y proximity;
+}
+
+@media (width <= 1199px) {
+  html:has(.iris-salesflow) {
+    --flow-top: var(--iris-header-height-mobile);
+  }
+}
+
+@media (width >= 64rem) and (height >= 40rem) {
+  html:has(.iris-salesflow) {
+    scroll-snap-type: y mandatory;
+  }
+}
+
+/* The Ask IRIS composer after the last screen: the scroller's end is a place it may rest. */
+.iris-salesflow ~ * {
+  scroll-snap-align: end;
+}
+
+/* --- the screens ------------------------------------------------------------ */
+
+.iris-salesflow .flow-screen {
+  min-height: var(--flow-h);
+  scroll-snap-align: start;
+}
+
+.iris-salesflow .flow-screen:not(.iris-band) {
+  display: flex;
+  flex-direction: column;
+}
+
+/* A screen that frames a card (IRIS-assisted sales) gives the card its height. */
+.iris-salesflow .flow-screen > .d-card {
+  flex: 1 0 auto;
+}
+
+/*
+ * A screen in two halves keeps the band's grid, and its halves run the
+ * screen's height. Each half is a container, so a drawing that picks its
+ * geometry by width (`Sized`, the ring's key) asks its half.
+ */
+.iris-salesflow .flow-pair > div {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+@media (width > 75rem) {
+  .iris-salesflow .flow-screen.iris-band {
+    align-content: stretch;
+    align-items: stretch;
+  }
+
+  .iris-salesflow .flow-screen.iris-band:not(.iris-band-titled) {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .iris-salesflow .flow-screen.iris-band-titled {
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+}
+
+/* --- each screen's drawing, given the screen --------------------------------
+ *
+ * A drawing is sized against `--flow-h`, the screen's height, less what its
+ * screen also has to hold (title, padding, the line under it), and never past
+ * the width its card gives it. An SVG drawn with a viewBox scales its type with
+ * it, so a dial drawn larger is read larger, never under its 12px floor.
+ */
+
+/* The summary: the figures at the type scale's Figure size and up, the strip the screen's height. */
+@media (width >= 40rem) {
+  .iris-salesflow #flow-summary .iris-kpi-groups {
+    flex: 1 0 auto;
+    grid-template-rows: auto minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi {
+    align-content: space-between;
+    padding: 1.25rem 1.5rem 1.5rem;
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi-value {
+    font-size: clamp(2.25rem, 1rem + 2.4vw, 3.5rem);
+    line-height: 1.05;
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi-value[data-statement="true"] {
+    font-size: clamp(1.5rem, 0.9rem + 1.2vw, 2.125rem);
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi-foot .iris-spark {
+    width: 8.5rem;
+    height: auto;
+  }
+}
+
+/* The ladder: a rung each, the bar thicker and the count read first. */
+.iris-salesflow #flow-ladder .ox-funnel {
+  flex: 1 0 auto;
+}
+
+.iris-salesflow #flow-ladder .ox-stage {
+  flex: 1 0 auto;
+  align-content: center;
+}
+
+.iris-salesflow #flow-ladder .ox-stage-bar {
+  height: 28px;
+}
+
+.iris-salesflow #flow-ladder .ox-figure {
+  font-size: 1.5rem;
+}
+
+/* The meetings: the steps grow to the screen, the ring is the screen's to the height its key leaves. */
+.iris-salesflow #flow-meetings .iris-ring-hero {
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 1.5rem;
+}
+
+.iris-salesflow #flow-meetings .iris-ring-hero .iris-ring {
+  width: clamp(14rem, calc(var(--flow-h) - 22rem), 26rem);
+  height: auto;
+}
+
+.iris-salesflow #flow-meetings .iris-ring-hero > .iris-ring-key {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 2rem;
+  max-width: 30rem;
+}
+
+@container (width < 24rem) {
+  .iris-salesflow #flow-meetings .iris-ring-hero > .iris-ring-key {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The day: the dial as large as the screen allows, its one line beside it. */
+.iris-salesflow #flow-day .dld-centred {
+  justify-items: stretch;
+}
+
+.iris-salesflow #flow-day .dld-radial {
+  width: min(100%, calc(var(--flow-h) - 9rem));
+  margin-inline: auto;
+}
+
+.iris-salesflow #flow-day .iris-band-side {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 1rem;
+}
+
+@media (width > 75rem) {
+  .iris-salesflow #flow-day > .iris-band {
+    flex: 1 0 auto;
+    align-items: stretch;
+  }
+
+  .iris-salesflow #flow-day > .iris-band > div:first-child {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .iris-salesflow #flow-day > .iris-band > div:first-child > .dld-draw {
+    margin-block: auto;
+  }
+}
+
+.iris-salesflow #flow-day .flow-takeaway {
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+/* The week: seven rows the screen's height between them. */
+.iris-salesflow #flow-week .iris-heat-cell {
+  min-height: clamp(1.75rem, calc((var(--flow-h) - 17rem) / 7), 4.5rem);
+  font-size: 0.875rem;
+}
+
+/* Presentations over time: the weekly line drawn to its column, as tall as the screen gives it. */
+.iris-salesflow #flow-trend .iris-trend {
+  max-height: calc(var(--flow-h) - 11rem);
+}
+
+/*
+ * A ranked list (stalled deals, IRIS-assisted sales, the longest presentations,
+ * who gave them) spreads its five rows down the screen, its bar thicker.
+ */
+@media (width >= 40rem) {
+  .iris-salesflow .flow-screen .iris-ranked li {
+    padding-block: clamp(0.5rem, calc((var(--flow-h) - 30rem) / 12), 1.25rem);
+  }
+
+  .iris-salesflow .flow-screen .iris-ranked-track {
+    height: 12px;
+  }
+
+  .iris-salesflow .flow-screen .iris-ranked-name {
+    font-size: 1rem;
+  }
+
+  .iris-salesflow .flow-screen .iris-ranked-value {
+    font-size: 0.9375rem;
+  }
+}
+
+/* The findings close the page, in the middle of their screen. */
+.iris-salesflow .flow-findings {
+  justify-content: center;
+}
+
+/* The page's stack gap parts the screens; a screen fills the viewport, so it is never seen beside the next. */
+.iris-salesflow .iris-stack > .flow-screen + .flow-screen {
+  margin-top: 1.5rem;
+}
+
+/* The verdict, alone and large (ADR-0048), in the middle of its screen. */
+.iris-salesflow .flow-verdict {
+  justify-content: center;
+  gap: 2rem;
+  padding: 2rem 0;
+}
+
+.iris-salesflow .flow-verdict .iris-spoken {
+  grid-template-columns: 72px minmax(0, 1fr);
+  column-gap: 1.5rem;
+}
+
+.iris-salesflow .flow-verdict .iris-spoken-mark {
+  width: 72px;
+  height: 72px;
+}
+
+.iris-salesflow .flow-verdict .iris-spoken-line {
+  max-width: 30ch;
+  font-size: clamp(1.75rem, 0.9rem + 2.6vw, 3.5rem);
+  line-height: 1.14;
+}
+
+/* One line a screen may say under its drawing: its answer, at reading size. */
+.iris-salesflow .flow-takeaway {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.6rem;
+  font-weight: 500;
+  color: var(--d-ink, var(--ink));
+}
+
+/* What closes the summary screen when no CRM states a ladder. */
+.iris-salesflow .flow-aside {
+  margin-top: auto;
+  padding-top: 1.25rem;
+}
+
+/* --- the rail: where you are ----------------------------------------------- */
+
+.iris-salesflow .flow-rail {
+  display: none;
+}
+
+@media (width >= 40rem) {
+  .iris-salesflow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2rem;
+    column-gap: 0.5rem;
+  }
+
+  .iris-salesflow > .iris-plane {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .iris-salesflow .flow-rail {
+    grid-column: 2;
+    grid-row: 1;
+    position: sticky;
+    top: var(--flow-top);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: var(--flow-h);
+  }
+
+  .iris-salesflow .flow-rail ol {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* A 24px target round an 8px dot; the current one is the accent, the rest a quiet ring. */
+  .iris-salesflow .flow-rail a {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+  }
+
+  .iris-salesflow .flow-rail a::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px var(--iris-text-tertiary);
+    transition:
+      background-color 160ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .iris-salesflow .flow-rail a:hover::after {
+    box-shadow: inset 0 0 0 1px var(--iris-text-primary);
+  }
+
+  .iris-salesflow .flow-rail a[aria-current]::after {
+    background: var(--iris-accent, #00a3ff);
+    box-shadow: none;
+  }
+
+  .iris-salesflow .flow-rail a:focus-visible {
+    outline: 2px solid var(--iris-accent, #00a3ff);
+    outline-offset: 2px;
+  }
+
+  /* The screen's name beside its dot, while the pointer or the keyboard is on it. */
+  .iris-salesflow .flow-rail a::before {
+    content: attr(data-label);
+    position: absolute;
+    right: calc(100% + 6px);
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--iris-rail, #171b21);
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+    color: var(--iris-text-primary);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .iris-salesflow .flow-rail a:is(:hover, :focus-visible)::before {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iris-salesflow .flow-rail a::after {
+    transition: none;
+  }
+}

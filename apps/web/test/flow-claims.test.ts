@@ -13,11 +13,11 @@ const FLOW = readFileSync(
   .replace(/\{\/\*[\s\S]*?\*\/\}/g, "")
   .replace(/\/\*[\s\S]*?\*\//g, "");
 
-/** One block of the page: from its title to the rule that ends it. */
+/** One block of the page: from its title to the next screen (ADR-0059). */
 function block(title: string): string {
   const start = FLOW.indexOf(title);
   expect(start, title).toBeGreaterThan(-1);
-  const end = FLOW.indexOf('<hr className="iris-rule iris-section-rule" />', start);
+  const end = FLOW.indexOf('className="flow-screen', start);
   expect(end, title).toBeGreaterThan(start);
   return FLOW.slice(start, end);
 }
