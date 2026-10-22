@@ -468,9 +468,13 @@
    * `auto` again on its own children keeps it from intercepting a tap
    * anywhere across its full width, most of which is empty space over the
    * brand mark it is stacked on top of.
+   *
+   * Fixed, not absolute: the header it sits on is sticky, and an absolute bar
+   * scrolled away with the page — 2,000px down Sales Flow the header showed a
+   * wordmark and no way to the menu at all.
    */
   .irs-mobile-bar {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     right: 0;
@@ -645,6 +649,11 @@
     display: none;
   }
 
+  /* The sheet's own close button is always the X; the hide above was for the trigger. */
+  .irs-mobile-menu-close .irs-menu-mark-close {
+    display: block;
+  }
+
   .irs-mobile-menu-close:hover {
     background: rgb(255 255 255 / 6%);
   }
@@ -705,6 +714,27 @@
   .irs-mobile-context select {
     width: 100%;
     max-width: none;
+  }
+
+  /*
+   * A switcher's list opens IN the sheet, not over it. Absolutely placed, it
+   * hung past the sheet's clipped bottom edge: "Year to date" sat below the
+   * screen and a swipe on the list scrolled nothing, because the list was its
+   * own contained scroller. In the flow, the sheet's one scroller holds it, and
+   * `ContextSwitcher` brings the opened list into view.
+   */
+  .irs-mobile-context .ox-menu-panel {
+    position: static;
+    min-width: 0;
+    max-width: none;
+    max-height: none;
+    margin-top: 0.375rem;
+    box-shadow: none;
+  }
+
+  .irs-mobile-context .ox-menu-button,
+  .irs-mobile-context .ox-menu-row {
+    min-height: 44px;
   }
 
   .irs-mobile-who {

@@ -95,13 +95,26 @@ export function ContextSwitcher({
       if (el.open && next !== null && !el.contains(next)) el.open = false;
     };
 
+    /*
+     * Inside the phone's menu sheet the list opens in the sheet's own flow
+     * (`iris-shell.css`), so the last rows can open below the sheet's edge.
+     * Bring the list into view rather than leave "Year to date" to be found.
+     */
+    const onToggle = () => {
+      if (el.open && el.closest(".irs-mobile-menu-scroll") !== null) {
+        el.querySelector(".ox-menu-panel")?.scrollIntoView({ block: "nearest" });
+      }
+    };
+
     document.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onDown);
     el.addEventListener("focusout", onFocusOut);
+    el.addEventListener("toggle", onToggle);
     return () => {
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onDown);
       el.removeEventListener("focusout", onFocusOut);
+      el.removeEventListener("toggle", onToggle);
     };
   }, []);
 
