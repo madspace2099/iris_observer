@@ -5887,3 +5887,22 @@ build as Clara at 1440 and 390, open each `i`, Tab through them; run `fejezet1`,
 `p221-meres`, `showroom`, `dontesek1` and `a11y-contract` (Briefing and What needs attention).
 Ask Máté whether "None needed" / "None on this screen" on every register row (R04-7) is still wanted
 now that he asked for less text.
+
+**Review round (same day).** Eight reviewer findings, two of them duplicates, each checked in the
+code first; all recorded in ADR-0058. **Fixed:** the source line is back in view under the
+Briefing's figures and on every raised card (`showroom.source_visible`, ADR-0052's second round:
+"Progressing" reads the CRM's deal stages and nothing else said so); the building keeps "; how
+many of them in this period is not observed yet" in view beside "24 sold"; a raised register row
+reads "Above: <card title>" instead of repeating the card's sentence under another name, and its
+step stays the card's action (R04-7); every button on both pages and the register's step are 44px
+on a phone (the ADR's §7 claimed it for all and only the doors were; subject chips stay 32px); e2e
+`authorization` reads Riverside's refused rate from the Progressing figure ("—", "no outcome
+recorded on this project") rather than the sentence now behind the `i`, `quality` reads the first
+figure as visible text, R04-5 also screens the closed `i` panels, R04-3 and R04-7 match a raised
+row to its card by title. **Rejected:** dropping the raised row's step (R04-7 is verified) and the
+"Raised" figure (the tally's split is what keeps "nothing raised" and "nothing could be asked"
+apart). `answer-sheets.test.ts` 14. Full suite: 284 files, 5192 passed, 1 skipped, 2 failed, both
+environmental and outside this stream — `no-secret-recipes` (no web build) and
+`artefact-consistency` (the REVIEW.txt diff hash, as above). Static renders at 1440, 390 and 360,
+Shark and Riverside: no sideways scroll, no button or step under 44px on a phone. E2E edited, not
+run.
