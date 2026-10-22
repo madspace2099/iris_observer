@@ -53,21 +53,28 @@ are the other two streams'.
    floor. Stacked, each card is its own height and nothing changes.
 3. **The lens explains itself behind its `i`.** The read model's lead and note, unchanged, are the
    InfoTip beside "Which meetings are nearest a purchase, and whose"; its summary stays the
-   screen-reader line. With no bubble drawn, the lead is the card's only sentence and stays in view —
-   a refusal is never hidden.
+   screen-reader line. Its count stays in view as one quiet line under the title — "80 of 150
+   meetings drawn · not drawn: 11 Purchase, 40 Presentation only, 19 with no outcome recorded", every
+   figure the read model's — because InfoTip may hide a definition, never a denominator. With no
+   bubble drawn, the lead is the card's only sentence and stays in view — a refusal is never hidden.
 4. **Section titles are titles.** Every card's own title and every measured `h2` — on a card or
    between cards — takes the type scale's Section role, 20 on 28 at 600 (`docs/14-design-system.md`
    §5), in the kit's telegray. It was the kit's 16px bold on a card and an 11px uppercase kicker
    between cards. The card rule is shared, so the chart cards of Project, Sales Agents, an agent's
    page, a unit's page, Presentation DNA and IRIS-led sales grow alike; each was rendered at 1440 and
-   390 and none overflows that did not before. (The Coaching view overflows a 390 phone by its own
-   nowrap action, 154px before this and 112px after; that is its stream's to fix.)
+   390 and none overflows that did not before. (The Coaching view's unbroken action ran its reading
+   33px past its card at 1440 and the page 112px sideways at 390, before this decision as after; the
+   review round lets that action wrap, CSS only.)
 5. **One block for presentations over time.** "Those" meetings were the same presentations: one card,
    "Presentations over time, and how they ended", the weekly line ("Week by week") and the monthly
    outcome rows ("Month by month, how they ended") side by side, stacked on a phone. Both notes stand
    behind its one `i`; "too few whole weeks" and "no meeting" stay where the drawing would be. Each
-   column is its own container, so the trend still picks its geometry by its own width. The page's
-   reading note names the block by its new title.
+   column is its own container, so the trend still picks its geometry by its own width. The weekly
+   line is drawn as tall as the month rows beside it — 150 for one month, about 80 more for each
+   further month, capped at three — so side by side the two columns end within 10px of each other at
+   1210, 1280 and 1440; a year to date still leaves its later months below the line. Stacked, the
+   same drawing is taller than before (242px on a 390 phone, 158 before). The page's reading note
+   names the block by its new title.
 6. **A flag carries a calm mark.** A flag is a sentence after a small filled circle with "!": the loss
    colour for a concern (more than 35% of the recorded meetings ended "not interested"), the watch
    colour for a watch (progression under three quarters of the team's, or too few outcomes recorded)
@@ -87,14 +94,22 @@ are the other two streams'.
    and the read model's order. It lives in `apps/web/src/showroom/sources.tsx`, so the measurement
    panel (`Measure`) and the observer answer panel print the same words, and Ask's answer sheet prints
    the same line in the answer's language (Slovak and Hungarian drafts for review). The contract's
-   `INSIGHT_SOURCE_LABELS` is frozen and keeps its short names.
+   `INSIGHT_SOURCE_LABELS` is frozen and keeps its short names. Plain words make a wrong source a
+   false sentence, so a block names only what its figures read: "How each agent's meetings end" names
+   the showroom alone, connected CRM or not, as the Sales Agents roster already did.
 
 ## What stays out
 
 - **`Sources` in `components/product/Provenance.tsx`** — the `ox-` chip list on the agent detail,
   unit, features, showroom, report and meeting surfaces, and the printed report's source column — still
-  says "IRIS observed". Those surfaces were not in the owner's comments; carrying the words there is
-  the next step, and the report's column needs its own decision about length.
+  says "IRIS observed", so one source has two names on two kinds of screen until it follows, and a
+  meeting opened from the lens shows the chips the owner could not read. **It is the next step, before
+  the demo is recorded**: `Sources` printing the same line (its `data-source` tokens kept for the
+  AI and CRM treatments), with the printed report's column decided on its own. The audience page's
+  "IRIS observed · Recorded today" basis is the same words by another path.
+- **The not-interested section's source line** still names the CRM ("deal stages from your CRM")
+  over a group read from in-room outcomes and showroom use. The section is stream DRILL's (ADR-0053);
+  the same correction is theirs to make.
 - **The outcome rows' and the funnel's props**, the not-interested section and "Presentations given"
   belong to the other two streams. The monthly rows' `aria-label` still reads "What those meetings
   became, month by month"; it is a prop of their call site.
@@ -107,3 +122,14 @@ are the other two streams'.
 - Every finished surface still needs a real screenshot somebody looked at (non-negotiable 11). This
   was looked at as a static render on the product stylesheets in headless Chrome at 1440, 1280, 1210,
   1024, 390 and 360 — not on a running page.
+
+## Review round, 2026-10-22
+
+Two adversarial reviewers read the branch: eight findings, two pairs of them the same. Fixed: the agents
+block's false CRM source (§8, with a markup test); the lens's hidden denominator (§3, with a markup
+test); the black field under the weekly line in the joined block (§5); the source line breaking into
+a stacked list inside a KPI's measurement panel, where the panel's `> span` grid outranked it (one
+two-class rule); the Coaching reading overflowing its card at 1440, which this ADR had understated
+(§4, CSS only). Left, and recorded above: `Sources` in `Provenance.tsx` still printing the chips,
+and the not-interested section's CRM source, which is stream DRILL's. Each fix was looked at as a
+static render at 1440 and 390 (and 1210, 1280, 1024 for the block).

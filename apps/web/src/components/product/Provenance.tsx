@@ -32,9 +32,11 @@ import { withPeriod } from "@/lib/period";
  * separation exists to prevent: a showroom event proving a legal purchase.
  *
  * Neither label is written here as a string literal. The source words come from
- * `INSIGHT_SOURCE_LABELS` in `@observer/contracts`, which is the same map the
- * older `SourceChips` reads, so a source cannot be called two things on two
- * screens. The tier words come from {@link TIER_LABELS} below, which is the map
+ * `INSIGHT_SOURCE_LABELS` in `@observer/contracts`. The showroom blocks'
+ * `SourceChips` no longer reads that map: since ADR-0052 it says the same
+ * sources as one line in fuller words (`showroom/sources.tsx`), so until these
+ * chips follow, one source has two names on two kinds of screen — the next step
+ * ADR-0052 records. The tier words come from {@link TIER_LABELS} below, which is the map
  * this layer owns because the contracts package deliberately carries no display
  * strings for tiers.
  *
