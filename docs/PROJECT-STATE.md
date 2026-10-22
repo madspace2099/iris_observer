@@ -5651,3 +5651,52 @@ Typecheck, eslint and prettier clean on the changed files. Full unit suite:
 recorded. Cherry-pick the three streams together onto the feature branch, then
 open `/shark/shark-residence/flow` at 1440 and 390 on the demo build and look at the ring band, the
 titles, the joined trend block and an `i` panel on the lens.
+
+## 2026-10-22 — Stream DRILL (ADR-0053): from a figure to its meetings, and why "not interested"
+
+The owner's Sales Flow comments 7 and 11. One of three parallel streams on the page; this one
+changed only the two `OutcomeRows` call sites' props and the not-interested section of
+`flow/page.tsx`.
+
+- **A part opens its meetings.** `OutcomeRows` takes `open` (register path, period) and rows may
+  carry `agentId`: every part of an agent's row links to
+  `/meetings?agent=<id>&outcome=<outcome>&period=<period>` (written by `withMeetingFilters`); the team
+  row narrows by outcome only; `skipped` links too (the register knows it). The month rows get no
+  `open` — the register has no date range, and none was added. Gated on
+  `maySeeSurface(role, "meetings")`; every Flow role may open the register, which is the project's
+  whole (ADR-0029), so no link ends in a refusal. The bar is `aria-hidden` with its parts as
+  `tabindex=-1` links (the scatter's pattern); a count line under each bar is the keyboard's and the
+  phone's ("Lena Fischer: 7 meetings ended Purchase — open them", 24px targets, a faint edge at
+  rest, a focused count rings its part).
+- **Not interested, rebuilt** (`charts.funnel`, the same `Funnel` export so the page's import line
+  did not move): a lead sentence (the two widest typical differences and the widest behaviour, 15%
+  or more, both samples, association), three figures on the KPI strip (median length with middle
+  halves, median features opened, median apartments opened), whose they were (roster order, each
+  presenter's part of the group, "8 of 22 · 36%", under 20 recorded no rate; the name opens those
+  meetings), and each behaviour in the group against the others on `PairedRates`, widest gap first,
+  under the line that says what the pair is. "Clicks" are not in the event contract: the measure is
+  openings, and the `i` says so. Floor 10 a side; below it the lead says how many against how many.
+- **Four metrics**: `flow.not_interested_by_agent`, `_length`, `_interactions`, `_reach`; matrix
+  regenerated. The nested bands stay in the read model for the design lab; their CSS is gone.
+
+**Shark, quarter to date:** 19 not interested of 131 recorded. Lena 2 of 36 (6%), Marek 1 of 28
+(4%), Oliver 8 of 22 (36%), Zsófia 5 of 26 (19%), Iva 3 of 19 (no rate, 1 short). Median length
+9m 52s against 14m 19s; features 6 against 8; apartments 3 against 4; Compare 11% against 58%,
+returned to a section 21% against 63%, Amenities 63% against 90%. Last 28 days: 9 in the group, so
+no comparison is made and the lead says so.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file;
+`not-interested-drill` (16: a hand-computed fixture, and a Shark check against the rings),
+`outcome-rows` (15), `not-interested-section` (5), the metrics suites (registry, matrix, coverage),
+`entitlements`, `chart-paint`, `observer-product-design`, `collisions`. Full unit suite (after
+`pnpm release:wrappers`): 277 files, 5117 passed, 1 skipped, 1 failed — `no-secret-recipes`, which
+needs a web build (environmental). Looked at as a static render on the product stylesheets in
+headless Chromium at 1440 and 390, quarter to date and last 28 days, with a hovered part and a
+focused count: no sideways overflow. Not looked at on a running page; no dev server, build or
+Playwright. `e2e/quality.spec.ts` was edited (the bands test now asserts the new section; the outcome
+lists are counted by their names) and not run.
+
+**Next recommended action.** After the three streams are cherry-picked together, open
+`/shark/shark-residence/flow` at 1440 and 390 as the developer and as a sales agent: click Lena's
+Purchase part, tap a count on a phone, Tab through one agent row, and run `e2e/quality.spec.ts` and
+`e2e/a11y-contract.spec.ts` on Sales Flow.
