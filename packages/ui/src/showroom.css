@@ -1739,17 +1739,44 @@
   font-weight: 600;
 }
 
+/*
+ * A flag is a sentence with a mark before it (the owner, 2026-10-22,
+ * ADR-0052): a small filled circle with "!", in the watch colour, or in the
+ * loss colour for a concern ("8 of 22 recorded meetings ended 'not
+ * interested'"), muted so it catches the eye without alarming it. It replaces
+ * the 2px coloured rule on the left, the callout the doctrine names as
+ * slop. The mark is decoration — the sentence already says what is wrong —
+ * so its "!" is hidden from assistive technology (the empty alternative text
+ * after the slash).
+ */
 .iris-ring-flag {
+  display: grid;
+  grid-template-columns: 1.125rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
   margin: 0.25rem 0 0;
-  padding: 0.5rem 0.625rem;
-  border-left: 2px solid var(--watch);
   font-size: 0.75rem;
-  line-height: 1.05rem;
+  line-height: 1.125rem;
   color: var(--ink-2);
 }
 
-.iris-ring-flag[data-severity="concern"] {
-  border-left-color: var(--loss);
+.iris-ring-flag::before {
+  content: "!";
+  content: "!" / "";
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--watch) 80%, #0b0d11);
+  color: #0b0d11;
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.iris-ring-flag[data-severity="concern"]::before {
+  background: color-mix(in oklab, var(--loss) 80%, #0b0d11);
 }
 
 /* --- steps across named periods ------------------------------------------------ */
