@@ -25,8 +25,13 @@ async function mainText(page: Page, who: string, path: string): Promise<string> 
 
 /** The text between two headings a page prints, both included only as bounds. */
 function between(text: string, from: string, to: string): string {
-  const start = text.indexOf(from);
-  const end = text.indexOf(to, start + from.length);
+  /* A card's heading is in the reader's case since the Hyper kit; a kicker is in capitals. */
+  const at = (needle: string, after: number) => {
+    const i = text.slice(after).toLowerCase().indexOf(needle.toLowerCase());
+    return i < 0 ? -1 : after + i;
+  };
+  const start = at(from, 0);
+  const end = at(to, start + from.length);
   expect(start, `"${from}" is on the page`).toBeGreaterThanOrEqual(0);
   expect(end, `"${to}" follows "${from}"`).toBeGreaterThan(start);
   return text.slice(start + from.length, end);

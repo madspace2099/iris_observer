@@ -258,14 +258,15 @@ async function walk(page: Page): Promise<{ marked: { n: number; what: string; to
     };
     const w = window as unknown as {
       __a11yLook: (el: Element) => string;
-      __a11yStops: { el: HTMLElement; focused: string }[];
+      __a11yStops: { el: HTMLElement | SVGElement; focused: string }[];
     };
     w.__a11yLook = look;
     w.__a11yStops = [];
     document.addEventListener(
       "focusin",
       (event) => {
-        if (event.target instanceof HTMLElement) w.__a11yStops.push({ el: event.target, focused: look(event.target) });
+        /* A chart's slider is an <svg>, focusable and owed its stop like any control. */
+        if (event.target instanceof HTMLElement || event.target instanceof SVGElement) w.__a11yStops.push({ el: event.target, focused: look(event.target) });
       },
       true,
     );
@@ -277,7 +278,7 @@ async function walk(page: Page): Promise<{ marked: { n: number; what: string; to
   const log = await page.evaluate(() => {
     const w = window as unknown as {
       __a11yLook: (el: Element) => string;
-      __a11yStops: { el: HTMLElement; focused: string }[];
+      __a11yStops: { el: HTMLElement | SVGElement; focused: string }[];
     };
     (document.activeElement as HTMLElement | null)?.blur();
     return w.__a11yStops.map(({ el, focused }) => {

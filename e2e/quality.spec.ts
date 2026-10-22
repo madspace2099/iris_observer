@@ -280,8 +280,9 @@ test.describe("the chart vocabulary", () => {
     const rows = page
       .getByRole("list", { name: "How each agent’s meetings end, the team first" })
       .getByRole("listitem");
-    expect(await rows.count()).toBeGreaterThan(2);
+    /* The section streams in after the verdict; a bare count can run before it lands. */
     await expect(rows.first()).toHaveAttribute("aria-label", /^Team: [\d,]+ meetings, /);
+    expect(await rows.count()).toBeGreaterThan(2);
 
     const labels = await rows.evaluateAll((els) => els.map((el) => el.getAttribute("aria-label")));
     for (const label of labels) {
