@@ -2741,6 +2741,18 @@ a.ask-evidence-link:hover {
   color: rgb(150 166 192 / 90%);
 }
 
+/* A touch screen has no Esc key to name, and its Skip is a thumb's height. */
+@media (hover: none) {
+  .welcome-skip {
+    min-height: 44px;
+    padding-inline: 16px;
+  }
+
+  .welcome-skip kbd {
+    display: none;
+  }
+}
+
 /* --- keyframes ------------------------------------------------------------- */
 
 @keyframes welcome-fade-in {

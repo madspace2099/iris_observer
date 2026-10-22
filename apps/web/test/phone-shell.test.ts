@@ -247,3 +247,12 @@ describe("the Ask IRIS home on a phone", () => {
     );
   });
 });
+
+describe("the welcome on a touch screen", () => {
+  const TOUCH = within(sheet("ask-iris.css"), "@media (hover: none)");
+
+  it("names no Esc key a phone does not have, and its Skip is thumb-sized", () => {
+    expect(rule(TOUCH, ".welcome-skip kbd")).toMatch(/display:\s*none/);
+    expect(rule(TOUCH, ".welcome-skip")).toMatch(/min-height:\s*44px/);
+  });
+});
