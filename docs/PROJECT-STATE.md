@@ -5727,3 +5727,60 @@ one would have to apply to Presentation DNA too, so the two surfaces cannot disa
 the three streams are cherry-picked together, open `/shark/shark-residence/flow` at 1440 and 390 as the developer and as a sales agent: click Lena's
 Purchase part, tap a count on a phone, Tab through one agent row, and run `e2e/quality.spec.ts` and
 `e2e/a11y-contract.spec.ts` on Sales Flow.
+
+## 2026-10-22 — Stream PORTRAITS: a face for every presenter (ADR-0054)
+
+Máté, on `/shark/shark-residence/flow` ("Presentations given"): every sales agent profile should
+carry a picture; the names arrive from Unreal Engine, where agent profiles are created; in Observer
+the Company, the main admin, adds the picture, and the agent can change their own on their own
+profile. Built in a worktree off `7a8df8a`, one of three parallel streams on Sales Flow (LAYOUT
+ADR-0052, DRILL ADR-0053), not pushed.
+
+| What                                                                                            | Where                                                                                        |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| The trust boundary: PNG/JPEG/WebP by magic bytes, ≤ 2 MB, EXIF/XMP/ICC/COM and PNG text cut out | `apps/web/src/lib/portraits/image.ts`                                                        |
+| A store apart: `PortraitStore` port, a file adapter under the local plane's state directory     | `lib/portraits/store.ts` (`.observer-local/demo/portraits/<tenantId>/<agentId>` on the demo) |
+| Who may change one: the agent's company admin, or the agent replacing or removing their own     | `lib/portraits/access.ts` (`portraitRight`), `lib/portraits/server.ts`                       |
+| One route: GET (private, no-store, nosniff, sandboxed), PUT with the raw image, DELETE the file | `app/api/observer/portraits/[tenantSlug]/[projectSlug]/[agentId]/route.ts`                   |
+| The portrait, or initials, ringed in the seat colour; the editor                                | `components/agents/Portrait.tsx`, `PortraitEditor.tsx`, `PresenterBars.tsx`, `portrait.css`  |
+| Drawn on both "Presentations given" lists, the roster cards and the agent page's heading        | `flow/page.tsx` (that block only), `agents/page.tsx`, `agents/[agentId]/page.tsx`            |
+| Lena Fischer signs in (`lena.fischer@shark-sales.example`), bound to `agt_sharklena01`          | `VIEWERS.agentShark`, `accounts.ts`, `test-support/access-matrix.ts` (nine capacities)       |
+
+**Decided from the model; the one thing to confirm with Máté.** An agent belongs to the agency
+they present for (`docs/01-foundation.md` §2 and §6; the roster's `organisationName`), so the admin
+who adds the five Shark presenters' portraits is **Daniel Hart** (admin of Shark Sales), not Clara
+Weiss (admin of Shark Developments, the tenant). Clara, Nora, other agents, other companies'
+admins and MADSPACE see portraits and change none; a reader of another tenant gets a 404. If Máté
+meant the developer's admin, it is one comparison in `portraitRight` and the matrix's cells
+(ADR-0054 §2). "The agent can change their own" is read as written: the company adds the first, the
+agent replaces or removes it. The agent's own profile is their agent page; their own card on Sales
+Agents reads "Your profile →". No new navigation item.
+
+**Not done, by design.** No portrait is seeded (fictional people; no fabricated faces). No Supabase
+Storage: a hosted deployment refuses the upload in a sentence and draws initials (ADR-0054 §4). No
+re-encoding: sharp does not resolve from `apps/web`, so the containers are walked and the metadata
+segments dropped.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. New suites:
+`portrait-image` (9), `portrait-access` (20: the matrix through the real route and accounts,
+cross-tenant 404, roster-only, same-origin, 401, headers, 2 MB declared and streamed, SVG refused,
+removal deletes the file, hosted 503, the store's gate, path safety; a widened right, mutated in,
+fails it), `portrait-display` (5). Full unit suite (after `pnpm release:wrappers`): 278 files, 5127
+passed, 1 skipped, 1 failed — `no-secret-recipes`, whose auditor reports the tree, the staged diff
+and the history clean and the browser bundle not scanned for want of a web build (environmental).
+The components were rendered to static HTML on the product stylesheets and looked at in headless
+Chromium at 1440 and 390, no sideways overflow: the ranked rows, the roster card heads, the agent
+heading and the editor's four cases (first image, replace, the agent's own, no store). **Not looked
+at on a running page**: no dev server, build or Playwright. `e2e/agent-portraits.spec.ts` (the
+production server, which has no store) and `e2e/lab-agent-portraits.spec.ts` (the lab server: add,
+replace, remove, refusals) are written, not run.
+
+**Integration.** In `flow/page.tsx` this stream changed only the "Presentations given" block and
+one import line after `Measure`'s; in `charts2.tsx` only `RankedBars` (an optional `marks` prop);
+`components/product/Person.tsx` exports `initialsOf`. Cherry-pick with the other two streams.
+
+**Next recommended action.** Confirm with Máté that the Company he meant is the agents' agency
+(Daniel Hart), not the developer (Clara). Then on the demo build sign in as Daniel, open
+`/shark/shark-residence/agents/agt_sharklena01`, add a real photograph its subject agreed to, look at
+Sales Flow and Sales Agents at 1440 and 390, sign in as Lena and replace it from "Your profile";
+run `agent-portraits` and `lab-agent-portraits`.
