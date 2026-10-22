@@ -155,6 +155,40 @@ const TREND_SIZE = {
   l: { width: 240, ticks: 4 },
 } as const;
 
+/*
+ * A week label's width in the drawing's own units: every sheet sets the ticks
+ * at 9 to 13 (the D card's phone drawing), so 8 a character is wide enough for
+ * any of them. ponytail: an estimate, not a measurement; a wider tick face
+ * would need it raised (or `getComputedTextLength` after mount).
+ */
+const TICK_CHAR = 8;
+const TICK_GAP = 6;
+
+/**
+ * The weeks that carry a label: one in `ticks`, as before, then thinned from
+ * the latest backwards so no label overlaps its neighbour by the width it
+ * draws. The last week's label ends at its point, so it reaches a full width
+ * to the left; on a phone that put "3 Aug" against it ("3 Aug17 Aug").
+ */
+export function trendTicks(
+  labels: readonly string[],
+  x: (i: number) => number,
+  ticks: number,
+): number[] {
+  const stride = Math.ceil(labels.length / ticks);
+  const shown: number[] = [];
+  let edge = Infinity;
+  for (let i = labels.length - 1; i >= 0; i--) {
+    if (i % stride !== 0) continue;
+    const width = (labels[i]?.length ?? 0) * TICK_CHAR;
+    const right = i === labels.length - 1 ? x(i) : x(i) + width / 2;
+    if (right + TICK_GAP > edge) continue;
+    shown.push(i);
+    edge = right - width;
+  }
+  return shown.reverse();
+}
+
 export function TrendLine(props: TrendProps) {
   if (props.points.length < 2) return null;
   /*
@@ -265,20 +299,22 @@ function TrendPlot({
         </g>
       )}
 
-      {points.map((p, i) =>
-        i % Math.ceil(points.length / ticks) === 0 ? (
-          <text
-            key={`${p.label}-x`}
-            x={x(i)}
-            y={height - 8}
-            className="iris-trend-tick"
-            /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
-            textAnchor={i === points.length - 1 ? "end" : "middle"}
-          >
-            {p.label}
-          </text>
-        ) : null,
-      )}
+      {trendTicks(
+        points.map((p) => p.label),
+        x,
+        ticks,
+      ).map((i) => (
+        <text
+          key={`${points[i]?.label ?? i}-x`}
+          x={x(i)}
+          y={height - 8}
+          className="iris-trend-tick"
+          /* The last week ends at its point, as the note above flips: centred it ran past the frame ("17 Au"). */
+          textAnchor={i === points.length - 1 ? "end" : "middle"}
+        >
+          {points[i]?.label}
+        </text>
+      ))}
     </svg>
   );
 }

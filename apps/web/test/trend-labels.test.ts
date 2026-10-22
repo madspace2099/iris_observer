@@ -40,6 +40,21 @@ describe("the trend line's x labels", () => {
   });
 
   /*
+   * The phone's drawing labelled every other week, and the last one ends at
+   * its point: "3 Aug" and "17 Aug", two weeks apart, printed touching at 390
+   * ("3 Aug17 Aug"). The week before the last labelled one gives way.
+   */
+  it("never sets two labels against each other on the phone's drawing", () => {
+    const html = renderToStaticMarkup(
+      createElement(TrendLine, { points, valueLabel: "Meetings per week" }),
+    );
+    const [xl, middle, phone] = xLabels(html);
+    expect(xl, "the XL has room for every week").toHaveLength(7);
+    expect(middle).toEqual(["6 Jul:middle", "20 Jul:middle", "3 Aug:middle", "17 Aug:end"]);
+    expect(phone).toEqual(["6 Jul:middle", "20 Jul:middle", "17 Aug:end"]);
+  });
+
+  /*
    * One 720-unit drawing on a 252px phone card printed its 12px ticks at four.
    * The phone's drawing is 240 units and labels at most four weeks, which fit.
    */
