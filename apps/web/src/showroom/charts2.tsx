@@ -108,11 +108,20 @@ export function KpiCard({
   info?: React.ReactNode;
 }) {
   void measurementId;
+  /*
+   * A figure that is a sentence ("7 of 7 sales measured", a median the
+   * minimum sample withholds): a phone sets it at the body size across the
+   * card rather than in the figure face beside the name. ponytail: words
+   * counted, not a field of the read model; "13m 51s" and "12 days" stay figures.
+   */
+  const statement = value.trim().split(/\s+/).length > 2;
   return (
     <DrawIn kind="bloom">
       <article className="iris-kpi">
         <p className="iris-kpi-label">{info ?? label}</p>
-        <p className="iris-kpi-value">{value}</p>
+        <p className="iris-kpi-value" data-statement={statement ? "true" : undefined}>
+          {value}
+        </p>
         <div className="iris-kpi-foot">
           <div>
             {delta === null ? null : (

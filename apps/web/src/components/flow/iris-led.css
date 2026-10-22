@@ -344,7 +344,7 @@ a.ir-led-dot:focus-visible {
   transform: none;
 }
 
-/* A sixth of a 30rem track is about 80 px, wider than any label; below that, a crowded tick steps aside. */
+/* Above 30rem every label has room; below it, a tick `axisTicks` marks crowded on a phone's track steps aside. */
 @container (width < 30rem) {
   .ir-led-axis span[data-crowded] {
     display: none;

@@ -1,0 +1,150 @@
+/*
+ * SALES FLOW ON A PHONE (the owner, 2026-10-22: "Check mobile responsiveness!").
+ *
+ * Page-level rules for `flow/page.tsx`, every one under `.iris-salesflow` so the
+ * shared chart sheets stay as they are on every other page, and every one at a
+ * phone's width or a narrow card's, so the desktop does not move.
+ */
+
+/*
+ * The summary figures as a list, not a column of desktop tiles. A tile was
+ * 165px tall at 390 (the strip 1.6 screens before the first chart): here the
+ * name and the figure share a line, and the change, its words and the
+ * sparkline share the next. A figure that is a sentence ("7 of 7 sales
+ * measured") is set at the body size across the tile, not in the 30px face.
+ */
+@media (width < 40rem) {
+  .iris-salesflow .iris-kpi {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 0.75rem;
+    row-gap: 0.25rem;
+    padding: 0.75rem 0.875rem;
+  }
+
+  .iris-salesflow .iris-kpi-label {
+    min-height: 0;
+  }
+
+  .iris-salesflow .iris-kpi-value {
+    font-size: 1.5rem;
+    line-height: 1.75rem;
+    text-align: right;
+  }
+
+  .iris-salesflow .iris-kpi-value[data-statement="true"] {
+    grid-column: 1 / -1;
+    font-size: 0.9375rem;
+    line-height: 1.375rem;
+    letter-spacing: 0;
+    text-align: left;
+  }
+
+  .iris-salesflow .iris-kpi-foot {
+    grid-column: 1 / -1;
+    min-height: 0;
+  }
+
+  /* The change and its words run as one line of text, beside a shorter sparkline. */
+  .iris-salesflow .iris-kpi-foot > div {
+    display: block;
+  }
+
+  .iris-salesflow .iris-kpi-delta + .iris-code::before {
+    content: " · ";
+  }
+
+  .iris-salesflow .iris-kpi-foot .iris-spark {
+    width: 4rem;
+    height: auto;
+  }
+
+  /* A link's words wrap inside a narrow card rather than run past its edge. */
+  .iris-salesflow .iris-action {
+    max-width: 100%;
+    white-space: normal;
+    border-radius: 1.25rem;
+  }
+
+  /*
+   * How each agent's meetings end: every count once, and every count linked.
+   * The team's row names each outcome with its count, so the key above it,
+   * which said the same, steps aside; a bar's parts drop the counts the line
+   * under them carries. A presenter's line of counts is one row that scrolls
+   * (the fade at its edge says so), not a column of pills, which made the
+   * section three screens tall. The team's own line wraps: it is the key.
+   */
+  .iris-salesflow .iris-orows:has(.iris-orow[data-lead] .iris-orow-open) .iris-orows-key {
+    display: none;
+  }
+
+  .iris-salesflow .iris-orow-plot .iris-orow-part b {
+    display: none;
+  }
+
+  .iris-salesflow .iris-orow:not([data-lead]) .iris-orow-open {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Room for a focused count's ring, which the scroller would otherwise clip. */
+    margin: -3px;
+    padding: 3px 1.5rem 3px 3px;
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+
+  .iris-salesflow .iris-orow:not([data-lead]) .iris-orow-open::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iris-salesflow .iris-orow-count {
+    flex: none;
+    min-height: 1.75rem;
+  }
+}
+
+/*
+ * The bubble lens in a phone's card. Its keys were nine chips, one a line,
+ * over a plot a fifth of their height: each group is now one row that scrolls
+ * sideways, with a fade where it continues. The count under the rail lines up
+ * with the step buttons once the rail wraps.
+ */
+@container (width < 34rem) {
+  .iris-salesflow .dld-lens-keys ul {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin: -3px;
+    padding: 3px 1.5rem 3px 3px;
+    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
+  }
+
+  .iris-salesflow .dld-lens-keys ul::-webkit-scrollbar {
+    display: none;
+  }
+
+  .iris-salesflow .dld-lens-keys li {
+    flex: none;
+  }
+
+  .iris-salesflow .dld-lens-key {
+    gap: 6px;
+    padding: 3px 10px 3px 6px;
+  }
+
+  .iris-salesflow .dld-lens-count {
+    margin-inline: 12px;
+  }
+}
+
+/*
+ * The outcome ring and the clock face are drawn 248 wide. In a card narrower
+ * than that they scale down, and their 12px captions with them (10.7px at
+ * 360): set larger in the drawing, they land at 12px or more on screen.
+ */
+@container (width < 248px) {
+  .iris-salesflow .d-card .iris-ring-hero .iris-ring-caption,
+  .iris-salesflow .d-card .dld-radial .dld-centre-caption,
+  .iris-salesflow .d-card .dld-size[data-size="l"] .dld-radial .dld-axis-label {
+    font-size: 14px;
+  }
+}

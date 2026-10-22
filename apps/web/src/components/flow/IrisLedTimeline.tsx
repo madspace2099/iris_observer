@@ -29,6 +29,40 @@ const colour = (index: number): CSSProperties =>
 
 const at = (position: number): string => `${(position * 100).toFixed(2)}%`;
 
+/*
+ * The narrowest track the axis is drawn on (a 360px phone's card), and a
+ * label's width on it: 7px a character at the axis's 12px, with 6px between
+ * two labels. ponytail: an estimate, not a measurement; a wider face would
+ * need it raised.
+ */
+const NARROW_TRACK = 200;
+const TICK_CHAR = 7;
+const TICK_GAP = 6;
+
+/**
+ * The stretched scale crowds its far end ("3 months" beside "1 month", "72 h"
+ * against "Change"). Reading from the change leftwards, a tick whose label
+ * would touch the last one kept on the narrowest track is marked crowded and
+ * steps aside on a narrow track (`iris-led.css`). The change's label ends at
+ * its tick, the leftmost starts at its tick, and the rest are centred, as
+ * drawn. A sixth of the track, the rule before, was 36px at 360: narrower than
+ * "3 months".
+ */
+export function axisTicks<T extends { readonly label: string; readonly position: number }>(
+  ticks: readonly T[],
+): (T & { readonly crowded: boolean; readonly edge: boolean })[] {
+  let kept = Number.POSITIVE_INFINITY;
+  return ticks.map((tick, index) => {
+    const edge = tick.position < 0.08;
+    const width = tick.label.length * TICK_CHAR;
+    const x = tick.position * NARROW_TRACK;
+    const left = index === 0 ? x - width : edge ? x : x - width / 2;
+    const crowded = left + width + TICK_GAP > kept;
+    if (!crowded) kept = left;
+    return { ...tick, crowded, edge };
+  });
+}
+
 export function IrisLedLegend({
   agents,
   period,
@@ -63,18 +97,7 @@ export function IrisLedTimeline({
   readonly canOpen: boolean;
 }) {
   const { axis } = view;
-  /*
-   * The stretched scale crowds its far end ("6 months" beside "3 months"). A
-   * tick nearer than a sixth of the track to the last one kept, reading from
-   * the change leftwards, steps aside on a narrow track (`iris-led.css`); the
-   * leftmost label starts at its tick rather than straddling the track's edge.
-   */
-  let kept = Number.POSITIVE_INFINITY;
-  const ticks = axis.ticks.map((tick) => {
-    const crowded = kept - tick.position < 1 / 6;
-    if (!crowded) kept = tick.position;
-    return { ...tick, crowded, edge: tick.position < 0.08 };
-  });
+  const ticks = axisTicks(axis.ticks);
   return (
     <figure className="ir-led-figure">
       <ol className="ir-led-rows" aria-label="Sales shown in IRIS before their status changed">

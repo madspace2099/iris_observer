@@ -229,9 +229,13 @@ export function BubbleLens({
   useEffect(() => {
     const el = root.current;
     if (el === null) return;
+    /*
+     * Rounded DOWN to 8, and floored at 200: drawn wider than its card the
+     * lens scaled its 12px labels under 12 (a 240 floor in a 222px card at 360).
+     */
     const observer = new ResizeObserver(([entry]) => {
       if (entry !== undefined)
-        setMeasured(Math.max(240, Math.round(entry.contentRect.width / 8) * 8));
+        setMeasured(Math.max(200, Math.floor(entry.contentRect.width / 8) * 8));
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -466,6 +470,8 @@ export function BubbleLens({
             data-held={tip?.held === true && tip.m === p.m ? "true" : undefined}
             style={{ transform: `translate(${f(p.x)}px, ${f(p.y)}px)`, opacity: dim ? 0.14 : 1 }}
           >
+            {/* A thumb's target, unseen: the smallest bubbles are 15px across with their ring. */}
+            <circle className="dld-lens-hit" r={f(Math.max(p.r + 3, 12))} fill="transparent" />
             <AgentSphere a={meeting.a} r={p.r} />
             <circle className="dld-lens-ring" r={f(p.r + 3)} />
           </g>

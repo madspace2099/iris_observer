@@ -30,6 +30,7 @@ import { Funnel, Heatmap, KpiCard, OutcomeRows, RankedBars, TrendLine } from "@/
 import { DrawIn } from "@/showroom/DrawIn";
 import { RadialHistogram, Sized } from "@/showroom/forms";
 import { BubbleLens } from "@/showroom/BubbleLens";
+import "@/components/flow/sales-flow.css";
 
 export const metadata: Metadata = { title: "Sales Flow" };
 
@@ -154,7 +155,7 @@ export default async function FlowPage({
   };
 
   return (
-    <div className="iris-one">
+    <div className="iris-one iris-salesflow">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker iris-kicker-measured">Sales flow · {view.context.period.label}</p>
         <SpokenVerdict
