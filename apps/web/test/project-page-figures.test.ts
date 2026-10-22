@@ -32,6 +32,18 @@ describe("the project page", () => {
   });
 
   it("prints the read model's display strings for the place shares", () => {
-    expect(PAGE).toMatch(/\{a\.shareDisplay\}[\s\S]*\{c\.shareDisplay\}/);
+    /* One segment's places (`a`) went with the segment tabs (ADR-0056); the kinds of place stay. */
+    expect(PAGE).toMatch(/\{c\.shareDisplay\}/);
+  });
+
+  it("draws the room types from the read model's strings, rounding no share itself", () => {
+    /* The interest line's point labels are the read model's `points`, never `Math.round(v * 100)`. */
+    for (const name of ["RoomTypes", "RoomReadings", "RoomCompare", "PresentationPath"]) {
+      const source = readFileSync(
+        resolve(import.meta.dirname, "..", `src/components/project/${name}.tsx`),
+        "utf8",
+      );
+      expect(source, name).not.toMatch(/Math\.round\([^)]*(share|rate|\* 100)/i);
+    }
   });
 });

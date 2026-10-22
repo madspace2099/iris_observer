@@ -1,0 +1,821 @@
+/*
+ * THE PROJECT PAGE'S ROOM TYPES (ADR-0056) — its own marks, under the D kit's card.
+ *
+ * Every rule is prefixed `pr-` and owns nothing else, so no other page moves.
+ * Ink, tracks and hairlines are the kit's; a room type's hue is the kit's
+ * agent set (`--d-series-*`, chosen in `RoomTypes.tsx`), and green means sold,
+ * as it does in the plan above. Nothing glows, and nothing here is a verdict
+ * colour. The phone layouts answer to the card's own width (`.d-card` is a
+ * container), so a narrow column on a desk restacks the same way.
+ */
+
+.pr-rooms,
+.pr-readings,
+.pr-compare,
+.pr-path-card {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.pr-note {
+  margin: 0;
+  max-width: 76ch;
+  font-size: 12px;
+  line-height: 17px;
+  color: var(--d-ink-4);
+}
+
+.pr-sub {
+  margin: -8px 0 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--d-ink-3);
+}
+
+/* In the reader's view only on a narrow card; a screen reader always hears it. */
+.pr-narrow {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- the window switch, and what it now shows ------------------------------------- */
+
+.pr-windows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pr-windows .iris-chip {
+  min-height: 2rem;
+  cursor: pointer;
+}
+
+.pr-rooms-said {
+  display: grid;
+  gap: 4px;
+  max-width: 76ch;
+}
+
+.pr-rooms-set {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--d-ink-3);
+}
+
+.pr-rooms-reading {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+  color: var(--d-ink-2);
+  text-wrap: pretty;
+}
+
+/* --- the rows: a type, its flats, its interest, its change ---------------------------- */
+
+.pr-rooms-body {
+  display: grid;
+  gap: 28px;
+  min-width: 0;
+}
+
+@container (width >= 62rem) {
+  .pr-rooms-body {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: start;
+    gap: 40px;
+  }
+}
+
+.pr-rows-field,
+.pr-lines-field {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pr-rows-head,
+.pr-rows li {
+  display: grid;
+  grid-template-columns: minmax(8rem, 10rem) minmax(0, 1.15fr) minmax(0, 1fr) 4.5rem;
+  column-gap: 20px;
+  align-items: center;
+}
+
+.pr-rows-head {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--d-hairline);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.pr-rows-head > :last-child,
+.pr-change {
+  text-align: right;
+}
+
+.pr-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pr-rows li {
+  padding: 12px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  transition: opacity 160ms var(--d-ease);
+}
+
+.pr-type,
+.pr-stock {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pr-type b {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+/* The type's hue, the key to its line. */
+.pr-type b::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--pr-hue);
+}
+
+.pr-type small,
+.pr-stock small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+/* One block a flat: the longest row is the type with the most flats. */
+.pr-flats {
+  display: grid;
+  grid-template-columns: repeat(var(--n), minmax(0, 1fr));
+  gap: 2px;
+  height: 14px;
+}
+
+.pr-flats:not([data-blocks]) {
+  gap: 0;
+}
+
+.pr-flats i {
+  background: var(--d-track);
+}
+
+.pr-flats i[data-s="sold"] {
+  background: var(--d-accent);
+}
+
+.pr-flats i[data-s="reserved"] {
+  background: color-mix(in oklab, var(--d-accent) 38%, var(--d-track));
+}
+
+.pr-interest {
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr);
+  align-items: center;
+  column-gap: 10px;
+  min-width: 0;
+}
+
+.pr-interest > b {
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--d-ink);
+}
+
+.pr-bar {
+  position: relative;
+  height: 8px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.pr-bar i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--pr-hue);
+  transition: width 320ms var(--d-ease);
+}
+
+.pr-change {
+  font-family: var(--d-font-numeric);
+  font-size: 13px;
+  line-height: 18px;
+  white-space: nowrap;
+  color: var(--d-ink-2);
+}
+
+.pr-change[data-direction="up"]::before {
+  content: "▲ ";
+}
+
+.pr-change[data-direction="down"]::before {
+  content: "▼ ";
+}
+
+/* Pointing at a row lifts its line; the rest step back. */
+.pr-rooms[data-focus] .pr-rows li:not([data-on]) {
+  opacity: 0.5;
+}
+
+.pr-rooms[data-focus] .pr-line:not([data-on]) {
+  opacity: 0.15;
+}
+
+/* --- the line --------------------------------------------------------------------------- */
+
+.pr-lines-title {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--d-ink-2);
+}
+
+.pr-lines {
+  min-width: 0;
+}
+
+.pr-lines svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.pr-grid-line {
+  stroke: rgb(255 255 255 / 0.12);
+  stroke-width: 1;
+}
+
+.pr-tick {
+  font-family: var(--d-font-numeric);
+  font-size: 12px;
+  fill: var(--d-ink-4);
+}
+
+.pr-line {
+  transition: opacity 160ms var(--d-ease);
+}
+
+.pr-line polyline {
+  fill: none;
+  stroke: var(--pr-hue);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pr-line circle {
+  fill: var(--d-card);
+  stroke: var(--pr-hue);
+  stroke-width: 2;
+}
+
+.pr-lines-empty {
+  margin: 0;
+  padding: 16px;
+  border: 1px dashed rgb(255 255 255 / 0.16);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--d-ink-3);
+}
+
+/* --- interest against sales ------------------------------------------------------------- */
+
+.pr-read-head,
+.pr-read-rows li {
+  display: grid;
+  grid-template-columns: minmax(8rem, 10rem) minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 28px;
+  align-items: center;
+}
+
+.pr-read-head {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--d-hairline);
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.pr-read-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pr-read-rows li {
+  padding: 14px 0;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.pr-read-type,
+.pr-read-say {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.pr-read-type b {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.pr-read-type small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.pr-read-say b {
+  font-size: 17px;
+  line-height: 24px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--d-ink);
+}
+
+.pr-read-say small {
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--d-ink-3);
+}
+
+/* No reading: the reason, quieter than a reading. */
+.pr-read-rows li[data-verdict="none"] .pr-read-say b {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--d-ink-3);
+}
+
+.pr-meter {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pr-meter-figure {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  line-height: 20px;
+  color: var(--d-ink);
+}
+
+.pr-meter-figure small {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--d-ink-4);
+}
+
+.pr-meter-track {
+  position: relative;
+  height: 8px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.pr-meter-track i {
+  position: absolute;
+  inset-block: 0;
+  background: var(--d-ink-3);
+}
+
+.pr-meter[data-kind="sold"] .pr-meter-track i {
+  background: var(--d-accent);
+}
+
+/* The reference: 1.00× on Looked at, the project's share on Sold. */
+.pr-meter-track b {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--d-ink-2);
+}
+
+/* --- the room types side by side ---------------------------------------------------------- */
+
+.pr-grid {
+  display: grid;
+  grid-template-columns: minmax(9rem, 13rem) repeat(var(--pr-cols), minmax(0, 1fr));
+  column-gap: 16px;
+}
+
+.pr-grid-row {
+  display: grid;
+  grid-template-columns: subgrid;
+  grid-column: 1 / -1;
+  align-items: center;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.pr-grid-row > * {
+  min-width: 0;
+  padding-block: 10px;
+}
+
+.pr-grid-head {
+  align-items: end;
+  border-bottom-color: var(--d-hairline);
+}
+
+.pr-grid-head [role="columnheader"] {
+  display: grid;
+  gap: 2px;
+}
+
+.pr-grid-head b {
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--d-ink);
+}
+
+.pr-grid-head small {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.pr-grid-head .pr-short {
+  color: var(--d-ink-3);
+}
+
+.pr-grid-corner {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+.pr-grid [role="rowheader"] {
+  font-size: 14px;
+  line-height: 18px;
+  color: var(--d-ink-2);
+}
+
+.pr-grid [role="cell"] {
+  display: grid;
+  gap: 6px;
+}
+
+.pr-grid [role="cell"] > b {
+  font-family: var(--d-font-numeric);
+  font-size: 16px;
+  line-height: 20px;
+  font-weight: 500;
+  color: var(--d-ink);
+}
+
+.pr-grid [role="cell"] > i {
+  display: block;
+  height: 4px;
+  min-width: 1px;
+  background: var(--d-ink-4);
+}
+
+/* A row's highest, among the types with enough openings to rank. */
+.pr-grid [data-highest] > b {
+  color: var(--d-accent-2);
+}
+
+.pr-grid [data-highest] > i {
+  background: var(--d-accent-2);
+}
+
+/* Under the floor: shown, quieter, never marked. */
+.pr-grid [role="cell"][data-short] > b {
+  color: var(--d-ink-4);
+}
+
+.pr-grid-foot {
+  border-bottom: 0;
+}
+
+.pr-grid-foot .iris-action {
+  white-space: normal;
+}
+
+.pr-for {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- how far the presentations got ----------------------------------------------------------- */
+
+.dld-jf.pr-path {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dld-jf.pr-path li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "say share" "band band";
+  gap: 6px 12px;
+  align-items: center;
+}
+
+.pr-path-say {
+  grid-area: say;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--d-ink-2);
+}
+
+.pr-path-say b {
+  margin-right: 4px;
+  font-size: 22px;
+  line-height: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--d-ink);
+}
+
+.pr-path-say small {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--d-ink-4);
+}
+
+/*
+ * Each band starts at the left edge of a track that is the first band, so a
+ * band's length reads as its share of the presentations at a glance. The
+ * kit's centred, glowing bands made the reader find the middle first.
+ */
+.dld-jf.pr-path .dld-band {
+  grid-area: band;
+  height: 14px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.dld-jf.pr-path .dld-band i {
+  left: 0;
+  translate: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--d-series-6);
+  transition: width 320ms var(--d-ease);
+}
+
+.dld-jf.pr-path em {
+  grid-area: share;
+  font-family: var(--d-font-numeric);
+  font-size: 15px;
+  font-style: normal;
+  text-align: right;
+  color: var(--d-ink-2);
+}
+
+@container (width >= 40rem) {
+  .dld-jf.pr-path li {
+    grid-template-columns: 17rem minmax(0, 1fr) 3.5rem;
+    grid-template-areas: "say band share";
+    gap: 24px;
+  }
+}
+
+/* --- a phone, or any narrow card ------------------------------------------------------------- */
+
+@container (width < 40rem) {
+  .pr-narrow {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+
+  .pr-rows-head,
+  .pr-read-head {
+    display: none;
+  }
+
+  .pr-rows li {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "type change" "stock stock" "interest interest";
+    row-gap: 10px;
+  }
+
+  .pr-type {
+    grid-area: type;
+  }
+
+  .pr-stock {
+    grid-area: stock;
+  }
+
+  .pr-interest {
+    grid-area: interest;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "figure said" "bar bar";
+    row-gap: 6px;
+  }
+
+  .pr-interest > b {
+    grid-area: figure;
+  }
+
+  .pr-interest > .pr-narrow {
+    grid-area: said;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--d-ink-4);
+  }
+
+  .pr-interest > .pr-bar {
+    grid-area: bar;
+  }
+
+  .pr-change {
+    grid-area: change;
+    align-self: start;
+  }
+
+  .pr-read-rows li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "type type" "say say" "look sold";
+    gap: 10px 20px;
+  }
+
+  .pr-read-type {
+    grid-area: type;
+  }
+
+  .pr-read-say {
+    grid-area: say;
+  }
+
+  .pr-meter[data-kind="look"] {
+    grid-area: look;
+  }
+
+  .pr-meter[data-kind="sold"] {
+    grid-area: sold;
+  }
+
+  .pr-grid {
+    grid-template-columns: repeat(var(--pr-cols), minmax(0, 1fr));
+    column-gap: 10px;
+  }
+
+  /* The head's and the foot's corner wear a role whose rule sets `display`; this outranks it. */
+  .pr-grid-row > .pr-grid-corner {
+    display: none;
+  }
+
+  .pr-grid [role="rowheader"] {
+    grid-column: 1 / -1;
+    padding-bottom: 0;
+  }
+
+  .pr-grid-head b {
+    font-size: 13px;
+    line-height: 18px;
+    overflow-wrap: anywhere;
+  }
+
+  .pr-grid-foot > [role="cell"] {
+    grid-column: 1 / -1;
+    padding-block: 4px;
+  }
+
+  /* One sentence on one or two lines: the pill's flex would set its two words side by side as columns. */
+  .pr-grid-foot .iris-action {
+    display: block;
+    min-height: 2.75rem;
+    padding-block: 0.75rem;
+  }
+
+  /* Six windows as three by two, each a thumb's width, instead of three ragged rows. */
+  .pr-windows {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .pr-windows .iris-chip {
+    justify-content: center;
+    padding-inline: 0.25rem;
+    white-space: nowrap;
+  }
+
+  .pr-for {
+    position: static;
+    width: auto;
+    height: auto;
+    margin: 0;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+  }
+}
+
+/*
+ * The neighbourhood's bars on a phone. The shared bar row is 8.5rem of name,
+ * the bar, and 4.5rem of figure: in a 308px side card that left the bar 20px,
+ * where 29% and 5% differ by a few pixels. Under 30rem the name takes its own
+ * line and the bar the width. Scoped to this page's list; the shared rule
+ * stays as other pages draw it.
+ */
+@container (width < 30rem) {
+  .pr-bars .iris-bar {
+    grid-template-columns: minmax(0, 1fr) 4.5rem;
+    row-gap: 4px;
+  }
+
+  .pr-bars .iris-bar-label {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
+/*
+ * The search register's small print at the 12px floor: the shared rules set its
+ * head at 10px and, on a phone, its filter names and count labels at 11px.
+ */
+.pr-search .iris-matrix-head {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 30rem) {
+  .pr-search.iris-matrix[data-columns="demand"] .iris-matrix-row > :first-child,
+  .pr-search.iris-matrix[data-columns="demand"] .iris-matrix-row > :nth-child(n + 3)::before {
+    font-size: 12px;
+  }
+}
+
+/*
+ * The findings under the page: a wrapper the layout does not see, so their
+ * spacing is the stack's, and their citations at the 12px floor with a
+ * 24px target on the evidence link. The shared foot stays 11px elsewhere.
+ */
+.pr-findings {
+  display: contents;
+}
+
+.pr-findings .iris-finding-foot,
+.pr-findings .iris-evidence {
+  font-size: 12px;
+}
+
+.pr-findings .iris-evidence {
+  min-height: 1.5rem;
+}
+
+/* A thumb's target for the window switch on a phone. */
+@media (max-width: 40rem) {
+  .pr-windows .iris-chip {
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pr-rows li,
+  .pr-bar i,
+  .pr-line {
+    transition: none;
+  }
+}

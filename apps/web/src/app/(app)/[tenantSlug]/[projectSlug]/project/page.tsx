@@ -4,16 +4,18 @@ import { nothingReceivedYet, type PeriodPreset, DEFAULT_LANGUAGE } from "@observ
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
-import { presetFrom } from "@/lib/period";
+import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
-import { Finding, Gaps, Method, SourceChips } from "@/showroom/parts";
-import { PairedRates, ParityScale } from "@/showroom/charts";
-import { JourneyFunnel, Scatter, ScatterKey, Sized } from "@/showroom/forms";
+import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { DrawIn } from "@/showroom/DrawIn";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { ExportReport } from "@/components/report";
 import { SalesPlanBlock } from "@/components/project-plan/SalesPlanBlock";
-import { withPeriod, withPeriodOnLinks } from "@/lib/period";
+import { RoomTypes } from "@/components/project/RoomTypes";
+import { RoomReadings } from "@/components/project/RoomReadings";
+import { RoomCompare } from "@/components/project/RoomCompare";
+import { PresentationPath } from "@/components/project/PresentationPath";
 
 export const metadata: Metadata = { title: "Project" };
 
@@ -22,15 +24,11 @@ export const metadata: Metadata = { title: "Project" };
  *
  * Three questions, in the order a developer asks them.
  *
- * **Is this segment interesting?** Attention against supply, on an axis centred
- * at parity, so the reading is which side of 1.00× a segment falls on rather
- * than how tall a bar is.
- *
- * **What is interesting about it?** Not one number. How they examined the units
- * — the balcony is the view, the floor cut is the layout, the plan is what they
- * take away — each against the same rate for every other unit, because "40% of
- * two-room openings got a balcony view" only means something beside "37% for
- * the rest". This is the input to what the next campaign should show.
+ * **Which flat types sell, and which do buyers ask for?** The catalogue's room
+ * types side by side (ADR-0056): how many flats of each and how many sold, the
+ * share of meetings that opened each over a window the reader switches in
+ * place, a reading of interest against sales in words, and what buyers did
+ * with each type once they opened one — the types as columns, never as tabs.
  *
  * **What did they search for that we do not have?** A filter with no matching
  * unit is the sharpest demand signal a project gets, and the only one that names
@@ -41,7 +39,7 @@ export default async function ProjectPage({
   searchParams,
 }: {
   params: Promise<{ tenantSlug: string; projectSlug: string }>;
-  searchParams: Promise<{ period?: string; segment?: string }>;
+  searchParams: Promise<{ period?: string }>;
 }) {
   const viewer = await requireViewer();
   const { tenantSlug, projectSlug } = await params;
@@ -57,25 +55,17 @@ export default async function ProjectPage({
     language: DEFAULT_LANGUAGE,
   };
 
-  const [view, charts, report] = await Promise.all([
-    repository.getProjectView(query, search.segment ?? null),
+  /* The room types’ every window of interest arrives at once, so the switch needs no request (ADR-0056). */
+  const [view, charts, report, roomTypes] = await Promise.all([
+    /* No segment is selected: the room types stand side by side (ADR-0056). */
+    repository.getProjectView(query, null),
     repository.getProjectCharts(query),
     repository.getReportScope(query),
+    repository.getRoomTypes(query),
   ]);
   const reportHref = withPeriod(`/${tenantSlug}/${projectSlug}/report`, query.period);
 
-  const root = `/${tenantSlug}/${projectSlug}/project`;
-  const qs = (segment: string) =>
-    `${root}?${new URLSearchParams({ period: presetFrom(search.period), segment }).toString()}`;
-  const segment = view.selectedSegment;
-  /* The frames place a segment by its index; one with none is stated under them instead. */
-  const indexed = view.segments.filter(
-    (s): s is (typeof view.segments)[number] & { readonly index: number } => s.index !== null,
-  );
-  const unindexed = view.segments.filter((s) => s.index === null);
-  /* The scatter's points and its off-chart rows open their segment in the reader's period. */
-  const scatter = withPeriodOnLinks(view.scatter, query.period);
-  const funnel = charts.journey.funnel;
+  const crm = view.context.project.connectedSources.includes("crm");
   const unmet = view.demand.filter((d) => d.matches === 0);
   /*
    * The search register's two count heads, each built once: the column head
@@ -106,7 +96,7 @@ export default async function ProjectPage({
     return (
       <div className="iris-one">
         <section className="iris-plane iris-stack">
-          <p className="iris-kicker">Project · {view.context.period.label}</p>
+          <p className="iris-kicker iris-kicker-measured">Project · {view.context.period.label}</p>
           <SpokenVerdict
             sentence={view.verdict}
             meetings={view.meetingCount}
@@ -131,7 +121,7 @@ export default async function ProjectPage({
   return (
     <div className="iris-one">
       <section className="iris-plane iris-stack">
-        <p className="iris-kicker">Project · {view.context.period.label}</p>
+        <p className="iris-kicker iris-kicker-measured">Project · {view.context.period.label}</p>
         <SpokenVerdict
           sentence={view.verdict}
           meetings={view.meetingCount}
@@ -195,216 +185,52 @@ export default async function ProjectPage({
         <hr className="iris-rule" />
 
         {/*
-         * Both frames below compare the attention a segment takes with the stock
-         * it holds. With no catalogue there are no segments, and drawn anyway they
-         * were a scale with a legend and nothing on it, and four quadrants each
-         * saying "No segment here". One sentence, in the words the plan above uses.
+         * THE ROOM TYPES, SIDE BY SIDE (ADR-0056). Every block below counts,
+         * sells or compares the catalogue's flats by room count. With no
+         * catalogue there is no type to draw, and that is one sentence.
          */}
         {view.segments.length === 0 ? (
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-              Attention against supply and conversion
-            </p>
-            <p className="iris-meta" style={{ maxWidth: "70ch" }}>
-              Unavailable — no unit catalogue has reached this project, and both frames compare the
-              attention a segment takes with the stock it holds.
+            <h2 className="iris-kicker iris-kicker-measured">Flat types</h2>
+            <p className="iris-meta" style={{ marginTop: ".5rem", maxWidth: "70ch" }}>
+              Unavailable — no unit catalogue has reached this project, so there are no flat types
+              to count, sell or compare.
             </p>
           </div>
         ) : (
           <>
-            <div className="d-card" key={`parity-${query.period}`}>
-              <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-                Does attention match supply?
-              </p>
-              <ParityScale
-                rows={indexed.map((s) => ({
-                  id: s.id,
-                  label: s.label,
-                  index: s.index,
-                  /* The read model's own display strings: locale, and "<1%" for a share that rounds away. */
-                  note: `${s.attentionShareDisplay} of looking time on ${s.stockShareDisplay} of the unsold stock`,
-                }))}
-              />
-              {/*
-               * A segment with no index is named with the reason, never drawn at
-               * zero and never dropped without a word: all its units sold, or
-               * nobody looked at the unsold stock in the period.
-               */}
-              {unindexed.map((s) => (
-                <p
-                  key={s.id}
-                  className="iris-meta"
-                  style={{ marginTop: ".5rem", maxWidth: "70ch" }}
-                >
-                  {s.soWhat}
-                </p>
-              ))}
-            </div>
-
-            <hr className="iris-rule" />
-
-            {/*
-             * THE ATTENTION × CONVERSION FRAME, docs/02-views.md §4.2: "the single
-             * most actionable frame in the product", drawn as the scatter the
-             * owner chose from gallery D (ADR-0041). Each point is a segment, not
-             * a unit, so it maps onto a marketing decision: the key names the
-             * cell each falls in and that cell's instruction, and both the point
-             * and its key row open the segment. A segment the read model would
-             * not place is listed under the frame with its reason, never drawn.
-             */}
-            <div className="d-card" key={`scatter-${query.period}`}>
-              <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-                Attention against conversion
-              </p>
-              {scatter.points.length === 0 ? (
-                <p className="iris-meta">No segment is placed on this frame in this period.</p>
-              ) : (
-                <>
-                  <Sized
-                    xl={<Scatter data={scatter} size="xl" />}
-                    m={<Scatter data={scatter} size="m" />}
-                    l={<Scatter data={scatter} size="l" />}
-                  />
-                  <ScatterKey data={scatter} />
-                </>
-              )}
-              {scatter.offChart.length === 0 ? null : (
-                <ul className="dld-withheld">
-                  {scatter.offChart.map((o) => (
-                    <li key={o.id}>
-                      {o.href === undefined ? o.label : <a href={o.href}>{o.label}</a>}: {o.display}
-                      , not placed. {o.reason}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Method style={{ marginTop: ".75rem", maxWidth: "70ch" }}>{view.matrixNote}</Method>
+            <RoomTypes view={roomTypes}>
               <SourceChips
                 sources={
-                  view.context.project.connectedSources.includes("crm")
-                    ? ["IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
-                    : ["IRIS_SHOWROOM_DERIVED"]
+                  crm
+                    ? ["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]
+                    : ["IRIS_SHOWROOM_OBSERVED"]
                 }
               />
-            </div>
+            </RoomTypes>
+
+            <RoomReadings view={roomTypes}>
+              <SourceChips
+                sources={
+                  crm ? ["IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"] : ["IRIS_SHOWROOM_DERIVED"]
+                }
+              />
+            </RoomReadings>
+
+            <RoomCompare view={roomTypes} hrefFor={(href) => withPeriod(href, query.period)}>
+              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
+            </RoomCompare>
           </>
-        )}
-
-        {/* A tab list with no tabs is a control that does nothing, so none is drawn. */}
-        {view.segments.length === 0 ? null : (
-          <>
-            <hr className="iris-rule" />
-
-            <div className="iris-segmented" role="tablist" aria-label="Unit segment">
-              {view.segments.map((s) => (
-                <Link
-                  key={s.id}
-                  role="tab"
-                  aria-selected={segment?.id === s.id}
-                  href={dynamicRoute(qs(s.id))}
-                >
-                  {s.label}
-                </Link>
-              ))}
-            </div>
-          </>
-        )}
-
-        {segment === null ? null : (
-          <div className="iris-band" key={`segment-${segment.id}-${query.period}`}>
-            <div className="d-card">
-              <p className="iris-kicker" style={{ marginBottom: ".375rem" }}>
-                What is interesting about {segment.label.toLowerCase()} units
-              </p>
-              <p className="iris-body" style={{ maxWidth: "60ch" }}>
-                {segment.soWhat}
-              </p>
-
-              <div style={{ marginTop: "1.25rem" }}>
-                <PairedRates
-                  leftLabel={segment.label}
-                  rightLabel="Every other unit"
-                  rows={segment.examinedHow.map((e) => ({
-                    id: e.id,
-                    label: e.label,
-                    left: e.rate,
-                    right: e.otherRate,
-                  }))}
-                  of={`Each rate is of the unit openings in these meetings: ${segment.unitsOpened} openings of ${segment.label.toLowerCase()} units on the left, ${segment.otherUnitsOpened} of other units on the right.`}
-                />
-              </div>
-              <Method style={{ marginTop: ".75rem" }}>
-                The filled dot is {segment.label.toLowerCase()} units, the hollow one is every other
-                unit, and the line between them is the difference. Four different acts, kept apart:
-                the balcony is the view, the floor cut is the layout, the plan is what a buyer takes
-                away, the screenshot is what they show someone else.
-              </Method>
-            </div>
-
-            <div className="iris-band-side d-card">
-              <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
-                Where those buyers spent their time
-              </p>
-              {/*
-               * Place names are long — "Základná škola Ružová dolina 29" needs
-               * 192px and the default label column is 136px, so two of six
-               * names clipped at every width, with a title that named the
-               * category rather than the place. The wide-label column the
-               * transition bars already use holds every name here; below the
-               * width that column fits, the name wraps instead of clipping.
-               */}
-              <DrawIn kind="sweep">
-                <div className="iris-bars" data-wide-labels="true">
-                  {segment.attendedTo.map((a) => (
-                    <div className="iris-bar" key={a.label}>
-                      <span className="iris-bar-label" title={a.category}>
-                        {a.label}
-                      </span>
-                      <span
-                        className="iris-bar-track"
-                        style={
-                          {
-                            "--v": (a.share / (segment.attendedTo[0]?.share ?? 1)).toFixed(3),
-                          } as React.CSSProperties
-                        }
-                      >
-                        <i />
-                      </span>
-                      <span className="iris-bar-value">{a.shareDisplay}</span>
-                    </div>
-                  ))}
-                </div>
-              </DrawIn>
-              <Method style={{ marginTop: ".625rem" }}>
-                Share of the time these meetings spent on any named place.
-              </Method>
-              <Link
-                className="iris-action"
-                data-emphasis="primary"
-                href={dynamicRoute(
-                  withPeriod(
-                    segment.rooms === null
-                      ? `/${tenantSlug}/${projectSlug}/audience`
-                      : `/${tenantSlug}/${projectSlug}/audience?rooms=${String(segment.rooms)}`,
-                    query.period,
-                  ),
-                )}
-                style={{ marginTop: "1rem" }}
-              >
-                Build an audience from this
-              </Link>
-            </div>
-          </div>
         )}
 
         <hr className="iris-rule" />
 
         <div className="iris-band">
           <div>
-            <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
               What buyers searched for
-            </p>
-            <div className="iris-matrix" data-columns="demand">
+            </h2>
+            <div className="iris-matrix pr-search" data-columns="demand">
               <div className="iris-matrix-head">
                 <span>Filter</span>
                 <span>Value</span>
@@ -445,11 +271,15 @@ export default async function ProjectPage({
           </div>
 
           <div className="iris-band-side d-card" key={`places-${query.period}`}>
-            <p className="iris-kicker" style={{ marginBottom: ".625rem" }}>
-              What the neighbourhood is doing
-            </p>
+            <header className="iris-titled" style={{ marginBottom: ".75rem" }}>
+              <h2 className="iris-kicker iris-kicker-measured">What the neighbourhood is doing</h2>
+              <InfoTip id="neighbourhood" label="what the neighbourhood is doing">
+                Each bar is a kind of place: its share of all the time buyers spent on named places
+                in this period. The longest bar is the kind they spent most time on.
+              </InfoTip>
+            </header>
             <DrawIn kind="sweep">
-              <div className="iris-bars">
+              <div className="iris-bars pr-bars">
                 {view.placeCategories.slice(0, 7).map((c) => (
                   <div className="iris-bar" key={c.category}>
                     <span className="iris-bar-label" title={c.label}>
@@ -470,18 +300,23 @@ export default async function ProjectPage({
                 ))}
               </div>
             </DrawIn>
-            <Method style={{ marginTop: ".625rem" }}>
-              Share of all time spent on named places, by what kind of place it is.
-            </Method>
+            <p className="pr-note" style={{ marginTop: ".625rem" }}>
+              Share of the time spent on named places.
+            </p>
           </div>
         </div>
 
         <hr className="iris-rule" />
 
         <div>
-          <p className="iris-kicker" style={{ marginBottom: ".75rem" }}>
-            The places buyers stopped on
-          </p>
+          <header className="iris-titled" style={{ marginBottom: ".75rem" }}>
+            <h2 className="iris-kicker iris-kicker-measured">The places buyers stopped on</h2>
+            <InfoTip id="places" label="the places buyers stopped on">
+              Ordered by total time, in minutes. Amenities inside the building are recorded today;
+              points of interest in the neighbourhood need a UE5 v2 event and are shown here as a
+              demonstration.
+            </InfoTip>
+          </header>
           <div className="iris-places">
             {view.places.map((p) => (
               <span
@@ -500,52 +335,45 @@ export default async function ProjectPage({
               </span>
             ))}
           </div>
-          <Method style={{ marginTop: ".75rem" }}>
-            Ordered by total time. Amenities inside the building are recorded today; points of
-            interest in the neighbourhood need a UE5 v2 event and are shown here as a demonstration.
-          </Method>
           <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
         </div>
 
         <hr className="iris-rule" />
 
-        {/* --- how far a presentation gets, and where it stops ------------ */}
-
         {/*
-         * THE JOURNEY AS ONE NARROWING PATH (ADR-0041): the owner's choice
-         * from gallery D over the flow it replaces. The bands, their shares
-         * and the stages merged into the one above are the read model's.
+         * HOW FAR THE PRESENTATIONS GOT (ADR-0041, ADR-0056): one narrowing
+         * path whose title states the set and whose every band says what it
+         * is. The bands, their shares and their notes are the read model's.
          */}
-        <div className="d-card" key={`journey-${query.period}`}>
-          <p className="iris-kicker" style={{ marginBottom: ".875rem" }}>
-            How far a presentation gets
-          </p>
-          {funnel.steps.length === 0 ? null : <JourneyFunnel data={funnel} />}
-          <p className="iris-meta" style={{ marginTop: ".75rem" }}>
-            {funnel.of}
-          </p>
-          <Method style={{ marginTop: ".75rem" }}>{charts.journey.note}</Method>
+        <PresentationPath
+          key={`journey-${query.period}`}
+          funnel={charts.journey.funnel}
+          note={charts.journey.note}
+        >
           {/* "Progressed" is drawn only from outcomes a CRM recorded. */}
           <SourceChips
             sources={
-              view.context.project.connectedSources.includes("crm")
+              crm
                 ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
                 : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
             }
           />
-        </div>
+        </PresentationPath>
 
         <hr className="iris-rule" />
 
-        {view.findings.map((finding, index) => (
-          <Finding
-            key={finding.id}
-            finding={finding}
-            period={query.period}
-            lead={index === 0}
-            plane
-          />
-        ))}
+        {/* The findings' citations at the 12px floor, on this page only (rooms.css). */}
+        <div className="pr-findings">
+          {view.findings.map((finding, index) => (
+            <Finding
+              key={finding.id}
+              finding={finding}
+              period={query.period}
+              lead={index === 0}
+              plane
+            />
+          ))}
+        </div>
 
         <Gaps
           gaps={[

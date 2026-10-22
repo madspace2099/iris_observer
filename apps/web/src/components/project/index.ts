@@ -4,7 +4,7 @@
  * Everything here belongs to one screen. The shared layer is
  * `components/product/`: the figure, the provenance chips, the absences, the
  * table, the chart frame, the stacking plan. This is the composition above it —
- * the seven regions of the executive project surface, and the two shapes every
+ * the regions of the executive project surface, and the two shapes every
  * region on this screen is built from.
  *
  * The split is deliberate. A part that another surface would want — a figure
@@ -20,9 +20,15 @@
  *   Building        the stacking plan and the stock position.
  *   Movement        what the period changed, unit by unit.
  *   DemandSignals   attention against supply, on every axis the Pulse cuts.
- *   SegmentDetail   what is interesting about one segment, not how much.
  *   StatedDemandRegister   what buyers asked for, including what is not built.
  *   SalesCoverage   the plan, the journey, and which feeds are reporting.
+ *
+ * The room types, side by side (ADR-0056), drawn on the Project page:
+ *
+ *   RoomTypes        stock, sales and interest, over a window switched in place.
+ *   RoomReadings     interest against sales, a reading in words per type.
+ *   RoomCompare      what buyers did with each type, the types as columns.
+ *   PresentationPath how far the period's presentations got, every band named.
  */
 
 export { Plane, Plate } from "./Section";
@@ -30,6 +36,9 @@ export { Count, Ratio, TrendMark, counted, shareText } from "./Reading";
 export { Building } from "./Building";
 export { Movement } from "./Movement";
 export { DemandSignals } from "./DemandSignals";
-export { SegmentDetail } from "./SegmentDetail";
 export { StatedDemandRegister } from "./StatedDemandRegister";
 export { SalesCoverage } from "./SalesCoverage";
+export { RoomTypes } from "./RoomTypes";
+export { RoomReadings } from "./RoomReadings";
+export { RoomCompare } from "./RoomCompare";
+export { PresentationPath } from "./PresentationPath";
