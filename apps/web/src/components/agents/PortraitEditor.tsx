@@ -54,6 +54,9 @@ export function PortraitEditor({
   const titleId = useId();
   const input = useRef<HTMLInputElement>(null);
   const confirmButton = useRef<HTMLButtonElement>(null);
+  const section = useRef<HTMLElement>(null);
+  /* Set when a press replaces the buttons under the reader's focus. */
+  const refocus = useRef(false);
   const [state, setState] = useState<State>(IDLE);
 
   const preview = "preview" in state ? state.preview : null;
@@ -61,8 +64,19 @@ export function PortraitEditor({
     if (preview === null) return;
     return () => URL.revokeObjectURL(preview);
   }, [preview]);
+  /*
+   * Each step swaps the buttons, so the focus goes to the step's first button
+   * rather than falling to the page: Remove portrait when asked, Save portrait
+   * once an image is chosen, Replace once it is saved.
+   */
   useEffect(() => {
-    if (state.kind === "confirm") confirmButton.current?.focus();
+    if (state.kind === "confirm") {
+      confirmButton.current?.focus();
+      return;
+    }
+    if (state.kind === "busy" || !refocus.current) return;
+    refocus.current = false;
+    section.current?.querySelector<HTMLButtonElement>(".ox-btn-row button:not(:disabled)")?.focus();
   }, [state.kind]);
 
   const title = mode === "self" ? "Your portrait" : "Portrait";
@@ -81,7 +95,13 @@ export function PortraitEditor({
     );
   }
 
+  const cancel = () => {
+    refocus.current = true;
+    setState(IDLE);
+  };
+
   const send = async (method: "PUT" | "DELETE", body: File | null, doing: string) => {
+    refocus.current = true;
     setState({ kind: "busy", preview: state.kind === "chosen" ? state.preview : null, doing });
     try {
       const response = await fetch(endpoint, {
@@ -122,6 +142,7 @@ export function PortraitEditor({
       });
       return;
     }
+    refocus.current = true;
     setState({ kind: "chosen", file, preview: URL.createObjectURL(file) });
   };
 
@@ -135,7 +156,7 @@ export function PortraitEditor({
         : `Shown beside ${name} wherever they appear in Observer.`;
 
   return (
-    <section className="ag-editor" aria-labelledby={titleId}>
+    <section className="ag-editor" aria-labelledby={titleId} ref={section}>
       <h2 className="ag-editor-title" id={titleId}>
         {title}
       </h2>
@@ -164,12 +185,7 @@ export function PortraitEditor({
                 >
                   Remove portrait
                 </button>
-                <button
-                  type="button"
-                  className="ox-btn"
-                  data-weight="quiet"
-                  onClick={() => setState(IDLE)}
-                >
+                <button type="button" className="ox-btn" data-weight="quiet" onClick={cancel}>
                   Keep it
                 </button>
               </div>
@@ -192,7 +208,7 @@ export function PortraitEditor({
                 className="ox-btn"
                 data-weight="quiet"
                 disabled={busy}
-                onClick={() => setState(IDLE)}
+                onClick={cancel}
               >
                 Cancel
               </button>
