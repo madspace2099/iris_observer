@@ -224,6 +224,15 @@ describe("interest, window by window", () => {
       "Last 365 days",
       "All time",
     ]);
+    /* The switch's own words are the owner's: a week, a month, a quarter, a half-year, a year, total. */
+    expect(view.windows.map((w) => w.name)).toEqual([
+      "Week",
+      "Month",
+      "Quarter",
+      "Half-year",
+      "Year",
+      "All time",
+    ]);
     expect(view.defaultWindow).toBe("month");
   });
 
@@ -274,7 +283,17 @@ describe("interest, window by window", () => {
       [null, null, null, 0.5, 0.6],
       [null, null, null, 0, 0.4],
     ]);
-    expect(trend.caption).toBe("One point is one 6-day stretch.");
+    /* What a point says when pointed at: its share of its stretch's meetings, rounded by the read model. */
+    expect(trend.series[0]?.points).toEqual([
+      null,
+      null,
+      null,
+      "50% of 10 meetings",
+      "30% of 10 meetings",
+    ]);
+    expect(trend.caption).toBe(
+      "One point is one 6-day stretch. 3 with fewer than 10 meetings are left out.",
+    );
     expect(trend.empty).toBeNull();
   });
 

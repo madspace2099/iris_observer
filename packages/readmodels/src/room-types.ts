@@ -67,8 +67,15 @@ export interface RoomTypeShare {
 export interface RoomTypeTrend {
   /** Each part's last day ("24 Aug") and its meetings. */
   readonly parts: readonly { readonly label: string; readonly meetings: number }[];
-  /** Per type, one value per part, 0 to 1; null for a part under the floor. */
-  readonly series: readonly { readonly id: string; readonly values: readonly (number | null)[] }[];
+  /**
+   * Per type, one value per part, 0 to 1, and what each point says when
+   * pointed at ("50% of 10 meetings"); both null for a part under the floor.
+   */
+  readonly series: readonly {
+    readonly id: string;
+    readonly values: readonly (number | null)[];
+    readonly points: readonly (string | null)[];
+  }[];
   /** What one point is: "Each point is one 6-day part". */
   readonly caption: string;
   /** Said instead of the drawing when fewer than two parts reach the floor; null when drawn. */
@@ -79,6 +86,8 @@ export interface RoomTypeWindow {
   readonly id: RoomTypeWindowId;
   /** "Last 30 days". */
   readonly label: string;
+  /** The switch's word for it, the owner's: "Week", "Month", … "All time". */
+  readonly name: string;
   readonly meetings: number;
   /** "83 meetings in the last 30 days": the set every share of the window is of. */
   readonly meetingsDisplay: string;
@@ -141,6 +150,8 @@ export interface RoomTypesView {
   readonly types: readonly RoomType[];
   /** "60 flats". */
   readonly flatsDisplay: string;
+  /** Sold flats over every flat, the line each type's sold share is read against; null with no CRM. */
+  readonly projectSoldShare: number | null;
   /** "24 of 60 sold · 40%"; null with no CRM. */
   readonly projectSoldDisplay: string | null;
   /** Why sold and reserved are absent; null with a CRM. */
@@ -153,6 +164,8 @@ export interface RoomTypesView {
   readonly readings: readonly RoomTypeReading[];
   /** "Sold, against the project's 40%". */
   readonly soldAgainst: string;
+  /** What the upright marks on the two scales are, said once under them. */
+  readonly readingMarks: string;
   readonly readingDefinition: string;
 
   readonly columns: readonly RoomTypeColumn[];

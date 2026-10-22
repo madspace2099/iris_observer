@@ -41,6 +41,16 @@ const PARTS: Readonly<Record<RoomTypeWindowId, number>> = {
   all: 12,
 };
 
+/** The switch's words: the owner's own, a week to all time (2026-10-22). */
+const NAMES: Readonly<Record<RoomTypeWindowId, string>> = {
+  week: "Week",
+  month: "Month",
+  quarter: "Quarter",
+  half: "Half-year",
+  year: "Year",
+  all: "All time",
+};
+
 /** The acts a buyer can do with an opened flat, in the order the comparison lists them. */
 const ACTS = ["balcony", "plan", "floor_cut", "screenshot", "shared"] as const;
 
@@ -150,16 +160,27 @@ export function buildRoomTypes(
     const series = segments.map((s) => ({
       id: s.id,
       values: parts.map((p) => (p.length < windowMin ? null : opened(p, s.id) / p.length)),
+      points: parts.map((p) =>
+        p.length < windowMin
+          ? null
+          : `${shareDisplay(opened(p, s.id) / p.length, locale)} of ${m(p.length)}`,
+      ),
     }));
     const drawn = parts.filter((p) => p.length >= windowMin).length;
+    const short = parts.length - drawn;
     const busiest = Math.max(0, ...parts.map((p) => p.length));
+    /* A gap in the line is said where it is drawn, not left to be read as a fall. */
+    const gaps =
+      drawn < 2 || short === 0
+        ? ""
+        : ` ${n(short)} with fewer than ${n(windowMin)} meetings ${short === 1 ? "is" : "are"} left out.`;
     return {
       parts: parts.map((p, i) => ({
         label: dayLabel(new Date(start + (i + 1) * width - 1), locale, timeZone),
         meetings: p.length,
       })),
       series,
-      caption: `One point is one ${unit}${clipped ? `, from the first meeting on ${dayLabel(new Date(start), locale, timeZone)}` : ""}.`,
+      caption: `One point is one ${unit}${clipped ? `, from the first meeting on ${dayLabel(new Date(start), locale, timeZone)}` : ""}.${gaps}`,
       empty:
         drawn >= 2
           ? null
@@ -240,6 +261,7 @@ export function buildRoomTypes(
     return {
       id: spec.id,
       label: spec.label,
+      name: NAMES[spec.id],
       meetings: now.length,
       meetingsDisplay: `${m(now.length)} in ${span}`,
       shares,
@@ -358,6 +380,7 @@ export function buildRoomTypes(
   return {
     types,
     flatsDisplay: `${n(totalFlats)} ${totalFlats === 1 ? "flat" : "flats"}`,
+    projectSoldShare,
     projectSoldDisplay,
     soldUnavailable: crm
       ? null
@@ -370,6 +393,10 @@ export function buildRoomTypes(
       projectSoldShare === null
         ? "Sold"
         : `Sold, against the project's ${shareDisplay(projectSoldShare, locale)}`,
+    readingMarks:
+      projectSoldShare === null
+        ? "The upright mark on Looked at is 1.00×: a type looked at exactly as much as its share of the stock."
+        : `The upright marks are 1.00× on Looked at, a type looked at exactly as much as its share of the stock, and the project's ${shareDisplay(projectSoldShare, locale)} on Sold.`,
     readingDefinition: `Looked at: the type's share of the time buyers spent looking at unsold flats in this period, divided by its share of the unsold flats; above 1.00× it is looked at more than its size. Sold: its sold flats over all its flats${projectSoldDisplay === null ? "" : `, against the project's ${projectSoldDisplay}`}. A reading needs ${n(readingMin)} meetings that opened the type in the period. It pairs attention with sales and says nothing about which caused which.`,
     columns,
     rows,
