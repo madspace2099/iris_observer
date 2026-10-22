@@ -111,8 +111,13 @@ export function ChecksRegister({
             </span>
             <div>
               <p className="sheet-check-name">{check.label}</p>
+              {/*
+               * A raised check's sentence is its card's, word for word; the
+               * row names the card instead, so the page says each raised
+               * thing once and the reader sees that the two names are one.
+               */}
               <p className="sheet-check-found" data-part="found">
-                {check.reason}
+                {alert === undefined ? check.reason : `Above: ${alert.title}`}
               </p>
             </div>
             <p className="sheet-check-step" data-part="step">
