@@ -129,6 +129,8 @@ const SURFACES: readonly Surface[] = [
     popups: [
       PERIOD,
       { name: "the export dialog", trigger: 'main button[aria-haspopup="dialog"]', kind: "dialog" },
+      /* Sold against the plan explains itself behind its `i` (ADR-0055). */
+      { name: "a card's explanation", trigger: "main button.iris-info", kind: "popover" },
     ],
     change: async (page) => {
       const tab = page.locator('[role="tablist"][aria-label="Unit segment"] [role="tab"][aria-selected="false"]').first();

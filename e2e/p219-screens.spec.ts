@@ -34,7 +34,7 @@ const METHOD = [
   "Each band is what survived the previous step.",
 ];
 const CLAIMS = [
-  /\d+ of \d+ sold\. A straight line from/,
+  /\d+ sales? dated in the last \d+ days/,
   /units take \d+% of looking time on \d+% of the unsold stock\./,
 ];
 

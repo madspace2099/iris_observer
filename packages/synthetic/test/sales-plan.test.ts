@@ -276,6 +276,8 @@ describe("Shark Residence, on the demonstration's own day", () => {
     });
     expect(charts.plan.window).toBeNull();
     expect(charts.plan.verdictText).toBe("No sell-out date set");
+    /* The pace still stands on its dated sales; e2e/p219-screens.spec.ts reads this line. */
+    expect(charts.plan.pace?.basis).toMatch(/^\d+ sales? dated in the last \d+ days/);
   });
 
   it("puts a window kept in Observer in front of the configuration", async () => {
