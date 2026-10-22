@@ -166,7 +166,8 @@ html:has(.iris-salesflow) {
 }
 
 .iris-salesflow #flow-meetings .iris-ring-hero .iris-ring {
-  width: clamp(14rem, calc(var(--flow-h) - 22rem), 26rem);
+  /* Never under its drawn 248, where its 12px caption would land under 12. */
+  width: clamp(15.5rem, calc(var(--flow-h) - 22rem), 26rem);
   height: auto;
 }
 
@@ -235,6 +236,13 @@ html:has(.iris-salesflow) {
  * A ranked list (stalled deals, IRIS-assisted sales, the longest presentations,
  * who gave them) spreads its five rows down the screen, its bar thicker.
  */
+/* In a wide card a name gets a third more width, so "H-1003 · Reservation 30 Jul" stays one line at 16px. */
+@container (width >= 44rem) {
+  .iris-salesflow .flow-screen .iris-ranked li {
+    grid-template-columns: 1.5rem minmax(0, 16rem) minmax(0, 1fr) 6rem;
+  }
+}
+
 @media (width >= 40rem) {
   .iris-salesflow .flow-screen .iris-ranked li {
     padding-block: clamp(0.5rem, calc((var(--flow-h) - 30rem) / 12), 1.25rem);
