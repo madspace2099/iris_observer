@@ -6043,3 +6043,60 @@ they stay for a later sweep. The design lab still composes its own parallel-plot
 `/shark/shark-residence/agents` and `?view=coaching` as Clara at 1440 and on a phone, press each
 name in the key, open the `i`, switch to Last 28 days (one agent at the floor);
 run `p219-screens`, `quality` and `a11y-contract` for Sales Agents.
+
+## 2026-10-22 — Stream ROOMS: the room types side by side (ADR-0056)
+
+Máté's four Project-page comments: show how sellable each flat type is (flats, sold, interest by
+window, all types in one chart), simplify the attention × conversion scatter, no reload on the
+room-type tabs and the types side by side, and say what "150" means on the journey. Branch
+`worktree-wf_eba45ae8-1e4-2`, from `3373a1c`, not pushed. The stream was cut off once (the machine
+slept); the continuation kept the earlier attempt's uncommitted work and finished it.
+
+- **Read model.** `getRoomTypes` → `RoomTypesView`: the catalogue's own room counts (never a fixed
+  four), flats/sold/reserved per type (sold and reserved absent without a CRM), the share of each
+  window's meetings that opened a type with its change in points, a line per type over equal
+  stretches (each from its own meetings, 10 to draw), a reading per type, and the examined-how
+  rates as columns. Registry: `project.room_type_stock`, `_interest`, `_reading`, `_examined`.
+- **Flat types: stock, sales and interest** replaces "Does attention match supply?". Week · Month ·
+  Quarter · Half-year · Year · All time switch in the browser: every window arrives with the page,
+  no request, no reload, a live region says the new set.
+- **Interest against sales** replaces the scatter: "Wanted, and selling well · Lead the campaign
+  with it" and three siblings, each over its two facts against their references; under 20 meetings
+  or without a CRM it says why, the latter once.
+- **The room types side by side** replaces the tabs and the one-segment band: the rates as rows,
+  the types as columns with their openings, the highest marked only among types at the floor, an
+  audience link per column. On a phone the types stay columns.
+- **How far 150 presentations got**: every band named ("150 opened a flat"), drawn from the left
+  edge of one track, no glow.
+- **The rest of the page**: Section titles, method behind the `i`, the 12px floor on the search
+  register, the findings' citations and the neighbourhood bars on a phone (rules scoped in
+  `components/project/rooms.css`). The lead-segment finding's step builds its audience instead of
+  reloading the page with `?segment=`. `SegmentDetail.tsx`, which nothing rendered, is removed.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. `room-types` (13,
+hand-counted on a seven-flat catalogue, +window names and point labels), `project-scatter-funnel`
+(19, the named bands), `project-page-figures` (+1: the room components round no share). Static
+renders (react-dom/server + the product stylesheets + headless Chromium) of Shark (Month, Quarter,
+Week), Northgate and Riverside (no CRM) at 1440, 390 and 360: no sideways scroll, no text under
+12px except the `i` glyph, the windows three by two on a phone. Full unit suite (after
+`pnpm release:wrappers`, clean tree): 284 files, 5191 passed, 1 skipped, 3 failed —
+`language-required` (this stream's test cast its context; fixed in `6625836` and re-run green),
+`no-secret-recipes` (no web build; environmental) and `artefact-consistency` (REVIEW cites the
+rewrite diff as `b872d6e…`; `git diff 7ac84fa..c16b94f` hashes to `54f8196…` on this machine, in
+the main checkout too; not this stream's). **Not seen on a running build**; the window switch's
+state change is not exercised by a unit test.
+e2e edited, not run: `project-denominators` (rewritten for the new blocks), `a11y-contract` (the
+Project change is now the window switch), `p219-screens` K4 (the method behind each `i`),
+`p221-meres` R06-3 (the index read off the readings), `veghajras1` (the two-room column's link),
+and four specs dropping `?segment=`.
+
+**Integration.** In `project/page.tsx` this stream did not touch the "Sold against the plan" block
+(PLAN's); it changed the imports, the data fetch, the eyebrow and everything below the plan. The
+staged deletion of `SegmentDetail.tsx` from the cut-off attempt landed in the first continuation
+commit (`75141f0`), one commit before `index.ts` stopped exporting it: that commit alone does not
+typecheck; the stream's head does. Cherry-pick the stream's commits together.
+
+**Next recommended action.** On the demo build open `/shark/shark-residence/project` as Clara at
+1440, 390 and 360: switch Week → All time and watch nothing reload, read the four readings, compare
+the columns, and read the journey's title; run the five edited specs. Ask Máté whether the
+per-type "Where those buyers spent their time" should return as a row of the comparison.
