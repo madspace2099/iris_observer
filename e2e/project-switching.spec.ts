@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { signIn, signInAs } from "./sign-in";
+import { askSwitchScope, switcherButton } from "./switcher";
 
 /**
  * PROJECT SWITCHING FROM INSIDE OBSERVER — the founder's decision recorded in
@@ -10,7 +11,8 @@ import { signIn, signInAs } from "./sign-in";
  *
  * Ask IRIS is where every sign-in lands and the one screen whose own
  * delivered composition has no context band at all — so the switch a reader
- * actually needs lives in `Shell`'s `.irs-header-end`, beside `Sign out`,
+ * actually needs lives in `Shell`'s `.irs-header-end`, beside `Sign out` (on a
+ * phone, since 2026-10-22, in the menu sheet that carries the same controls),
  * built from the same authorised project list the pre-existing Sales Flow /
  * Project / Sales Agents switcher already reads (`repository.listProjects`).
  * It is not the "which project this question is about" radio group inside
@@ -37,7 +39,7 @@ test.describe("project switching", () => {
     await signInAs(page, "Petra Novák");
     await page.waitForURL(/\/alpha\/northgate\/ask/);
 
-    const switcher = page.locator('summary[aria-label="Switch project"]');
+    const switcher = switcherButton(page, "Switch project", await askSwitchScope(page));
     await expect(switcher).toBeVisible();
     await switcher.click();
 
@@ -54,7 +56,8 @@ test.describe("project switching", () => {
     await expect(page.getByText("Ask IRIS about Riverside Walk").first()).toBeVisible();
 
     /* The switch travels: reachable again from the project it just landed on. */
-    await expect(page.locator('summary[aria-label="Switch project"]')).toContainText("Riverside");
+    /* Rendered twice, header and phone sheet; the text is read, not the box. */
+    await expect(switcherButton(page, "Switch project").first()).toContainText("Riverside");
   });
 
   test("switching preserves the current section rather than resetting to Ask IRIS", async ({

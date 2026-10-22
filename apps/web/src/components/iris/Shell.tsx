@@ -596,11 +596,11 @@ export function Shell({
    * instructions meet in exactly one place — the header is shared — so the
    * difference is a VARIANT rather than a second shell.
    *
-   * One attribute carries it. `iris-shell.css` holds three rules keyed on
-   * `[data-variant="ask"]`: the export's nav gap and its two steps, its
-   * `Sign out` pill, and dropping the reader's name at the width the export
-   * drops it. Every other surface reads the attribute as `default` and renders
-   * exactly what it rendered before.
+   * One attribute carries it. `iris-shell.css` keys the export's nav gap and
+   * its step, its `Sign out` pill and its name-only reader on
+   * `[data-variant="ask"]`; below 1199px Ask IRIS takes the phone menu like
+   * every surface, with the reduced contents. Every other surface reads the
+   * attribute as `default` and renders exactly what it rendered before.
    *
    * Duplicating the shell to change one button was the alternative, and it is
    * how two headers end up disagreeing about the navigation six months later.
@@ -764,76 +764,91 @@ export function Shell({
        * header (there is nothing else to exclude, so the name is unused —
        * kept for the day a second disclosure joins it).
        *
-       * NOT ON THE ASK VARIANT. The export's own header already reduces
-       * itself at every width that matters — the nav gap steps down at
-       * 1439/1199/768px and `.irs-who` drops below 1199px, all specific,
-       * already-approved values read out of the delivered reference, not
-       * chosen here. Rendering this menu on top of that would replace a
-       * composition that already scored cleanly at every tested width with
-       * a generic one it does not need, on the one screen this pass was
-       * explicitly told not to touch.
+       * ON ASK IRIS TOO, WITH ASK IRIS'S OWN CONTENTS (2026-10-22). The
+       * export's header was kept on every width once, on the grounds that it
+       * reduced itself; measured on the running demo it did not. Below 1199px
+       * its fixed-height row held three rows: `Sign out` fell under the
+       * hairline at 1100 and 600, and at 390 the navigation and the pill
+       * floated over the composer while the page scrolled. So Ask IRIS gets
+       * this menu below the breakpoint like every other surface, and the sheet
+       * carries exactly what that header carries — the sections, the project
+       * switch where there are several, the reader, `Sign out` — and nothing
+       * the reference leaves out: no period, no sources, no Projects or
+       * Settings. Above 1199px the export's header is untouched.
        */}
-      {variant === "ask" ? null : (
-        <div className="irs-mobile-bar" ref={mobileBarRef}>
-          <span className="irs-mobile-project" title={currentProjectLabel}>
-            {currentProjectLabel}
-          </span>
-          <ClosableDetails className="irs-mobile-menu">
-            <summary className="irs-mobile-menu-trigger" aria-label="Menu">
-              <MenuMark />
-            </summary>
-            <div className="irs-mobile-menu-panel">
-              <div className="irs-mobile-menu-head">
-                <span className="irs-mobile-menu-title">Menu</span>
-                <button
-                  type="button"
-                  className="irs-mobile-menu-close"
-                  aria-label="Close menu"
-                  onClick={(event) => {
-                    const details = event.currentTarget.closest("details");
-                    if (details !== null) details.open = false;
-                  }}
-                >
-                  <MenuMark />
-                </button>
-              </div>
+      <div className="irs-mobile-bar" ref={mobileBarRef}>
+        <span className="irs-mobile-project" title={currentProjectLabel}>
+          {currentProjectLabel}
+        </span>
+        <ClosableDetails className="irs-mobile-menu">
+          <summary className="irs-mobile-menu-trigger" aria-label="Menu">
+            <MenuMark />
+          </summary>
+          <div className="irs-mobile-menu-panel">
+            <div className="irs-mobile-menu-head">
+              <span className="irs-mobile-menu-title">Menu</span>
+              <button
+                type="button"
+                className="irs-mobile-menu-close"
+                aria-label="Close menu"
+                onClick={(event) => {
+                  const details = event.currentTarget.closest("details");
+                  if (details !== null) details.open = false;
+                }}
+              >
+                <MenuMark />
+              </button>
+            </div>
 
-              <div className="irs-mobile-menu-scroll">
-                <nav className="irs-mobile-nav" aria-label="Sections">
-                  {nav.map((item) => {
-                    const active = item.key === current;
-                    return (
-                      <Link
-                        key={item.key}
-                        className="irs-mobile-nav-item"
-                        href={dynamicRoute(withPeriod(`${base}${item.path}`, period))}
-                        {...(active ? { "aria-current": "page" as const } : {})}
-                      >
-                        {item.sparkle === true ? <Sparkle /> : null}
-                        {item.label}
-                      </Link>
-                    );
-                  })}
+            <div className="irs-mobile-menu-scroll">
+              <nav className="irs-mobile-nav" aria-label="Sections">
+                {nav.map((item) => {
+                  const active = item.key === current;
+                  return (
+                    <Link
+                      key={item.key}
+                      className="irs-mobile-nav-item"
+                      href={dynamicRoute(withPeriod(`${base}${item.path}`, period))}
+                      {...(active ? { "aria-current": "page" as const } : {})}
+                    >
+                      {item.sparkle === true ? <Sparkle /> : null}
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              {tabs === null || tabs.length === 0 ? null : (
+                <nav className="irs-mobile-nav irs-mobile-nav--tabs" aria-label={tabsLabel}>
+                  {tabs.map((tab) => (
+                    <Link
+                      key={tab.key}
+                      className="irs-mobile-nav-item"
+                      href={dynamicRoute(withPeriod(tab.href, period))}
+                      {...(tab.key === currentTab ? { "aria-current": "page" as const } : {})}
+                    >
+                      {tab.label}
+                      {tab.count !== undefined && tab.count !== null ? (
+                        <span className="ox-tab-count">{tab.count}</span>
+                      ) : null}
+                    </Link>
+                  ))}
                 </nav>
+              )}
 
-                {tabs === null || tabs.length === 0 ? null : (
-                  <nav className="irs-mobile-nav irs-mobile-nav--tabs" aria-label={tabsLabel}>
-                    {tabs.map((tab) => (
-                      <Link
-                        key={tab.key}
-                        className="irs-mobile-nav-item"
-                        href={dynamicRoute(withPeriod(tab.href, period))}
-                        {...(tab.key === currentTab ? { "aria-current": "page" as const } : {})}
-                      >
-                        {tab.label}
-                        {tab.count !== undefined && tab.count !== null ? (
-                          <span className="ox-tab-count">{tab.count}</span>
-                        ) : null}
-                      </Link>
-                    ))}
-                  </nav>
-                )}
-
+              {variant === "ask" ? (
+                projects.length > 1 ? (
+                  <div className="irs-mobile-context">
+                    <ContextSwitcher
+                      label="Switch project"
+                      caption={projectCaption}
+                      value={scope.projectSlug}
+                      options={withCurrentSection(projects, segment)}
+                      footer={allProjectsOption(projectTotal)}
+                    />
+                  </div>
+                ) : null
+              ) : (
                 <div className="irs-mobile-context">
                   {tenants !== null && tenants.length > 1 ? (
                     <ContextSwitcher
@@ -863,22 +878,28 @@ export function Shell({
                     </ul>
                   )}
                 </div>
+              )}
 
-                <div className="irs-mobile-who">
-                  <div className="irs-who-name" title={viewer.displayName}>
-                    {viewer.displayName}
-                  </div>
-                  <div className="irs-who-role">{viewer.roleLabel}</div>
+              <div className="irs-mobile-who">
+                <div className="irs-who-name" title={viewer.displayName}>
+                  {viewer.displayName}
                 </div>
-                <div className="irs-mobile-account">
-                  <SyntheticBadge language={language} />
-                  {account}
-                </div>
+                <div className="irs-who-role">{viewer.roleLabel}</div>
+              </div>
+              <div className="irs-mobile-account">
+                {variant === "ask" ? (
+                  accountAsk
+                ) : (
+                  <>
+                    <SyntheticBadge language={language} />
+                    {account}
+                  </>
+                )}
               </div>
             </div>
-          </ClosableDetails>
-        </div>
-      )}
+          </div>
+        </ClosableDetails>
+      </div>
 
       {/*
        * THE CONTEXT BAND — which project, over what period, from which sources.

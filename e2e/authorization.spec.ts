@@ -30,6 +30,7 @@ test.describe("a sales agent sees the team on their own project", () => {
 
   test("is offered the team comparison for a project she holds", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
+    await openMobileMenuIfPresent(page);
     const nav = page.getByRole("navigation", { name: "Sections" });
     await expect(nav.getByRole("link", { name: "Sales Agents" })).toBeVisible();
   });

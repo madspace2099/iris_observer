@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { signIn, signInAs } from "./sign-in";
+import { openMobileMenuIfPresent } from "./switcher";
 import { gateRefusal } from "./secrets";
 
 /**
@@ -116,6 +117,7 @@ test.describe("the project she holds", () => {
     expect(new URL(page.url()).pathname).toBe(`/${HINOHARA.tenant}/${HINOHARA.project}/ask`);
 
     /* Offered in the navigation and reachable from it, not only by URL. */
+    await openMobileMenuIfPresent(page);
     const nav = page.getByRole("navigation", { name: "Sections" });
     await nav.getByRole("link", { name: "Sales Agents" }).click();
     await page.waitForURL(/\/agents/);

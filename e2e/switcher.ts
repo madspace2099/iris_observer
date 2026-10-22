@@ -41,6 +41,15 @@ export async function contextScope(page: Page): Promise<string> {
   return (await openMobileMenuIfPresent(page)) ? ".irs-mobile-context" : ".ox-context";
 }
 
+/**
+ * Where Ask IRIS's own project switch is: beside `Sign out` in the export's
+ * header on a wide screen, in the phone sheet on a narrow one (since
+ * 2026-10-22) — which this opens.
+ */
+export async function askSwitchScope(page: Page): Promise<string> {
+  return (await openMobileMenuIfPresent(page)) ? ".irs-mobile-context" : ".irs-header-end";
+}
+
 /** Press the control and hand back its open panel. */
 export async function openSwitcher(page: Page, label: string, scope = ""): Promise<Locator> {
   await switcherButton(page, label, scope).click();

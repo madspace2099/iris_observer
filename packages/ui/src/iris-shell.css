@@ -439,13 +439,13 @@
 
 @media (width <= 1199px) {
   /*
-   * Not on the Ask variant — Shell.tsx renders no `.irs-mobile-bar` there at
-   * all, so hiding the wide nav/header-end would leave the page with
-   * neither. The export's own header handles every width down from here on
-   * its own terms.
+   * On every variant, Ask IRIS's included (2026-10-22): its export header
+   * held three rows in this one fixed-height row and spilled `Sign out` under
+   * the hairline, so Ask IRIS takes the same menu here. Shell.tsx fills the
+   * Ask sheet with only what that header carries.
    */
-  .irs-shell:not([data-variant="ask"]) .irs-nav--wide,
-  .irs-shell:not([data-variant="ask"]) .irs-header-end--wide {
+  .irs-shell .irs-nav--wide,
+  .irs-shell .irs-header-end--wide {
     display: none;
   }
 
@@ -755,6 +755,7 @@
    * tertiary ink the sheet's own title already wears on this surface.
    */
   .irs-mobile-who .irs-who-role {
+    font-size: 12px;
     color: var(--iris-text-tertiary);
   }
 
@@ -1036,18 +1037,6 @@
  * exists to stop that, and nothing below changes any screen's content.
  * ========================================================================= */
 
-/*
- * The reader's name and role go first, and the design agrees: the delivered
- * artefact hides `[data-username]` below 1199px for the same reason. It is the
- * one thing in that cluster a reader already knows — they are the reader — and
- * it is the widest.
- */
-@media (width <= 1199px) {
-  .irs-shell[data-variant="ask"] .irs-who {
-    display: none;
-  }
-}
-
 @media (width <= 768px) {
   /*
    * The cluster wraps rather than overflowing, and it is allowed to shrink
@@ -1101,12 +1090,10 @@
  *
  *   --iris-nav-gap: 40px            :root in the export
  *   @media (max-width:1439px) 32px  its own first step
- *   @media (max-width:1199px) 24px  its own second step, and the width at
- *                                   which it hides [data-username]
  *
- * The 16px step below 768 is this application's, not the export's: the export
- * was drawn at one width and has nothing to say about a phone, and by then the
- * navigation has moved onto its own scrolling row where 24px overflows.
+ * Below 1199px this header is not drawn: Ask IRIS takes the menu every other
+ * surface does (2026-10-22), so the export's narrower steps have no row left
+ * to apply to.
  * ========================================================================= */
 
 .irs-shell[data-variant="ask"] {
@@ -1116,18 +1103,6 @@
 @media (width <= 1439px) {
   .irs-shell[data-variant="ask"] {
     --iris-nav-gap: 32px;
-  }
-}
-
-@media (width <= 1199px) {
-  .irs-shell[data-variant="ask"] {
-    --iris-nav-gap: 24px;
-  }
-}
-
-@media (width <= 768px) {
-  .irs-shell[data-variant="ask"] {
-    --iris-nav-gap: 16px;
   }
 }
 
@@ -1171,15 +1146,16 @@
 /*
  * The reader's name, at the export's own size and ink. 13px rather than the
  * default header's 13/11 pair, because the variant drops the role line: the
- * export shows a name and nothing under it.
+ * export shows a name and nothing under it. The header's only: the phone
+ * sheet's reader block is every surface's.
  */
-.irs-shell[data-variant="ask"] .irs-who-name {
+.irs-shell[data-variant="ask"] .irs-header .irs-who-name {
   font-size: 13px;
   color: #aab4c4;
   max-width: 14ch;
 }
 
-.irs-shell[data-variant="ask"] .irs-who-role {
+.irs-shell[data-variant="ask"] .irs-header .irs-who-role {
   display: none;
 }
 
@@ -1219,13 +1195,6 @@
 .irs-shell[data-variant="ask"] .irs-header-end .ox-menu-panel {
   left: auto;
   right: 0;
-}
-
-@media (width <= 1199px) {
-  /* `.irs-who` drops here; the switch is the widest thing left and shrinks with it. */
-  .irs-shell[data-variant="ask"] .irs-header-end .ox-menu-button {
-    max-width: 12ch;
-  }
 }
 
 /*

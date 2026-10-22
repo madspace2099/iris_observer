@@ -124,10 +124,10 @@ test.describe("the shell no longer hides itself on Ask IRIS's own sub-routes", (
     await signInAs(page, "Petra Novák");
     await page.goto(`${NORTHGATE}/ask`);
     /*
-     * The Ask variant renders no mobile-menu trigger at all — see
-     * `Shell.tsx`: `accountAsk`/no context band, and the reduced header
-     * already fits one row at every width. `openMobileMenuIfPresent` is a
-     * no-op here, which is itself part of what this test protects.
+     * On a phone the Ask variant's controls are in the menu sheet since
+     * 2026-10-22 — and the sheet carries only what the reduced header does:
+     * `accountAsk`, no context band, no Projects. So the same two assertions
+     * hold at every width, with the sheet open on a phone.
      */
     await openMobileMenuIfPresent(page);
     await expect(page.getByRole("link", { name: "Projects" })).toHaveCount(0);
@@ -447,6 +447,8 @@ test.describe("Administration is reachable without opening a project first", () 
 
   test("it is not a customer primary-nav item", async ({ page }) => {
     await signInAs(page, "MADSPACE Operations", "Northgate Residences");
+    // On a phone Ask IRIS's sections are in the Menu too (2026-10-22).
+    await openMobileMenuIfPresent(page);
     await expect(page.getByRole("navigation", { name: "Sections" })).not.toContainText(
       "Administration",
     );

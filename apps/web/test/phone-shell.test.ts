@@ -1,7 +1,18 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { createElement as h } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+const route = vi.hoisted(() => ({ path: "/shark/shark-residence/ask" }));
+vi.mock("next/navigation", () => ({
+  usePathname: () => route.path,
+  useSearchParams: () => new URLSearchParams(),
+  useRouter: () => ({ push() {}, replace() {}, refresh() {}, prefetch() {} }),
+}));
+
+const { Shell } = await import("../src/components/iris/Shell");
 
 /**
  * THE SHELL ON A PHONE, ASSERTED (2026-10-22, stream SHELL).
@@ -95,5 +106,65 @@ describe("the phone menu", () => {
     expect(rule(PHONE_SHELL, ".irs-mobile-menu-close .irs-menu-mark-close")).toMatch(
       /display:\s*block/,
     );
+  });
+});
+
+/** The shell's chrome as the server renders it, at `path`. */
+function shellAt(path: string, projectCount = 2): string {
+  route.path = path;
+  const projects = [
+    { value: "shark-residence", label: "Shark Residence", href: "/shark/shark-residence/ask" },
+    { value: "shark-harbour", label: "Shark Harbour", href: "/shark/shark-harbour/ask" },
+  ].slice(0, projectCount);
+  return renderToStaticMarkup(
+    h(Shell, {
+      scope: { tenantSlug: "shark", projectSlug: "shark-residence" },
+      viewer: { displayName: "Clara Weiss", roleLabel: "Company admin" },
+      projects,
+      developerName: "Shark Developments",
+      projectTotal: projectCount,
+      account: h("a", { href: "/projects" }, "Projects"),
+      accountAsk: h("button", { className: "irs-signout", type: "submit" }, "Sign out"),
+      children: null,
+    }),
+  );
+}
+
+/** The phone sheet's markup alone: from the bar to the end of the document's chrome. */
+function phoneSheet(html: string): string {
+  const at = html.indexOf('class="irs-mobile-bar"');
+  return at === -1 ? "" : html.slice(at, html.indexOf('id="main"'));
+}
+
+describe("Ask IRIS on a phone", () => {
+  it("hides the export's header below 1199px on every variant, Ask IRIS's included", () => {
+    const hide = rule(
+      PHONE_SHELL,
+      ".irs-shell .irs-nav--wide,\n  .irs-shell .irs-header-end--wide",
+    );
+    expect(hide).toMatch(/display:\s*none/);
+    expect(PHONE_SHELL).not.toMatch(/:not\(\[data-variant="ask"\]\)\s*\.irs-nav--wide/);
+  });
+
+  it("renders the menu on Ask IRIS, holding only what its reduced header holds", () => {
+    const ask = phoneSheet(shellAt("/shark/shark-residence/ask"));
+    expect(ask).not.toBe("");
+    expect(ask).toContain('aria-label="Sections"');
+    expect(ask).toContain('class="irs-signout"');
+    expect(ask).toContain('aria-label="Switch project"');
+    /* What the export leaves out of its header, the sheet leaves out too. */
+    expect(ask).not.toContain('href="/projects">Projects</a>');
+    expect(ask).not.toContain('aria-label="Period"');
+  });
+
+  it("draws no project switch for an account with one project", () => {
+    expect(phoneSheet(shellAt("/shark/shark-residence/ask", 1))).not.toContain("Switch project");
+  });
+
+  it("leaves every other surface's sheet as it was", () => {
+    const flow = phoneSheet(shellAt("/shark/shark-residence/flow"));
+    expect(flow).toContain('aria-label="Period"');
+    expect(flow).toContain('href="/projects">Projects</a>');
+    expect(flow).not.toContain("irs-signout");
   });
 });

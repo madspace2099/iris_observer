@@ -1,6 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { signInAs } from "./sign-in";
+import { openMobileMenuIfPresent } from "./switcher";
 
 /**
  * The two M2 slices, end to end.
@@ -104,6 +105,8 @@ test.describe("sales agent", () => {
 
   test("sees no section they cannot open", async ({ page }) => {
     await signInAs(page, "Monika Kováčová");
+    // On a phone the sections are in the Menu, Ask IRIS's included (2026-10-22).
+    await openMobileMenuIfPresent(page);
     const nav = page.getByRole("navigation", { name: "Sections" });
 
     /*

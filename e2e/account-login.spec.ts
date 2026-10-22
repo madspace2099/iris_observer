@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { switcherButton } from "./switcher";
+import { askSwitchScope, switcherButton } from "./switcher";
 import { gateRefusal } from "./secrets";
 import { passWelcome } from "./sign-in";
 
@@ -357,7 +357,7 @@ test.describe("leaving", () => {
      * its project switch carries the way back instead, as the last option.
      * Petra is on several projects, so the switch is rendered for her.
      */
-    await switcherButton(page, "Switch project").click();
+    await switcherButton(page, "Switch project", await askSwitchScope(page)).click();
     await page.locator(".ox-menu[open] .ox-menu-foot").click();
     /* The router navigation, not the network's quiet. See the keyboard case. */
     await page.waitForURL(/\/projects/);

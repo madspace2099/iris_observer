@@ -21,8 +21,8 @@ import { signInAs } from "./sign-in";
  * open sheet on the real page, the same way the composer once did. These
  * cases prove the four things that follow from that, from the keyboard and
  * the pointer rather than from the attribute: focus stays in, taps stay out,
- * every way of closing clears it, and Ask IRIS — which renders no sheet — is
- * untouched.
+ * every way of closing clears it, and Ask IRIS's sheet (since 2026-10-22)
+ * carries only what its reduced header does.
  *
  * Mobile only. The sheet does not exist above 1199px, which the breakpoint
  * case proves rather than assumes.
@@ -198,11 +198,22 @@ test.describe("the open mobile menu contains focus and pointer", () => {
     expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(1);
   });
 
-  test("Ask IRIS renders no sheet and is never made inert", async ({ page }) => {
+  test("Ask IRIS's sheet holds only its reduced header, and inert follows it", async ({ page }) => {
     await signInAs(page, "Petra Novák");
     await page.goto(ASK);
     await expect(page.locator(".irs-shell")).toHaveAttribute("data-variant", "ask");
-    await expect(page.locator(".irs-mobile-bar")).toHaveCount(0);
+    expect(await inertState(page)).toEqual({ main: false, dock: false, open: false });
+
+    await openSheet(page);
+    expect(await inertState(page)).toEqual({ main: true, dock: true, open: true });
+    const panel = page.locator(PANEL);
+    await expect(panel.getByRole("button", { name: "Sign out" })).toBeVisible();
+    await expect(panel.locator('summary[aria-label="Switch project"]')).toBeVisible();
+    /* What the export's header leaves out, the sheet leaves out too. */
+    await expect(panel.getByRole("link", { name: "Projects", exact: true })).toHaveCount(0);
+    await expect(panel.locator('summary[aria-label="Period"]')).toHaveCount(0);
+
+    await page.locator(CLOSE).click();
     expect(await inertState(page)).toEqual({ main: false, dock: false, open: false });
   });
 

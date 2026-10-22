@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { signInAs } from "./sign-in";
+import { openMobileMenuIfPresent } from "./switcher";
 
 /**
  * The checks that keep M2.1's corrections from regressing.
@@ -79,6 +80,8 @@ test.describe("session boundary", () => {
     expect(cookie?.httpOnly).toBe(true);
     expect(cookie?.sameSite).toBe("Lax");
 
+    // On a phone Ask IRIS's Sign out is in the Menu (2026-10-22).
+    await openMobileMenuIfPresent(page);
     await page.getByRole("button", { name: "Sign out" }).click();
     await page.waitForURL(/\/sign-in/);
 
