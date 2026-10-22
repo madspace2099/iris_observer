@@ -493,9 +493,9 @@ export interface UnitPatternFlat {
  */
 export interface UnitPatternLine {
   readonly id: string;
-  /** The attribute value as a label: "Floors 4 to 7", "Facing south · Block S". */
+  /** The attribute value as a label: "Floors 4 to 7", "Facing south · Block A", "€191,000 to €218,000". */
   readonly label: string;
-  /** "4 of the 5 most-opened flats face south, against 50% of the 60 flats in the catalogue." */
+  /** "All 5 most-opened flats are on the middle floors, 4 to 7, against 40% of the 60 flats in the catalogue." */
   readonly statement: string;
   /** How many of the most-opened flats, of `topTotal`. */
   readonly topCount: number;
@@ -528,7 +528,7 @@ export interface UnitAttentionPatterns {
   /** How a tie in meetings was ordered; null when no tie touches the list. */
   readonly tieNote: string | null;
   readonly patterns: readonly UnitPatternLine[];
-  /** Where no band concentrates: the range the flats span, against the catalogue. */
+  /** Where no pattern was found in a floor, price or area: the span the flats cover, with the catalogue's share inside it. */
   readonly ranges: readonly string[];
   /** Below the floor, or when nothing concentrates; null when a pattern was found. */
   readonly note: string | null;
