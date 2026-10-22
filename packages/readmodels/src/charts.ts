@@ -233,30 +233,51 @@ export interface BehaviourFunnel {
   readonly reachOf: string;
 }
 
-/* --- what a chart of agents shows, in words ------------------------------------ */
+/* --- how the agents differ: Coaching's one question ----------------------------- */
 
 /**
- * IRIS's reading of a chart that draws every agent at once: what the drawing
- * shows between people, said as description and never as cause, every figure
- * beside its denominator. Composed with the chart from the same meetings, so
- * the words and the drawing cannot disagree.
+ * Coaching's one question, answered (the owner, 2026-10-22, ADR-0057): how do
+ * the agents differ? Read on the parts of the showroom each uses, as the share
+ * of their own meetings that used a part at least once, among the agents at
+ * or above the floor. A description, never a cause and never a rank; every
+ * figure beside the meetings it is of.
  */
-export interface CoachingReading {
-  /** The measures on which the drawn agents differ most, widest first, naming who sits at each end. Empty under two drawn. */
-  readonly differences: readonly { readonly id: string; readonly text: string }[];
-  /** Each drawn agent's most distinctive habit: the measure on which they stand furthest from the rest of the team. */
-  readonly habits: readonly {
+export interface PresenterComparison {
+  /**
+   * The answer in one sentence: the widest gap in plain words, both ends with
+   * their meetings; or why nothing is compared.
+   */
+  readonly headline: string;
+  /** One row per measured part, the widest gap first. Empty with no agent drawn. */
+  readonly rows: readonly PresenterRow[];
+  /** What the chart is and is not: the measure, the order, the floor, the parts not measured. The `i`. */
+  readonly method: string;
+}
+
+export interface PresenterRow {
+  readonly id: string;
+  /** The part as something a meeting did: "Compare two apartments side by side". */
+  readonly label: string;
+  /** Each drawn agent's share of their own meetings that did it, in seat order. */
+  readonly marks: readonly {
     readonly agentId: string;
-    readonly name: string;
-    readonly tone: string;
-    readonly text: string;
+    readonly share: number;
+    /** "76%" */
+    readonly display: string;
   }[];
-  /** What meetings with each of those habits came to across the project, once per measure, at both sample sizes. */
-  readonly outcomes: readonly { readonly id: string; readonly text: string }[];
-  /** Why a part cannot be read in this period; null when every part is. */
-  readonly note: string | null;
-  /** What all of it is, and is not: the comparison's own words. */
-  readonly caveat: string;
+  /** Who sit at the two ends: on the three widest rows that have a gap, null on the rest. */
+  readonly ends: { readonly high: PresenterEnd; readonly low: PresenterEnd } | null;
+}
+
+export interface PresenterEnd {
+  /** Everyone at that end, in seat order: two agents can share a figure. */
+  readonly agentIds: readonly string[];
+  /** "Marek Dvořák", or "Lena Fischer and Iva Horváth". */
+  readonly names: string;
+  /** "76%" */
+  readonly share: string;
+  /** "of 33 meetings", or "of 39 and 25 meetings" where agents tie. */
+  readonly of: string;
 }
 
 /* --- one agent across several dimensions -------------------------------------- */
@@ -305,8 +326,6 @@ export interface AgentRadar {
   readonly profiles: readonly RadarProfile[];
   /** Every drawn shape's reading, then who is not drawn and why. */
   readonly summary: string;
-  /** What the overlaid shapes show between the agents. */
-  readonly reading: CoachingReading;
 }
 
 /* --- which parts of the showroom an agent uses ---------------------------------- */
@@ -352,10 +371,10 @@ export interface FeatureUsageProfile {
 export interface FeatureUsage {
   readonly axes: readonly FeatureUsageAxis[];
   readonly profiles: readonly FeatureUsageProfile[];
-  /** Every drawn line in words, the axes not measured, and who is not drawn and why. */
+  /** Every drawn agent's figures in words, the axes not measured, and who is not drawn and why. */
   readonly summary: string;
-  /** What the lines show between the agents, on the measured axes only. */
-  readonly reading: CoachingReading;
+  /** Coaching's one question on the measured axes: how the drawn agents differ. */
+  readonly comparison: PresenterComparison;
 }
 
 /* --- an ordered list where the order is the finding ---------------------------- */

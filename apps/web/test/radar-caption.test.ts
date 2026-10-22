@@ -66,7 +66,7 @@ describe("the agent page's radar", () => {
 });
 
 /*
- * Coaching draws every agent in one radar (the owner, 2026-10-20), and its key
- * is the page's own, which works (`coaching-chart.test.ts`): the radar's key
- * for two or more shapes is the one `.iris-coach-plot .iris-ring-key` hides.
+ * Coaching no longer draws a radar (ADR-0057): its one chart is a row per part
+ * of the showroom with a dot per agent, and its key is the page's own
+ * (`coaching-chart.test.ts`). The radar stands on the agent's page, one shape.
  */

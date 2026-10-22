@@ -45,14 +45,14 @@ describe("the roster", () => {
 
   it("names the agents under the floor beside the chart, with their counts, not drawn", () => {
     expect(ROSTER).toMatch(
-      /const undrawn = usage\.profiles\.filter\(\(p\) => p\.belowMinimum\);[\s\S]*?Under \{AGENT_MIN_SAMPLE\} meetings, not drawn:[\s\S]*?\{counted\(p\.meetings\)\}/,
+      /const undrawn = usage\.profiles\.filter\(\(p\) => p\.belowMinimum\);[\s\S]*?Not drawn, under \{AGENT_MIN_SAMPLE\} meetings:[\s\S]*?\{counted\(p\.meetings\)\}/,
     );
   });
 
-  it("prints IRIS's reading from the read model, never composing it", () => {
-    expect(ROSTER).toMatch(
-      /const reading = lens === "parallel" \? usage\.reading : charts\.radar\.reading;/,
-    );
+  it("prints Coaching's answer and rows from the read model, never composing them", () => {
+    expect(ROSTER).toContain("{comparison.headline}");
+    expect(ROSTER).toContain("rows={comparison.rows}");
+    expect(ROSTER).toContain("<p>{comparison.method}</p>");
   });
 });
 

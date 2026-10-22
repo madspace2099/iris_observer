@@ -213,3 +213,298 @@
     grid-row: 2;
   }
 }
+
+/* --- Coaching: one question, one sentence, one chart (ADR-0057) ------------- */
+
+.ag-coach {
+  display: grid;
+  gap: 1rem;
+}
+
+/* The answer: the one sentence above the Body size, so it reads before the chart. */
+.ag-coach-headline {
+  max-width: 62ch;
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.625rem;
+  font-weight: 500;
+  color: var(--d-ink, var(--ink));
+  text-wrap: pretty;
+}
+
+/* The key is the chart's control: a name lifts, hides or draws its agent; the link opens them. */
+.ag-coach-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 2.25rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ag-coach-key li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.ag-coach-key button {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.625rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ag-coach-key button:focus-visible,
+.ag-coach-key a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ag-coach-key button > span {
+  display: grid;
+  min-width: 0;
+}
+
+.ag-coach-key b {
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  color: var(--d-ink, var(--ink));
+}
+
+.ag-coach-key em {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-style: normal;
+  color: var(--d-ink-3, var(--ink-2));
+}
+
+.ag-coach-key li[data-lifted="true"] b {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Hidden: the face fades and the name is struck, so the reader still knows whose it is. */
+.ag-coach-key li[data-hidden="true"] .ag-portrait {
+  opacity: 0.35;
+}
+
+.ag-coach-key li[data-hidden="true"] b {
+  color: var(--d-ink-4, var(--ink-2));
+  text-decoration: line-through;
+}
+
+.ag-coach-key a,
+.ag-coach-undrawn a {
+  display: inline-block;
+  padding-block: 0.1875rem;
+  font-size: 0.8125rem;
+  color: var(--d-ink-3, var(--ink-2));
+  white-space: nowrap;
+}
+
+/*
+ * The chart: a label column and a track per row, the scale over the tracks.
+ * The track is inset by a dot's radius, so a dot at 0% or 100% stays whole.
+ */
+.ag-coach-plot {
+  --ag-dot: 0.875rem;
+  margin-top: 0.5rem;
+}
+
+.ag-coach-scale,
+.ag-coach-rows > li {
+  display: grid;
+  grid-template-columns: minmax(12rem, 17rem) minmax(0, 1fr);
+  column-gap: 1.5rem;
+  align-items: center;
+}
+
+.ag-coach-base {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--d-ink-3, var(--ink-2));
+}
+
+.ag-coach-ticks {
+  position: relative;
+  height: 1.125rem;
+  margin-inline: calc(var(--ag-dot) / 2);
+  font-family: var(--d-font-numeric, var(--mono));
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--d-ink-4, var(--ink-2));
+}
+
+.ag-coach-ticks > span {
+  position: absolute;
+  translate: -50% 0;
+}
+
+.ag-coach-ticks > span:nth-child(1) {
+  left: 0;
+  translate: 0 0;
+}
+
+.ag-coach-ticks > span:nth-child(2) {
+  left: 50%;
+}
+
+.ag-coach-ticks > span:nth-child(3) {
+  right: 0;
+  translate: 0 0;
+}
+
+.ag-coach-rows {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ag-coach-rows > li {
+  row-gap: 0.5rem;
+  padding-block: 0.875rem;
+  border-top: 1px solid rgb(255 255 255 / 0.08);
+}
+
+.ag-coach-label {
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  color: var(--d-ink-3, var(--ink-2));
+}
+
+/* The three rows that name their ends: the label in the values' ink. */
+.ag-coach-rows > li[data-named] .ag-coach-label {
+  font-weight: 600;
+  color: var(--d-ink, var(--ink));
+}
+
+.ag-coach-track {
+  position: relative;
+  height: 1.75rem;
+  margin-inline: calc(var(--ag-dot) / 2);
+  background:
+    linear-gradient(rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.16)) center / 100% 1px no-repeat,
+    linear-gradient(rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.1)) 0 0 / 1px 100% no-repeat,
+    linear-gradient(rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.1)) 50% 0 / 1px 100% no-repeat,
+    linear-gradient(rgb(255 255 255 / 0.1), rgb(255 255 255 / 0.1)) 100% 0 / 1px 100% no-repeat;
+}
+
+.ag-coach-track > i {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--at) * 100%);
+  width: var(--ag-dot);
+  height: var(--ag-dot);
+  border-radius: 50%;
+  background: var(--tone);
+  box-shadow: 0 0 0 2px var(--d-card, #000);
+  translate: -50% -50%;
+}
+
+.ag-coach-track > i[data-lifted] {
+  z-index: 1;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* The lifted agent's figure, over their dot. */
+.ag-coach-track > i > b {
+  position: absolute;
+  bottom: calc(100% + 0.25rem);
+  left: 50%;
+  translate: -50% 0;
+  font-family: var(--d-font-numeric, var(--mono));
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  color: var(--d-ink, var(--ink));
+  white-space: nowrap;
+}
+
+/* Who sits at each end, under the track they belong to. */
+.ag-coach-ends {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+  margin: 0;
+}
+
+.ag-coach-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--d-ink-3, var(--ink-2));
+}
+
+.ag-coach-end > .ag-portrait + .ag-portrait {
+  margin-left: -0.875rem;
+}
+
+.ag-coach-end b {
+  font-weight: 600;
+  color: var(--d-ink, var(--ink));
+}
+
+.ag-coach-end em {
+  font-style: normal;
+}
+
+.ag-coach-undrawn {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--d-ink-3, var(--ink-2));
+}
+
+/* A narrow card: each row's label over its track, the ends under both. */
+@container (width < 40rem) {
+  .ag-coach-scale,
+  .ag-coach-rows > li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ag-coach-scale {
+    row-gap: 0.25rem;
+  }
+
+  .ag-coach-ends {
+    grid-column: 1;
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .ag-coach-headline {
+    font-size: 1rem;
+    line-height: 1.5rem;
+  }
+
+  /* One agent a line: face, name over count, the link at the far edge; a long name wraps, never cut. */
+  .ag-coach-key {
+    display: grid;
+  }
+
+  .ag-coach-key li {
+    justify-content: space-between;
+  }
+
+  .ag-coach-key button {
+    flex: 1;
+  }
+}

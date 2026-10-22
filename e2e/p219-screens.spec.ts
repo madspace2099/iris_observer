@@ -61,8 +61,8 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
   page,
 }) => {
   const main = await open(page, `${ROOT}/agents?period=last_quarter`);
-  await expect(page.locator("main .iris-coach")).toHaveCount(0);
-  expect(main).not.toContain("Each spoke is scaled against the strongest presenter");
+  await expect(page.locator("main .ag-coach")).toHaveCount(0);
+  expect(main).not.toContain("How do the presenters differ?");
   expect(main).toMatch(/presentations given/i);
 
   const tabs = page.getByRole("tablist", { name: "Sales Agents" });
@@ -74,15 +74,17 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
   );
 
   /*
-   * One chart for every agent since the owner's word of 2026-10-20: its key
-   * names whoever is drawn, and IRIS's reading stands beside it.
+   * One question, one chart since the owner's word of 2026-10-22 (ADR-0057):
+   * its key names whoever is drawn, and the answer stands under the title.
    */
-  await expect(page.locator("main .iris-coach .iris-coach-key li").first()).toBeVisible();
-  await expect(page.getByRole("heading", { name: "IRIS reading" })).toBeVisible();
+  await expect(page.locator("main .ag-coach .ag-coach-key li").first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "How do the presenters differ?" })).toBeVisible();
   const coaching = await page.locator("main").innerText();
-  expect(coaching).toContain("Each spoke is scaled against the strongest presenter");
-  /* The plan's second clause for R12-7: a bigger shape is not better (FEJEZET1). */
-  expect(coaching).toContain("A wider shape is a different way of presenting, not a better one.");
+  expect(coaching).toMatch(/They differ most in |so no two agents are compared|so nobody is compared/);
+  /* The plan's second clause for R12-7: a different way is not a better one (FEJEZET1), behind the i. */
+  await expect(page.locator("#info-coaching")).toContainText(
+    "A different way of presenting, not a better one.",
+  );
   expect(coaching, "nothing else moved to the tab").not.toMatch(/presentations given/i);
 
   await page.getByRole("tab", { name: "Sales Agents" }).click();

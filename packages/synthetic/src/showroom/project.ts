@@ -691,37 +691,10 @@ export function buildDifferences(
   };
 }
 
-/** The comparison's own words for what it is: Coaching's reading closes on them too. */
+/** The comparison's own words for what it is: Coaching's `i` ends on them too. */
 export const ASSOCIATION_DISCLAIMER =
   "These are differences in observed behaviour at the stated sample sizes. They are associations, not evidence that one way of presenting produces a different outcome.";
 const DISCLAIMER = ASSOCIATION_DISCLAIMER;
-
-/** The predicate behind one of the comparison's named behaviours. */
-export function behaviourTest(id: string): ((s: ShowroomSession) => boolean) | undefined {
-  return BEHAVIOURS.find((b) => b.id === id)?.test;
-}
-
-/**
- * The cohort comparison's two groups, read the other way round: of the
- * meetings with a recorded outcome, those that did a thing and those that did
- * not, and how many in each progressed further. The same split as the cohorts
- * mode (a progressed outcome against one that is recorded and did not
- * progress; an unrecorded one stands on neither side).
- */
-export function outcomeSplit(
-  sessions: readonly ShowroomSession[],
-  test: (s: ShowroomSession) => boolean,
-): {
-  readonly with: { readonly meetings: number; readonly progressed: number };
-  readonly without: { readonly meetings: number; readonly progressed: number };
-} {
-  const decided = sessions.filter((s) => !outcomeIsUnknown(s.outcome));
-  const side = (set: readonly ShowroomSession[]) => ({
-    meetings: set.length,
-    progressed: set.filter((s) => hasProgressed(s.outcome)).length,
-  });
-  return { with: side(decided.filter(test)), without: side(decided.filter((s) => !test(s))) };
-}
 
 /* --- A. Showroom Overview -------------------------------------------------- */
 

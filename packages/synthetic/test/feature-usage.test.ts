@@ -247,9 +247,9 @@ describe("the feature-usage lines wear the radar's colours", () => {
     expect(new Set(charts.featureUsage.profiles.map((p) => p.tone)).size).toBe(2);
   });
 
-  it("names who is not drawn, the axes not measured, and that no line is drawn when nobody clears the floor", () => {
+  it("names who is not drawn, the axes not measured, and that nobody is drawn when nobody clears the floor", () => {
     const usage = buildFeatureUsage([meeting("1")], LOCALE, "en");
-    expect(usage.summary).toContain("so no line is drawn");
+    expect(usage.summary).toContain("so nobody is drawn");
     expect(usage.summary).toContain(`Not drawn, under ${String(AGENT_MIN_SAMPLE)} meetings:`);
     expect(usage.summary).toContain("Not measured: Exploring, Filtering and Walking.");
   });
