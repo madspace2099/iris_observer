@@ -79,7 +79,9 @@ test("the agent replaces and removes her own, and only her own", async ({ page }
   await page.goto(`${ROOT}/agents/agt_sharklena01`);
   await choose(page, "lena.png", PIXEL);
   await page.getByRole("button", { name: "Save portrait" }).click();
-  await expect(page.getByRole("status")).toContainText("Saved.");
+  await expect(
+    page.getByRole("region", { name: "Portrait", exact: true }).getByRole("status"),
+  ).toContainText("Saved.");
 
   await signIn(page, "Lena Fischer");
   await page.goto(`${ROOT}/agents`);
