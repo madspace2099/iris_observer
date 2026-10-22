@@ -24,9 +24,9 @@
  *
  * **This file imports nothing**, which is the strongest available form of that
  * rule: a table with no imports cannot reach a repository, cannot construct a
- * viewer and cannot be mistaken for a source. The eight capacities are named as
+ * viewer and cannot be mistaken for a source. The nine capacities are named as
  * strings and resolved against the real `VIEWERS` by the test, so this file
- * adds no ninth capacity — a parallel viewer factory would be exactly the
+ * adds no tenth capacity — a parallel viewer factory would be exactly the
  * second data layer the rule is about.
  *
  * It is **not a production fallback**. It lives in `test-support/`, which is
@@ -368,10 +368,121 @@ export const ADDRESS_CELLS: readonly AddressCell[] = [
     error: "NotFoundError",
     note: "the demonstration project through another tenant is not found",
   },
+  {
+    viewerKey: "agentShark",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    error: "none",
+    note: "a Shark presenter reads the project she presents on",
+  },
+  {
+    viewerKey: "agentShark",
+    tenantSlug: "alpha",
+    projectSlug: "northgate",
+    error: "NotPermittedError",
+    note: "and holds nothing of another developer's, whatever her role",
+  },
+];
+
+/* --- the portrait axis (ADR-0054) ------------------------------------------ */
+
+/**
+ * One (capacity, agent) expectation against `portraitRight`, and through the
+ * route. `right` is what the capacity may do to that agent's portrait when one
+ * is there; `first` is whether it may add the first one.
+ *
+ * Agents belong to the agency they present for, so the admin of Shark Sales,
+ * not the developer's admin, puts a face to Shark Residence's presenters; the
+ * presenter replaces or removes her own once it is there. The company role
+ * comes from the account (`accounts.ts`), named here by account id.
+ */
+export interface PortraitCell {
+  readonly accountId: string;
+  readonly tenantSlug: string;
+  readonly projectSlug: string;
+  readonly agentId: string;
+  readonly right: "company_admin" | "self" | null;
+  readonly first: boolean;
+  readonly note: string;
+}
+
+export const PORTRAIT_CELLS: readonly PortraitCell[] = [
+  {
+    accountId: "acct_daniel",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    agentId: "agt_sharkoliver01",
+    right: "company_admin",
+    first: true,
+    note: "the admin of the agents' own company, for any of them",
+  },
+  {
+    accountId: "acct_lena",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    agentId: "agt_sharklena01",
+    right: "self",
+    first: false,
+    note: "the agent changes her own, and does not add the first",
+  },
+  {
+    accountId: "acct_lena",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    agentId: "agt_sharkmarek01",
+    right: null,
+    first: false,
+    note: "a colleague's portrait is not hers to change",
+  },
+  {
+    accountId: "acct_clara",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    agentId: "agt_sharklena01",
+    right: null,
+    first: false,
+    note: "the developer's admin: the presenters are the agency's people",
+  },
+  {
+    accountId: "acct_nora",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    agentId: "agt_sharklena01",
+    right: null,
+    first: false,
+    note: "a developer member",
+  },
+  {
+    accountId: "acct_madspace",
+    tenantSlug: "shark",
+    projectSlug: "shark-residence",
+    agentId: "agt_sharklena01",
+    right: null,
+    first: false,
+    note: "MADSPACE runs the platform and does not curate a customer's people",
+  },
+  {
+    accountId: "acct_tomas",
+    tenantSlug: "alpha",
+    projectSlug: "ister-tower",
+    agentId: "agt_luciahorvath",
+    right: "company_admin",
+    first: true,
+    note: "another company's admin, for his own agency's presenter",
+  },
+  {
+    accountId: "acct_tomas",
+    tenantSlug: "alpha",
+    projectSlug: "ister-tower",
+    agentId: "agt_sabina",
+    right: null,
+    first: false,
+    note: "a presenter of another agency on a project he holds",
+  },
 ];
 
 /**
- * The eight capacities the synthetic world declares, named rather than imported.
+ * The nine capacities the synthetic world declares, named rather than imported.
  *
  * This file imports NOTHING, which is the strongest form of the rule it has to
  * obey: a table with no imports cannot be a data layer, cannot reach a
@@ -388,6 +499,7 @@ export const MATRIX_VIEWER_KEYS = [
   "madspace",
   "developerShark",
   "managerShark",
+  "agentShark",
 ] as const;
 export type MatrixViewerKey = (typeof MATRIX_VIEWER_KEYS)[number];
 

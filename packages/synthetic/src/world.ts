@@ -519,6 +519,21 @@ export const VIEWERS = {
     agentId: null,
     organisationName: "Shark Sales",
   },
+  /*
+   * One of Shark Residence's five presenters, signing in as herself (ADR-0054):
+   * her own page is her profile, where she replaces the portrait her company's
+   * admin, Daniel Hart, adds. Bound to the roster's own id for her, so every
+   * read about "my meetings" is about the meetings the showroom recorded.
+   */
+  agentShark: {
+    userId: "usr_agent_lena",
+    displayName: "Lena Fischer",
+    role: "sales_agent",
+    tenantIds: [tenantId("tnt_sharkdev001")],
+    projectIds: [projectId("prj_sharkres001")],
+    agentId: agentId("agt_sharklena01"),
+    organisationName: "Shark Sales",
+  },
 } satisfies Record<string, Viewer>;
 
 export type ViewerKey = keyof typeof VIEWERS;

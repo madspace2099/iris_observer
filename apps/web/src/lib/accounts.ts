@@ -191,6 +191,18 @@ const DIRECTORY: readonly Account[] = Object.freeze([
     viewerKey: "developerShark",
     companyRole: "member",
   },
+  /*
+   * A Shark Residence presenter, a member of Daniel's agency, so a recording
+   * can show the agent's side of a portrait (ADR-0054): her company's admin
+   * adds it, and she replaces or removes it on her own page.
+   */
+  {
+    accountId: "acct_lena",
+    email: "lena.fischer@shark-sales.example",
+    displayName: VIEWERS.agentShark.displayName,
+    viewerKey: "agentShark",
+    companyRole: "member",
+  },
 ]);
 
 /** Whether this server has been told to offer the synthetic directory. */
