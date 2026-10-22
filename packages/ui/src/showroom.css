@@ -2667,6 +2667,25 @@
 }
 
 /*
+ * One card, one title, two drawings side by side (Sales Flow's presentations
+ * over time, ADR-0052): the band's own columns inside the card, the title
+ * across both. Each column is a container, so a drawing that picks its
+ * geometry by width (`Sized`) asks its column, not the whole card.
+ */
+.iris-band.iris-band-titled {
+  row-gap: 0.875rem;
+}
+
+.iris-band-titled > header {
+  grid-column: 1 / -1;
+}
+
+.iris-band-titled > div {
+  container-type: inline-size;
+  min-width: 0;
+}
+
+/*
  * The large ring and its key: side by side where the card is wide enough, the
  * ring centred over the key where it is not (the Hyper kit's ring, ADR-0041).
  * The drawing shrinks with a card narrower than itself, never past it.

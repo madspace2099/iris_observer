@@ -651,43 +651,65 @@ export default async function FlowPage({
 
         <hr className="iris-rule iris-section-rule" />
 
-        {/* --- volume over time, and its composition ---------------------- */}
+        {/* --- volume over time, and how it ended -------------------------- */}
 
-        <div className="iris-band" key={`trend-${query.period}`}>
-          <div className="d-card">
-            <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
-              Presentations week by week
+        {/*
+         * ONE BLOCK, TWO DRAWINGS (the owner, 2026-10-22, ADR-0052). "What those
+         * meetings became" stood beside "Presentations week by week" and the
+         * owner could not tell which meetings "those" were: they are the same
+         * presentations, counted week by week on the left and, month by month on
+         * the right, by how they ended. One card, one title, each drawing named
+         * by its span; the method of both stands behind the one `i`. A refusal
+         * (too few weeks, no meeting) stays in view where the drawing would be.
+         */}
+        <div className="d-card iris-band iris-band-titled" key={`trend-${query.period}`}>
+          <header className="iris-titled">
+            <h2 className="iris-kicker iris-kicker-measured">
+              Presentations over time, and how they ended
             </h2>
+            <InfoTip id="over-time" label="presentations over time, and how they ended">
+              {charts.trend.annotation === null ? null : (
+                <p>
+                  The marked week is the largest single change in the series. What moved it is not
+                  in this data.
+                </p>
+              )}
+              <p>
+                Week by week, only the weeks the period holds whole are drawn: a week still running,
+                or one the period cuts, is not set against a full one.
+              </p>
+              {view.meetingCount === 0 ? null : (
+                <p>
+                  Month by month, each month is its own whole. Its figure is the share of the
+                  month&rsquo;s recorded meetings that reached a follow-up or better; below{" "}
+                  {AGENT_MIN_SAMPLE} recorded it states no rate.
+                </p>
+              )}
+            </InfoTip>
+          </header>
+
+          <div>
+            <h3 className="iris-kicker" style={{ marginBottom: ".75rem" }}>
+              Week by week
+            </h3>
             <TrendLine
               points={charts.trend.points}
               annotation={charts.trend.annotation}
               valueLabel={charts.trend.valueLabel}
               measured
             />
-            <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
-              {charts.trend.annotation === null
-                ? null
-                : "The marked week is the largest single change in the series. What moved it is not in this data. "}
-              {/* The line needs two points; below that the heading stood over a caption alone. */}
-              {charts.trend.points.length < 2
-                ? "Too few whole weeks with meetings in this period to draw a line. "
-                : null}
-              Only the weeks the period holds whole are drawn: a week still running, or one the
-              period cuts, is not set against a full one.
-            </p>
+            {/* The line needs two points; below that the sentence says why there is none. */}
+            {charts.trend.points.length < 2 ? (
+              <p className="iris-meta iris-meta-measured" style={{ marginTop: ".5rem" }}>
+                Too few whole weeks with meetings in this period to draw a line.
+              </p>
+            ) : null}
           </div>
 
-          <div className="iris-band-side d-card">
-            <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
-              <h2 className="iris-kicker iris-kicker-measured">What those meetings became</h2>
-              {view.meetingCount === 0 ? null : (
-                <InfoTip id="months" label="what those meetings became">
-                  Each month is its own whole. Its figure is the share of the month&rsquo;s recorded
-                  meetings that reached a follow-up or better; below {AGENT_MIN_SAMPLE} recorded it
-                  states no rate.
-                </InfoTip>
-              )}
-            </header>
+          <div className="iris-band-side">
+            <h3 className="iris-kicker" style={{ marginBottom: ".75rem" }}>
+              Month by month, how they ended
+            </h3>
             {view.meetingCount === 0 ? (
               <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
             ) : (
@@ -850,7 +872,7 @@ export default async function FlowPage({
              * R05-a those three stand right under the cards. A new section is
              * added to one list or the other, not claimed by either.
              */
-            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations week by week, what those meetings became, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
+            "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations over time and how they ended, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
           ]}
           title="How to read this"
         />
