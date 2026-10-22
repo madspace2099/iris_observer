@@ -6146,17 +6146,19 @@ stream took the 23 findings that live in the shell and the shared stylesheets
 `ask-iris.css`) and fixed each at the shared rule, so every page gets the fix. Branch
 `worktree-wf_eba45ae8-1e4-5`, from `3373a1c`, not pushed. No ADR.
 
-- **The menu stays in reach.** The phone bar with the menu button is fixed with the sticky header;
+- **The menu stays in reach.** The phone bar with the menu button is sticky on the header's band;
   it used to scroll away, so 2,000px down Sales Flow there was no way to the menu. Inside the sheet
   the period list opens in the sheet's own flow and scrolls into view: "Year to date" could not be
-  reached before. The sheet's close button draws its X; rows and buttons in the sheet are 44px.
+  reached before. The sheet's close button draws its X; rows, buttons, the close button and Sign
+  out in the sheet are 44px.
 - **Ask IRIS gets the phone menu below 1199px**, holding what its header holds: the sections, the
   project switch where there are several, the reader, Sign out. Its old header put three rows in
   58px, and Sign out and the nav ended up on top of the composer. Its opening questions grow to
   three lines instead of printing across the next row, and its three quick links are 44px.
 - **Panels are opaque.** The KPI measure panel and the export dialog were 8% and 5% tints, and the
   page showed through them. Both are now solid `#0b111b`. The export note no longer points at "the
-  bar at the top of the screen"; it names the period control and says it is in the menu on a phone.
+  bar at the top of the screen"; it names the period control and says it is in the menu on a
+  narrow screen.
 - **/projects and /settings on a phone.** The header grows to fit the account row, the role reads
   in full at 12px, and Settings and Sign out are 44px.
 - **Content is inset once.** Below 40rem the wide column takes the header's 18px gutter, and a
@@ -6205,10 +6207,38 @@ not run.
 `Shell.tsx` (the Ask menu) and `ExportReport.tsx` (one note), and otherwise only shared CSS. It
 added phone-only rules to `showroom.css` and `iris.css` for classes that the PAGES, ROOMS and
 MOBILE streams' pages use; none of those streams' files were touched. Cherry-pick with the other
-five streams.
+five streams. Pick `7602a7ff` and `932659e9` together: `7602a7ff` carries the ranked-list case of
+`phone-shell.test.ts`, whose `charts.css` rules land in `932659e9`, so the first alone is red.
+
+**Review round (2026-10-22).** Adversarial reviewers read the branch; five findings, all
+confirmed in the code, four fixed and one recorded:
+
+- _The fixed phone bar fails `fixed-covers-nothing` on the mobile project_ — confirmed (the reviewer
+  measured 1/12/3 hits at top/middle/bottom on Flow at 412×915; 0 on `3373a1c`). Fixed by structure, not by teaching the spec: the bar is
+  now `position: sticky` and pulled onto the header's band by `margin-top: -58px`, so it is part of
+  that band as the header is, takes no room in the flow and still stays at the top. Static render
+  at 412×915: 0 hits at top, middle and bottom on Flow and Ask; at 390 and 360 the trigger is at
+  y 10 before and after 2,000px of scroll; `#main` still starts at 58px; 1440 unchanged.
+- _The opened list in the sheet still traps the gesture_ — confirmed: the base panel's
+  `overflow-y: auto; overscroll-behavior: contain` survived the phone override. Now `overflow:
+visible; overscroll-behavior: auto`. A wheel over the list scrolled the sheet 0px before, 150px
+  after. (CDP touch swipes moved nothing on this machine with either rule, so wheel is the evidence.)
+- _Sheet close and account controls are not 44px; this section said they were_ — confirmed (32,
+  35, 38 and 37px). The close button is 44×44 (its extra height taken from the head's padding), and
+  the account buttons, Ask's Sign out and the list's foot have `min-height: 44px`; the line above is
+  corrected.
+- _The export note says "on a phone"; a tablet has the control in the menu too_ — confirmed (the
+  breakpoint is 1199px). Now "(on a narrow screen, in the menu)".
+- _`7602a7ff` is red on its own_ — confirmed; history is not rewritten here, so the pairing is
+  recorded under Integration.
+
+`phone-shell.test.ts` pins the sticky bar (and that it is not fixed), the list's overflow and
+overscroll, and the sheet's 44px controls: 29 cases. Full unit suite: 284 files, 5205 passed,
+1 skipped, 2 failed — the same two as above, `no-secret-recipes` (no web build) and
+`artefact-consistency` (the abbreviation), neither touched here.
 
 **Next recommended action.** Build this branch. On a phone-sized window, sign in as Clara and
 open Sales Flow: scroll down and open the menu, pick Year to date, open a KPI `i`, and read
 Stalled deals. Then open Ask IRIS (menu, openings), the unit S-503 and Lena's agent page (tiles),
-and Presentation (Compare). Run `mobile-menu-containment`, `nav-reachability`,
-`project-switching` and `welcome`.
+and Presentation (Compare). Run `fixed-covers-nothing`, `mobile-menu-containment`,
+`nav-reachability`, `project-switching` and `welcome`.
