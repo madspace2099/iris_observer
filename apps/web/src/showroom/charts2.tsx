@@ -11,7 +11,7 @@
  *   OutcomeRows an outcome mix per group, one row each, every row its own whole
  *   Bullet      one value against a target and the pace needed to reach it
  *   Heatmap     two dimensions at once — weekday against hour
- *   Funnel      what survives each step, and what falls out
+ *   Funnel      why a group of meetings ended where it did, against the rest
  *   Radar       one profile across several dimensions, overlaid on another
  *   RankedBars  an ordered list where the order is the finding
  *   Sankey      where journeys go, and where they stop
@@ -22,9 +22,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import type { PeriodPreset, StackedColumn } from "@observer/readmodels";
+import { MEETING_OUTCOMES, type MeetingOutcome } from "@observer/contracts";
+import type { BehaviourFunnel, PeriodPreset, StackedColumn } from "@observer/readmodels";
+import { withMeetingFilters } from "@/components/meetings/filters";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
+import { PairedRates } from "./charts";
 import { DrawIn } from "./DrawIn";
 import { Sized } from "./forms";
 
@@ -362,24 +365,64 @@ export function StackedBars({
  * model's (`ProgressedFigure`); widths are geometry, and nothing here counts.
  * The key states `keyCounts`, the team's own counts, never a sum of rows that
  * already include the team.
+ *
+ * With `open`, every part opens its meetings in the register (ADR-0053): the
+ * register narrowed to the part's outcome, and to the row's presenter where the
+ * row names one. The bar is then the pointer's (its parts are links out of the
+ * tab order, as the scatter's points are), and a line of counts under it is the
+ * keyboard's, the screen reader's and the phone's: a one-meeting part is a
+ * sliver no finger can hit, and its count stood in a tooltip alone.
  */
+type OutcomeRow = StackedColumn & {
+  /** The presenter the row is, where it is one: the register narrows to them too. */
+  readonly agentId?: string;
+};
+
 export function OutcomeRows({
   label,
   lead,
   rows,
   keys,
   keyCounts,
+  open,
 }: {
   /** The list's accessible name. */
   readonly label: string;
   /** The team, drawn first and set apart; left out where the rows are disjoint. */
-  readonly lead?: StackedColumn;
+  readonly lead?: OutcomeRow;
   /** In the read model's order: never re-sorted on a figure. */
-  readonly rows: readonly StackedColumn[];
+  readonly rows: readonly OutcomeRow[];
   readonly keys: readonly { readonly id: string; readonly label: string }[];
   readonly keyCounts: Readonly<Record<string, number>>;
+  /**
+   * The register's path and the reader's period, for a reader the register
+   * admits. Absent, nothing links: so the months, which the register has no
+   * date range to narrow to.
+   */
+  readonly open?: { readonly register: string; readonly period: PeriodPreset };
 }) {
   const all = lead === undefined ? rows : [lead, ...rows];
+  /* Only an outcome the register's own vocabulary holds: anything else would open it unfiltered. */
+  const hrefOf = (row: OutcomeRow, outcome: string) =>
+    open === undefined || !(MEETING_OUTCOMES as readonly string[]).includes(outcome)
+      ? null
+      : dynamicRoute(
+          withPeriod(
+            withMeetingFilters(open.register, {
+              agentId: row.agentId ?? null,
+              channel: null,
+              outcome: outcome as MeetingOutcome,
+              features: null,
+            }),
+            open.period,
+          ),
+        );
+  /* "Lena Fischer: 7 meetings ended Purchase — open them", the name the task gives a part's link. */
+  const openLabel = (row: OutcomeRow, k: { readonly id: string; readonly label: string }) => {
+    const n = row.parts[k.id] ?? 0;
+    const what = k.id === "skipped" ? "with no outcome recorded" : `ended ${k.label}`;
+    return `${row.label}: ${n} ${n === 1 ? "meeting" : "meetings"} ${what} — open ${n === 1 ? "it" : "them"}`;
+  };
   return (
     <DrawIn kind="grow">
       <div className="iris-orows">
@@ -394,7 +437,56 @@ export function OutcomeRows({
         </ul>
         <ul className="iris-orows-list" aria-label={label}>
           {all.map((row, index) => {
-            const drawn = keys.filter((k) => (row.parts[k.id] ?? 0) > 0);
+            const drawn = keys
+              .filter((k) => (row.parts[k.id] ?? 0) > 0)
+              .map((k) => ({ ...k, href: hrefOf(row, k.id) }));
+            const linked = drawn.flatMap((k) => (k.href === null ? [] : [{ ...k, href: k.href }]));
+            const part = ({ href, ...k }: (typeof drawn)[number]) => {
+              const title = `${row.label} · ${k.label}: ${row.parts[k.id]} of ${row.total}`;
+              return href === null ? (
+                <span
+                  key={k.id}
+                  className="iris-orow-part iris-outcome-mark"
+                  data-outcome={k.id}
+                  style={{ flexGrow: row.parts[k.id] }}
+                  title={title}
+                >
+                  <b>{row.parts[k.id]}</b>
+                </span>
+              ) : (
+                <Link
+                  key={k.id}
+                  href={href}
+                  tabIndex={-1}
+                  className="iris-orow-part iris-outcome-mark"
+                  data-outcome={k.id}
+                  style={{ flexGrow: row.parts[k.id] }}
+                  title={`${title} — open them`}
+                >
+                  <b>{row.parts[k.id]}</b>
+                </Link>
+              );
+            };
+            /*
+             * A row with no part is no image: the item's own name already says
+             * so. A row whose parts link is none either: its count line below
+             * names every part, and an image may not hold links.
+             */
+            const bar = (
+              <span
+                className="iris-orow-bar"
+                {...(drawn.length === 0 || linked.length > 0
+                  ? { "aria-hidden": true }
+                  : {
+                      role: "img",
+                      "aria-label": drawn
+                        .map((k) => `${k.label}: ${row.parts[k.id]} of ${row.total}`)
+                        .join(", "),
+                    })}
+              >
+                {drawn.map(part)}
+              </span>
+            );
             return (
               <li
                 key={`${index}-${row.label}`}
@@ -408,30 +500,28 @@ export function OutcomeRows({
                   <span className="iris-orow-name">{row.label}</span>
                   <span className="iris-orow-total">{row.figure.meetingsDisplay}</span>
                 </span>
-                {/* A row with no part is no image: the item's own name already says so. */}
-                <span
-                  className="iris-orow-bar"
-                  {...(drawn.length === 0
-                    ? { "aria-hidden": true }
-                    : {
-                        role: "img",
-                        "aria-label": drawn
-                          .map((k) => `${k.label}: ${row.parts[k.id]} of ${row.total}`)
-                          .join(", "),
-                      })}
-                >
-                  {drawn.map((k) => (
-                    <span
-                      key={k.id}
-                      className="iris-orow-part iris-outcome-mark"
-                      data-outcome={k.id}
-                      style={{ flexGrow: row.parts[k.id] }}
-                      title={`${row.label} · ${k.label}: ${row.parts[k.id]} of ${row.total}`}
-                    >
-                      <b>{row.parts[k.id]}</b>
+                {linked.length === 0 ? (
+                  bar
+                ) : (
+                  <span className="iris-orow-plot">
+                    {bar}
+                    <span className="iris-orow-open">
+                      {linked.map((k) => (
+                        <Link
+                          key={k.id}
+                          href={k.href}
+                          className="iris-orow-count"
+                          data-outcome={k.id}
+                          aria-label={openLabel(row, k)}
+                          title={openLabel(row, k)}
+                        >
+                          <i className="iris-outcome-mark" data-outcome={k.id} aria-hidden="true" />
+                          {row.parts[k.id]}
+                        </Link>
+                      ))}
                     </span>
-                  ))}
-                </span>
+                  </span>
+                )}
                 <span className="iris-orow-figure">{row.figure.display}</span>
               </li>
             );
@@ -610,72 +700,121 @@ export function Heatmap({
   );
 }
 
-/* --- what survives each step ------------------------------------------------ */
+/* --- why a group of meetings ended where it did ------------------------------ */
 
+/**
+ * The meetings that ended "not interested", against every other recorded
+ * meeting (ADR-0053).
+ *
+ * Named for the shape it replaced: nested bands of behaviours whose "68% on its
+ * own · 80% elsewhere" the owner could not read, and which told him which
+ * feature was opened how often and nothing about why the meetings failed
+ * (2026-10-22). Four parts now, every figure and word the read model's:
+ *
+ *   the lead        the clearest difference, both sample sizes, as association
+ *   the figures     median length, features and apartments opened, the others' beside
+ *   whose they were each presenter's part of the group, opening their meetings
+ *   what they did   each behaviour in the group against the others, widest gap first
+ *
+ * A presenter's name opens their meetings of the group in the register, for a
+ * reader the register admits. Their bar is their part of the group, drawn to
+ * the group's size; the figure beside it is of their own recorded meetings.
+ */
 export function Funnel({
-  steps,
-  totalLabel,
+  data,
+  period,
+  canOpen,
 }: {
-  steps: readonly {
-    readonly id: string;
-    readonly label: string;
-    readonly count: number;
-    readonly note: string | null;
-    readonly comparisonNote?: string | null;
-  }[];
-  /** Names the group the comparison figures are measured against. */
-  totalLabel: string;
+  readonly data: BehaviourFunnel;
+  /** The reader's period, carried by every link. */
+  readonly period: PeriodPreset;
+  /** Whether this reader may open the register; never a link that leads to a refusal. */
+  readonly canOpen: boolean;
 }) {
-  /*
-   * The denominator, guarded. A cohort of zero meetings is a real answer
-   * (Riverside records no outcomes), and 0 / 0 printed "NaN%" at the top of
-   * its funnel. The floor of one leaves every bar at zero width and the
-   * first step at 0%, which is what a group with nothing in it looks like.
-   */
-  const first = Math.max(1, steps[0]?.count ?? 1);
-
+  /* Geometry: each bar against the group, which is every presenter's part together. */
+  const group = data.byAgent.reduce((sum, a) => sum + a.count, 0);
   return (
-    <DrawIn kind="sweep">
-      <div className="iris-funnel">
-        {steps.map((step, i) => {
-          const previous = steps[i - 1]?.count ?? step.count;
-          const lost = previous - step.count;
-          return (
-            /*
-             * The name before its count: a screen reader hears the step first,
-             * and a phone, which stands the name above the bar, paints it in
-             * the order it is read. The grid places the bar first on a wide card.
-             */
-            <div className="iris-funnel-step" key={step.id}>
-              <span className="iris-funnel-label">
-                {step.label}
-                {step.note === null ? null : (
-                  <em>
-                    {step.note} on its own
-                    {step.comparisonNote === null || step.comparisonNote === undefined
-                      ? null
-                      : ` · ${step.comparisonNote} elsewhere`}
-                  </em>
-                )}
-              </span>
-              <span className="iris-funnel-bar" style={{ width: `${(step.count / first) * 100}%` }}>
-                <b>{step.count}</b>
-              </span>
-              <span className="iris-funnel-drop">
-                {i === 0
-                  ? `${Math.round((step.count / first) * 100)}%`
-                  : lost === 0
-                    ? "—"
-                    : `−${lost}`}
-              </span>
-            </div>
-          );
-        })}
-        <p className="iris-code" style={{ color: "var(--ink-3)" }}>
-          Compared against {totalLabel}
-        </p>
+    <div className="iris-cohort">
+      {data.lead === null ? null : <p className="iris-cohort-lead">{data.lead}</p>}
+      {data.figures.length === 0 ? null : (
+        <div className="iris-kpis">
+          {data.figures.map((f) => (
+            <KpiCard
+              key={f.id}
+              label={f.label}
+              value={f.value}
+              qualifier={f.qualifier}
+              delta={null}
+              tone="flat"
+            />
+          ))}
+        </div>
+      )}
+      <div className="iris-cohort-parts">
+        <section className="iris-cohort-part" aria-labelledby="cohort-whose">
+          <h3 id="cohort-whose">Whose they were</h3>
+          <DrawIn kind="grow">
+            <ul className="iris-orows-list" aria-labelledby="cohort-whose">
+              {data.byAgent.map((a, index) => (
+                <li
+                  key={a.agentId}
+                  className="iris-orow"
+                  data-below={a.belowMinimum ? "true" : undefined}
+                  style={{ "--i": index } as React.CSSProperties}
+                >
+                  <span className="iris-orow-who">
+                    {canOpen && a.href !== null ? (
+                      <Link
+                        className="iris-orow-name iris-orow-link"
+                        href={dynamicRoute(withPeriod(a.href, period))}
+                        aria-label={`${a.name}: ${a.count} ${a.count === 1 ? "meeting" : "meetings"} ended "not interested" — open ${a.count === 1 ? "it" : "them"}`}
+                      >
+                        {a.name}
+                      </Link>
+                    ) : (
+                      <span className="iris-orow-name">{a.name}</span>
+                    )}
+                    <span className="iris-orow-total">{a.recordedDisplay}</span>
+                  </span>
+                  <span className="iris-orow-bar" aria-hidden="true">
+                    {a.count === 0 ? null : (
+                      <span
+                        className="iris-orow-part iris-outcome-mark"
+                        data-outcome="not_interested"
+                        style={{ flexGrow: a.count }}
+                      >
+                        <b>{a.count}</b>
+                      </span>
+                    )}
+                    <span className="iris-orow-rest" style={{ flexGrow: group - a.count }} />
+                  </span>
+                  <span className="iris-orow-figure">{a.display}</span>
+                </li>
+              ))}
+            </ul>
+          </DrawIn>
+        </section>
+        <section className="iris-cohort-part" aria-labelledby="cohort-did">
+          <h3 id="cohort-did">What they did, against the others</h3>
+          {data.reach.length === 0 ? (
+            <p className="iris-meta iris-meta-measured">{data.reachOf}</p>
+          ) : (
+            <PairedRates
+              rows={data.reach.map((r) => ({
+                id: r.id,
+                label: r.label,
+                left: r.share,
+                right: r.comparisonShare,
+                note: r.text,
+              }))}
+              leftLabel="This group"
+              rightLabel="Others"
+              of={data.reachOf}
+            />
+          )}
+        </section>
       </div>
-    </DrawIn>
+    </div>
   );
 }
 

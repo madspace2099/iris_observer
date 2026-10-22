@@ -2386,7 +2386,6 @@
 }
 
 [data-charts="d"] .d-card .iris-ranked-name em,
-[data-charts="d"] .d-card .iris-funnel-label em,
 [data-charts="d"] .d-card .iris-sequence-name em,
 [data-charts="d"] .d-card .iris-sequence-time em,
 [data-charts="d"] .d-card .iris-parity-note {
@@ -2971,24 +2970,20 @@
   font-family: var(--d-font-numeric);
 }
 
-/* --- what survives each step: one funnel, one colour, the kit's band ----------------- */
-
-[data-charts="d"] .d-card .iris-funnel-bar {
-  border-radius: 999px;
-  background: var(--d-funnel);
+/*
+ * --- the not-interested group against the others (ADR-0053) ------------------------
+ *
+ * The group's end wears its outcome's colour, as its part does in the outcome rows
+ * above; the others' end stays hollow, and the gap between them is neutral, without
+ * the kit's glow: green would read as a good result on a group that ended badly.
+ */
+[data-charts="d"] .d-card .iris-cohort .iris-paired-track i {
+  background: rgb(255 255 255 / 0.28);
+  box-shadow: none;
 }
 
-[data-charts="d"] .d-card .iris-funnel-bar b {
-  padding: 1px 8px;
-  border-radius: 100px;
-  background: var(--d-card);
-  font-family: var(--d-font-numeric);
-  font-weight: 400;
-  color: var(--d-ink);
-}
-
-[data-charts="d"] .d-card .iris-funnel-drop {
-  font-family: var(--d-font-numeric);
+[data-charts="d"] .d-card .iris-cohort .iris-paired-track b[data-side="left"] {
+  background: var(--outcome-not-interested);
 }
 
 /* --- the scatter, on a product card -------------------------------------------------- */

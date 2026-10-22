@@ -161,11 +161,82 @@ describe("Sales Flow's outcome rows", () => {
     expect(empty).toContain('<span class="iris-orow-bar" aria-hidden="true"></span>');
   });
 
+  it("link nothing without a register to open", () => {
+    expect(html).not.toContain("<a ");
+    expect(html).not.toContain("iris-orow-open");
+  });
+
   it("state the key's counts as given, never a sum of the rows", () => {
     const key = html.slice(0, html.indexOf('class="iris-orows-list"'));
     expect(key).toContain("<b>901</b>");
     expect(key).toContain("<b>907</b>");
     // Nothing for a key the caller gave no count: absent, not nought.
     expect(key).toContain("Not interested</li>");
+  });
+});
+
+/*
+ * A PART OPENS ITS MEETINGS (ADR-0053). The owner, 2026-10-22: Lena Fischer has
+ * 7 meetings at "Purchase"; he wants to click them and see them. With `open`,
+ * every part links to the register narrowed to its outcome and its presenter,
+ * in the reader's period; the bar is the pointer's and the count line under it
+ * the keyboard's, so nothing focusable sits inside an image.
+ */
+describe("Sales Flow's outcome rows, with a register to open", () => {
+  const linked = renderToStaticMarkup(
+    createElement(OutcomeRows, {
+      label: "How each agent's meetings end",
+      lead: TEAM,
+      rows: [{ ...LENA, agentId: "agt_lena" }],
+      keys: OUTCOME_KEYS,
+      keyCounts: {},
+      open: { register: "/shark/shark-residence/meetings", period: "last_28_days" },
+    }),
+  );
+  const at = (label: string) => {
+    const list = linked.slice(linked.indexOf('class="iris-orows-list"'));
+    const from = list.indexOf(`<li class="iris-orow"`, list.indexOf(`aria-label="${label}:`) - 200);
+    return list.slice(from, list.indexOf("</li>", from));
+  };
+  const counts = (label: string) => {
+    const row = at(label);
+    return row.slice(row.indexOf('class="iris-orow-open"'));
+  };
+
+  it("open a presenter's part on the register narrowed to them and to its outcome, in the period", () => {
+    expect(counts("Lena Fischer")).toContain(
+      'href="/shark/shark-residence/meetings?agent=agt_lena&amp;outcome=purchase&amp;period=last_28_days"',
+    );
+  });
+
+  it("open the team's part on its outcome alone", () => {
+    expect(counts("Team")).toContain(
+      'href="/shark/shark-residence/meetings?outcome=purchase&amp;period=last_28_days"',
+    );
+    expect(counts("Team")).not.toContain("agent=");
+  });
+
+  it("name each count's link with its presenter, its count and its outcome", () => {
+    expect(counts("Lena Fischer")).toContain(
+      'aria-label="Lena Fischer: 8 meetings ended Purchase — open them"',
+    );
+    expect(counts("Lena Fischer")).toContain(
+      'aria-label="Lena Fischer: 2 meetings with no outcome recorded — open them"',
+    );
+    expect(counts("Lena Fischer")).toContain("outcome=skipped");
+  });
+
+  it("give the keyboard one link per drawn part, and the bar's parts none", () => {
+    const row = at("Lena Fischer");
+    // Purchase, interested, not interested, unrecorded: four parts, four counts.
+    expect(counts("Lena Fischer").match(/<a /g)).toHaveLength(4);
+    const bar = row.slice(
+      row.indexOf('class="iris-orow-bar"'),
+      row.indexOf('class="iris-orow-open"'),
+    );
+    expect(bar).toContain('aria-hidden="true"');
+    expect(bar).not.toContain('role="img"');
+    expect(bar.match(/<a /g)).toHaveLength(4);
+    expect(bar.match(/tabindex="-1"/g)).toHaveLength(4);
   });
 });

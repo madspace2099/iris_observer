@@ -236,18 +236,24 @@ test.describe("the chart vocabulary", () => {
     await expect(page.getByText(/\b1 meetings\b/)).toHaveCount(0);
   });
 
-  test("the funnel's bands nest, so its arithmetic is real", async ({ page }) => {
+  /*
+   * The not-interested section replaced its nested bands (ADR-0053): the owner
+   * could not read "68% on its own · 80% elsewhere". Whose the meetings were is
+   * now a row per presenter, each with its own denominator, and each pair of
+   * rates is drawn under the names of both groups.
+   */
+  test("the not-interested group says whose it was, every count over its denominator", async ({
+    page,
+  }) => {
     await signInAs(page, "Petra Novák");
     await page.goto("/alpha/northgate/flow");
-    const counts = await page.locator(".iris-funnel-bar b").allTextContents();
-    expect(counts.length).toBeGreaterThan(2);
-
-    const numbers = counts.map((c) => Number(c));
-    for (let i = 1; i < numbers.length; i += 1) {
-      // A funnel means survival. A band wider than the one above it turns the
-      // drop figure beside it into a number that describes nothing.
-      expect(numbers[i]).toBeLessThanOrEqual(numbers[i - 1] as number);
+    const whose = page.getByRole("list", { name: "Whose they were" }).getByRole("listitem");
+    /* The section streams in after the verdict; a bare count can run before it lands. */
+    await expect(whose.first()).toBeVisible();
+    for (const figure of await whose.locator(".iris-orow-figure").allTextContents()) {
+      expect(figure).toMatch(/^[\d,]+ of [\d,]+ · (\d+%|no rate, [\d,]+ short of 20)$/);
     }
+    await expect(page.locator(".iris-cohort .iris-paired-head")).toContainText("This group");
   });
 
   /*
@@ -290,7 +296,8 @@ test.describe("the chart vocabulary", () => {
         /: [\d,]+ meetings?, (<?\d+% progressed · [\d,]+ of [\d,]+ recorded|No rate yet: |No outcome recorded)/,
       );
     }
-    await expect(page.locator(".iris-orows-list")).toHaveCount(2);
+    /* The two outcome mixes; the not-interested group's presenters are a third list, named by its heading. */
+    await expect(page.locator(".iris-orows-list[aria-label]")).toHaveCount(2);
     await expect(page.locator(".iris-stacks")).toHaveCount(0);
   });
 

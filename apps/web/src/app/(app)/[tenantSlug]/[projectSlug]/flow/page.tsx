@@ -771,6 +771,7 @@ export default async function FlowPage({
                 figure: view.team,
               }}
               rows={view.rings.map((ring) => ({
+                agentId: ring.agentId,
                 label: ring.name,
                 total: ring.meetings,
                 parts: outcomeParts(ring.slices),
@@ -778,6 +779,12 @@ export default async function FlowPage({
               }))}
               keys={OUTCOME_KEYS}
               keyCounts={teamParts}
+              // Each part opens its meetings in the register (ADR-0053), for a reader it admits.
+              open={
+                maySeeSurface(viewer.role, "meetings")
+                  ? { register: `/${tenantSlug}/${projectSlug}/meetings`, period: query.period }
+                  : undefined
+              }
             />
           )}
           <div className="iris-changes" style={{ marginTop: "1rem" }}>
@@ -826,7 +833,11 @@ export default async function FlowPage({
             <p className="iris-meta iris-meta-measured">{charts.funnel.empty}</p>
           ) : (
             <>
-              <Funnel steps={charts.funnel.steps} totalLabel={charts.funnel.comparisonLabel} />
+              <Funnel
+                data={charts.funnel}
+                period={query.period}
+                canOpen={maySeeSurface(viewer.role, "meetings")}
+              />
               <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
             </>
           )}
