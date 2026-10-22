@@ -923,7 +923,8 @@ a.iris-orow-part:hover {
  * two lists (`iris-ranked-measured`); Sales Agents' own ranked list keeps the
  * base `.iris-ranked-name em` rule untouched. The truncation/ellipsis and its
  * `title` fallback are deliberate (see the call site's own comment) and stay
- * exactly as they are — this changes legibility, not the interaction.
+ * exactly as they are — this changes legibility, not the interaction. Below
+ * 60rem, where a `title` cannot be shown, the line wraps instead (below).
  */
 .iris-ranked-measured .iris-ranked-name em {
   font-size: 0.75rem;
@@ -996,12 +997,24 @@ a.iris-orow-part:hover {
 }
 
 @media (max-width: 60rem) {
+  /* The value column is as wide as its value: a fixed 4rem broke "217 days" or squeezed the name. */
   .iris-ranked li {
-    grid-template-columns: 1.25rem minmax(0, 1fr) 4rem;
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
   }
 
   .iris-ranked-track {
     display: none;
+  }
+
+  /*
+   * The line under a name wraps here rather than ending in "…": its full text
+   * was only a `title`, which a phone cannot show, and with the track gone
+   * there is room. "Follow-up needed", the point of the row, stays on screen.
+   */
+  .iris-ranked-name em {
+    font-size: 0.75rem;
+    white-space: normal;
+    overflow: visible;
   }
 
   .iris-bullet {
