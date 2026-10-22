@@ -123,19 +123,27 @@ export function RoomTypes({
                   onPointerEnter={() => setFocus(t.id)}
                   onPointerLeave={() => setFocus(null)}
                 >
+                  {/* The counts the owner asked for first at the body size; their shares smaller. */}
                   <span className="pr-type">
                     <b>{t.label}</b>
-                    <small>
-                      {t.flatsDisplay} · {t.stockShareDisplay} of the stock
-                    </small>
+                    <span className="pr-count">
+                      {t.flatsDisplay}
+                      <small> · {t.stockShareDisplay} of the stock</small>
+                    </span>
                   </span>
                   <span className="pr-stock">
                     <Flats type={t} max={max} />
-                    <small>
-                      {t.soldDisplay === null
-                        ? "sold not known"
-                        : `${t.soldDisplay}${t.reservedDisplay === null ? "" : ` · ${t.reservedDisplay}`}`}
-                    </small>
+                    {t.soldDisplay === null ? (
+                      <small>sold not known</small>
+                    ) : (
+                      <span className="pr-count">
+                        {t.soldDisplay}
+                        <small>
+                          {` · ${t.soldShareDisplay ?? ""}`}
+                          {t.reservedDisplay === null ? "" : ` · ${t.reservedDisplay}`}
+                        </small>
+                      </span>
+                    )}
                   </span>
                   <span className="pr-interest">
                     <b>{s?.shareDisplay ?? "—"}</b>

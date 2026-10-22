@@ -156,7 +156,7 @@ test("R05-8 · a long list shows five rows and keeps every other row, numbered o
 
 test("R06-3 · /project and /units read one attention index for the same rooms", async ({ page }) => {
   await mainText(page, "Tomáš Varga", `${ROOT}/project`);
-  /* The readings' "Looked at" since the room types stand side by side (ADR-0056). */
+  /* The readings' "Time spent" since the room types stand side by side (ADR-0056). */
   const looked = await page
     .locator('.pr-read-rows li[data-type="rooms-2"] .pr-meter[data-kind="look"] .pr-meter-figure')
     .innerText();

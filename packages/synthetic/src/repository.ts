@@ -702,6 +702,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       buildProjectView(context, current, null).segments,
       sessionsForProject(context.project.id as string),
       today,
+      current.length,
     );
   }
 

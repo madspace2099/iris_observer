@@ -81,7 +81,7 @@ export {
 
 export { EXECUTIVE_METRICS } from "./executive";
 export { FLOW_METRICS } from "./flow";
-export { UNIT_METRICS } from "./units";
+export { UNIT_METRICS, ROOM_TYPE_SOLD_GAP } from "./units";
 export { PEOPLE_METRICS } from "./people";
 export { JOURNEY_METRICS, JOURNEY_ATTRIBUTION } from "./journey";
 export { INTENT_METRICS } from "./intent";

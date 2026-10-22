@@ -502,6 +502,15 @@ export const soldBySegment = defineMetric({
 /** Below this many meetings in a window (or in one point of its line), no share is ranked or compared. */
 const ROOM_TYPE_WINDOW_MIN = 10;
 
+/**
+ * The sold side of a room type's reading names a direction only when the
+ * type's sold flats differ by at least this many from what the project's own
+ * rate gives its flats. Nearer than one flat, "above the project" or "below"
+ * rests on less than one sale, and the reading says it sells at the
+ * project's rate.
+ */
+export const ROOM_TYPE_SOLD_GAP = 1;
+
 export const roomTypeStock = defineMetric({
   id: "project.room_type_stock",
   displayName: "Flats and sales by room type",
@@ -537,12 +546,13 @@ export const roomTypeInterest = defineMetric({
     "Which flat sizes buyers ask to see: the share of meetings that opened a flat of each room count, over a window the reader picks.",
   kind: "ratio",
   calculation:
-    "Meetings in the window that opened at least one flat of the room type, divided by every meeting in the window. A meeting that opened a two-room and a three-room flat counts for both, so the shares do not add up to 100%. The change is in percentage points against the same length of time immediately before; the line splits the window into equal parts and draws a part only from its own meetings.",
+    "Meetings in the window that opened at least one flat of the room type, divided by every meeting in the window. A meeting that opened a two-room and a three-room flat counts for both, so the shares do not add up to 100%. The change is in percentage points against the same length of time immediately before, and only when that time lies wholly after the project's first meeting. The line splits the window into equal parts and draws a part only from its own meetings; the 7-day window's line is its 7 days and the 7 before them, a point each, because a showroom's day rarely holds the floor.",
   numerator: "meetings in the window that opened a flat of the room type",
   denominator: "meetings in the window",
   exclusions: [
     "openings of flats the catalogue does not list",
     `a window, or a part of its line, with fewer than ${ROOM_TYPE_WINDOW_MIN} meetings: shown raw, never ranked, compared or drawn`,
+    "a change against time before that starts before the project's first meeting, which would set part of a window against a whole one",
   ],
   dimensions: ["project", "period", "rooms"],
   timeWindow: "period",
@@ -565,13 +575,13 @@ export const roomTypeReading = defineMetric({
   id: "project.room_type_reading",
   displayName: "Interest against sales, by room type",
   businessDefinition:
-    "Whether a room type is looked at more or less than its share of the stock, and whether a larger or smaller share of it has sold than of the project, in one plain line.",
+    "Whether a room type gets more or less of buyers' looking time than its share of the unsold flats, and whether a larger or smaller share of it has sold than of the project, in one plain line.",
   kind: "status",
-  calculation:
-    "Two readings side by side. Looked at: the attention index (`project.attention_index`) of the room type in the period, above or below 1.00×. Sold: the type's sold share (`project.room_type_stock`) at or above, or below, the project's own. The pair names one of four readings, each with the action it suggests. It is an association between what buyers look at and what has sold, never a cause.",
-  numerator: "the room type's attention index and sold share",
-  denominator: "parity (1.00×) and the project's sold share",
+  calculation: `Two readings side by side. Time spent: the attention index (\`project.attention_index\`) of the room type in the period — its share of the time spent on unsold flats over its share of the unsold flats — above or below 1.00×; it is time, not how often the type is opened (\`project.room_type_interest\`). Sold: the type's sold flats (\`project.room_type_stock\`) against the project's sold share applied to its flats; a gap of ${ROOM_TYPE_SOLD_GAP} flat or more names a direction, and a smaller one reads as selling at the project's rate. The pair names one of five readings. "Less time, but selling well" suggests showing the type more only where it was opened in no larger a share of the period's meetings than its share of the stock; the other directed readings each carry their action. It is an association between what buyers look at and what has sold, never a cause.`,
+  numerator: "the room type's attention index, and its sold flats",
+  denominator: "parity (1.00×), and the project's sold share applied to the type's flats",
   exclusions: [
+    `a sold side within ${ROOM_TYPE_SOLD_GAP} flat of the project's rate, which names no direction`,
     "a room type opened in fewer than the minimum number of meetings in the period",
     "a room type with no attention index: all of it sold, or nobody looked at its unsold flats",
     "a project with no CRM, which cannot say what sold",

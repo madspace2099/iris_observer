@@ -23,9 +23,13 @@ provideCatalogue(PROJECT, [
   flat("B-4", 2, "available"),
   flat("C-1", 3, "available"),
 ]);
-afterAll(() => provideCatalogue(PROJECT, null));
+const OTHER = "prj_roomtypes2";
+afterAll(() => {
+  provideCatalogue(PROJECT, null);
+  provideCatalogue(OTHER, null);
+});
 
-function flat(code: string, rooms: number, status: "sold" | "reserved" | "available") {
+function flat(code: string, rooms: number | null, status: "sold" | "reserved" | "available") {
   return {
     code,
     block: code[0] ?? "A",
@@ -38,11 +42,12 @@ function flat(code: string, rooms: number, status: "sold" | "reserved" | "availa
   };
 }
 
-function context(crm: boolean): ViewContext {
+function context(crm: boolean, project = PROJECT): ViewContext {
   return viewContext({
     tenant: { slug: "test" },
+    period: { label: "Quarter to date" },
     project: {
-      id: PROJECT,
+      id: project,
       slug: "rooms",
       locale: "en-GB",
       timeZone: "UTC",
@@ -120,13 +125,16 @@ const HISTORY: ShowroomSession[] = [
 
 function segment(
   id: string,
-  rooms: number,
+  rooms: number | null,
   index: number | null,
   meetings: number,
   unitsOpened: number,
   rates: Readonly<Record<string, number>>,
 ): SegmentInterest {
-  const label = { 1: "One-room", 2: "Two-room", 3: "Three-room" }[rooms] ?? "";
+  const label =
+    rooms === null
+      ? "Rooms not stated"
+      : ({ 1: "One-room", 2: "Two-room", 3: "Three-room", 4: "Four-room" }[rooms] ?? "");
   return {
     id,
     label,
@@ -175,7 +183,8 @@ const SEGMENTS = [
 ];
 
 const TODAY = new Date("2026-08-24T12:00:00Z");
-const view = buildRoomTypes(context(true), SEGMENTS, HISTORY, TODAY);
+/* The period's presentations: forty, the set the readings' meeting shares are of. */
+const view = buildRoomTypes(context(true), SEGMENTS, HISTORY, TODAY, 40);
 const window = (id: string) => {
   const w = view.windows.find((x) => x.id === id);
   if (w === undefined) throw new Error(id);
@@ -191,17 +200,17 @@ describe("the stock, from the catalogue and the CRM", () => {
     ]);
     /* 2 of 7, 4 of 7, 1 of 7; 1 of 2, 1 of 4, 0 of 1. */
     expect(view.types.map((t) => t.stockShareDisplay)).toEqual(["29%", "57%", "14%"]);
-    expect(view.types.map((t) => t.soldDisplay)).toEqual([
-      "1 sold · 50%",
-      "1 sold · 25%",
-      "0 sold · 0%",
+    expect(view.types.map((t) => [t.soldDisplay, t.soldShareDisplay])).toEqual([
+      ["1 sold", "50%"],
+      ["1 sold", "25%"],
+      ["0 sold", "0%"],
     ]);
     expect(view.flatsDisplay).toBe("7 flats");
     expect(view.projectSoldDisplay).toBe("2 of 7 sold · 29%");
   });
 
   it("states sold as unavailable without a CRM, never as nought", () => {
-    const none = buildRoomTypes(context(false), SEGMENTS, HISTORY, TODAY);
+    const none = buildRoomTypes(context(false), SEGMENTS, HISTORY, TODAY, 40);
     expect(none.types.map((t) => [t.sold, t.reserved, t.soldDisplay])).toEqual([
       [null, null, null],
       [null, null, null],
@@ -224,13 +233,16 @@ describe("interest, window by window", () => {
       "Last 365 days",
       "All time",
     ]);
-    /* The switch's own words are the owner's: a week, a month, a quarter, a half-year, a year, total. */
+    /*
+     * The owner's spans, a week to total, named by their length: "Quarter"
+     * beside the page's "Quarter to date" named two spans.
+     */
     expect(view.windows.map((w) => w.name)).toEqual([
-      "Week",
-      "Month",
-      "Quarter",
-      "Half-year",
-      "Year",
+      "7 days",
+      "30 days",
+      "91 days",
+      "182 days",
+      "365 days",
       "All time",
     ]);
     expect(view.defaultWindow).toBe("month");
@@ -258,8 +270,9 @@ describe("interest, window by window", () => {
       ["55%", null],
       ["20%", null],
     ]);
+    /* 26 Jun – 25 Jul holds the first meeting, 1 Jul: part of thirty days, not thirty. */
     expect(month.changeAgainst).toBe(
-      "No change is shown: the 30 days before hold 1 meeting, 9 short of 10.",
+      "No change is shown: the project's first meeting, on 1 Jul, falls inside the 30 days before.",
     );
     /* 25 Jul – 24 Aug before that: nothing. */
     expect(window("quarter").changeAgainst).toBe(
@@ -297,10 +310,74 @@ describe("interest, window by window", () => {
     expect(trend.empty).toBeNull();
   });
 
-  it("says why there is no line when no day reaches the floor", () => {
-    expect(window("week").trend.empty).toBe(
-      "Too few meetings a day to draw a line: a point needs 10, and the busiest day had 5.",
+  it("does not compare with time before that starts ahead of the first meeting", () => {
+    /*
+     * The first meeting moved to 12 Aug. The 7 days before the week, 11–17
+     * Aug, then hold eleven meetings (the 12th's and the 14th's ten): over the
+     * floor, but six days of a week, so no change is shown.
+     */
+    const late = buildRoomTypes(
+      context(true),
+      SEGMENTS,
+      [...HISTORY.slice(0, -1), meeting(12, [])],
+      TODAY,
+      40,
     );
+    const week = late.windows.find((w) => w.id === "week");
+    expect(week?.changeAgainst).toBe(
+      "No change is shown: the project's first meeting, on 12 Aug, falls inside the 7 days before.",
+    );
+    expect(week?.shares.map((s) => s.change)).toEqual([null, null, null]);
+    expect(week?.reading).not.toContain("moved most");
+  });
+
+  it("draws the week as its 7 days and the 7 before, the sets of its change", () => {
+    /*
+     * 11–17 Aug: one-room 5/10, two-room 5/10, three-room 0/10. 18–24 Aug:
+     * 3/10, 6/10, 4/10. The points are the change column's two sets.
+     */
+    const trend = window("week").trend;
+    expect(trend.parts.map((p) => [p.label, p.meetings])).toEqual([
+      ["17 Aug", 10],
+      ["24 Aug", 10],
+    ]);
+    expect(trend.series.map((s) => s.values)).toEqual([
+      [0.5, 0.3],
+      [0.5, 0.6],
+      [0, 0.4],
+    ]);
+    expect(trend.caption).toBe(
+      "One point is one 7-day stretch: the last 7 days and the 7 before them.",
+    );
+    expect(trend.empty).toBeNull();
+  });
+
+  it("says why there is no line when no stretch reaches the floor", () => {
+    /*
+     * Four meetings, all on 19 Aug, the first: the week's line starts there,
+     * 19–24 Aug in two stretches of three days, and the busiest holds four.
+     */
+    const few = buildRoomTypes(context(true), SEGMENTS, HISTORY.slice(0, 4), TODAY, 4);
+    expect(few.windows[0]?.trend.empty).toBe(
+      "Too few meetings a 3-day stretch to draw a line: a point needs 10, and the busiest 3-day stretch had 4.",
+    );
+    expect(few.windows[0]?.trend.caption).toBe(
+      "One point is one 3-day stretch, from the first meeting on 19 Aug.",
+    );
+  });
+
+  it("claims no first meeting before there is one", () => {
+    const none = buildRoomTypes(context(true), SEGMENTS, [], TODAY, 0);
+    /* 30 days in five stretches of six; 365 in twelve of 30.4, said as 30. */
+    expect(none.windows.map((w) => w.trend.caption)).toEqual([
+      "One point is one 7-day stretch: the last 7 days and the 7 before them.",
+      "One point is one 6-day stretch.",
+      "One point is one 7-day stretch.",
+      "One point is one 14-day stretch.",
+      "One point is one 30-day stretch.",
+      "One point is one day.",
+    ]);
+    expect(none.windows[1]?.reading).toBe("No meeting in the last 30 days.");
   });
 
   it("starts a long window's line at the first meeting, and says so", () => {
@@ -312,7 +389,7 @@ describe("interest, window by window", () => {
   });
 
   it("ranks nothing under the floor", () => {
-    const few = buildRoomTypes(context(true), SEGMENTS, HISTORY.slice(0, 4), TODAY);
+    const few = buildRoomTypes(context(true), SEGMENTS, HISTORY.slice(0, 4), TODAY, 4);
     expect(few.windows[0]?.reading).toBe(
       "4 meetings in the last 7 days: too few to rank the types, 6 short of 10.",
     );
@@ -321,22 +398,69 @@ describe("interest, window by window", () => {
 });
 
 describe("interest against sales", () => {
-  it("reads each type from its index and its sold share against the project's", () => {
-    /* Project 2 of 7 sold. One-room 0.80× and 1 of 2; two-room 1.50× and 1 of 4. */
+  it("names no sold direction less than a flat from the project's rate", () => {
+    /*
+     * Project 2 of 7 sold. One-room 1 of 2 against 2 × 2/7 = 0.57: 0.43 of a
+     * flat above. Two-room 1 of 4 against 4 × 2/7 = 1.14: 0.14 below. Both
+     * read as the project's rate, whatever their shares say.
+     */
     expect(
-      view.readings.map((r) => [r.lookedAtDisplay, r.soldDisplay, r.verdict, r.headline]),
+      view.readings.map((r) => [r.lookedAtDisplay, r.soldDisplay, r.verdict, r.headline, r.action]),
     ).toEqual([
-      ["0.80×", "50%", "shown_less_selling", "Selling well, looked at less"],
-      ["1.50×", "25%", "wanted_slow", "Wanted, but selling less"],
-      ["2.00×", "0%", null, "Too few meetings for a reading"],
+      ["0.80×", "1 of 2 · 50%", "in_line", "Less time on it, selling at the project's rate", null],
+      ["1.50×", "1 of 4 · 25%", "in_line", "More time on it, selling at the project's rate", null],
+      ["2.00×", "0 of 1 · 0%", null, "Too few meetings for a reading", null],
     ]);
     expect(view.readings[2]?.basis).toBe("5 meetings opened one · 15 short of 20");
     expect(view.soldAgainst).toBe("Sold, against the project's 29%");
+    expect(view.periodDisplay).toBe("Quarter to date · 40 presentations");
+  });
+
+  it("names a direction a flat or more away, and suggests showing a type more only where it is shown less", () => {
+    /*
+     * Twenty flats, six sold: the project's rate 30%.
+     *   One-room   4 flats, 3 sold: 4 × 0.3 = 1.2, so 1.8 above.
+     *   Two-room   8 flats, 1 sold: 2.4, so 1.4 below.
+     *   Three-room 4 flats, 2 sold: 1.2, so 0.8 above: the project's rate.
+     *   Four-room  4 flats, 0 sold: 1.2, so 1.2 below.
+     * One-room's 25 meetings are 25% of 100 presentations, above its 20% of
+     * the stock: already shown, so no "show it more". Of 200, 12.5%: it is.
+     */
+    provideCatalogue(OTHER, [
+      ...["A-1", "A-2", "A-3"].map((c) => flat(c, 1, "sold")),
+      flat("A-4", 1, "available"),
+      flat("B-1", 2, "sold"),
+      ...["B-2", "B-3", "B-4", "B-5", "B-6", "B-7", "B-8"].map((c) => flat(c, 2, "available")),
+      ...["C-1", "C-2"].map((c) => flat(c, 3, "sold")),
+      ...["C-3", "C-4"].map((c) => flat(c, 3, "available")),
+      ...["D-1", "D-2", "D-3", "D-4"].map((c) => flat(c, 4, "available")),
+    ]);
+    const segments = [
+      segment("rooms-1", 1, 0.8, 25, 30, {}),
+      segment("rooms-2", 2, 1.5, 25, 30, {}),
+      segment("rooms-3", 3, 2, 25, 30, {}),
+      segment("rooms-4", 4, 0.5, 20, 30, {}),
+    ];
+    const read = (periodMeetings: number) =>
+      buildRoomTypes(context(true, OTHER), segments, [], TODAY, periodMeetings).readings.map(
+        (r) => [r.verdict, r.headline, r.action],
+      );
+    expect(read(100)).toEqual([
+      ["shown_less_selling", "Less time on it, but selling well", null],
+      ["wanted_slow", "More time on it, but selling less", "Check the price and what is promised."],
+      ["in_line", "More time on it, selling at the project's rate", null],
+      ["neither", "Less time on it, and selling less", "Rethink how it is offered."],
+    ]);
+    expect(read(200)[0]).toEqual([
+      "shown_less_selling",
+      "Less time on it, but selling well",
+      "Show it more in presentations.",
+    ]);
   });
 
   it("gives no reading to a type nobody looked at", () => {
     const unseen = SEGMENTS.map((s) => (s.id === "rooms-1" ? { ...s, index: null } : s));
-    const r = buildRoomTypes(context(true), unseen, HISTORY, TODAY).readings[0];
+    const r = buildRoomTypes(context(true), unseen, HISTORY, TODAY, 40).readings[0];
     expect([r?.verdict, r?.headline, r?.lookedAtDisplay]).toEqual([
       null,
       "No reading: nobody looked at its unsold flats",
@@ -346,6 +470,18 @@ describe("interest against sales", () => {
 });
 
 describe("the room types side by side", () => {
+  it("links no audience for flats whose room count is not stated", () => {
+    provideCatalogue(OTHER, [flat("X-1", null, "available"), flat("B-1", 2, "available")]);
+    const v = buildRoomTypes(
+      context(true, OTHER),
+      [segment("rooms-unknown", null, null, 0, 0, {}), segment("rooms-2", 2, null, 0, 0, {})],
+      [],
+      TODAY,
+      0,
+    );
+    expect(v.columns.map((c) => c.audienceHref)).toEqual([null, "/test/rooms/audience?rooms=2"]);
+  });
+
   it("states each column's set and marks a row's highest only at the floor", () => {
     expect(view.columns.map((c) => [c.openingsDisplay, c.shortNote])).toEqual([
       ["30 openings", null],

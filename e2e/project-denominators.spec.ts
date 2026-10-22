@@ -85,7 +85,7 @@ test("the attention index says what it is a multiple of, and each reading its sa
    */
   await open(page);
   await expect(page.locator(".pr-read-head"), "an index drawn as a bare multiple").toContainText(
-    "against its share of the stock",
+    "against its share of the unsold flats",
     { useInnerText: true },
   );
   const samples = await page.locator(".pr-read-type small").allInnerTexts();

@@ -8,10 +8,14 @@ import "./rooms.css";
  *
  * It replaces the attention × conversion scatter, which the owner — an
  * architect — could not read: "Simplify!". Each room type gets one reading in
- * words ("Wanted, and selling well"), the action it suggests, and the two
- * facts it rests on, each drawn against its own reference: how much it is
- * looked at against its share of the stock (1.00× is its fair share), and how
- * much of it has sold against the project. Under the sample floor the line
+ * words ("More time on it, and selling well"), the action it suggests, and
+ * the two facts it rests on, each drawn against its own reference: the time
+ * buyers spent on it against its share of the unsold flats (1.00× is its fair
+ * share), and how much of it has sold against the project. It is time, not
+ * how often a type is opened, and the head says so: "looked at" beside the
+ * block above's openings told an architect opposite things about one type.
+ * The period is named, because the window switch above does not move it.
+ * Under the sample floor the line
  * says why there is no reading; with no CRM to say what sold, no type has
  * one, and the card says so once instead of once a row.
  */
@@ -35,6 +39,7 @@ export function RoomReadings({
           {view.readingDefinition}
         </InfoTip>
       </header>
+      <p className="pr-sub">{view.periodDisplay}</p>
       {/* With no CRM every type would say the same "no reading": it is said once. */}
       {view.soldUnavailable === null ? (
         <Rows view={view} />
@@ -52,7 +57,7 @@ function Rows({ view }: { readonly view: RoomTypesView }) {
       <div className="pr-read-head" aria-hidden="true">
         <span />
         <span>Reading</span>
-        <span>Looked at, against its share of the stock</span>
+        <span>Time spent, against its share of the unsold flats</span>
         <span>{view.soldAgainst}</span>
       </div>
       <ul className="pr-read-rows">
@@ -70,7 +75,7 @@ function Rows({ view }: { readonly view: RoomTypesView }) {
               </span>
               <span className="pr-meter" data-kind="look">
                 <span className="pr-meter-figure">
-                  <small className="pr-narrow">Looked at </small>
+                  <small className="pr-narrow">Time spent </small>
                   {r.lookedAtDisplay}
                 </span>
                 <span className="pr-meter-track" aria-hidden="true">

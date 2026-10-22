@@ -35,12 +35,18 @@ export interface RoomType {
   readonly reserved: number | null;
   /** `sold` over `flats`; null with no CRM. */
   readonly soldShare: number | null;
-  /** "13 sold · 48%"; null with no CRM (the view says why, once). */
+  /** "13 sold"; null with no CRM (the view says why, once). */
   readonly soldDisplay: string | null;
+  /** "48%": `soldShare`, said after the count in smaller print; null with no CRM. */
+  readonly soldShareDisplay: string | null;
   /** "7 reserved"; null with no CRM. */
   readonly reservedDisplay: string | null;
-  /** The audience page for buyers who opened this type, without the period. */
-  readonly audienceHref: string;
+  /**
+   * The audience page for buyers who opened this type, without the period;
+   * null for the flats whose room count is not stated, which the audience
+   * builder has no criterion for.
+   */
+  readonly audienceHref: string | null;
 }
 
 /** One room type's interest in a window. */
@@ -86,7 +92,7 @@ export interface RoomTypeWindow {
   readonly id: RoomTypeWindowId;
   /** "Last 30 days". */
   readonly label: string;
-  /** The switch's word for it, the owner's: "Week", "Month", … "All time". */
+  /** The switch's word for it, its length: "7 days", "30 days", … "All time". */
   readonly name: string;
   readonly meetings: number;
   /** "83 meetings in the last 30 days": the set every share of the window is of. */
@@ -108,10 +114,15 @@ export interface RoomTypeReading {
   /** "1.54×", or "—". */
   readonly lookedAtDisplay: string;
   readonly soldShare: number | null;
-  /** "48%", or "—" with no CRM. */
+  /** "13 of 27 · 48%": the flats the sold side stands on; "—" with no CRM. */
   readonly soldDisplay: string;
-  readonly verdict: "wanted_selling" | "wanted_slow" | "shown_less_selling" | "neither" | null;
-  /** "Wanted, and selling well"; or why there is no reading. */
+  /**
+   * `in_line`: the type's sold flats are within `ROOM_TYPE_SOLD_GAP` of what
+   * the project's rate gives its flats, so the sold side names no direction.
+   */
+  readonly verdict:
+    "wanted_selling" | "wanted_slow" | "shown_less_selling" | "neither" | "in_line" | null;
+  /** "More time on it, and selling well"; or why there is no reading. */
   readonly headline: string;
   /** What the reading suggests doing; null with no reading. */
   readonly action: string | null;
@@ -129,7 +140,8 @@ export interface RoomTypeColumn {
   readonly belowMinimum: boolean;
   /** "too few to compare · 9 short of 20"; null at or above the floor. */
   readonly shortNote: string | null;
-  readonly audienceHref: string;
+  /** Null where the type has no audience criterion (`RoomType.audienceHref`). */
+  readonly audienceHref: string | null;
 }
 
 export interface RoomTypeComparisonRow {
@@ -161,6 +173,12 @@ export interface RoomTypesView {
   /** What the block's figures are, for its `i`. */
   readonly definition: string;
 
+  /**
+   * The page's period and its presentations, "Quarter to date · 150
+   * presentations": the set the readings and the side-by-side rates are of,
+   * named so it is not taken for the window switch above.
+   */
+  readonly periodDisplay: string;
   readonly readings: readonly RoomTypeReading[];
   /** "Sold, against the project's 40%". */
   readonly soldAgainst: string;

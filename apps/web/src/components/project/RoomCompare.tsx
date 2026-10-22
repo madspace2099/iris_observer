@@ -39,7 +39,7 @@ export function RoomCompare({
           {view.comparisonDefinition}
         </InfoTip>
       </header>
-      <p className="pr-sub">What buyers did once they opened a flat, in this period.</p>
+      <p className="pr-sub">What buyers did once they opened a flat. {view.periodDisplay}.</p>
       <div className="pr-grid" role="table" aria-label="What buyers did with each room type">
         <div className="pr-grid-row pr-grid-head" role="row">
           <span className="pr-grid-corner" role="columnheader">
@@ -77,12 +77,15 @@ export function RoomCompare({
         ))}
         <div className="pr-grid-row pr-grid-foot" role="row">
           <span role="cell" className="pr-grid-corner" />
+          {/* A type with no audience criterion (no stated room count) gets no link that promises one. */}
           {view.columns.map((c) => (
             <span role="cell" key={c.id}>
-              <Link className="iris-action" href={dynamicRoute(hrefFor(c.audienceHref))}>
-                Build an audience
-                <span className="pr-for"> of {c.label.toLowerCase()} buyers</span>
-              </Link>
+              {c.audienceHref === null ? null : (
+                <Link className="iris-action" href={dynamicRoute(hrefFor(c.audienceHref))}>
+                  Build an audience
+                  <span className="pr-for"> of {c.label.toLowerCase()} buyers</span>
+                </Link>
+              )}
             </span>
           ))}
         </div>
