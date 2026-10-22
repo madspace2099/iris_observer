@@ -230,3 +230,20 @@ describe("a ranked list on a narrow screen", () => {
     );
   });
 });
+
+describe("the Ask IRIS home on a phone", () => {
+  const ASK = sheet("ask-iris.css");
+  const DENSE = '.ask-openings[data-dense="true"] .ask-opening';
+
+  it("holds the dense rows' fixed 50px to wider screens, so a three-line question grows its row", () => {
+    expect(rule(within(ASK, "@media (width > 48rem)"), DENSE)).toMatch(/height:\s*50px/);
+    expect(ASK.split(`${DENSE} {`)).toHaveLength(2);
+    expect(rule(within(ASK, "@media (width <= 48rem)"), ".ask-opening")).toMatch(/height:\s*auto/);
+  });
+
+  it("makes the three named destinations thumb-sized", () => {
+    expect(rule(within(ASK, "@media (width <= 48rem)"), ".ask-quicklink")).toMatch(
+      /min-height:\s*44px/,
+    );
+  });
+});

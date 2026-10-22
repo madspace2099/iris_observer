@@ -963,10 +963,19 @@
   opacity: 0.85;
 }
 
+/*
+ * On a phone each link is a thumb's height: 20px tall with 10px between rows,
+ * a tap meant for one landed on the other. The 44px holds the rows' spacing
+ * itself, so the gap between them goes.
+ */
 @media (width <= 48rem) {
   .ask-quicklinks {
-    gap: 10px 18px;
-    margin-top: 16px;
+    gap: 0 18px;
+    margin-top: 4px;
+  }
+
+  .ask-quicklink {
+    min-height: 44px;
   }
 }
 
@@ -2341,8 +2350,15 @@ a.ask-evidence-link:hover {
   margin-top: min(72px, max(26px, calc(12vh - 60px)));
 }
 
-.ask-openings[data-dense="true"] .ask-opening {
-  height: 50px;
+/*
+ * Above the phone width only. Later in the sheet than the phone's
+ * `height: auto`, an unscoped 50px overrode it, and a question that wraps to
+ * three lines on a phone printed its last line across the next row.
+ */
+@media (width > 48rem) {
+  .ask-openings[data-dense="true"] .ask-opening {
+    height: 50px;
+  }
 }
 
 .ask-openings li[data-live="true"] .ask-opening-mark {
