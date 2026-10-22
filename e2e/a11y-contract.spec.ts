@@ -136,7 +136,7 @@ const SURFACES: readonly Surface[] = [
     change: async (page) => {
       await page
         .getByRole("group", { name: "Interest over" })
-        .getByRole("button", { name: "Quarter", exact: true })
+        .getByRole("button", { name: "91 days", exact: true })
         .click();
       return "in the last 91 days";
     },

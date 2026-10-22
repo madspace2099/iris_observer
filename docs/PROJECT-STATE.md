@@ -6097,6 +6097,43 @@ commit (`75141f0`), one commit before `index.ts` stopped exporting it: that comm
 typecheck; the stream's head does. Cherry-pick the stream's commits together.
 
 **Next recommended action.** On the demo build open `/shark/shark-residence/project` as Clara at
-1440, 390 and 360: switch Week → All time and watch nothing reload, read the four readings, compare
+1440, 390 and 360: switch 7 days → All time and watch nothing reload, read the four readings, compare
 the columns, and read the journey's title; run the five edited specs. Ask Máté whether the
 per-type "Where those buyers spent their time" should return as a row of the comparison.
+
+**Review round (ADR-0056 § Review round).** Adversarial reviewers sent fourteen findings, three of
+them duplicates. All eleven distinct ones held in the code and were fixed in `241a98a`
+(read model, registry, tests, e2e wording) and `f2ace73` (the page's CSS and hues):
+
+- Change only against time before that lies wholly after the first meeting (Shark's 182 days had
+  compared against 43 days of meetings); the change line says why otherwise.
+- The sold side of a reading names a direction only a whole flat (`ROOM_TYPE_SOLD_GAP`, exported
+  with `project.room_type_reading`) from the project's rate, and shows its flats ("8 of 19 · 42%").
+  On Shark, Three-room and Four-room now read "Less time on it, selling at the project's rate".
+- The reading's axis is **Time spent, against its share of the unsold flats** (the index's true
+  denominator); "Show it more in presentations" is withheld from a type already opened in more of
+  the period's meetings than its share of the stock.
+- The switch's chips name their length (7 days … All time); the readings and the side-by-side table
+  name the page's period and presentations ("Quarter to date · 150 presentations").
+- The 7-day line is its 7 days and the 7 before them, so it draws on Shark (19 and 19 meetings).
+- No caption claims a first meeting before there is one; no audience link for an unstated room count.
+- Phone grid corners stay in the accessibility tree (an AX dump at 360 now aligns heads and cells);
+  flats and sold at the body size; hues blue, magenta, aqua, sky; a row's highest by weight and
+  underline, not green.
+
+Not taken: sizing every window's stretches by the floor (it trades resolution where meetings
+cluster; the "too few" sentence is honest), and a meeting-share reading (meeting shares add up to
+over 100% and have no parity).
+
+**Verified (review round).** Typecheck clean; eslint and prettier clean on every changed file;
+`pnpm matrix` regenerated (no drift). `room-types` 18 (5 new, hand-computed: a before window over
+the floor that starts ahead of the first meeting, the week's two sets, an empty history, a 20-flat
+catalogue naming each reading and both branches of "show it more", the unstated type's link),
+`packages/metrics/test` and `project-page-figures` green. Static renders of Shark (30 days, 91
+days, 7 days), Northgate and Riverside at 1440, 390 and 360: no sideways scroll, nothing past a
+card, no text under 12px but the `i` glyph. Full unit suite once (after `pnpm release:wrappers`, clean tree): 284 files, 5198 passed, 1 skipped, 2 failed, the same two as before and neither this stream's: `no-secret-recipes` (no web build; environmental) and `artefact-consistency` (REVIEW.txt:205 cites `b872d6e…`).
+e2e edited, not run: `project-denominators` (the head now says "the unsold flats"), `a11y-contract` (the switch's button is "91 days"), `p221-meres`
+(comment). **Not seen on a running build.**
+
+**Next recommended action (unchanged, plus).** On the demo build check the readings' wording with
+Máté: two of Shark's four types now read "selling at the project's rate" with no act.
