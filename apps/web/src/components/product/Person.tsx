@@ -11,7 +11,7 @@ import { withPeriod } from "@/lib/period";
  * A generated avatar — a coloured circle, an identicon, a cartoon — is a
  * decoration standing exactly where an identity should be, and on a roster it
  * invites the reader to tell people apart by hue rather than by name. The one
- * picture this product shows is a real portrait the agent's company put there
+ * picture this product shows is a real portrait the tenant's admin or the agent put there
  * (ADR-0054, `components/agents/Portrait.tsx`), which reads the same initials
  * where there is none.
  *
