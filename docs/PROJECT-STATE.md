@@ -5553,3 +5553,39 @@ asserted the old sentence.
 
 **Next recommended action.** Ask the question on the demo build as a Shark viewer and open
 `/shark/shark-residence/units` at 1440 and 390 to see the panel in its page.
+
+## 2026-10-21 — ADR-0051 review round: what the most-opened flats share
+
+Two adversarial reviewers read the unit-patterns branch; 21 findings, 20 fixed, 1 rejected. The ADR
+moved from 0050 to **0051** (0050 is the report-print ADR on the feature branch).
+
+- **Chance, not lift.** A band needs 70% of the five and a binomial tail under 1 in 20; price and
+  area are tested on the flats' own span, not fixed thirds (which cut Shark's two-room cluster in
+  two). "4 of the 5 face south and are in block S, against 50%" (chance 0.19) is gone.
+- **Ask keeps the ranking.** The tool fits its draft to `ANSWER_CEILING` (shared with the composer):
+  patterns, then held-now, then the spans, then each sale; the ranking always. A test asks the
+  question in every project and period (it failed on Northgate's last quarter before the fix).
+- **Sales split at the period's start**: "S-501's reservation (10 Feb) and H-401's purchase (26
+  Mar) predate the period." The catalogue-still-lists note stays in its sale's sentence; "no sale"
+  and "sale with no date" are told apart (`placedSaleOf`); sync-dated sales carry the lag note.
+- **Words**: "None of the 5 is", "Only 1 meeting", "A, B, C and 2 more", exceptions named ("all but
+  H-401"), studios, the catalogue's size said once; the model's pattern facts read "24 of the 60
+  flats in the catalogue (40%)" with a narrowed base named.
+- **Units**: the section wears `ox-section-head` instead of a `.d-card`; the demonstration CRM's
+  caveat is printed under the sales lines.
+- **Rejected**: "in _the_ last completed quarter" — every read model writes `in ${label}`; changing
+  one would make it the odd one out.
+
+**Shark, quarter to date, as Ask now answers:** all five measure 59–65 m² (32% of the 60), stand on
+floors 4–7 (40%), have two rooms (45%); priced €191,000–€218,000 (35%); four reserved or sold
+(60%); both sales dated in the quarter followed a showing within 72 hours; ranking S-503 (29 of
+150), S-403 (23), S-603 (22), S-501 (22), H-401 (18).
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; `unit-patterns`
+(10), `ask` (67), `unit-patterns-panel`, and the 25 suites touching deals and assisted sales. Full
+unit suite: 273 files, 5068 passed, 1 skipped, 1 failed — `no-secret-recipes`, whose auditor reports
+clean and exits non-zero for want of a web build. Not looked at on a running page: no dev server,
+build or Playwright in this round.
+
+**Next recommended action.** Open `/shark/shark-residence/units` at 1440 and 390 on the demo build
+to see the section in its page, and ask the live question there as Clara.
