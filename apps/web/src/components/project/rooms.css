@@ -105,7 +105,7 @@
 .pr-rows-head,
 .pr-rows li {
   display: grid;
-  grid-template-columns: minmax(8rem, 10rem) minmax(0, 1.15fr) minmax(0, 1fr) 4.5rem;
+  grid-template-columns: minmax(11.5rem, 13rem) minmax(0, 1.15fr) minmax(0, 1fr) 4.5rem;
   column-gap: 20px;
   align-items: center;
 }
@@ -162,11 +162,21 @@
   background: var(--pr-hue);
 }
 
-.pr-type small,
-.pr-stock small {
-  font-size: 12px;
-  line-height: 16px;
-  color: var(--d-ink-4);
+/* The flats and the sold, at the body size: what the owner asked for first. */
+.pr-count {
+  font-size: 15px;
+  line-height: 22px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--d-ink);
+}
+
+/* Their shares, and "sold not known", at the meta size. */
+.pr-count small,
+.pr-stock > small {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--d-ink-3);
 }
 
 /* One block a flat: the longest row is the type with the most flats. */
@@ -504,13 +514,20 @@
   background: var(--d-ink-4);
 }
 
-/* A row's highest, among the types with enough openings to rank. */
+/*
+ * A row's highest, among the types with enough openings to rank: weight and
+ * an underline, never a hue. The kit's spring green read as a room type's
+ * line, and green on this page means sold.
+ */
 .pr-grid [data-highest] > b {
-  color: var(--d-accent-2);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .pr-grid [data-highest] > i {
-  background: var(--d-accent-2);
+  background: var(--d-ink-2);
 }
 
 /* Under the floor: shown, quieter, never marked. */
@@ -677,7 +694,7 @@
   .pr-read-rows li {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-areas: "type type" "say say" "look sold";
-    gap: 10px 20px;
+    gap: 10px 12px;
   }
 
   .pr-read-type {
@@ -696,14 +713,36 @@
     grid-area: sold;
   }
 
+  /* The label over its figure, and the figure on one line: "13 of 27 · 48%" split after "of". */
+  .pr-meter-figure > .pr-narrow {
+    display: block;
+  }
+
+  .pr-meter-figure {
+    font-size: 14px;
+    white-space: nowrap;
+  }
+
   .pr-grid {
     grid-template-columns: repeat(var(--pr-cols), minmax(0, 1fr));
     column-gap: 10px;
   }
 
-  /* The head's and the foot's corner wear a role whose rule sets `display`; this outranks it. */
+  /*
+   * The corners leave the layout but stay in the accessibility tree: hidden
+   * with `display: none`, the head row had one columnheader fewer than each
+   * body row had cells, and a screen reader read one-room's rate under
+   * "Two-room". Out of flow, they take no grid cell.
+   */
   .pr-grid-row > .pr-grid-corner {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .pr-grid [role="rowheader"] {

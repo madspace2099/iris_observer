@@ -15,12 +15,13 @@ import "./rooms.css";
  * state change in the browser: no request, no reload, and the figures change
  * in place. A live region says what the block now shows.
  *
- * Each type keeps one hue on its row and its line. The hues are the kit's
- * agent set from its second: the first is the kit's green, which on this
- * card means sold.
+ * Each type keeps one hue on its row and its line: the kit's agent set,
+ * ordered so the first four drawn are as far apart as the set allows (blue,
+ * magenta, aqua, sky). Cyan and aqua side by side read as one line, and the
+ * set's green is last, because on this card green means sold.
  */
 
-const HUES = [2, 3, 4, 5, 6, 1] as const;
+const HUES = [2, 4, 5, 6, 3, 1] as const;
 
 export function hueOf(index: number): string {
   return `var(--d-series-${HUES[index % HUES.length] ?? 2})`;
