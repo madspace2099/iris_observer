@@ -520,7 +520,7 @@ describe("the tools state each figure's own denominator", () => {
       /^\d+ of \d+ meetings · (Up from|Down from|About the same as) \d+%/,
     );
     // A label can hold a comma ("Surroundings, early"), so the list of steady figures is split by semicolons.
-    expect(result.draft).not.toMatch(/About the same as 7 days ago: [^.]*surroundings, early, /);
+    expect(result.draft).not.toMatch(/About the same: [^.]*surroundings, early, /);
     const shown = [
       ...result.facts.map((f) => `${f.label} ${f.value} ${f.note ?? ""}`),
       ...result.caveats,

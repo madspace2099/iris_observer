@@ -811,10 +811,11 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
         ...(top === undefined ? [] : [`${top.display} took the most presentation time.`]),
         ...(still.length === 0
           ? []
-          : // Semicolons: a label can hold a comma ("Surroundings, early").
-            [
-              `About the same as 7 days ago: ${still.map((k) => k.label.toLowerCase()).join("; ")}.`,
-            ]),
+          : /*
+             * Semicolons: a label can hold a comma ("Surroundings, early"). No
+             * "7 days ago" here: a sentence of names restates no figure.
+             */
+            [`About the same: ${still.map((k) => k.label.toLowerCase()).join("; ")}.`]),
         ...(view.withheld === null ? [] : [view.withheld]),
       ].join(" "),
     };
