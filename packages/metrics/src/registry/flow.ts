@@ -494,7 +494,7 @@ export const notInterestedReach = defineMetric({
  * WHAT CHANGED, AS A SCREEN OF FIGURES (ADR-0060, the owner, 2026-10-22).
  *
  * Eight figures of the period's meetings, each set against the same figure
- * computed seven calendar days earlier, over a window of the same length. The
+ * computed seven calendar days earlier, the period as it read that day. The
  * first three stood on Sales Flow as "what changed" before; the other five are
  * what else the IRIS showroom sends. The owner asked for "median clicks per
  * meeting": the showroom records openings and actions, not clicks or taps
@@ -585,10 +585,13 @@ export const interactionsPerMeeting = changeFigure({
     "How many openings and actions the showroom recorded in a typical meeting of the period.",
   kind: "count",
   calculation:
-    "Per meeting: sections opened (a return counted again), flats opened, floor plans opened, floor cuts shown, balcony views, flats favourited and screenshots taken; the median over the window's meetings. The showroom records these, not clicks or taps, so no click count is made.",
+    "Per meeting: sections opened (a return to one not counted again), flats opened, floor plans opened, floor cuts shown, balcony views, flats favourited and screenshots taken; the median over the window's meetings. Up is drawn as good: more of the buyer's engagement, which is why going back over a section is left out. The showroom records these, not clicks or taps, so no click count is made.",
   numerator: "openings and actions recorded in a meeting",
   denominator: "meetings in the window",
-  exclusions: ["clicks and taps, which the showroom does not record"],
+  exclusions: [
+    "clicks and taps, which the showroom does not record",
+    "a return to a section already opened",
+  ],
   requiredFacts: [
     "meeting.attended",
     "project.section.viewed",

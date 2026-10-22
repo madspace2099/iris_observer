@@ -15,7 +15,7 @@ import {
 import { AGENT_MIN_SAMPLE, getMetric } from "@observer/metrics";
 import { median } from "../deals";
 import { count, dayLabel, shareDisplay } from "../format";
-import { zoneParts, zonedInstant } from "../time";
+import { periodsAt, zoneParts, zonedInstant } from "../time";
 import { reachedEarly, usedCompare } from "./project";
 import { fullyTimed, sectionSeconds, sliceSpan } from "./views3";
 
@@ -29,12 +29,18 @@ import { fullyTimed, sectionSeconds, sliceSpan } from "./views3";
  * definitions are the registry's (`packages/metrics`, `CHANGE_FIGURES`).
  */
 
-/** How far back the comparison window ends, in calendar days in the project's zone. */
+/** How far back the comparison is computed, in calendar days in the project's zone. */
 export const CHANGE_SHIFT_DAYS = 7;
 /** A share that moved less than two points has not moved. */
 export const RATE_STEP = 0.02;
 /** A median that moved less than five per cent of where it stood has not moved. */
 export const MEDIAN_STEP = 0.05;
+/**
+ * Nor has a median of whole counts that moved by less than one: half a count
+ * is an even sample's middle pair changing places, and on a median of 1 or 2
+ * any step at all is 25% or more.
+ */
+export const COUNT_STEP = 1;
 
 const DERIVED: readonly InsightSource[] = ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"];
 const AGO = `${String(CHANGE_SHIFT_DAYS)} days ago`;
@@ -62,26 +68,45 @@ function calendarDaysBefore(at: number, timeZone: string): number {
 /**
  * The window the figures are read over, and the one their arrows are set
  * against: the period's own slice (`sliceSpan`, as every other surface reads
- * it), and a window of the same length ending seven calendar days earlier.
+ * it), and the same preset as it was computed seven calendar days earlier —
+ * the owner's "average computed 7 calendar days ago". Quarter to date then ran
+ * from its quarter's first day to that day, the last 28 days were the 28 before
+ * it, and a completed quarter was, unless another has completed since, the
+ * same quarter: `same` is then set, as its figures read then as they do now.
  */
-export function changeWindows(context: ViewContext): { current: Span; earlier: Span } {
-  const current = sliceSpan(context, new Date(context.generatedAt));
+export function changeWindows(context: ViewContext): {
+  current: Span;
+  earlier: Span;
+  same: boolean;
+} {
   const zone = context.project.timeZone;
+  const today = Date.parse(context.generatedAt);
+  const then = calendarDaysBefore(today, zone);
+  const asOf = (at: number) =>
+    periodsAt(new Date(at), zone, context.language)[context.period.preset];
+  const was = asOf(then);
+  const is = asOf(today);
   return {
-    current,
-    earlier: {
-      from: calendarDaysBefore(current.from, zone),
-      to: calendarDaysBefore(current.to, zone),
-    },
+    current: sliceSpan(context, new Date(today)),
+    earlier: sliceSpan(
+      { ...context, period: { ...context.period, from: was.from, to: was.to } },
+      new Date(then),
+    ),
+    same: was.from === is.from && was.to === is.to,
   };
 }
 
 /* --- what each figure measures --------------------------------------------- */
 
-/** Every opening and action the showroom records in one meeting. Not clicks: none are recorded. */
+/**
+ * Every opening and action the showroom records in one meeting. A return to a
+ * section is left out: going back over ground is why Presentation depth earns
+ * no colour, and this figure's green arrow claims more of the buyer's
+ * engagement. Not clicks: none are recorded.
+ */
 export function interactionsOf(session: ShowroomSession): number {
   return (
-    session.steps.length +
+    session.steps.filter((step) => !step.isReturn).length +
     session.screenshots +
     session.units.reduce(
       (sum, u) =>
@@ -126,35 +151,41 @@ type Better = "up" | null;
 /**
  * Up, down or no change, from two readings of one figure. `step` is the
  * smallest move that counts; `relative` reads it as a share of the earlier
- * value (a median), otherwise as a difference (a share of meetings).
+ * value (a median), otherwise as a difference (a share of meetings). `whole`
+ * is the smallest move in the figure's own units, for a median of counts.
  */
 export function directionOf(
   now: number,
   then: number,
   step: number,
   relative: boolean,
+  whole = 0,
 ): "up" | "down" | "flat" {
   const delta = now - then;
   // A hair under the step, so 0.50 − 0.48 (0.0200…018 or 0.0199…98 in floating point) is two points.
   const reach = step - 1e-9;
-  const moved = relative
-    ? then === 0
-      ? delta !== 0
-      : Math.abs(delta) / then >= reach
-    : Math.abs(delta) >= reach;
+  const moved =
+    Math.abs(delta) >= whole - 1e-9 &&
+    (relative
+      ? then === 0
+        ? delta !== 0
+        : Math.abs(delta) / then >= reach
+      : Math.abs(delta) >= reach);
   if (!moved) return "flat";
   return delta > 0 ? "up" : "down";
 }
 
+/** `then` is the earlier figure as said, with its own sample after it where that is not the window's. */
 function trendOf(direction: "up" | "down" | "flat", better: Better, then: string): ChangeKpiTrend {
   const tone =
     direction === "flat" || better === null ? "neutral" : direction === better ? "good" : "bad";
   if (direction === "flat") {
+    // "About the same", never "unchanged": the two figures can differ inside the threshold.
     return {
       direction,
       tone,
-      display: `unchanged from ${AGO}`,
-      spoken: `Unchanged: ${then} ${AGO}.`,
+      display: `about the same as ${then}, ${AGO}`,
+      spoken: `About the same as ${then}, ${AGO}.`,
     };
   }
   return {
@@ -178,15 +209,19 @@ export function buildChangeKpis(
   const base = `/${context.tenant.slug}/${context.project.slug}`;
   const windows = changeWindows(context);
   const meetings = (n: number) => `${count(n, locale)} ${n === 1 ? "meeting" : "meetings"}`;
+  // A window's last day: a running one ends at 23:59:59.999, a completed one at an exclusive midnight.
   const days = (span: Span) =>
-    `${dayLabel(new Date(span.from), locale, zone)} – ${dayLabel(new Date(span.to), locale, zone)}`;
+    `${dayLabel(new Date(span.from), locale, zone)} – ${dayLabel(new Date(span.to - 1), locale, zone)}`;
+  const shortOf = (n: number) => `${String(floor - n)} short of ${String(floor)}`;
 
   const view = {
+    title: `What changed since ${AGO}`,
+    about: `How the presentations were run, not how many there were. Each arrow sets a figure against the same figure computed ${AGO}, and is drawn only when both rest on ${String(floor)} meetings: a movement at the stated sample, never a cause.`,
     meetings: current.length,
     earlierMeetings: earlier.length,
     minimumSample: floor,
     sources: DERIVED,
-    basis: `Each arrow sets the figure against the same figure ${AGO}: ${days(windows.earlier)}, ${meetings(earlier.length)}. A share that moved under ${String(Math.round(RATE_STEP * 100))} points, or a median under ${String(Math.round(MEDIAN_STEP * 100))}% of where it stood, is unchanged.`,
+    basis: `Each arrow sets the figure against the same figure ${AGO}: ${days(windows.earlier)}, ${meetings(earlier.length)}. A share that moved under ${String(Math.round(RATE_STEP * 100))} points is unchanged, and so is a median that moved under ${String(Math.round(MEDIAN_STEP * 100))}% of where it stood or, for a count, by less than a whole one.`,
   };
 
   if (current.length === 0) {
@@ -199,22 +234,27 @@ export function buildChangeKpis(
   }
 
   /*
-   * Said once for the screen: the policy-version refusal (docs/10-policies.md
-   * §1) and a window short of the floor take every arrow away together.
+   * Said once for the screen: a period that had already ended seven days ago
+   * (its figures read then as now), or a window short of the floor, takes every
+   * arrow away together; and a window short of it makes every figure read over
+   * the whole window raw, said here rather than under each of them.
    */
-  const shortOf = (n: number, where: string) =>
-    `${meetings(n)} ${where}, ${String(floor - n)} short of ${String(floor)}`;
+  const raw = current.length < floor;
   const windowsShort = [
-    current.length < floor ? shortOf(current.length, "in this window") : null,
-    earlier.length < floor ? shortOf(earlier.length, AGO) : null,
+    raw ? `${meetings(current.length)} in this window, ${shortOf(current.length)}` : null,
+    earlier.length < floor
+      ? `${meetings(earlier.length)} ${AGO}, ${shortOf(earlier.length)}`
+      : null,
   ].filter((part): part is string => part !== null);
-  const refusal = context.attribution.comparisonRefusal;
-  const withheld =
-    refusal !== null
-      ? `No arrows: this comparison is refused. ${refusal} Both windows have to be measured under a compatible attribution policy.`
-      : windowsShort.length > 0
-        ? `No arrows below ${String(floor)} meetings a window: ${windowsShort.join("; ")}.`
-        : null;
+  const withheld = windows.same
+    ? `No arrows: ${days(windows.current)} had already ended ${AGO}, so its figures read then as they do now.${
+        raw ? ` They are raw: ${meetings(current.length)}, ${shortOf(current.length)}.` : ""
+      }`
+    : windowsShort.length > 0
+      ? `No arrows below ${String(floor)} meetings a window${
+          raw ? ", and this window's figures are raw" : ""
+        }: ${windowsShort.join("; ")}.`
+      : null;
 
   const metric = (id: string) => {
     const found = getMetric(id);
@@ -222,7 +262,11 @@ export function buildChangeKpis(
     return found;
   };
 
-  /** One figure's frame: its words from the registry, and its own floor in this window. */
+  /**
+   * One figure's frame: its words from the registry, and its own floor. Only a
+   * part of the window short of the floor is marked here — a whole window short
+   * is `withheld`'s — and no answering meeting is no figure at all, not a raw one.
+   */
   const frame = (
     metricId: string,
     href: string | null,
@@ -238,8 +282,8 @@ export function buildChangeKpis(
       href,
       sample,
       short:
-        answering < floor
-          ? `raw figure, ${String(floor - answering)} short of ${String(floor)}`
+        answering > 0 && answering < floor && answering < current.length
+          ? `raw figure, ${shortOf(answering)}`
           : null,
     };
   };
@@ -258,6 +302,10 @@ export function buildChangeKpis(
       spoken: `No arrow: ${words}.`,
     };
   };
+
+  /** The earlier figure's own sample, when only part of that window's meetings could answer it. */
+  const overTimed = (answering: number) =>
+    answering === earlier.length ? "" : ` over ${count(answering, locale)} timed meetings`;
 
   const rate = (
     metricId: string,
@@ -287,29 +335,36 @@ export function buildChangeKpis(
 
   const middle = (
     metricId: string,
-    href: string,
+    href: string | null,
     of: (s: ShowroomSession) => number,
     better: Better,
     show: (value: number) => string,
-    answers: (s: ShowroomSession) => boolean = () => true,
-    unitOf: ((value: number) => string) | null = null,
+    options: {
+      readonly answers?: (s: ShowroomSession) => boolean;
+      /** The unit after the bare number, set smaller beside it; whole in the arrow's words. */
+      readonly unitOf?: (value: number) => string;
+      /** A median of whole counts, which moves by `COUNT_STEP` at the least. */
+      readonly counts?: boolean;
+    } = {},
   ): ChangeKpi => {
+    const { answers = () => true, unitOf } = options;
     const nowSet = current.filter(answers);
     const thenSet = earlier.filter(answers);
     const now = median(nowSet.map(of));
     const then = median(thenSet.map(of));
-    /* The figure and its unit apart, so the unit can be set smaller; whole in the arrow's words. */
     const said = (value: number) =>
-      unitOf === null ? show(value) : `${show(value)} ${unitOf(value)}`;
+      unitOf === undefined ? show(value) : `${show(value)} ${unitOf(value)}`;
     const sample =
       nowSet.length === current.length
         ? `median of ${meetings(current.length)}`
-        : `median of ${count(nowSet.length, locale)} of ${meetings(current.length)}, timed`;
+        : nowSet.length === 0
+          ? `none of ${meetings(current.length)} timed`
+          : `median of ${count(nowSet.length, locale)} of ${meetings(current.length)}, timed`;
     return {
       ...frame(metricId, href, sample, nowSet.length),
       // Null only when no meeting here can answer it: absent, never nought.
       display: now === null ? "—" : show(now),
-      unit: now === null || unitOf === null ? null : unitOf(now),
+      unit: now === null || unitOf === undefined ? null : unitOf(now),
       isName: false,
       trend:
         withheld !== null
@@ -317,7 +372,17 @@ export function buildChangeKpis(
           : (ownShortfall(nowSet.length, thenSet.length) ??
             (now === null || then === null
               ? null
-              : trendOf(directionOf(now, then, MEDIAN_STEP, true), better, said(then)))),
+              : trendOf(
+                  directionOf(
+                    now,
+                    then,
+                    MEDIAN_STEP,
+                    true,
+                    options.counts === true ? COUNT_STEP : 0,
+                  ),
+                  better,
+                  `${said(then)}${overTimed(thenSet.length)}`,
+                ))),
     };
   };
 
@@ -326,23 +391,33 @@ export function buildChangeKpis(
   const timedNow = current.filter(fullyTimed).length;
   const timedThen = earlier.filter(fullyTimed).length;
   const named = top !== null && timedNow >= floor;
+  const timedSample =
+    timedNow === current.length
+      ? meetings(current.length)
+      : `${count(timedNow, locale)} of ${meetings(current.length)} timed`;
+  const was = timedThen === earlier.length ? "" : `,${overTimed(timedThen)}`;
   const topFigure: ChangeKpi = {
     ...frame(
       "flow.top_feature",
       `${base}/storytelling`,
       top === null
         ? `no timed presentation time · ${meetings(current.length)}`
-        : `${shareDisplay(top.share, locale)} of presentation time · ${
-            timedNow === current.length
-              ? meetings(current.length)
-              : `${count(timedNow, locale)} of ${meetings(current.length)} timed`
-          }`,
+        : named
+          ? `${shareDisplay(top.share, locale)} of presentation time · ${timedSample}`
+          : // The share is the rank's own figure: it is withheld with the name it belongs to.
+            timedSample,
       timedNow,
     ),
-    // A top is a rank, and below the floor nothing is ranked (docs/10-policies.md §6).
-    display: named ? sectionLabel(top.sectionId) : "—",
+    /*
+     * A top is a rank, and below the floor nothing is ranked (docs/10-policies.md
+     * §6). Said in words: "—" is the sign for absent, and this is withheld.
+     */
+    ...(top !== null && !named
+      ? { short: `${String(floor - timedNow)} short of the ${String(floor)} a rank needs` }
+      : {}),
+    display: top === null ? "—" : named ? sectionLabel(top.sectionId) : "Not ranked",
     unit: null,
-    isName: named,
+    isName: top !== null,
     trend:
       withheld !== null
         ? null
@@ -353,14 +428,14 @@ export function buildChangeKpis(
               ? {
                   direction: "flat",
                   tone: "neutral",
-                  display: `the top ${AGO} too`,
-                  spoken: `Also the top feature ${AGO}.`,
+                  display: `the top ${AGO} too${was}`,
+                  spoken: `Also the top feature ${AGO}${was}.`,
                 }
               : {
                   direction: null,
                   tone: "neutral",
-                  display: `${sectionLabel(topThen.sectionId)} ${AGO}`,
-                  spoken: `${sectionLabel(topThen.sectionId)} was the top feature ${AGO}.`,
+                  display: `${sectionLabel(topThen.sectionId)} ${AGO}${was}`,
+                  spoken: `${sectionLabel(topThen.sectionId)} was the top feature ${AGO}${was}.`,
                 })),
   };
 
@@ -384,26 +459,33 @@ export function buildChangeKpis(
         (s) => s.steps.length,
         null,
         whole,
-        () => true,
-        (v) => (v === 1 ? "step" : "steps"),
+        {
+          unitOf: (v) => (v === 1 ? "step" : "steps"),
+          counts: true,
+        },
       ),
-      middle("flow.interactions_per_meeting", `${base}/meetings`, interactionsOf, "up", whole),
+      // No surface shows a meeting's interactions or screenshots as a count, so neither name opens one.
+      middle("flow.interactions_per_meeting", null, interactionsOf, "up", whole, { counts: true }),
       middle(
         "flow.presentation_length",
         `${base}/meetings`,
         (s) => s.durationSeconds,
         null,
         (v) => duration(v, context.language),
-        (s) => !s.timingUnavailable,
+        { answers: (s) => !s.timingUnavailable },
       ),
       topFigure,
-      middle("flow.screenshots_per_meeting", `${base}/meetings`, (s) => s.screenshots, "up", whole),
+      middle("flow.screenshots_per_meeting", null, (s) => s.screenshots, "up", whole, {
+        counts: true,
+      }),
+      // The meetings register's "Shortlisted" is this count, a meeting a row.
       middle(
         "flow.favourites_per_meeting",
-        `${base}/units`,
+        `${base}/meetings`,
         (s) => s.units.filter((u) => u.favourited).length,
         "up",
         whole,
+        { counts: true },
       ),
     ],
   };

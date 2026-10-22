@@ -735,7 +735,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
     // One slice, like every other read model. See `slices()` for why there
     // used to be two and what having two put on the screen.
     const { context, current, previous } = await this.slices(query);
-    /* The figures' arrows read the same window ending seven days earlier (ADR-0060). */
+    /* The figures' arrows read the same period as it read seven days earlier (ADR-0060). */
     const { earlier } = changeWindows(context);
     return {
       ...buildShowroomOverview(context, current, previous),

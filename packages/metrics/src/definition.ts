@@ -59,8 +59,8 @@ export const COMPARISON_METHODS = [
    */
   "quarter_to_date_equivalent",
   /**
-   * The same figure computed seven calendar days earlier: a window of the same
-   * length, ending seven days before this one (the owner, ADR-0060).
+   * The same figure computed seven calendar days earlier: the same period as it
+   * read on that day, so quarter to date then ended that day (the owner, ADR-0060).
    */
   "seven_days_earlier",
   /** Against the project's own all-time figure. */

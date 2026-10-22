@@ -770,7 +770,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
 /*
  * Sales Flow's screen of figures (ADR-0060), from the same read model the
  * screen draws: every figure with its sample and its arrow's words. The draft
- * says what moved, the top feature, and names what did not move, one short
+ * says what moved, the top feature, and names what stayed about the same, one short
  * sentence each, so the answer's ceiling never cuts a figure.
  */
 const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, never>>> = {
@@ -785,7 +785,8 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
       (k) => k.trend?.direction === "up" || k.trend?.direction === "down",
     );
     const still = view.kpis.filter((k) => k.trend?.direction === "flat" && !k.isName);
-    const top = view.kpis.find((k) => k.isName);
+    // Named only at the floor: below it the figure reads "Not ranked", with its shortfall.
+    const top = view.kpis.find((k) => k.isName && k.short === null);
     const figure = (k: (typeof view.kpis)[number]) =>
       k.unit === null ? k.display : `${k.display} ${k.unit}`;
     return {
@@ -793,7 +794,7 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
       facts: view.kpis.map((k) => ({
         label: k.label,
         value: figure(k),
-        // The spoken words carry the earlier figure, which "unchanged" leaves out of view.
+        // The spoken words carry the earlier figure, whole, and its own sample where it differs.
         note: [k.sample, k.short, k.trend?.spoken ?? null].filter((n) => n !== null).join(" · "),
       })),
       sources: DERIVED,
@@ -810,7 +811,10 @@ const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, n
         ...(top === undefined ? [] : [`${top.display} took the most presentation time.`]),
         ...(still.length === 0
           ? []
-          : [`No change in ${still.map((k) => k.label.toLowerCase()).join(", ")}.`]),
+          : // Semicolons: a label can hold a comma ("Surroundings, early").
+            [
+              `About the same as 7 days ago: ${still.map((k) => k.label.toLowerCase()).join("; ")}.`,
+            ]),
         ...(view.withheld === null ? [] : [view.withheld]),
       ].join(" "),
     };
