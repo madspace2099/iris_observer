@@ -2318,17 +2318,24 @@
 }
 
 /*
- * A card's own heading is the kit's XL title: bold 16 on 28, telegray, in the
- * reader's case. Bare, or in the row it shares with its `i` (`.iris-titled`).
+ * A card's own heading, and every section heading that wears the measured
+ * kicker (`h2.iris-kicker-measured`, on a card or between cards): the type
+ * scale's Section role, 20 on 28 at 600 (`docs/14-design-system.md` §5), in
+ * the kit's telegray and the reader's case. Bare, or in the row it shares with
+ * its `i` (`.iris-titled`). It was the kit's 16 bold on a card and an 11px
+ * uppercase kicker between cards; the owner, recording the Shark demo, called
+ * Sales Flow's titles very important and far too small (2026-10-22, ADR-0052).
  */
 [data-charts="d"] .d-card > .iris-kicker:first-child,
 [data-charts="d"] .d-card > .iris-titled:first-child > .iris-kicker,
 [data-charts="d"] .d-card > h3:first-child,
-[data-charts="d"] .d-card .ox-chart-title {
-  font-size: 16px;
+[data-charts="d"] .d-card .ox-chart-title,
+[data-charts="d"] h2.iris-kicker-measured,
+[data-charts="d"] .d-card h2.iris-kicker-measured {
+  font-size: 20px;
   line-height: 28px;
-  font-weight: 700;
-  letter-spacing: -0.009em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
   text-transform: none;
   color: var(--d-ink-2);
 }
