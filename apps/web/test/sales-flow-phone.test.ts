@@ -18,6 +18,8 @@ const sheet = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), "../src/components/flow/sales-flow.css"),
   "utf8",
 );
+/* The sheet without its reasoning, so a guard never matches the comment explaining a rule. */
+const rules = sheet.replace(/\/\*[\s\S]*?\*\//g, "");
 
 describe("a summary figure that is a sentence", () => {
   const value = (v: string) =>
@@ -89,6 +91,28 @@ describe("the page's phone sheet", () => {
             /^\.iris-salesflow /,
           );
     }
+  });
+
+  /*
+   * Review round 1: a browser does not scroll a focused link that already
+   * shows 32px, so a count Tab reached could sit under the fade, ring and all.
+   */
+  it("wraps a scrolling row while it holds keyboard focus", () => {
+    for (const row of [".iris-orow:not([data-lead]) .iris-orow-open", ".dld-lens-keys ul"]) {
+      const at = rules.indexOf(`.iris-salesflow ${row}:has(:focus-visible) {`);
+      expect(at, row).toBeGreaterThan(-1);
+      expect(rules.slice(at, rules.indexOf("}", at)), row).toMatch(
+        /flex-wrap: wrap;[\s\S]*mask-image: none;/,
+      );
+    }
+  });
+
+  it("folds the summary's window under one line on a phone and draws it nowhere else", () => {
+    /* The wide screen's default stands before every phone rule, so the phone's `display: block` wins there. */
+    const hidden = rules.indexOf(".iris-salesflow .iris-window-pick {\n  display: none;");
+    expect(hidden).toBeGreaterThan(-1);
+    expect(hidden).toBeLessThan(rules.indexOf("@media"));
+    expect(rules).toContain(".iris-salesflow .iris-window > :not(.iris-window-pick) {");
   });
 
   it("drops the team key only where the team row carries the same words and counts", () => {

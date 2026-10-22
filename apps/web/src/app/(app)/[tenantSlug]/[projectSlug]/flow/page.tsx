@@ -131,6 +131,17 @@ export default async function FlowPage({
     return qs === "" ? base : `${base}?${qs}`;
   };
 
+  const windowChips = KPI_WINDOWS.map((w) => (
+    <Link
+      key={w.id}
+      className="iris-chip"
+      aria-current={w.id === kpiWindow ? "true" : undefined}
+      href={dynamicRoute(windowHref(w.id))}
+    >
+      {w.label}
+    </Link>
+  ));
+
   /* One summary figure as a card, wherever the groups place it. */
   const kpiCard = (id: string) => {
     const figure = charts.kpis.figures.find((f) => f.id === id);
@@ -172,18 +183,19 @@ export default async function FlowPage({
             <p className="iris-kicker iris-kicker-measured" style={{ margin: 0 }}>
               Summary over
             </p>
-            <div className="iris-mode-strip">
-              {KPI_WINDOWS.map((w) => (
-                <Link
-                  key={w.id}
-                  className="iris-chip"
-                  aria-current={w.id === kpiWindow ? "true" : undefined}
-                  href={dynamicRoute(windowHref(w.id))}
-                >
-                  {w.label}
-                </Link>
-              ))}
-            </div>
+            <div className="iris-mode-strip">{windowChips}</div>
+            {/*
+             * A phone's way to the same choice: the window in force on one
+             * line, the seven folded under it rather than four rows of chips
+             * above the figures (`sales-flow.css`).
+             */}
+            <details className="iris-window-pick">
+              <summary className="iris-chip">
+                Summary over: {KPI_WINDOWS.find((w) => w.id === kpiWindow)?.label}
+                <span aria-hidden="true"> ▾</span>
+              </summary>
+              <div className="iris-mode-strip">{windowChips}</div>
+            </details>
           </div>
 
           {/*
