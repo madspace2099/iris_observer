@@ -604,15 +604,10 @@ export default async function FlowPage({
           ) : (
             <>
               {/*
-               * The lead went behind the `i`; its count stays in view (InfoTip's
-               * rule): what is drawn of the period and what is not, every figure
-               * the read model's own.
+               * No count line here: the owner asked for the lead, counts and
+               * all, behind the `i` (2026-10-22, ADR-0052 amended). The lens
+               * still says what it holds in view ("35 of 35 in view").
                */}
-              <p className="iris-meta iris-meta-measured">
-                {charts.lens.meetings.length} of {charts.lens.total} meetings drawn · not drawn:{" "}
-                {charts.lens.notDrawn.purchase} Purchase, {charts.lens.notDrawn.presentationOnly}{" "}
-                Presentation only, {charts.lens.notDrawn.unrecorded} with no outcome recorded
-              </p>
               <DrawIn kind="bloom">
                 <BubbleLens
                   initialSpan="month"

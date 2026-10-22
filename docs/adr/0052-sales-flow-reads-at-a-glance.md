@@ -133,3 +133,12 @@ two-class rule); the Coaching reading overflowing its card at 1440, which this A
 (§4, CSS only). Left, and recorded above: `Sources` in `Provenance.tsx` still printing the chips,
 and the not-interested section's CRM source, which is stream DRILL's. Each fix was looked at as a
 static render at 1440 and 390 (and 1210, 1280, 1024 for the block).
+
+## The owner's word on the lens, 2026-10-22
+
+On the running demo the review round's count line ("80 of 150 meetings drawn · not drawn: …") stood
+under the lens's title — the very sentence the owner had asked to put behind the `i`. A decision the
+owner has just made outranks InfoTip's denominator rule (the skill's source hierarchy), so the line is
+gone: the lead and the note, counts and all, are the `i`; the lens still says what it holds in view
+("35 of 35 in view"), and with nothing drawn the lead stays the card's one sentence.
+`apps/web/test/flow-claims.test.ts` holds it.
