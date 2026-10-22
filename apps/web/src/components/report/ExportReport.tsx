@@ -287,9 +287,9 @@ export function ExportReport({
           </ul>
 
           <p className="ox-section-note">
-            The period is the one chosen with the period control (on a phone, in the menu), and it
-            covers the whole document. Everything made here is the internal report; a document for a
-            buyer is a separate, sanitised contract, and it is not built.
+            The period is the one chosen with the period control (on a narrow screen, in the menu),
+            and it covers the whole document. Everything made here is the internal report; a
+            document for a buyer is a separate, sanitised contract, and it is not built.
           </p>
 
           {/* --- what would be in it -------------------------------------- */}

@@ -94,7 +94,8 @@ describe("an explanation panel is opaque", () => {
   it("points at the period control, not at a bar a phone does not have", () => {
     const copy = source("components/report/ExportReport.tsx");
     expect(copy).not.toMatch(/bar at the top/);
-    expect(copy).toMatch(/period control \(on a phone, in the menu\)/);
+    /* Below 1199px, a tablet's width too, the control is in the menu: not "on a phone". */
+    expect(copy).toMatch(/period control \(on a narrow screen, in the menu\)/);
   });
 });
 
