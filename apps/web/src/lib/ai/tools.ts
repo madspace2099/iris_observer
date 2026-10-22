@@ -1049,6 +1049,69 @@ const analyzeIrisAssistedSales: ToolDefinition<z.ZodObject<Record<string, never>
   },
 };
 
+/* --- 12. get_sales_plan ------------------------------------------------------- */
+
+/**
+ * "Are we on track to sell out?" The owner, 2026-10-22: the flats and the sales
+ * are read from the CRM, by the AI too. The tool hands over the Project page's
+ * plan exactly as its read model states it (ADR-0055): the stock by the CRM's
+ * deal stages, the window, both paces and the verdict. Nothing is computed
+ * here, so the answer and the block above it cannot disagree.
+ */
+const getSalesPlan: ToolDefinition<z.ZodObject<Record<string, never>>> = {
+  name: "get_sales_plan",
+  description:
+    "The project's sales position against its plan: every flat, how many the CRM states sold and reserved, the sales window and its sell-out date, the selling pace against the pace the date needs, and whether the project is on pace to sell out.",
+  input: z.object({}),
+  async run(context) {
+    const { plan } = await repository.getProjectCharts(query(context));
+    const of = plan.total === null ? null : `of ${String(plan.total)} flats`;
+    return {
+      tool: "get_sales_plan",
+      facts: [
+        ...(plan.total === null
+          ? []
+          : [{ label: "Flats", value: String(plan.total), note: "in the catalogue" }]),
+        ...plan.parts.map((p) => ({ label: p.label, value: String(p.count), note: of })),
+        ...(plan.window === null
+          ? []
+          : [
+              {
+                label: "Sell out by",
+                value: plan.window.sellOutByDisplay,
+                note: `from ${plan.window.startsOnDisplay} · ${plan.window.remainingDisplay}`,
+              },
+            ]),
+        ...(plan.pace === null
+          ? []
+          : [{ label: "Dated sales", value: String(plan.pace.sales), note: plan.pace.basis }]),
+        ...(plan.pace?.sellingDisplay == null
+          ? []
+          : [{ label: "Selling a month", value: plan.pace.sellingDisplay, note: null }]),
+        ...(plan.pace?.neededDisplay == null
+          ? []
+          : [{ label: "Needed a month", value: plan.pace.neededDisplay, note: null }]),
+        ...(plan.pace?.sellsOutDisplay == null
+          ? []
+          : [
+              {
+                label: "Sold out at this pace",
+                value: plan.pace.sellsOutDisplay,
+                note: "the last 90 days in a straight line, not a forecast",
+              },
+            ]),
+        { label: "Verdict", value: plan.verdictText, note: null },
+      ],
+      sources: plan.parts.length === 0 ? [] : ["CRM_OUTCOME_CONTEXT"],
+      evidence: null,
+      sampleSize: plan.pace?.sales ?? 0,
+      caveats: plan.stockNote === null ? [] : [plan.stockNote],
+      action: { label: "Open Project", href: `${root(context)}/project` },
+      draft: plan.summary,
+    };
+  },
+};
+
 /* --- the registry ----------------------------------------------------------- */
 
 export const TOOLS = [
@@ -1064,6 +1127,7 @@ export const TOOLS = [
   prepareMeeting,
   getMetricEvidence,
   analyzeIrisAssistedSales,
+  getSalesPlan,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ] as readonly ToolDefinition<any>[];
 

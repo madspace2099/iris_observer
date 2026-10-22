@@ -647,6 +647,20 @@ export function routeQuestion(
     return [{ tool: "compare_agent_outcomes", args: {} }];
   }
   /*
+   * THE PROJECT AGAINST ITS SELL-OUT DATE (ADR-0055).
+   *
+   * "Are we on track to sell out?", "how many flats are sold?": the plan the
+   * Project page states, from the CRM's deal stages. Before every reading that
+   * takes "sold" for a meeting outcome or a unit's attention.
+   */
+  if (
+    /on (track|pace|schedule)|behind (plan|schedule)|sell(s|ing)?[ -]out|sold out|sales (plan|window|pace)|how many (flats|units|apartments|homes)( are| have been)? (sold|left|unsold|available|reserved)/.test(
+      q,
+    )
+  ) {
+    return [{ tool: "get_sales_plan", args: {} }];
+  }
+  /*
    * WHERE A PRESENTATION LOSES A BUYER.
    *
    * Nothing records a buyer leaving; what is measured is how the meetings

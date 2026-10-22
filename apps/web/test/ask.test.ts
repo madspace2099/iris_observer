@@ -254,6 +254,8 @@ describe("the boundary holds", () => {
         "detect_showroom_behavior_changes",
         "explain_meeting_journey",
         "get_metric_evidence",
+        /* The owner, 2026-10-22: the AI reads the flats and the sales from the CRM (ADR-0055). */
+        "get_sales_plan",
         "prepare_meeting",
         "summarize_showroom_period",
       ].sort(),
@@ -290,6 +292,11 @@ describe("the live questions reach their analyses without a model", () => {
 
   it("reads what the most-opened flats share, and their own sales, in one analysis", () => {
     expect(routes(LIVE_QUESTIONS[3] as string)).toEqual(["analyze_unit_attention"]);
+  });
+
+  it("reads whether the project will sell out by its date from the plan", () => {
+    expect(routes("Are we on track to sell out?")).toEqual(["get_sales_plan"]);
+    expect(routes("How many flats are sold?")).toEqual(["get_sales_plan"]);
   });
 
   /*
@@ -495,6 +502,36 @@ describe("the tools state each figure's own denominator", () => {
     expect([...digits(result.draft)].filter((run) => !given.has(run))).toEqual([]);
     expect(result.facts[0]?.value).toMatch(/^(All \d+|\d+ of \d+)$/);
     expect(result.facts[0]?.note).toMatch(/^\d+ of the \d+ flats in the catalogue \(\d+%\)$/);
+  });
+
+  /*
+   * ADR-0055: the plan's own figures, the CRM's deal stages, as the Project
+   * page states them on the demonstration's day, and every figure of the draft
+   * among the facts a model is shown.
+   */
+  it("answers the sell-out question with the Project page's plan, figure for figure", async () => {
+    const result = await run("get_sales_plan");
+    const value = (label: string) => result.facts.find((f) => f.label === label)?.value;
+    expect([value("Flats"), value("Sold"), value("Reserved"), value("Available")]).toEqual([
+      "60",
+      "19",
+      "13",
+      "28",
+    ]);
+    expect([value("Selling a month"), value("Needed a month"), value("Verdict")]).toEqual([
+      "4.7",
+      "4.0",
+      "On pace",
+    ]);
+    expect(result.sampleSize).toBe(14);
+    expect(result.sources).toEqual(["CRM_OUTCOME_CONTEXT"]);
+    const shown = [
+      ...result.facts.map((f) => `${f.label} ${f.value} ${f.note ?? ""}`),
+      ...result.caveats,
+    ].join(" ");
+    const digits = (text: string) => new Set(text.match(/\d+/g) ?? []);
+    const given = digits(shown);
+    expect([...digits(result.draft)].filter((d) => !given.has(d))).toEqual([]);
   });
 
   it("gives each behaviour rate in the outcomes comparison its own sample", async () => {

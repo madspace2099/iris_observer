@@ -51,6 +51,7 @@ const ANALYSIS_WORDS: Readonly<Record<string, string>> = {
   prepare_meeting: "Meeting brief",
   get_metric_evidence: "Metric evidence",
   analyze_iris_assisted_sales: "Sales after a showing",
+  get_sales_plan: "Sold against the plan",
 };
 
 const LEVEL_WORDS: Readonly<Record<string, string>> = {
