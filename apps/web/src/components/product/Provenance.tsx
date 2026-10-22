@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  INSIGHT_SOURCE_LABELS,
   isProducibleTier,
   type EvidenceTier,
   type InsightSource,
@@ -16,6 +15,7 @@ import {
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
+import { SourceChips } from "@/showroom/sources";
 
 /**
  * PROVENANCE — the two axes, rendered separately because they are separate.
@@ -24,21 +24,21 @@ import { withPeriod } from "@/lib/period";
  * facts about a claim that a single badge would silently merge:
  *
  *   TIER    how strong the claim is.  Observed · Attributed · Pattern.
- *   SOURCE  what kind of fact it rests on.  IRIS observed · IRIS calculated ·
- *           CRM outcome · WEBIRIS · AI interpretation.
+ *   SOURCE  what kind of fact it rests on, said as one line: "Source: recorded
+ *           in the showroom by the IRIS app · deal stages from your CRM".
  *
  * A surface may show one, the other or both. It may never show a single mark
  * that means both, because the confusion that produces is exactly the one the
  * separation exists to prevent: a showroom event proving a legal purchase.
  *
- * Neither label is written here as a string literal. The source words come from
- * `INSIGHT_SOURCE_LABELS` in `@observer/contracts`. The showroom blocks'
- * `SourceChips` no longer reads that map: since ADR-0052 it says the same
- * sources as one line in fuller words (`showroom/sources.tsx`), so until these
- * chips follow, one source has two names on two kinds of screen — the next step
- * ADR-0052 records. The tier words come from {@link TIER_LABELS} below, which is the map
- * this layer owns because the contracts package deliberately carries no display
- * strings for tiers.
+ * Neither label is written here as a string literal. The source words are the
+ * one vocabulary every surface prints (`SOURCE_LINE_WORDS` in
+ * `components/report/words.ts`, drawn by `showroom/sources.tsx`): they were
+ * chips reading "IRIS observed", "IRIS calculated", "CRM outcome", which the
+ * owner could not read, and since ADR-0052 no screen prints the contract's
+ * short `INSIGHT_SOURCE_LABELS`. The tier words come from {@link TIER_LABELS}
+ * below, which is the map this layer owns because the contracts package
+ * deliberately carries no display strings for tiers.
  *
  * ## There is no causal tier and this file cannot draw one
  *
@@ -88,9 +88,8 @@ const TIER_MEANINGS: Readonly<Record<ProducibleEvidenceTier, string>> = {
 /*
  * THE SAME WORDS IN EACH LANGUAGE A REPORT CAN BE PRINTED IN.
  *
- * English stays exactly as above, and the source words stay the contract's
- * own `INSIGHT_SOURCE_LABELS`: that map is frozen, and it keeps the one English
- * spelling of a source. The Slovak and Hungarian are drafts for review (P2-17).
+ * English stays exactly as above. The Slovak and Hungarian are drafts for
+ * review (P2-17).
  */
 const TIER_WORDS: Readonly<Record<Language, Readonly<Record<ProducibleEvidenceTier, string>>>> = {
   en: TIER_LABELS,
@@ -126,52 +125,10 @@ const TIER_MEANING_WORDS: Readonly<
   },
 };
 
-export const SOURCE_WORDS: Readonly<Record<Language, Readonly<Record<InsightSource, string>>>> = {
-  en: INSIGHT_SOURCE_LABELS,
-  sk: {
-    IRIS_SHOWROOM_OBSERVED: "IRIS – pozorované",
-    IRIS_SHOWROOM_DERIVED: "IRIS – vypočítané",
-    CRM_OUTCOME_CONTEXT: "Výsledok z CRM",
-    WEBIRIS_CONTEXT: "WEBIRIS",
-    AI_INTERPRETATION: "Interpretácia AI",
-  },
-  hu: {
-    IRIS_SHOWROOM_OBSERVED: "IRIS – megfigyelt",
-    IRIS_SHOWROOM_DERIVED: "IRIS – számított",
-    CRM_OUTCOME_CONTEXT: "CRM-eredmény",
-    WEBIRIS_CONTEXT: "WEBIRIS",
-    AI_INTERPRETATION: "MI-értelmezés",
-  },
-};
-
 const NO_EVIDENCE: Readonly<Record<Language, string>> = {
   en: "No evidence",
   sk: "Bez podkladov",
   hu: "Nincs alátámasztás",
-};
-
-/**
- * The stylesheet's spelling of a source, which is not the contract's spelling.
- *
- * `observer-product.css` §10 keys its two source treatments on
- * `data-source="ai_interpretation"` and `data-source="crm_outcome"` — lower
- * snake case, shortened, and written from the reader's side of the product.
- * `InsightSource` is the contract's spelling, SCREAMING_SNAKE with the
- * subsystem in it. They are two vocabularies for one idea and this map is the
- * only place they meet; every other file in this layer passes an `InsightSource`
- * and gets the right attribute without knowing that.
- *
- * The three kinds the sheet does not style are still given an attribute. A
- * styled-today/unstyled-tomorrow distinction is not one a component should
- * encode, and an attribute the sheet ignores costs nothing while an attribute
- * the sheet later wants and does not find costs a rendering pass.
- */
-const SOURCE_TOKENS: Readonly<Record<InsightSource, string>> = {
-  IRIS_SHOWROOM_OBSERVED: "iris_observed",
-  IRIS_SHOWROOM_DERIVED: "iris_calculated",
-  CRM_OUTCOME_CONTEXT: "crm_outcome",
-  WEBIRIS_CONTEXT: "webiris",
-  AI_INTERPRETATION: "ai_interpretation",
 };
 
 /**
@@ -196,8 +153,8 @@ export function Tier({
 }
 
 /**
- * What kind of fact the claim rests on. One chip per source, in the order the
- * read model gave them.
+ * What kind of fact the claim rests on: the showroom blocks' one quiet line,
+ * in the page's language, each source in the order the read model gave them.
  *
  * The order is the read model's on purpose. A finding that is observed first and
  * CRM-flavoured second is a different claim from one built the other way round,
@@ -210,16 +167,7 @@ export function Sources({
   readonly sources: readonly InsightSource[];
   readonly language: Language;
 }) {
-  if (sources.length === 0) return null;
-  return (
-    <ul className="ox-prov">
-      {sources.map((source) => (
-        <li className="ox-src" key={source} data-source={SOURCE_TOKENS[source]}>
-          {SOURCE_WORDS[language][source]}
-        </li>
-      ))}
-    </ul>
-  );
+  return <SourceChips sources={sources} language={language} />;
 }
 
 /**

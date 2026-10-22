@@ -164,7 +164,11 @@ async function standsOnRecordedPlace(page: Page): Promise<number> {
     .evaluateAll((els) => els.map((e) => e.getAttribute("title") ?? ""));
   expect(why).toHaveLength(n);
   for (const w of why) expect(w, "a row stands on units alone").toMatch(/ · .+ \d+s$/);
-  await expect(page.locator(".iris-audience-basis", { hasText: "IRIS observed · Recorded today" })).toHaveCount(n);
+  await expect(
+    page.locator(".iris-audience-basis", {
+      hasText: "Source: recorded in the showroom by the IRIS app · Recorded today",
+    }),
+  ).toHaveCount(n);
   await expect(page.locator('.iris-matrix[data-columns="audience"] a.iris-matrix-row[href*="/meetings/"]')).toHaveCount(n);
   return n;
 }

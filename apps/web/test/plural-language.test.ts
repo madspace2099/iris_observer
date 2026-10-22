@@ -50,7 +50,7 @@ const EXPECTED: readonly Expected[] = [
     hu: "forduló",
   },
   {
-    sites: "components/product/Provenance.tsx:171",
+    sites: "components/product/Provenance.tsx:203",
     entry: PROVENANCE_RECORDS,
     en: ["record", "records"],
     sk: ["záznam", "záznamy", "záznamov"],

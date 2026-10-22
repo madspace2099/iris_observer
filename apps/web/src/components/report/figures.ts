@@ -21,7 +21,7 @@ import { FUNNEL_FROM } from "@/components/agents/StageFunnel";
 import { LADDER_WORDS } from "@/components/flow/FlowLadder";
 import { FINDING_WORDS } from "@/components/product/Finding";
 import { FIGURE_WORDS } from "@/components/product/Metric";
-import { SOURCE_WORDS, evidenceText } from "@/components/product/Provenance";
+import { evidenceText } from "@/components/product/Provenance";
 import { CSV_WORDS, type FigureRow } from "./csv";
 import { printedSections } from "./omit";
 import {
@@ -30,6 +30,7 @@ import {
   REPORT_LEFT_OUT_SECTIONS,
   REPORT_MEETINGS_NEEDED,
   REPORT_WORDS,
+  SOURCE_LINE_WORDS,
 } from "./words";
 
 /**
@@ -183,7 +184,7 @@ function framed(
         value,
         denominator: denominator ?? "",
         sources: (sources ?? section.sources)
-          .map((source) => SOURCE_WORDS[language][source])
+          .map((source) => SOURCE_LINE_WORDS[language].words[source])
           .join(" · "),
       });
       const body = bodies[section.id];

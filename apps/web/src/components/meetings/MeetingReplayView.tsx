@@ -45,8 +45,9 @@ import { MeetingOutcomes } from "./MeetingOutcomes";
  * from the session — its length, its step count, how many units were opened —
  * and it is the closest thing this screen has to an answer. Because it is
  * derived it is labelled on both axes at once: the word "Derived" in the
- * section title, and `IRIS calculated` on the source chip beneath it, which is
- * the contract's own name for `IRIS_SHOWROOM_DERIVED`. Nothing on this screen
+ * section title, and "calculated by Observer from showroom recordings" on the
+ * source line beneath it, the words every screen gives `IRIS_SHOWROOM_DERIVED`
+ * (ADR-0052). Nothing on this screen
  * asks the reader to guess which sentences Observer worked out.
  *
  * The summary the brief asks for — three two-room flats opened, two

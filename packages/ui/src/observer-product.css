@@ -1279,8 +1279,12 @@
  * things that a single badge would collapse:
  *
  *   TIER    how strong the claim is.  Observed · Attributed · Pattern.
- *   SOURCE  what kind of fact it rests on.  IRIS observed · IRIS calculated ·
- *           CRM outcome · WEBIRIS · AI interpretation.
+ *   SOURCE  what kind of fact it rests on, said as one quiet line: "Source:
+ *           recorded in the showroom by the IRIS app · deal stages from your
+ *           CRM" (`.iris-srcs` in `showroom.css`, ADR-0052). It was a row of
+ *           chips here — "IRIS observed", "IRIS calculated", "CRM outcome" —
+ *           that the owner could not read; one source has one name on every
+ *           screen now, so the source has no rule in this sheet.
  *
  * A screen may show one, the other, or both, but it may never merge them: a UE
  * event proving a legal purchase is exactly the confusion the separation
@@ -1288,18 +1292,7 @@
  * tier to style.
  * ========================================================================= */
 
-.ox-prov {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  align-items: center;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.ox-tier,
-.ox-src {
+.ox-tier {
   display: inline-flex;
   gap: 0.375rem;
   align-items: center;
@@ -1345,28 +1338,6 @@
   border-style: dashed;
   border-color: var(--ox-line-dashed);
   color: var(--ox-ink-3);
-}
-
-.ox-src {
-  background: var(--ox-inset-fill);
-  color: var(--ox-ink-3);
-}
-
-/*
- * An AI interpretation is the only source that is not a measurement, so it is
- * the only one that changes shape: dashed, in the reader's quietest ink, and
- * it may never sit alone beside a figure without the measurement it read.
- */
-.ox-src[data-source="ai_interpretation"] {
-  background: none;
-  border: 1px dashed var(--ox-line-dashed);
-  color: var(--ox-ink-4);
-  font-style: italic;
-}
-
-.ox-src[data-source="crm_outcome"] {
-  color: var(--ox-human);
-  background: var(--ox-human-tint);
 }
 
 .ox-evidence {
@@ -3565,11 +3536,6 @@
 
   .ox-report-foot {
     gap: var(--ox-tight) var(--ox-inner);
-  }
-
-  .ox-report .ox-src {
-    padding: 0;
-    background: none;
   }
 
   /*

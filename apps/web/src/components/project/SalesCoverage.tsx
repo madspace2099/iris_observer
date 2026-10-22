@@ -198,12 +198,12 @@ function lastHeard(source: ProjectSource, format: Intl.DateTimeFormat): string {
  * ("Main Showroom PC") and not what kind of thing it is. Reported as a gap,
  * beside the two others of exactly this shape on this screen.
  *
- * These are NOT `INSIGHT_SOURCE_LABELS`, and the difference matters enough to
+ * These are NOT the source line's words, and the difference matters enough to
  * write down: an `InsightSource` says what kind of FACT a claim rests on and is
- * rendered by `Sources` from the contracts package's own map, which is never
- * hand-written. A `SourceKind` says which SYSTEM is wired up. The two are
- * neighbours in the product and merging them would put "IRIS calculated" in a
- * list of things that can be offline.
+ * rendered by `Sources` from `SOURCE_LINE_WORDS` (ADR-0052). A `SourceKind`
+ * says which SYSTEM is wired up. The two are neighbours in the product and
+ * merging them would put "calculated by Observer" in a list of things that
+ * can be offline.
  */
 const FEED_WORDS: Readonly<Record<SourceKind, string>> = {
   webiris: "WEB IRIS",

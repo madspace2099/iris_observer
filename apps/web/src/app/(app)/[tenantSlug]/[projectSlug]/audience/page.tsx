@@ -1,12 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  INSIGHT_SOURCE_LABELS,
-  PLACE_CATEGORIES,
-  PLACE_CATEGORY_LABELS,
-  type PlaceCategory,
-} from "@observer/contracts";
+import { PLACE_CATEGORIES, PLACE_CATEGORY_LABELS, type PlaceCategory } from "@observer/contracts";
 import { nothingReceivedYet, type PeriodPreset, DEFAULT_LANGUAGE } from "@observer/readmodels";
+import { SOURCE_LINE_WORDS } from "@/components/report/words";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
@@ -220,8 +216,11 @@ export default async function AudiencePage({
                     <span className="iris-bar-label" title={m.because}>
                       {m.because}
                     </span>
+                    {/* The source line's words, then whether today's showroom records it. */}
                     <span className="iris-audience-basis" data-availability={m.availability}>
-                      {INSIGHT_SOURCE_LABELS[m.source]} · {AVAILABILITY_WORDS[m.availability]}
+                      {SOURCE_LINE_WORDS[DEFAULT_LANGUAGE].lead}:{" "}
+                      {SOURCE_LINE_WORDS[DEFAULT_LANGUAGE].words[m.source]} ·{" "}
+                      {AVAILABILITY_WORDS[m.availability]}
                     </span>
                   </span>
                   <span className="iris-matrix-num" style={{ textAlign: "right" }}>

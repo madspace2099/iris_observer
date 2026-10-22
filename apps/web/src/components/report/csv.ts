@@ -5,7 +5,7 @@ import type { Language } from "@observer/readmodels";
  *
  * One row per figure the report page prints: the section it sits in, the
  * figure's label, the value as the page displays it, its denominator or the
- * section's sample with its noun, the period, the scope and the source chips.
+ * section's sample with its noun, the period, the scope and the source line's words.
  * The rows are `figures.ts`'s; this file only writes them, and computes
  * nothing.
  *
@@ -35,7 +35,7 @@ export interface FigureRow {
   readonly value: string;
   /** The figure's own denominator, the section's sample, or empty for a sentence. */
   readonly denominator: string;
-  /** The source chips, in the read model's order. */
+  /** The source line's words (`SOURCE_LINE_WORDS`), in the read model's order. */
   readonly sources: string;
 }
 

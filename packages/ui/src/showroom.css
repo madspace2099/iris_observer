@@ -2598,8 +2598,9 @@
   min-width: 0;
 }
 
+/* Words, like the source line it repeats (ADR-0052), not an evidence id. */
 .iris-audience-basis {
-  font-family: var(--mono);
+  font-family: var(--sans);
   font-size: 0.75rem;
   color: var(--ink-2);
 }

@@ -49,7 +49,8 @@ import { Sources, Unavailable } from "@/components/product";
  * project with no CRM at all showed a chip reading "CRM outcome" (decided
  * 2026-09-18). `CRM_OUTCOME_CONTEXT` is defined in `@observer/contracts` as a
  * fact the CRM holds. This one is not: the agent selected it on the showroom's
- * own widget and the showroom sent it as an event, which is `IRIS observed` and
+ * own widget and the showroom sent it as an event, which is
+ * `IRIS_SHOWROOM_OBSERVED` ("recorded in the showroom by the IRIS app") and
  * nothing else, whether or not a CRM is connected. The origin of a fact does
  * not change because something unrelated is wired up elsewhere.
  *

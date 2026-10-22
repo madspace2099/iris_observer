@@ -72,10 +72,21 @@ export function Timeline({
 }) {
   if (steps.length === 0) return null;
 
-  return (
+  /*
+   * A source every step shares is said once, under the list, not fifteen times
+   * down it: the source line is a sentence now (ADR-0052), and repeating one
+   * sentence down a region is the failure `docs/12` §9 records for an
+   * unavailable source. Steps from two feeds keep a line each.
+   */
+  const first = (steps[0]?.sources ?? []).join();
+  const shared = steps.every((step) => (step.sources ?? []).join() === first)
+    ? (steps[0]?.sources ?? [])
+    : null;
+
+  const list = (
     <ol className="ox-time" aria-label={label}>
       {steps.map((step) => {
-        const sources = step.sources ?? [];
+        const sources = shared === null ? (step.sources ?? []) : [];
         const evidence = step.evidence ?? null;
         const detail = step.detail ?? null;
         const channel = step.channel ?? null;
@@ -108,5 +119,14 @@ export function Timeline({
         );
       })}
     </ol>
+  );
+  if (shared === null || shared.length === 0) return list;
+  return (
+    <>
+      {list}
+      <div className="ox-time-foot">
+        <Sources language={language} sources={shared} />
+      </div>
+    </>
   );
 }
