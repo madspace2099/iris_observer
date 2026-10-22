@@ -91,6 +91,11 @@
     display: none;
   }
 
+  /* Where "Show the remaining N" lands (`MORE_ANCHOR`): below the sticky header, not under it. */
+  .ox-meetings .ox-table tr[id] {
+    scroll-margin-top: calc(var(--iris-header-height, 70px) + var(--ox-inner));
+  }
+
   .ox-meetings-more {
     display: flex;
     margin: var(--ox-inner) 0 0;

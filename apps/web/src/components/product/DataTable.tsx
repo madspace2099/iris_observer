@@ -42,6 +42,8 @@ export interface DataColumn {
 
 export interface DataRow {
   readonly key: string;
+  /** An anchor a link may land on, such as the first record a phone folds away. */
+  readonly id?: string;
   /** Keyed by `DataColumn.key`. A column with no cell renders an empty cell. */
   readonly cells: Readonly<Record<string, ReactNode>>;
 }
@@ -198,6 +200,8 @@ export function DataTable({
                     {...(preferences === null ? {} : { "data-col": column.key })}
                     {...(column.numeric === true ? { "data-numeric": "true" } : {})}
                     {...(sort === null ? {} : { "aria-sort": sort.direction })}
+                    /* A phone hides the sort link and draws this instead, so the header keeps its name. */
+                    {...(sort === null ? {} : { "data-label": column.label })}
                     {...(column.className === undefined ? {} : { className: column.className })}
                   >
                     {sort === null ? (
@@ -220,7 +224,7 @@ export function DataTable({
 
           <tbody>
             {rows.map((row) => (
-              <tr key={row.key}>
+              <tr key={row.key} id={row.id}>
                 {columns.map((column) => (
                   <td
                     key={column.key}

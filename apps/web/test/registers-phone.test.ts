@@ -7,7 +7,7 @@ import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 import { Count } from "@/components/features/Reading";
 import { MeetingRegister, parseMeetingFilters } from "@/components/meetings";
-import { PHONE_PAGE } from "@/components/meetings/MeetingRegister";
+import { MORE_ANCHOR, PHONE_PAGE } from "@/components/meetings/MeetingRegister";
 import { DataTable } from "@/components/product";
 
 /**
@@ -20,6 +20,9 @@ import { DataTable } from "@/components/product";
 
 const web = resolve(import.meta.dirname, "..");
 const sheet = (path: string) => readFileSync(resolve(web, path), "utf8");
+/* A sheet's rules without its reasoning, so a guard never matches the comment explaining it. */
+const code = (path: string) => sheet(path).replace(/\/\*[\s\S]*?\*\//g, "");
+const PRODUCT = "../../packages/ui/src/observer-product.css";
 
 describe("a register's order on a phone", () => {
   const table = (sorted: boolean) =>
@@ -56,6 +59,30 @@ describe("a register's order on a phone", () => {
   it("is not drawn for a register with no order to choose", () => {
     expect(table(false)).not.toContain("ox-table-order");
   });
+
+  /*
+   * Review round 1: `visibility: hidden` on the clipped head took every
+   * column's name out of the accessibility tree with its sort links, so a
+   * screen reader on a phone lost the headers and `getByRole("columnheader")`
+   * found none on the mobile project. Only the links leave now; a sortable
+   * header draws its name from `data-label` in their place.
+   */
+  it("leaves the head's names to a screen reader and takes only its sort links out of the Tab order", () => {
+    expect(table(true)).toContain('<th scope="col" aria-sort="none" data-label="Unit">');
+    expect(table(false)).not.toMatch(/<th[^>]*data-label/);
+    const css = code(PRODUCT);
+    expect(css).not.toMatch(/\.ox-table thead \{[^}]*visibility/);
+    expect(css).toMatch(/\.ox-table thead \.ox-sort \{\s*display: none;/);
+    expect(css).toMatch(
+      /\.ox-table thead th\[data-label\]::before \{\s*content: attr\(data-label\);/,
+    );
+  });
+
+  it("insets the register's controls on a phone only, so a wide screen does not move", () => {
+    const wide = /^\.ox-table-prefs \{([^}]*)\}/m.exec(code(PRODUCT))?.[1] ?? "";
+    expect(wide).toContain("margin-block: 0.5rem;");
+    expect(wide).not.toContain("padding");
+  });
 });
 
 describe("the meeting register on a phone", async () => {
@@ -87,9 +114,16 @@ describe("the meeting register on a phone", async () => {
   it("sends every row, and offers the ones a phone folds away in one press", () => {
     expect(view.rows.length).toBeGreaterThan(PHONE_PAGE);
     const html = register(view.rows, false);
-    expect(html.match(/<tr>/g)?.length).toBe(view.rows.length + 1);
+    expect(html.match(/<tr[ >]/g)?.length).toBe(view.rows.length + 1);
     expect(html).toContain(`Show the remaining ${view.rows.length - PHONE_PAGE} meetings`);
-    expect(html).toContain('href="/shark/shark-residence/meetings?more=1"');
+    expect(html).toContain(`href="/shark/shark-residence/meetings?more=1#${MORE_ANCHOR}"`);
+  });
+
+  it("lands the reader on the twenty-first record, not at the page's top", () => {
+    const html = register(view.rows, true);
+    expect(html.match(new RegExp(`id="${MORE_ANCHOR}"`, "g"))).toHaveLength(1);
+    const rows = html.split("<tr").slice(2);
+    expect(rows[PHONE_PAGE]).toMatch(new RegExp(`^ id="${MORE_ANCHOR}"`));
   });
 
   it("offers nothing once every row was asked for, or when twenty is all there is", () => {

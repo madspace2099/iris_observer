@@ -2174,13 +2174,17 @@
   flex-wrap: wrap;
   align-items: center;
   gap: var(--ox-tight);
-  /* Inset as the caption under it is, not flush against the register's frame. */
-  margin: 0;
-  padding: var(--ox-section) var(--ox-section) 0;
+  margin-block: 0.5rem;
 }
 
-/* On a phone each column's box is a thumb's target, not a 13px square. */
 @media screen and (width <= 48rem) {
+  /* Inset as the caption under it is, not flush against the register's frame. */
+  .ox-table-prefs {
+    margin: 0;
+    padding: var(--ox-section) var(--ox-section) 0;
+  }
+
+  /* Each column's box is a thumb's target, not a 13px square. */
   .ox-table-prefs fieldset label {
     display: inline-flex;
     align-items: center;
@@ -2906,11 +2910,20 @@
     overflow: hidden;
     clip-path: inset(50%);
     white-space: nowrap;
-    /*
-     * Its sort links are off the screen, so they are not Tab stops either: a
-     * phone orders the register with "Order by" above it (`DataTable`).
-     */
-    visibility: hidden;
+  }
+
+  /*
+   * Its sort links are off the screen, so they are not Tab stops either: a
+   * phone orders the register with "Order by" above it (`DataTable`). The
+   * header itself stays, for a screen reader, named by its own label: hiding
+   * the whole head took every column's name with it.
+   */
+  .ox-table thead .ox-sort {
+    display: none;
+  }
+
+  .ox-table thead th[data-label]::before {
+    content: attr(data-label);
   }
 
   /*

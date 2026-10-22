@@ -18,6 +18,9 @@ import "./meetings.css";
 /** The records a phone draws before "Show the remaining N": `meetings.css` hides from the 21st. */
 export const PHONE_PAGE = 20;
 
+/** The first folded record: "Show the remaining N" lands the reader there, not at the page's top. */
+export const MORE_ANCHOR = "remaining-meetings";
+
 /**
  * THE MEETING REGISTER — every showroom presentation in the period, as a table.
  *
@@ -215,8 +218,9 @@ export function MeetingRegister({
   /** This register with its filters and `more=1`: where a phone's "Show the remaining N" goes. */
   readonly moreHref?: string | null;
 }) {
-  const data: readonly DataRow[] = rows.map((row) => ({
+  const data: readonly DataRow[] = rows.map((row, index) => ({
     key: row.meetingId,
+    ...(index === PHONE_PAGE ? { id: MORE_ANCHOR } : {}),
     cells: {
       when: canOpen ? (
         <Link href={dynamicRoute(withPeriod(withMeetingFilters(row.href, filters), period))}>
@@ -274,7 +278,10 @@ export function MeetingRegister({
       />
       {all || moreHref === null || rows.length <= PHONE_PAGE ? null : (
         <p className="ox-meetings-more">
-          <Link className="ox-btn" href={dynamicRoute(withPeriod(moreHref, period))}>
+          <Link
+            className="ox-btn"
+            href={dynamicRoute(withPeriod(`${moreHref}#${MORE_ANCHOR}`, period))}
+          >
             Show the remaining {rows.length - PHONE_PAGE} meetings
           </Link>
         </p>
