@@ -654,6 +654,13 @@ function outcomeFlag(
       measure: "unrecorded",
     };
   }
+  /*
+   * The two comparisons are rates over the RECORDED meetings, so they wait for
+   * the recorded floor, as the card's headline rate does (ADR-0057, review
+   * round): 22 held with 19 recorded read "No rate yet: 1 short" over "26%
+   * progressed against 40% for the team, over 19 recorded meetings".
+   */
+  if (decided.length < AGENT_MIN_SAMPLE) return null;
   const notInterested = decided.filter((s) => s.outcome === "not_interested").length;
   const progressed = share(decided.filter((s) => hasProgressed(s.outcome)).length, decided.length);
 
@@ -1765,11 +1772,13 @@ export function buildProjectView(
  */
 /*
  * Plain row names (the owner, 2026-10-22, ADR-0057: "understood in seconds").
- * "Not linked to a contact" read as system vocabulary; the row is the meetings
- * whose buyer Observer cannot name, so it says that, and the chart's `i` says
- * why such a meeting is neither a first nor a return. Every row stands, a row
- * no meeting fell in at 0 (his rule for the outcome rows: a zero is
- * information); with no meeting at all there is no share to give, and no row.
+ * The unlinked row keeps the register's words, "Not linked to a contact": each
+ * card's Meetings link opens that register, and one group needs one name. It
+ * is also all the data says; a missing link is not a buyer nobody could name
+ * (review round). The chart's `i` says why such a meeting is neither a first
+ * nor a return. Every row stands, a row no meeting fell in at 0 (his rule for
+ * the outcome rows: a zero is information); with no meeting at all there is no
+ * share to give, and no row.
  */
 const VISIT_LABELS = ["First meeting", "Second meeting", "Third meeting", "Fourth or later"];
 
@@ -1780,7 +1789,7 @@ function repeatDistribution(
   const linked = sessions.filter((s) => s.contactId !== null);
   const row = (visits: number | null, inside: number): RepeatDistribution => ({
     visits,
-    label: visits === null ? "Buyer not identified" : (VISIT_LABELS[visits] ?? ""),
+    label: visits === null ? "Not linked to a contact" : (VISIT_LABELS[visits] ?? ""),
     meetings: inside,
     share: share(inside, sessions.length),
     shareDisplay: shareDisplay(share(inside, sessions.length), locale),

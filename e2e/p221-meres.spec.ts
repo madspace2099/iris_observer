@@ -353,9 +353,9 @@ test("R12-2 · under twenty meetings an agent gets counts, no flag and no compar
 test("R12-4 · the roster breaks meetings into first, returning and not linked", async ({ page }) => {
   const text = await mainText(page, "Tomáš Varga", `${ROOT}/agents`);
   const lines = text.split("\n").map((l) => l.trim());
-  /* Plain row names since ADR-0057; the meetings with no contact are "Buyer not identified". */
+  /* Plain row names since ADR-0057; the unlinked row keeps the register's words. */
   expect(lines).toContain("First meeting");
-  expect(lines).toContain("Buyer not identified");
+  expect(lines).toContain("Not linked to a contact");
   expect(lines.some((l) => /^(Second|Third) meeting$|^Fourth or later$/.test(l)), "a returning bucket").toBe(true);
 });
 

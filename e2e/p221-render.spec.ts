@@ -287,8 +287,8 @@ test("R12-4 · a meeting with no linked contact is counted apart, not as a first
 }) => {
   const text = await mainText(page, "Tomáš Varga", `${ROOT}/agents`);
   expect(text).toContain("First meeting");
-  /* The row's plain name since ADR-0057; its `i` says why it is neither a first nor a return. */
-  expect(text).toContain("Buyer not identified");
+  /* The register's words for the row (ADR-0057); its `i` says why it is neither a first nor a return. */
+  expect(text).toContain("Not linked to a contact");
 });
 
 test("R13-1 · the agent's page has one heading", async ({ page }) => {

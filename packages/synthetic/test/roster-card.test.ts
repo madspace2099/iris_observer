@@ -118,6 +118,48 @@ describe("the card's headline figure", () => {
   });
 });
 
+describe("the card's flag", () => {
+  /*
+   * Twenty or more held, under twenty recorded: the headline gives no rate,
+   * so no flag may give one either (review round). Before the fix both drew.
+   *
+   * Iva: 2 purchases, 17 presentation only, 3 with none recorded. 22 held, 19
+   * recorded, 2 progressed: 11% against the team's, nobody "not interested".
+   * Otto: 8 purchases, 10 not interested, 2 with none recorded. 20 held, 18
+   * recorded; 10 / 18 = 56% "not interested", over the 35% line.
+   * Monika (above): 15 of 22 recorded progressed. Team: 2 + 8 + 15 = 25 of
+   * 19 + 18 + 22 = 59 recorded = 42%; Iva's 11% is under three quarters of it.
+   */
+  const IVA = [
+    ...many(2, "agt_iva", "purchase", "ip"),
+    ...many(17, "agt_iva", "presentation_only", "io"),
+    ...many(3, "agt_iva", "skipped", "is"),
+  ];
+  const OTTO = [
+    ...many(8, "agt_otto", "purchase", "op"),
+    ...many(10, "agt_otto", "not_interested", "on"),
+    ...many(2, "agt_otto", "skipped", "os"),
+  ];
+  const flags = buildAgentsView(CONTEXT, [...MONIKA, ...IVA, ...OTTO], false);
+  const of = (agentId: string) => flags.agents.find((a) => a.agentId === agentId);
+
+  it("is none where the headline withholds the rate, however far off the team", () => {
+    expect(of("agt_iva")?.headline).toEqual({
+      figure: null,
+      caption: "No rate yet: 1 short of the 20 recorded meetings needed",
+    });
+    expect(of("agt_iva")?.ring.flag).toBeNull();
+    expect(of("agt_otto")?.headline.figure).toBeNull();
+    expect(of("agt_otto")?.ring.flag).toBeNull();
+  });
+
+  it("still counts the meetings held: both cleared the floor of 20", () => {
+    /* The guard is the recorded set's, not a held count that kept them off the card. */
+    expect([of("agt_iva")?.meetings, of("agt_otto")?.meetings]).toEqual([22, 20]);
+    expect([of("agt_iva")?.belowMinimum, of("agt_otto")?.belowMinimum]).toEqual([false, false]);
+  });
+});
+
 describe("the repeat chart", () => {
   /*
    * Seven meetings: two first meetings, one second, one fourth-or-later (prior
@@ -143,7 +185,7 @@ describe("the repeat chart", () => {
       ["Second meeting", 1, "14%"],
       ["Third meeting", 0, "0%"],
       ["Fourth or later", 1, "14%"],
-      ["Buyer not identified", 3, "43%"],
+      ["Not linked to a contact", 3, "43%"],
     ]);
   });
 

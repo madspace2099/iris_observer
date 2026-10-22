@@ -70,19 +70,20 @@ async function agentsNamed(page: Page): Promise<string[]> {
 /**
  * Every figure the rings carry, so two projects can be compared as data.
  *
- * The card's one headline since ADR-0057 (`.ag-card-headline`, read as shown,
- * so the closed `i` panel is not in it): the rate and what it is of, or below
- * the floor of recorded meetings the shortfall in its place ("No rate yet: …").
- * The floor's whole sentence is behind the `i`; `suppressed` reads it there.
+ * `meetings` is the ring's centre count, every meeting held: the figure that
+ * is this project's own whatever the floor. `detail` is the card's one
+ * headline since ADR-0057 (`.ag-card-headline`, read as shown, so the closed
+ * `i` panel is not in it): the rate and what it is of, or below the floor of
+ * recorded meetings the shortfall in its place ("No rate yet: …").
  */
 async function agentFigures(
   page: Page,
-): Promise<{ name: string; detail: string; suppressed: string | null }[]> {
+): Promise<{ name: string; meetings: string; detail: string }[]> {
   return page.evaluate(() =>
     [...document.querySelectorAll(".iris-ring-card")].map((card) => ({
       name: (card.querySelector("h3")?.textContent ?? "").trim(),
+      meetings: (card.querySelector(".iris-ring-figure")?.textContent ?? "").trim(),
       detail: ((card.querySelector(".ag-card-headline") as HTMLElement | null)?.innerText ?? "").trim(),
-      suppressed: card.querySelector(".iris-info-panel")?.textContent?.trim() ?? null,
     })),
   );
 }
@@ -143,7 +144,7 @@ test.describe("the project she holds", () => {
     for (const row of await agentFigures(page)) {
       /* The rate, or the shortfall in its place: below the floor no rate, never nothing. */
       const carriesSomething = /progressed|No rate yet|No outcome recorded/.test(row.detail);
-      expect(carriesSomething, `${row.name}: "${row.detail}" / "${row.suppressed}"`).toBe(true);
+      expect(carriesSomething, `${row.name}: "${row.detail}" over ${row.meetings} meetings`).toBe(true);
     }
   });
 
@@ -347,13 +348,12 @@ test.describe("an agent granted both projects", () => {
       await page.goto(`/${target.tenant}/${target.project}/agents`);
       byProject[target.name] = Object.fromEntries(
         /*
-         * Below AGENT_MIN_SAMPLE, `detail` (the percentage) is empty by
-         * design — but the suppression sentence names the meeting count in
-         * words, and that count is still this project's own. Two projects
-         * with different sample sizes were exactly the case most likely to
-         * both fall short at once, which is what happened here.
+         * The meetings held, which every card prints whatever the floor, with
+         * the headline beside them: under the floor the headline is a
+         * shortfall, and two projects can fall short alike, but the counts
+         * are each project's own (ADR-0057, review round).
          */
-        (await agentFigures(page)).map((row) => [row.name, row.detail || (row.suppressed ?? "")]),
+        (await agentFigures(page)).map((row) => [row.name, `${row.meetings} · ${row.detail}`]),
       );
     }
 
