@@ -5802,3 +5802,30 @@ one import line after `Measure`'s; in `charts2.tsx` only `RankedBars` (an option
 at Sales Flow and Sales Agents at 1440 and 390, sign in as Lena and replace and remove it from
 "Your profile"; run `agent-portraits` and `lab-agent-portraits`. Tell Máté the Company is the
 tenant's admin (Clara), not the agency's (Daniel), in case he meant otherwise.
+
+## 2026-10-22 — Stream SOURCES: one plain source line everywhere (ADR-0052, second round)
+
+Máté could not read "IRIS observed / IRIS calculated / CRM outcome"; LAYOUT fixed Sales Flow, and a
+meeting opened from it still showed the chips. Branch `worktree-wf_17ac9644-363-1`, from `9a674ca`,
+four commits, not pushed.
+
+- **One vocabulary.** `SOURCE_LINE_WORDS` (EN/SK/HU) moved into `components/report/words.ts`;
+  `SourceChips` and `Provenance.Sources` both print "Source: recorded in the showroom by the IRIS
+  app · …" — meeting replay, agent, units, features, showroom, findings, attention, the report on
+  screen and in print (in the report's language), the CSV's source column, the audience basis
+  ("… · Recorded today"). The contract's labels are untouched and no screen indexes them.
+- **Chip CSS removed** (`ox-prov`, `ox-src`, `data-source`); the model source keeps its colour
+  via `data-src`. A `Timeline` whose steps share one source says it once under the list.
+- **Month rows** are named "Month by month, how they ended". **Trend ticks** are thinned by
+  drawn width from the latest week back: no more "3 Aug17 Aug" at 390.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; `apps/web/test`
+and `packages/ui/test` 100 files, 1435 passed (new `source-line` 4, `trend-labels` +1). Full suite
+(after `pnpm release:wrappers`): 282 files, 5174 passed, 1 skipped, 1 failed — `no-secret-recipes`,
+whose auditor reports the tree clean and the browser bundle not scanned (no web build;
+environmental). Static renders at 1440 and 390, no sideways scroll. `e2e/veghajras1.spec.ts` (the
+audience basis) edited, not run; no other spec quoted the old words.
+
+**Next recommended action.** On the demo build open a Shark meeting from Sales Flow's lens and
+Lena's agent page at 1440 and 390 and read the source lines; run `veghajras1` and
+`frame-language` on the report in SK and HU.

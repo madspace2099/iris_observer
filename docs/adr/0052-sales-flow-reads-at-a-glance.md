@@ -106,13 +106,14 @@ are the other two streams'.
   meeting opened from the lens shows the chips the owner could not read. **It is the next step, before
   the demo is recorded**: `Sources` printing the same line (its `data-source` tokens kept for the
   AI and CRM treatments), with the printed report's column decided on its own. The audience page's
-  "IRIS observed · Recorded today" basis is the same words by another path.
+  "IRIS observed · Recorded today" basis is the same words by another path. _(Closed by the second
+  round, below.)_
 - **The not-interested section's source line** still names the CRM ("deal stages from your CRM")
   over a group read from in-room outcomes and showroom use. The section is stream DRILL's (ADR-0053);
   the same correction is theirs to make.
 - **The outcome rows' and the funnel's props**, the not-interested section and "Presentations given"
   belong to the other two streams. The monthly rows' `aria-label` still reads "What those meetings
-  became, month by month"; it is a prop of their call site.
+  became, month by month"; it is a prop of their call site. _(Renamed in the second round, below.)_
 - **No new popover kind**: both new explanations are the existing InfoTip.
 
 ## Consequences
@@ -142,3 +143,35 @@ owner has just made outranks InfoTip's denominator rule (the skill's source hier
 gone: the lead and the note, counts and all, are the `i`; the lens still says what it holds in view
 ("35 of 35 in view"), and with nothing drawn the lead stays the card's one sentence.
 `apps/web/test/flow-claims.test.ts` holds it.
+
+## Second round, 2026-10-22: one source line everywhere
+
+A meeting opened from Sales Flow still showed the chips the owner could not read. Now every surface
+says its sources the way §8 does, in one vocabulary:
+
+1. **The words live with the report's.** `SOURCE_LINE_WORDS` (EN, SK, HU) is in
+   `components/report/words.ts`, so the printed report says its sources in its own language and
+   `e2e/frame-language.spec.ts` reads them as a word table. `SourceChips` reads them from there;
+   `INSIGHT_SOURCE_LABELS` stays frozen and no screen indexes it (a unit test holds that).
+2. **`Sources` is the line.** Meeting replay and outcomes, agent detail, units and unit detail,
+   features, showroom, findings, attention states and the report on screen and on paper print
+   "Source: recorded in the showroom by the IRIS app · …". The CSV's source column uses the same
+   words (no lead: the column is headed "Sources"). The audience basis reads "Source: recorded in the
+   showroom by the IRIS app · Recorded today": the availability is kept, in Manrope like the line.
+3. **The chips' styling goes with them.** The `ox-prov`/`ox-src` rules and the stylesheet-only
+   `data-source` tokens are removed: no markup or test read the tokens, and the line keeps
+   `data-src`. A model's wording keeps its colour through `.iris-src[data-src="AI_INTERPRETATION"]`,
+   which the design test now reads; a CRM source is no longer tinted, since the words say it.
+4. **A journey says a shared source once.** When every step of a `Timeline` has the same sources,
+   the line stands once under the list, not on each of fifteen steps (`docs/12` §9). Steps from two
+   feeds keep a line each.
+5. **The month rows' accessible name** is "Month by month, how they ended", as the sub-label reads.
+6. **Week labels never touch.** `TrendLine`'s phone drawing ended the last label at its point, so a
+   label two weeks earlier touched it at 390 ("3 Aug17 Aug"). The ticks keep their stride and are
+   thinned from the latest week back by an estimated drawn width (8 units a character); the XL and
+   middle drawings lose nothing.
+
+Looked at as static renders (the pages through `react-dom/server`, the product stylesheets, headless
+Chromium) at 1440 and 390: a Shark meeting, Lena Fischer's page, Sales Flow, the Slovak and
+Hungarian report on screen and in print, Northgate's audience and features. No new sideways scroll;
+the audience basis wraps to three lines in its column at 1440, where the chip words took two.
