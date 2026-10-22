@@ -5736,25 +5736,39 @@ the Company, the main admin, adds the picture, and the agent can change their ow
 profile. Built in a worktree off `7a8df8a`, one of three parallel streams on Sales Flow (LAYOUT
 ADR-0052, DRILL ADR-0053), not pushed.
 
-| What                                                                                            | Where                                                                                        |
-| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| The trust boundary: PNG/JPEG/WebP by magic bytes, ≤ 2 MB, EXIF/XMP/ICC/COM and PNG text cut out | `apps/web/src/lib/portraits/image.ts`                                                        |
-| A store apart: `PortraitStore` port, a file adapter under the local plane's state directory     | `lib/portraits/store.ts` (`.observer-local/demo/portraits/<tenantId>/<agentId>` on the demo) |
-| Who may change one: the agent's company admin, or the agent replacing or removing their own     | `lib/portraits/access.ts` (`portraitRight`), `lib/portraits/server.ts`                       |
-| One route: GET (private, no-store, nosniff, sandboxed), PUT with the raw image, DELETE the file | `app/api/observer/portraits/[tenantSlug]/[projectSlug]/[agentId]/route.ts`                   |
-| The portrait, or initials, ringed in the seat colour; the editor                                | `components/agents/Portrait.tsx`, `PortraitEditor.tsx`, `PresenterBars.tsx`, `portrait.css`  |
-| Drawn on both "Presentations given" lists, the roster cards and the agent page's heading        | `flow/page.tsx` (that block only), `agents/page.tsx`, `agents/[agentId]/page.tsx`            |
-| Lena Fischer signs in (`lena.fischer@shark-sales.example`), bound to `agt_sharklena01`          | `VIEWERS.agentShark`, `accounts.ts`, `test-support/access-matrix.ts` (nine capacities)       |
+| What                                                                                                        | Where                                                                                       |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| The trust boundary: PNG/JPEG/WebP by magic bytes, ≤ 2 MB, metadata cut out (JPEG walk, PNG/WebP allowlists) | `apps/web/src/lib/portraits/image.ts`                                                       |
+| A store apart: `PortraitStore` port, a file adapter under the local plane's state directory                 | `lib/portraits/store.ts` (`.observer-local/demo/portraits/<sha256 tenant>/<sha256 agent>`)  |
+| Who may change one: the tenant's company admin, or the agent replacing or removing their own                | `lib/portraits/access.ts` (`portraitRight`), `lib/portraits/server.ts`                      |
+| One route: GET (private, no-store, nosniff, sandboxed), PUT with the raw image, DELETE the file             | `app/api/observer/portraits/[tenantSlug]/[projectSlug]/[agentId]/route.ts`                  |
+| The portrait, or initials, ringed in the seat colour; the editor                                            | `components/agents/Portrait.tsx`, `PortraitEditor.tsx`, `PresenterBars.tsx`, `portrait.css` |
+| Drawn on both "Presentations given" lists, the roster cards and the agent page's heading                    | `flow/page.tsx` (that block only), `agents/page.tsx`, `agents/[agentId]/page.tsx`           |
+| Lena Fischer signs in (`lena.fischer@shark-sales.example`), bound to `agt_sharklena01`                      | `VIEWERS.agentShark`, `accounts.ts`, `test-support/access-matrix.ts` (nine capacities)      |
 
-**Decided from the model; the one thing to confirm with Máté.** An agent belongs to the agency
-they present for (`docs/01-foundation.md` §2 and §6; the roster's `organisationName`), so the admin
-who adds the five Shark presenters' portraits is **Daniel Hart** (admin of Shark Sales), not Clara
-Weiss (admin of Shark Developments, the tenant). Clara, Nora, other agents, other companies'
-admins and MADSPACE see portraits and change none; a reader of another tenant gets a 404. If Máté
-meant the developer's admin, it is one comparison in `portraitRight` and the matrix's cells
-(ADR-0054 §2). "The agent can change their own" is read as written: the company adds the first, the
-agent replaces or removes it. The agent's own profile is their agent page; their own card on Sales
-Agents reads "Your profile →". No new navigation item.
+**Who adds a face: the tenant's company admin, decided in the review round.** The first version
+gave the right to the agent's agency (Daniel Hart, admin of Shark Sales). The reviewers showed it
+could not work and contradicted the brief: the UE5 roster carries no organisation, so every
+presenter delivered from a showroom reads "Agency not stated" and nobody could ever add their
+portrait; and the brief lists the agency manager among those refused. The owner's Company is the
+one that receives the names from its showroom, the tenant's, so **Clara Weiss** (admin of Shark
+Developments) adds the five Shark portraits and Petra Novák ISTER TOWER's, whatever agency the
+presenter sells for. Daniel, Nora, other agents, MADSPACE and agency admins see portraits and
+change none; a reader of another tenant gets a 404 (ADR-0054 §2–§3). "The agent can change their
+own" is read as written: the company adds the first, the agent replaces or removes it. The
+agent's own profile is their agent page; their own card on Sales Agents reads "Your profile →".
+No new navigation item.
+
+**Review round (twelve findings, none rejected; ADR-0054 records each).** JPEG metadata after the
+first scan survived (a second image's EXIF after EOI, a motion photo, APPn/COM between progressive
+scans): the walk now steps through each scan and ends at the first EOI. PNG and WebP keep an
+allowlist, so the older exIf, C2PA and tIME go. An agent id outside `[A-Za-z0-9_-]` made the store
+throw and took Sales Flow, Sales Agents and the agent page down; file names are now the SHA-256 of
+the id, which also keeps case-only twins apart on NTFS. The right moved to the tenant's admin
+(above). DELETE reaches an agent who has left every roster while a portrait is still kept (no
+button for it yet: such an agent has no page). The agent's own control stays mounted when she
+removes her portrait, so "Removed." stays and the focus moves to its heading; its note is true
+whoever put the picture there. The roster cards' names got the kit's card title back.
 
 **Not done, by design.** No portrait is seeded (fictional people; no fabricated faces). No Supabase
 Storage: a hosted deployment refuses the upload in a sentence and draws initials (ADR-0054 §4). No
@@ -5762,25 +5776,29 @@ re-encoding: sharp does not resolve from `apps/web`, so the containers are walke
 segments dropped.
 
 **Verified.** Typecheck clean; eslint and prettier clean on every changed file. New suites:
-`portrait-image` (9), `portrait-access` (20: the matrix through the real route and accounts,
+`portrait-image` (13), `portrait-access` (22: the matrix through the real route and accounts,
 cross-tenant 404, roster-only, same-origin, 401, headers, 2 MB declared and streamed, SVG refused,
-removal deletes the file, hosted 503, the store's gate, path safety; a widened right, mutated in,
-fails it), `portrait-display` (5). Full unit suite (after `pnpm release:wrappers`): 278 files, 5127
+removal deletes the file, hosted 503, the store's gate, every contract-valid id named inside its
+directory, removal off the roster, the right on a delivered agent; a widened right, mutated in,
+fails it), `portrait-display` (6). The new JPEG and allowlist fixtures fail on the first version's
+stripper. Full unit suite after the review round (after `pnpm release:wrappers`): 278 files, 5134
 passed, 1 skipped, 1 failed — `no-secret-recipes`, whose auditor reports the tree, the staged diff
 and the history clean and the browser bundle not scanned for want of a web build (environmental).
 The components were rendered to static HTML on the product stylesheets and looked at in headless
 Chromium at 1440 and 390, no sideways overflow: the ranked rows, the roster card heads, the agent
-heading and the editor's four cases (first image, replace, the agent's own, no store). **Not looked
-at on a running page**: no dev server, build or Playwright. `e2e/agent-portraits.spec.ts` (the
-production server, which has no store) and `e2e/lab-agent-portraits.spec.ts` (the lab server: add,
-replace, remove, refusals) are written, not run.
+heading and the editor's four cases (first image, replace, the agent's own, no store); in the
+review round the roster card's name was measured against the kit's card title in Chromium
+(equal). **Not looked at on a running page**: no dev server, build or Playwright.
+`e2e/agent-portraits.spec.ts` (the production server, which has no store) and
+`e2e/lab-agent-portraits.spec.ts` (the lab server: add, replace, remove, refusals, and the agent's
+own removal keeping its status and focus) are written, not run.
 
 **Integration.** In `flow/page.tsx` this stream changed only the "Presentations given" block and
 one import line after `Measure`'s; in `charts2.tsx` only `RankedBars` (an optional `marks` prop);
 `components/product/Person.tsx` exports `initialsOf`. Cherry-pick with the other two streams.
 
-**Next recommended action.** Confirm with Máté that the Company he meant is the agents' agency
-(Daniel Hart), not the developer (Clara). Then on the demo build sign in as Daniel, open
-`/shark/shark-residence/agents/agt_sharklena01`, add a real photograph its subject agreed to, look at
-Sales Flow and Sales Agents at 1440 and 390, sign in as Lena and replace it from "Your profile";
-run `agent-portraits` and `lab-agent-portraits`.
+**Next recommended action.** On the demo build sign in as Clara, open
+`/shark/shark-residence/agents/agt_sharklena01`, add a real photograph its subject agreed to, look
+at Sales Flow and Sales Agents at 1440 and 390, sign in as Lena and replace and remove it from
+"Your profile"; run `agent-portraits` and `lab-agent-portraits`. Tell Máté the Company is the
+tenant's admin (Clara), not the agency's (Daniel), in case he meant otherwise.
