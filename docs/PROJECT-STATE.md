@@ -6431,3 +6431,6 @@ glyph. The full suite's first run caught Ask's steady-figures sentence restating
 line), look at Sales Flow on the demo build at 1440 and 390 — the screen of figures inside its
 full-screen wrapper, its title, Tab through the eight names and `i`s, and the completed-quarter
 period — and run `a11y-contract`, `layout-integrity` and `period-travels` on the flow page.
+
+Final full suite of the review round (after `pnpm release:wrappers`): 292 files, 5360 passed, 1
+skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
