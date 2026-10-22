@@ -5589,3 +5589,48 @@ build or Playwright in this round.
 
 **Next recommended action.** Open `/shark/shark-residence/units` at 1440 and 390 on the demo build
 to see the section in its page, and ask the live question there as Clara.
+
+## 2026-10-22 — Sales Flow reads at a glance (ADR-0052, stream LAYOUT)
+
+Máté went through `/shark/shark-residence/flow` on the local production build and commented in
+Hungarian. This stream answers the layout and wording comments; DRILL (ADR-0053) and PORTRAITS
+(ADR-0054) answer the rest. Branch `worktree-wf_2a81b87e-4c4-1`, from `7a8df8a`, not pushed.
+
+- **Every outcome** is a 248px ring (22px kit stroke, 42px total), its key beside it at 14px, under
+  it below a 28rem card; it shrinks with a phone's card.
+- **The black field under the steps** is gone: the band splits 1.15 : 1 above 75rem and the six
+  step columns grow to the ring's height, sharing four rows through two subgrids so every bar
+  stands on one floor. Stacked, nothing changes.
+- **The bubble lens** keeps its lead and note behind its `i`, unchanged; with no bubble the lead
+  stays in view.
+- **Section titles** take the Section role, 20/28/600, on every card title and every measured `h2`
+  — so the chart cards of Project, Sales Agents, agent and unit pages, Presentation DNA and
+  IRIS-led grow alike.
+- **"Presentations over time, and how they ended"** is one card: "Week by week" beside "Month by
+  month, how they ended", both notes behind one `i`. The reading note and the e2e that quotes it
+  (`p221-meres` R05-1) name it so.
+- **Flags** carry a muted filled "!" (loss for a concern, watch for a watch) instead of the 2px
+  left rule; **"How they present" / "Look at it"** sit on their cell's floor.
+- **Provenance in words**: `SourceChips` (`apps/web/src/showroom/sources.tsx`) prints "Source:
+  recorded in the showroom by the IRIS app · calculated by Observer from showroom recordings · deal
+  stages from your CRM"; `Measure`, the observer answer panel and Ask's answer sheet print the same.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; `apps/web/test` and
+`packages/ui/test` (94 files, 1373 passed). The full unit suite (after `pnpm release:wrappers`): 275
+files, 5091 passed, 1 skipped, 1 failed — `no-secret-recipes`, which needs a web build
+(environmental). Looked at as a static render (react-dom/server + the product stylesheets, headless
+Chromium) of Sales Flow at 1440, 1280, 1210,
+1024, 390 and 360, and of Project, the Sales Agents roster and Coaching, Lena Fischer's page, S-503,
+Presentation DNA, IRIS-led sales and an Ask answer at 1440 and 390: no new sideways scroll. Not on a
+running page; no dev server, build or Playwright suite.
+
+**Left, and why.** `Sources` (`components/product/Provenance.tsx`) still prints "IRIS observed" chips
+on the agent, unit, features, showroom, meeting and report surfaces — not in the comments; the report
+column needs its own decision. The monthly rows' `aria-label` still says "What those meetings
+became" (DRILL's prop). The roster's "Agent detail →" is different markup and is not aligned.
+Pre-existing, not this stream's: the trend's phone geometry prints "3 Aug17 Aug" touching at 390, and
+Coaching overflows a 390 phone by its own nowrap action (154px before, 112px after).
+
+**Next recommended action.** Cherry-pick the three streams together onto the feature branch, then
+open `/shark/shark-residence/flow` at 1440 and 390 on the demo build and look at the ring band, the
+titles, the joined trend block and an `i` panel on the lens.
