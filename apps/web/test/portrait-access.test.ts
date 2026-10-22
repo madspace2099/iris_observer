@@ -1,6 +1,6 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PORTRAIT_CELLS } from "../../../test-support/access-matrix";
@@ -115,7 +115,8 @@ function call(
 }
 
 const lena = { tenantSlug: "shark", projectSlug: "shark-residence", agentId: "agt_sharklena01" };
-const fileOf = (tenantId: string, agentId: string) => join(state.dir, tenantId, agentId);
+const fileOf = (tenantId: string, agentId: string) =>
+  store.portraitPath(state.dir, { tenantId, agentId });
 
 beforeEach(() => {
   state.dir = mkdtempSync(join(tmpdir(), "observer-portraits-"));
@@ -169,7 +170,7 @@ describe("the authorisation matrix", () => {
   it("knows only agents on the project's roster", async () => {
     const nobody = { ...lena, agentId: "agt_nobodyhere01" };
     expect((await call("PUT", nobody, { body: PNG })).status).toBe(404);
-    expect(existsSync(join(state.dir, SHARK, "agt_nobodyhere01"))).toBe(false);
+    expect(existsSync(fileOf(SHARK, "agt_nobodyhere01"))).toBe(false);
   });
 
   it("refuses a change not sent from this site's own page", async () => {
@@ -274,13 +275,34 @@ describe("a deployment with no store", () => {
     }
   });
 
-  it("builds a file name only from ids that cannot leave their directory", () => {
-    for (const bad of ["..", "../agt_x", "agt_x/../../etc", "a.b", "", "agt\\x"]) {
-      expect(() => store.portraitPath("/root", { tenantId: SHARK, agentId: bad }), bad).toThrow();
-      expect(() => store.portraitPath("/root", { tenantId: bad, agentId: "agt_x" }), bad).toThrow();
+  it("names every id the showroom may send, inside its directory, one file per id", async () => {
+    const ids = [
+      "agt_sharklena01",
+      "{9A2D7C44-1B3E-4F5A-8C6D-7E8F9A0B1C2D}",
+      "john.doe@shark-sales.example",
+      "agent john",
+      "€".repeat(128),
+      "..",
+      "../../etc/passwd",
+      "agt\\x",
+      "AGT_X",
+      "agt_x",
+    ];
+    const paths = ids.map((agentId) => store.portraitPath("/root", { tenantId: SHARK, agentId }));
+    for (const path of paths) {
+      expect(relative("/root", path).startsWith(".."), path).toBe(false);
+      expect(path).toMatch(/[0-9a-f]{64}[\\/][0-9a-f]{64}$/);
     }
-    expect(store.portraitPath("/root", { tenantId: SHARK, agentId: "agt_sharklena01" })).toBe(
-      join("/root", SHARK, "agt_sharklena01"),
-    );
+    // Two ids that differ only in case are two files, on a disk that ignores case too.
+    expect(new Set(paths.map((p) => p.toLowerCase())).size).toBe(ids.length);
+
+    const files = store.filePortraitStore(state.dir);
+    const brace = { tenantId: SHARK, agentId: ids[1] ?? "" };
+    expect(await files.version(brace)).toBeNull();
+    await files.write(brace, PNG);
+    expect(Buffer.from((await files.read(brace)) ?? []).equals(Buffer.from(PNG))).toBe(true);
+    expect(
+      await files.read({ tenantId: SHARK, agentId: "{9a2d7c44-1b3e-4f5a-8c6d-7e8f9a0b1c2d}" }),
+    ).toBeNull();
   });
 });

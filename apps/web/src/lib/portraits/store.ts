@@ -1,8 +1,8 @@
 import "server-only";
 
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 import { localControlPlaneEnabled, observerLocalDirectory } from "@/lib/sources/local-db";
 
@@ -35,17 +35,18 @@ export interface PortraitStore {
 }
 
 /**
- * An id that can be a file name: letters, digits, `_` and `-`, no dot and no
- * separator, so no id can climb out of its directory. Read-model ids
- * (`tnt_sharkdev001`, `agt_sharklena01`) and control-plane uuids both pass.
+ * A file name for an id: the SHA-256 of its UTF-8 bytes, in lowercase hex.
+ *
+ * The showroom names an agent with any string of 1–128 characters (the UE5
+ * contract's `agent_id`): braces, dots, `@`, spaces, any script. Hashed, every
+ * one of them is a name, none can climb out of its directory, and two ids that
+ * differ only in case stay two files on a case-insensitive disk (NTFS, the
+ * demo machine's).
  */
-const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,79}$/;
+const fileName = (id: string) => createHash("sha256").update(id, "utf8").digest("hex");
 
 export function portraitPath(root: string, key: PortraitKey): string {
-  if (!SAFE_ID.test(key.tenantId) || !SAFE_ID.test(key.agentId)) {
-    throw new Error("portrait: an id that cannot be a file name");
-  }
-  return join(root, key.tenantId, key.agentId);
+  return join(root, fileName(key.tenantId), fileName(key.agentId));
 }
 
 const missing = (error: unknown) => (error as { code?: string }).code === "ENOENT";
@@ -71,7 +72,7 @@ export function filePortraitStore(root: string): PortraitStore {
     },
     async write(key, bytes) {
       const path = portraitPath(root, key);
-      await mkdir(join(root, key.tenantId), { recursive: true });
+      await mkdir(dirname(path), { recursive: true });
       const partial = `${path}.${randomBytes(6).toString("hex")}.part`;
       await writeFile(partial, bytes);
       await rename(partial, path);
