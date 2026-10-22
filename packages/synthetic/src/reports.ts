@@ -529,7 +529,8 @@ export function buildReportScope(
               share: percent(unrecordedShare, locale),
             })
           : null,
-      sources: WITH_OUTCOME,
+      // Beside "No CRM is connected" the line named "deal stages from your CRM".
+      sources: crm ? WITH_OUTCOME : DERIVED,
       sampleSize: recorded,
       sampleNoun: meetingsNoun(language, recorded),
       evidence: crm && recorded > 0 ? evidence("outcomes", recorded) : null,

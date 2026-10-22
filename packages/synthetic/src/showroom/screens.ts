@@ -932,7 +932,8 @@ export function buildUnitDetail(
       "unavailable",
       "No source in this product records an offer against a unit.",
       "attributed_conversion",
-      WITH_OUTCOME,
+      // Nothing is read, so nothing is named: a source line here said "deal stages from your CRM".
+      [],
     ),
     stage(
       "reservation",

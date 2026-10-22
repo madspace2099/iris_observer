@@ -2611,7 +2611,8 @@ export function buildHome(
       },
     ],
     meetingCount: sessions.length,
-    sources: [...WITH_OUTCOME],
+    // A project with no CRM records no deal stage; its line does not name one (attention.ts does the same).
+    sources: context.project.connectedSources.includes("crm") ? [...WITH_OUTCOME] : [...DERIVED],
     evidence: evidenceRef("home", "observed_sequence", `${base}/flow`, sessions.length),
   };
 }
