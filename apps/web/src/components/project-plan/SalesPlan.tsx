@@ -13,13 +13,17 @@ import "./plan.css";
  * The owner, recording the Shark demo (2026-10-22), could not read the bullet
  * chart this replaces: show the flats, how many are sold, and how long the
  * sales run against a date by which everything must be sold. So the block
- * reads in three steps, largest first:
+ * reads in three steps:
  *
- *   1. one verdict line, with both paces in it, and what the pace stands on;
- *   2. the stock: four figures and one bar of every flat;
- *   3. the window: the sell-out date, the time from start to it with today
- *      marked, and when the project sells out at the current pace.
+ *   1. one short verdict, first: "On pace", "Behind", or the state that
+ *      stands in for one;
+ *   2. the stock: four large figures and one bar of every flat;
+ *   3. the window and the pace: the sell-out date, the time from start to it
+ *      with today marked, the two paces as figures, what the selling pace
+ *      stands on, and when the project sells out at it.
  *
+ * Each fact is said once (review, 2026-10-22): no "Not set" under a verdict
+ * that says no date is set, no date printed twice, no basis without a pace.
  * Every figure and sentence is the read model's; the definitions stand behind
  * the `i`. The two bars repeat figures printed in words beside them, so they
  * are hidden from assistive technology rather than described twice.
@@ -35,6 +39,10 @@ export function SalesPlan({
   readonly editor: ReactNode;
 }) {
   const { window, pace } = plan;
+  const paces = [
+    { id: "selling", label: "Selling a month", value: pace?.sellingDisplay ?? null },
+    { id: "needed", label: "Needed a month", value: pace?.neededDisplay ?? null },
+  ].filter((p) => p.value !== null);
   return (
     <section className="d-card iris-plan" aria-labelledby="sales-plan-title">
       <header className="iris-titled">
@@ -50,7 +58,6 @@ export function SalesPlan({
         <span className="iris-plan-mark" aria-hidden="true" />
         {plan.verdictText}
       </p>
-      {pace === null ? null : <p className="iris-plan-basis">{pace.basis}</p>}
 
       <div className="iris-plan-cols">
         <div className="iris-plan-col">
@@ -88,28 +95,38 @@ export function SalesPlan({
         </div>
 
         <div className="iris-plan-col">
-          <dl className="iris-plan-figures" data-figures="window">
-            <div data-absent={window === null ? "true" : undefined}>
-              <dt>Sell out by</dt>
-              <dd>{window === null ? "Not set" : window.sellOutByDisplay}</dd>
-            </div>
-          </dl>
           {window === null ? null : (
-            <div
-              className="iris-plan-time"
-              style={{ "--at": window.elapsed } as React.CSSProperties}
-            >
-              <span className="iris-plan-today">Today · {window.remainingDisplay}</span>
-              <span className="iris-plan-track" aria-hidden="true">
-                <i />
-                <b />
-              </span>
-              <span className="iris-plan-ends">
-                <span>{window.startsOnDisplay}</span>
-                <span>{window.sellOutByDisplay}</span>
-              </span>
-            </div>
+            <>
+              <dl className="iris-plan-figures" data-figures="window">
+                <div>
+                  <dt>Sell out by</dt>
+                  <dd>{window.sellOutByDisplay}</dd>
+                </div>
+              </dl>
+              <div
+                className="iris-plan-time"
+                style={{ "--at": window.elapsed } as React.CSSProperties}
+              >
+                <span className="iris-plan-today">Today · {window.remainingDisplay}</span>
+                <span className="iris-plan-track" aria-hidden="true">
+                  <i />
+                  <b />
+                </span>
+                <span className="iris-plan-ends">From {window.startsOnDisplay}</span>
+              </div>
+            </>
           )}
+          {paces.length === 0 ? null : (
+            <dl className="iris-plan-figures" data-figures="pace">
+              {paces.map((p) => (
+                <div key={p.id}>
+                  <dt>{p.label}</dt>
+                  <dd>{p.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+          {pace?.sellingDisplay == null ? null : <p className="iris-plan-basis">{pace.basis}</p>}
           {pace?.sellsOutDisplay == null ? null : (
             <p className="iris-plan-out">
               At this pace, sold out in <b>{pace.sellsOutDisplay}</b>

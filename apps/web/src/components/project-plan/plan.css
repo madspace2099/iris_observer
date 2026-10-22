@@ -1,15 +1,26 @@
 /*
  * SOLD AGAINST THE PLAN (ADR-0055), the Project page's first card.
  *
- * Type by role, largest first: the card's title (the kit's 20/28), the verdict
- * 22/30, the figures 40/44 (32/36 on a phone), labels and dates 13/18, never
- * under 12. Everything is scoped to `.iris-plan`, so no other card moves.
+ * Type by role (`docs/14-design-system.md` §5): the card's title 20/28; the
+ * verdict first, in the Verdict role, 34/40 (26/32 on a phone) when it judges
+ * the pace and 22/30 when it states why it cannot; the figures 40/44 (32/36 on
+ * a phone), just under the Figure role; labels and dates 13/18, never under
+ * 12. Everything is scoped to `.iris-plan`, so no other card moves.
  * The card is its own container (`.d-card`), so the columns follow its width.
  */
 
+/*
+ * The title's last word and its `i` never part: the row does not break between
+ * them, while the title itself still wraps between its words on a narrow card.
+ */
 .iris-plan > .iris-titled {
   display: block;
   margin-bottom: 12px;
+  white-space: nowrap;
+}
+
+.iris-plan > .iris-titled > .iris-kicker {
+  white-space: normal;
 }
 
 /* --- the one line ----------------------------------------------------------------- */
@@ -18,6 +29,7 @@
   display: flex;
   align-items: baseline;
   gap: 10px;
+  max-width: 46ch;
   margin: 0;
   font-size: 22px;
   line-height: 30px;
@@ -26,6 +38,17 @@
   color: var(--d-ink, #fff);
   font-variant-numeric: tabular-nums;
   text-wrap: balance;
+}
+
+/* A judgement of the pace is the block's answer: the Verdict role. */
+.iris-plan-verdict:is(
+  [data-verdict="on_pace"],
+  [data-verdict="behind"],
+  [data-verdict="sold_out"]
+) {
+  font-size: 34px;
+  line-height: 40px;
+  letter-spacing: -0.03em;
 }
 
 .iris-plan-mark {
@@ -53,9 +76,9 @@
   background: var(--loss, #f0616d);
 }
 
-/* What the pace stands on, under the verdict's words. */
+/* What the selling pace stands on, under the two paces. */
 .iris-plan-basis {
-  margin: 4px 0 0 20px;
+  margin: 8px 0 0;
   font-size: 13px;
   line-height: 18px;
   color: var(--d-ink-3, #b3b3c5);
@@ -95,6 +118,15 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+.iris-plan-figures[data-figures="pace"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The paces under the window's track, or first in the column where no window is set. */
+.iris-plan-figures[data-figures="pace"]:not(:first-child) {
+  margin-top: 24px;
+}
+
 .iris-plan-figures dt {
   display: flex;
   align-items: center;
@@ -122,14 +154,6 @@
   color: var(--d-ink, #fff);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-}
-
-/* No date set: the slot stays, quieter, so the reader sees where the date goes. */
-.iris-plan-figures [data-absent="true"] dd {
-  font-size: 24px;
-  line-height: 44px;
-  letter-spacing: -0.01em;
-  color: var(--d-ink-3, #b3b3c5);
 }
 
 /* The parts wear one hue: sold full, reserved part-way, available the track. */
@@ -219,9 +243,7 @@
 }
 
 .iris-plan-ends {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  display: block;
   margin-top: 8px;
   font-size: 13px;
   line-height: 18px;
@@ -250,6 +272,12 @@
 
 .iris-plan-edit {
   margin-top: 20px;
+}
+
+/* Alone in the column, where no window is set, the control or the sentence leads it. */
+.iris-plan-col > .iris-plan-edit:first-child,
+.iris-plan-col > .iris-plan-note:first-child {
+  margin-top: 0;
 }
 
 .iris-plan-edit .iris-action {
@@ -330,6 +358,15 @@
   .iris-plan-verdict {
     font-size: 20px;
     line-height: 28px;
+  }
+
+  .iris-plan-verdict:is(
+    [data-verdict="on_pace"],
+    [data-verdict="behind"],
+    [data-verdict="sold_out"]
+  ) {
+    font-size: 26px;
+    line-height: 32px;
   }
 
   .iris-plan-figures {

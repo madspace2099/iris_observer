@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { CrmDeal } from "@observer/contracts";
+import type { CatalogueUnit, CrmDeal } from "@observer/contracts";
 import type { DeliveredDeals, SalesWindow, Viewer } from "@observer/readmodels";
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 
@@ -11,12 +11,13 @@ import { VIEWERS } from "../src/world";
 /**
  * SOLD AGAINST THE PLAN (ADR-0055), WORKED OUT BY HAND.
  *
- * Twenty flats: 9 sold, 3 reserved, 8 available, so 11 not yet sold. Today is
- * 1 July 2026, 10:00 UTC, so the pace window opens 2 April 2026 10:00. A month
- * is 30.4375 days.
+ * Twenty flats, U1 to U20. The CRM's deals make 9 of them sold (U1–U8, U11),
+ * 3 reserved (U9, U12, U13) and leave 8 available, so 11 are not yet sold.
+ * Today is 1 July 2026, 10:00 UTC, so the pace window opens 2 April 2026
+ * 10:00. A month is 30.4375 days.
  *
- *   six distinct flats dated at purchase inside the window: 6 / 90 × 30.4375
- *     = 2.029 → "2.0" a month
+ *   six flats whose first purchase is dated inside the window (U1–U6):
+ *     6 / 90 × 30.4375 = 2.029 → "2.0" a month
  *   to 31 Dec 2026, 183 days = 6.012 months: 11 / 6.012 = 1.830 → "1.8"
  *   at the current pace: 11 × 90 / 6 = 165 days → 13 Dec 2026 → "Dec 2026"
  *   to 30 Sep 2026, 91 days = 2.990 months: 11 / 2.990 = 3.679 → "3.7"
@@ -24,11 +25,7 @@ import { VIEWERS } from "../src/world";
 
 const TODAY = new Date("2026-07-01T10:00:00Z");
 
-const UNITS = [
-  ...Array.from({ length: 9 }, () => ({ status: "sold" })),
-  ...Array.from({ length: 3 }, () => ({ status: "reserved" })),
-  ...Array.from({ length: 8 }, () => ({ status: "available" })),
-];
+const UNITS = Array.from({ length: 20 }, (_, i) => ({ code: `U${String(i + 1)}` }));
 
 function deal(
   id: string,
@@ -46,7 +43,7 @@ function deal(
     openedAt: null,
     updatedAt: null,
     won: stage === "purchase",
-    lost: false,
+    lost: stage === "lost",
   };
 }
 
@@ -59,12 +56,17 @@ const IN_WINDOW = [
   deal("D6", "U6", "purchase", "2026-06-30T09:00:00+00:00"),
 ];
 
+const SECOND_PURCHASE = deal("D10", "U1", "purchase", "2026-06-02T09:00:00+00:00");
+
 const NOISE = [
-  deal("D7", "U7", "purchase", "2026-03-01T09:00:00+00:00"), // before the window
-  deal("D8", "U8", "purchase", null), // undated
-  deal("D9", "U9", "reservation", "2026-06-20T09:00:00+00:00"), // not a sale
-  deal("D10", "U1", "purchase", "2026-06-02T09:00:00+00:00"), // U1 again: one flat sells once
-  deal("D11", "U11", "purchase", "2026-07-02T09:00:00+00:00"), // after today
+  deal("D7", "U7", "purchase", "2026-03-01T09:00:00+00:00"), // sold, before the window
+  deal("D8", "U8", "purchase", null), // sold, undated
+  deal("D9", "U9", "reservation", "2026-06-20T09:00:00+00:00"), // reserved, not a sale
+  SECOND_PURCHASE, // U1 again: one flat sells once, on its first purchase
+  deal("D11", "U11", "purchase", "2026-07-02T09:00:00+00:00"), // sold, dated after today
+  deal("D12", "U12", "reservation", "2026-05-02T09:00:00+00:00"),
+  deal("D13", "U13", "reservation", null),
+  deal("D14", "U10", "lost", "2026-06-10T09:00:00+00:00"), // lost: still available
 ];
 
 const deals = (list: readonly CrmDeal[], extra: Partial<DeliveredDeals> = {}): DeliveredDeals => ({
@@ -90,7 +92,7 @@ function plan(overrides: Partial<Parameters<typeof buildSalesPlan>[0]> = {}) {
 }
 
 describe("the stock", () => {
-  it("counts every flat, and splits it by the CRM's status", () => {
+  it("counts every flat, and splits it by the CRM's deal stage for each", () => {
     const p = plan();
     expect(p.total).toBe(20);
     expect(p.parts.map((x) => [x.id, x.count, x.share])).toEqual([
@@ -101,6 +103,29 @@ describe("the stock", () => {
     expect(p.stockNote).toBeNull();
   });
 
+  it("reads the CRM, never the catalogue's own status", () => {
+    // The catalogue calls fifteen flats sold; the CRM has a purchase on nine.
+    const catalogue = UNITS.map((u, i) => ({ ...u, status: i < 15 ? "sold" : "available" }));
+    expect(plan({ units: catalogue }).parts.map((x) => x.count)).toEqual([9, 3, 8]);
+  });
+
+  it("counts a deal that names no catalogued flat in words, and nowhere else", () => {
+    const p = plan({
+      deals: deals([
+        ...IN_WINDOW,
+        ...NOISE,
+        deal("D20", "U99", "purchase", "2026-06-05T09:00:00+00:00"),
+        deal("D21", null, "reservation", null),
+        deal("D22", null, "meeting", null),
+      ]),
+    });
+    expect(p.parts.map((x) => x.count)).toEqual([9, 3, 8]);
+    expect(p.pace?.sales).toBe(6);
+    expect(p.stockNote).toBe(
+      "2 reservations or purchases in the CRM name no flat in the catalogue, not counted.",
+    );
+  });
+
   it("without a CRM, keeps the total and says why the split is missing, never zero", () => {
     const p = plan({ crmConnected: false });
     expect(p.total).toBe(20);
@@ -109,6 +134,13 @@ describe("the stock", () => {
     expect(p.verdictText).toBe("Unavailable: the CRM is not connected");
     expect(p.pace).toBeNull();
     expect(p.verdict).toBe("unavailable");
+  });
+
+  it("with a CRM that delivers no deals, has no split and no pace either", () => {
+    const p = plan({ deals: null });
+    expect(p.parts).toEqual([]);
+    expect(p.pace).toBeNull();
+    expect(p.verdictText).toBe("Unavailable: the CRM delivers no deals");
   });
 
   it("without a catalogue, has no total at all", () => {
@@ -153,24 +185,27 @@ describe("the pace and the verdict", () => {
       basis: "6 sales dated in the last 90 days · 1 sale with no date, not counted",
     });
     expect(p.verdict).toBe("on_pace");
-    expect(p.verdictText).toBe("On pace: needs 1.8 a month, selling 2.0");
+    expect(p.verdictText).toBe("On pace");
+    expect(p.summary).toContain("selling 2.0 a month, 1.8 a month needed");
   });
 
-  it("is behind when the date needs more than is selling, and says both", () => {
+  it("is behind when the date needs more than is selling, and keeps both paces as figures", () => {
     const p = plan({ window: { startsOn: "2026-01-01", sellOutBy: "2026-09-30" } });
     expect(p.pace?.neededDisplay).toBe("3.7");
+    expect(p.pace?.sellingDisplay).toBe("2.0");
     expect(p.verdict).toBe("behind");
-    expect(p.verdictText).toBe("Behind: needs 3.7 a month, selling 2.0");
+    expect(p.verdictText).toBe("Behind");
   });
 
-  it("states no pace and no verdict below five dated sales", () => {
+  it("states no pace and no verdict below five dated sales, and still the pace needed", () => {
+    /* Four flats sold, so 16 unsold: 16 / 6.012 = 2.661 → "2.7". */
     const p = plan({ deals: deals(IN_WINDOW.slice(0, 4)) });
     expect(p.pace?.sales).toBe(4);
     expect(p.pace?.sellingDisplay).toBeNull();
     expect(p.pace?.sellsOutDisplay).toBeNull();
-    expect(p.pace?.neededDisplay).toBe("1.8");
+    expect(p.pace?.neededDisplay).toBe("2.7");
     expect(p.verdict).toBe("too_few_sales");
-    expect(p.verdictText).toBe("Too few sales to judge the pace: 4 in 90 days, 5 needed");
+    expect(p.verdictText).toBe("Too few dated sales to judge the pace (4 of 5)");
   });
 
   it("dates a sale the CRM leaves undated by the sync that saw it", () => {
@@ -184,59 +219,66 @@ describe("the pace and the verdict", () => {
     expect(p.pace?.basis).toBe("5 sales dated in the last 90 days");
   });
 
-  it("looks back only as far as selling began", () => {
-    /*
-     * Since 2 May: 60 days. Inside them U3, U4, U5, U6, and U1's second deal
-     * (2 June; its first, 10 April, is before the window): 5 flats.
-     * 5 / 60 × 30.4375 = 2.536 → "2.5".
-     */
-    const p = plan({ window: { startsOn: "2026-05-02", sellOutBy: "2026-12-31" } });
-    expect(p.pace).toMatchObject({
-      days: 60,
-      sales: 5,
-      sellingDisplay: "2.5",
-      basis: "5 sales dated in the last 60 days · 1 sale with no date, not counted",
+  it("dates a flat by its first purchase: a second purchase deal is not a new sale", () => {
+    /* 15 July: the window opens 16 April, after U1's first purchase and before its second. */
+    const p = plan({
+      deals: deals([IN_WINDOW[0] as CrmDeal, SECOND_PURCHASE]),
+      today: new Date("2026-07-15T10:00:00Z"),
     });
-    expect(p.verdict).toBe("on_pace");
+    expect(p.parts[0]?.count).toBe(1);
+    expect(p.pace?.sales).toBe(0);
   });
 
-  it("says when selling starts, before it does", () => {
+  it("always looks back 90 days, whenever selling began", () => {
+    const p = plan({ window: { startsOn: "2026-06-17", sellOutBy: "2026-12-31" } });
+    expect(p.pace).toMatchObject({ days: 90, sales: 6, sellingDisplay: "2.0" });
+  });
+
+  it("says when selling starts, before it does, and states no pace", () => {
     const p = plan({ window: { startsOn: "2026-08-01", sellOutBy: "2027-06-30" } });
     expect(p.verdict).toBe("not_started");
     expect(p.verdictText).toBe("Selling starts on 1 Aug 2026");
     expect(p.window?.remainingDisplay).toBe("Starts in 1 month");
     expect(p.window?.elapsed).toBe(0);
+    expect(p.pace).toBeNull();
   });
 
-  it("says the date has passed, with what is left", () => {
+  it("on the sell-out day itself, the date has not passed: one day is left", () => {
+    /* 11 flats in one day: 11 / (1 / 30.4375) = 334.8 a month. */
+    const p = plan({ window: { startsOn: "2026-01-01", sellOutBy: "2026-07-01" } });
+    expect(p.verdict).toBe("behind");
+    expect(p.window?.remainingDisplay).toBe("1 day left");
+    expect(p.pace?.neededDisplay).toBe("334.8");
+  });
+
+  it("says the date has passed from the day after, with what is left", () => {
     const p = plan({ window: { startsOn: "2026-01-01", sellOutBy: "2026-06-30" } });
     expect(p.verdict).toBe("date_passed");
-    expect(p.verdictText).toBe("The sell-out date has passed with 11 flats unsold");
+    expect(p.verdictText).toBe("Past the sell-out date, 11 flats unsold");
+    expect(p.window?.remainingDisplay).toBe("Past the date");
     expect(p.window?.elapsed).toBe(1);
     expect(p.pace?.neededDisplay).toBeNull();
+    expect(p.pace?.sellingDisplay).toBe("2.0");
   });
 
-  it("is sold out when nothing is left", () => {
-    const p = plan({ units: UNITS.map(() => ({ status: "sold" })) });
+  it("is sold out when the CRM has a purchase on every flat", () => {
+    const p = plan({
+      deals: deals(UNITS.map((u, i) => deal(`P${String(i)}`, u.code, "purchase", null))),
+    });
     expect(p.verdict).toBe("sold_out");
+    expect(p.parts.map((x) => x.count)).toEqual([20, 0, 0]);
     expect(p.pace?.sellsOutDisplay).toBeNull();
-  });
-
-  it("does not guess a pace where the CRM delivers no deals", () => {
-    const p = plan({ deals: null });
-    expect(p.parts).toHaveLength(3);
-    expect(p.pace).toBeNull();
-    expect(p.verdictText).toBe("Pace unknown: the CRM delivers no dated sale");
   });
 });
 
 describe("Shark Residence, on the demonstration's own day", () => {
   /*
-   * 24 Aug 2026. 60 flats: 24 sold, 12 reserved, 24 available (the catalogue
-   * the demonstration CRM's deals stand behind). 14 distinct flats dated at
-   * purchase since 26 May: 14 / 90 × 30.4375 = 4.735 → "4.7". 36 unsold over
-   * the 310 days to 30 Jun 2027 (10.185 months) = 3.535 → "3.5". At the current
-   * pace 36 × 90 / 14 = 231 days → 12 Apr 2027. 224 of 534 days gone.
+   * 24 Aug 2026. 60 flats. The demonstration CRM has a purchase on 19 of them
+   * and a reservation (and no purchase) on 13, so 28 are available and 41 not
+   * yet sold. 14 of the 19 were first purchased since 26 May: 14 / 90 × 30.4375
+   * = 4.735 → "4.7". 41 unsold over the 310 days to 30 Jun 2027 (10.185
+   * months) = 4.026 → "4.0". At the current pace 41 × 90 / 14 = 263.6 → 264
+   * days → 15 May 2027. 224 of 534 days gone.
    */
   it("reads the configured window and the demonstration CRM", async () => {
     const charts = await new SyntheticObserverRepository().getProjectCharts({
@@ -248,7 +290,11 @@ describe("Shark Residence, on the demonstration's own day", () => {
     });
     const p = charts.plan;
     expect(p.total).toBe(60);
-    expect(p.parts.map((x) => x.count)).toEqual([24, 12, 24]);
+    expect(p.parts.map((x) => x.count)).toEqual([19, 13, 28]);
+    /* The demonstration CRM's one reservation whose buyer's every flat was taken. */
+    expect(p.stockNote).toBe(
+      "1 reservation or purchase in the CRM names no flat in the catalogue, not counted.",
+    );
     expect(p.window).toMatchObject({
       startsOnDisplay: "12 Jan 2026",
       sellOutByDisplay: "30 Jun 2027",
@@ -259,11 +305,11 @@ describe("Shark Residence, on the demonstration's own day", () => {
       sales: 14,
       days: 90,
       sellingDisplay: "4.7",
-      neededDisplay: "3.5",
-      sellsOutDisplay: "Apr 2027",
+      neededDisplay: "4.0",
+      sellsOutDisplay: "May 2027",
       basis: "14 sales dated in the last 90 days",
     });
-    expect(p.verdictText).toBe("On pace: needs 3.5 a month, selling 4.7");
+    expect(p.verdictText).toBe("On pace");
   });
 
   it("has no plan on a project that configures none", async () => {
@@ -276,8 +322,8 @@ describe("Shark Residence, on the demonstration's own day", () => {
     });
     expect(charts.plan.window).toBeNull();
     expect(charts.plan.verdictText).toBe("No sell-out date set");
-    /* The pace still stands on its dated sales; e2e/p219-screens.spec.ts reads this line. */
-    expect(charts.plan.pace?.basis).toMatch(/^\d+ sales? dated in the last \d+ days/);
+    /* The CRM's four purchases and two reservations, not the catalogue's statuses. */
+    expect(charts.plan.parts.map((x) => x.count)).toEqual([4, 2, 42]);
   });
 
   it("puts a window kept in Observer in front of the configuration", async () => {
@@ -293,7 +339,46 @@ describe("Shark Residence, on the demonstration's own day", () => {
       period: "quarter_to_date",
       language: DEFAULT_LANGUAGE,
     });
-    // 129 days = 4.238 months: 36 / 4.238 = 8.494 → "8.5".
-    expect(charts.plan.verdictText).toBe("Behind: needs 8.5 a month, selling 4.7");
+    // 129 days = 4.238 months: 41 / 4.238 = 9.674 → "9.7".
+    expect(charts.plan.pace?.neededDisplay).toBe("9.7");
+    expect(charts.plan.verdictText).toBe("Behind");
+  });
+
+  it("counts a delivered flat no unit surface places, as a flat still to sell", async () => {
+    const charts = await new SyntheticObserverRepository({
+      catalogueSource: {
+        catalogueFor: async () => ({
+          connector: "realpad",
+          orientationMap: {},
+          units: (["available", "sold", "delayed", "unknown", "not_for_sale"] as const).map(
+            (status, i): CatalogueUnit => ({
+              code: `X-${String(i + 1)}`,
+              externalId: `X-${String(i + 1)}`,
+              building: "X",
+              floor: 1,
+              rooms: 2,
+              layout: "2+kk",
+              kitchen: "kitchenette",
+              unitType: "flat",
+              areas: { interiorSqm: 50, exteriorSqm: null, grossSqm: null },
+              price: { withVat: null, withoutVat: null, currency: null },
+              orientation: [],
+              status,
+              statusRaw: status,
+              availableFrom: null,
+              updatedAt: null,
+            }),
+          ),
+        }),
+      },
+    }).getProjectCharts({
+      viewer: VIEWERS.developerShark as Viewer,
+      tenantSlug: "shark",
+      projectSlug: "shark-residence",
+      period: "quarter_to_date",
+      language: DEFAULT_LANGUAGE,
+    });
+    // available, sold, delayed, unknown: four flats to sell; not for sale is none of them.
+    expect(charts.plan.total).toBe(4);
   });
 });

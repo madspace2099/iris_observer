@@ -237,6 +237,9 @@ interface ResolvableWorld {
 export class SyntheticObserverRepository implements ObserverRepository {
   constructor(private readonly options: SyntheticRepositoryOptions = {}) {}
 
+  /** Per project, the delivered flats for sale that no unit surface places (`overlayCatalogue`). */
+  private readonly unplacedForSale = new Map<string, readonly { readonly code: string }[]>();
+
   /**
    * The synthetic world and whatever the directory adds to it.
    *
@@ -449,6 +452,11 @@ export class SyntheticObserverRepository implements ObserverRepository {
       delivered === null
         ? null
         : rawUnitsFromCatalogue(delivered.units, delivered.orientationMap).units,
+    );
+    /* Off every unit surface, yet still to be sold by the sell-out date (ADR-0055). */
+    this.unplacedForSale.set(
+      project.id as string,
+      (delivered?.units ?? []).filter((u) => u.status === "delayed" || u.status === "unknown"),
     );
     provideCatalogueChanges(
       project.id as string,
@@ -663,6 +671,7 @@ export class SyntheticObserverRepository implements ObserverRepository {
       (await this.options.salesWindowSource?.windowFor(context.project.id as string)) ??
         SALES_WINDOWS[context.project.id as string] ??
         null,
+      this.unplacedForSale.get(context.project.id as string),
     );
   }
 

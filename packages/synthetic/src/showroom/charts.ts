@@ -1664,20 +1664,26 @@ const STOCK_LABELS = { sold: "Sold", reserved: "Reserved", available: "Available
  * flats there are, how many are sold — both read from the CRM — and how long
  * the sales run, against a date by which everything must be sold.
  *
- *   - **The stock.** Every flat in the catalogue the project's connector
- *     delivers; which are sold and reserved is the status the CRM states for
- *     each flat now. Without a CRM the split is unavailable, never zero.
+ *   - **The stock.** Every flat for sale in the catalogue the project's
+ *     connector delivers. Which are sold and reserved is the CRM's deal stage
+ *     for that flat now: a purchase deal makes it sold, a reservation deal and
+ *     no purchase reserved; available is every other flat. The catalogue's own
+ *     status is not read (review, 2026-10-22: it disagreed with the CRM). A
+ *     deal naming no catalogued flat is counted in words. Without a CRM, or a
+ *     CRM that delivers no deals, the split is unavailable, never zero.
  *   - **The window.** The project's configured start and sell-out-by dates,
  *     and how much of that time has gone. None configured: none is drawn.
- *   - **The pace.** Distinct flats the CRM dates at purchase over the last 90
- *     days (or since selling began, if later), a month; the pace the unsold
- *     flats need to be gone by the date; and when they would be gone at the
- *     current pace. Below the floor no pace is stated and no verdict given.
+ *     "By" includes the day itself.
+ *   - **The pace.** Flats whose first purchase the CRM dates in the last 90
+ *     days, a month; the pace the unsold flats need to be gone by the date;
+ *     and when they would be gone at the current pace. Below the floor no pace
+ *     is stated and no verdict given; before selling starts, no pace at all.
  *
  * Every figure is computed here and formatted here; the page draws them.
  */
 export function buildSalesPlan(input: {
-  readonly units: readonly { readonly status: string }[];
+  /** Every flat for sale in the catalogue, by code. */
+  readonly units: readonly { readonly code: string }[];
   readonly deals: DeliveredDeals | null;
   readonly crmConnected: boolean;
   readonly window: SalesWindow | null;
@@ -1689,14 +1695,37 @@ export function buildSalesPlan(input: {
   const todayIso = isoDayIn(today, timeZone);
   const minimum = SALES_PACE_MIN_SAMPLE;
 
-  const total = units.length === 0 ? null : units.length;
-  const sold = units.filter((u) => u.status === "sold").length;
-  const reserved = units.filter((u) => u.status === "reserved").length;
-  const known = total !== null && crmConnected;
+  /* --- the stock: the CRM's deal stage for each catalogued flat ---------------- */
+
+  const codes = new Set(units.map((u) => u.code));
+  /** Each sold flat's first dated purchase; null where the CRM dates none of its purchases. */
+  const firstSale = new Map<string, number | null>();
+  const held = new Set<string>();
+  let unmatched = 0;
+  for (const deal of deals?.deals ?? []) {
+    if (deal.stage !== "purchase" && deal.stage !== "reservation") continue;
+    if (deal.unitCode === null || !codes.has(deal.unitCode)) {
+      unmatched += 1;
+      continue;
+    }
+    if (deal.stage === "reservation") {
+      held.add(deal.unitCode);
+      continue;
+    }
+    const at = Date.parse(deal.stageEnteredAt ?? deals?.stageObservedAt?.[deal.externalId] ?? "");
+    const t = Number.isNaN(at) ? null : at;
+    const was = firstSale.get(deal.unitCode) ?? null;
+    firstSale.set(deal.unitCode, was === null ? t : t === null ? was : Math.min(was, t));
+  }
+
+  const total = codes.size === 0 ? null : codes.size;
+  const known = total !== null && crmConnected && deals !== null;
+  const sold = firstSale.size;
+  const reserved = [...held].filter((code) => !firstSale.has(code)).length;
   const unsold = total === null ? 0 : total - sold;
 
   const parts: StockPart[] =
-    total === null || !crmConnected
+    total === null || !known
       ? []
       : (
           [
@@ -1709,14 +1738,21 @@ export function buildSalesPlan(input: {
   const stockNote =
     total === null
       ? "Flats are counted from the project's unit catalogue."
-      : crmConnected
-        ? null
-        : "Sold, reserved and available flats are read from the CRM.";
+      : !crmConnected
+        ? "Sold, reserved and available flats are read from the CRM."
+        : deals === null
+          ? "The CRM delivers no deals for this project, so sold and reserved flats are unavailable."
+          : unmatched === 0
+            ? null
+            : `${count(unmatched, locale)} ${unmatched === 1 ? "reservation or purchase" : "reservations or purchases"} in the CRM ${unmatched === 1 ? "names" : "name"} no flat in the catalogue, not counted.`;
 
   /* --- the window ------------------------------------------------------------ */
 
   const started = window === null || window.startsOn <= todayIso;
-  const passed = window !== null && window.sellOutBy <= todayIso;
+  /* "Sell out by 30 June" includes 30 June: the date has passed only from the day after. */
+  const passed = window !== null && window.sellOutBy < todayIso;
+  /* Whole days to the date, the last day counting as one. */
+  const daysLeft = window === null ? 0 : Math.max(1, daysFrom(todayIso, window.sellOutBy));
   const windowModel =
     window === null
       ? null
@@ -1733,54 +1769,42 @@ export function buildSalesPlan(input: {
               ? `Starts in ${timeLeft(-gone, locale).replace(/ left$/, "")}`
               : passed
                 ? "Past the date"
-                : timeLeft(daysFrom(todayIso, window.sellOutBy), locale),
+                : timeLeft(daysLeft, locale),
           };
         })();
 
-  /* --- the pace -------------------------------------------------------------- */
+  /* --- the pace: always the trailing 90 days ---------------------------------- */
 
-  const days =
-    window === null
-      ? PACE_DAYS
-      : Math.min(PACE_DAYS, Math.max(0, daysFrom(window.startsOn, todayIso)));
-  const from = today.getTime() - days * DAY_MS;
-  const dated = new Set<string>();
+  const from = today.getTime() - PACE_DAYS * DAY_MS;
+  let paceSales = 0;
   let undated = 0;
-  for (const deal of deals?.deals ?? []) {
-    if (deal.stage !== "purchase") continue;
-    const at = deal.stageEnteredAt ?? deals?.stageObservedAt?.[deal.externalId] ?? null;
-    if (at === null) {
-      undated += 1;
-      continue;
-    }
-    const t = Date.parse(at);
-    if (t > from && t <= today.getTime()) dated.add(deal.unitCode ?? deal.externalId);
+  for (const t of firstSale.values()) {
+    if (t === null) undated += 1;
+    else if (t > from && t <= today.getTime()) paceSales += 1;
   }
-  const paceSales = dated.size;
-  const enough = days > 0 && paceSales >= minimum;
-  const perMonth = days > 0 ? (paceSales / days) * MONTH_DAYS : 0;
-  const monthsLeft =
-    window === null || passed ? null : daysFrom(todayIso, window.sellOutBy) / MONTH_DAYS;
+  const enough = paceSales >= minimum;
+  const perMonth = (paceSales / PACE_DAYS) * MONTH_DAYS;
   const neededPerMonth =
-    monthsLeft === null || !started || unsold === 0 ? null : unsold / monthsLeft;
+    window === null || passed || !started || unsold === 0 ? null : unsold / (daysLeft / MONTH_DAYS);
   const sellingDisplay = enough ? oneDecimal(perMonth, locale) : null;
   const neededDisplay = neededPerMonth === null ? null : oneDecimal(neededPerMonth, locale);
   const sellsOutDisplay =
     enough && unsold > 0
-      ? calendarMonth(isoDayAfter(todayIso, Math.round((unsold * days) / paceSales)), locale)
+      ? calendarMonth(isoDayAfter(todayIso, Math.round((unsold * PACE_DAYS) / paceSales)), locale)
       : null;
 
+  /* Before selling starts there is no pace to state, whatever the CRM dated earlier. */
   const pace =
-    !known || deals === null
+    !known || !started
       ? null
       : {
           sales: paceSales,
-          days,
+          days: PACE_DAYS,
           minimum,
           sellingDisplay,
           neededDisplay,
           sellsOutDisplay,
-          basis: `${sales(paceSales, locale)} dated in the last ${count(days, locale)} days${
+          basis: `${sales(paceSales, locale)} dated in the last ${count(PACE_DAYS, locale)} days${
             undated === 0 ? "" : ` · ${sales(undated, locale)} with no date, not counted`
           }`,
         };
@@ -1792,37 +1816,28 @@ export function buildSalesPlan(input: {
       ? ["unavailable", "No unit catalogue has reached this project"]
       : !crmConnected
         ? ["unavailable", "Unavailable: the CRM is not connected"]
-        : unsold === 0
-          ? ["sold_out", "Sold out"]
-          : windowModel === null
-            ? ["no_date", "No sell-out date set"]
-            : !started
-              ? ["not_started", `Selling starts on ${windowModel.startsOnDisplay}`]
-              : passed
-                ? [
-                    "date_passed",
-                    `The sell-out date has passed with ${flats(unsold, locale)} unsold`,
-                  ]
-                : pace === null
-                  ? ["unavailable", "Pace unknown: the CRM delivers no dated sale"]
+        : deals === null
+          ? ["unavailable", "Unavailable: the CRM delivers no deals"]
+          : unsold === 0
+            ? ["sold_out", "Sold out"]
+            : windowModel === null
+              ? ["no_date", "No sell-out date set"]
+              : !started
+                ? ["not_started", `Selling starts on ${windowModel.startsOnDisplay}`]
+                : passed
+                  ? ["date_passed", `Past the sell-out date, ${flats(unsold, locale)} unsold`]
                   : !enough
                     ? [
                         "too_few_sales",
-                        `Too few sales to judge the pace: ${count(paceSales, locale)} in ${count(days, locale)} days, ${count(minimum, locale)} needed`,
+                        `Too few dated sales to judge the pace (${count(paceSales, locale)} of ${count(minimum, locale)})`,
                       ]
                     : Math.round(perMonth * 10) >= Math.round((neededPerMonth ?? 0) * 10)
-                      ? [
-                          "on_pace",
-                          `On pace: needs ${neededDisplay ?? ""} a month, selling ${sellingDisplay ?? ""}`,
-                        ]
-                      : [
-                          "behind",
-                          `Behind: needs ${neededDisplay ?? ""} a month, selling ${sellingDisplay ?? ""}`,
-                        ];
+                      ? ["on_pace", "On pace"]
+                      : ["behind", "Behind"];
 
   const definition =
-    "Flats: every flat in the project's catalogue. Sold and reserved: the status the CRM states for each flat now; a reservation is not a sale, and available is every other flat. " +
-    `Selling: flats the CRM dates at purchase over the last ${PACE_DAYS} days (or since selling began, if later), a month. ` +
+    "Flats: every flat for sale in the project's catalogue. Sold: a flat the CRM has a purchase deal for. Reserved: a reservation deal and no purchase; a reservation is not a sale. Available: every other flat. " +
+    `Selling: flats whose first purchase the CRM dates in the last ${count(PACE_DAYS, locale)} days, a month. ` +
     "Needed: the flats not yet sold, over the months left to the sell-out date. On pace when selling is at least what is needed; " +
     `below ${count(minimum, locale)} dated sales no pace is stated. The sales window is the project's own, set by the developer's company admin.`;
 
@@ -1831,7 +1846,7 @@ export function buildSalesPlan(input: {
       ? stockNote
       : parts.length === 0
         ? `${flats(total, locale)}. ${stockNote ?? ""}`
-        : `${flats(total, locale)}: ${parts.map((p) => `${count(p.count, locale)} ${p.label.toLowerCase()}`).join(", ")}.`,
+        : `${flats(total, locale)}: ${parts.map((p) => `${count(p.count, locale)} ${p.label.toLowerCase()}`).join(", ")}.${stockNote === null ? "" : ` ${stockNote}`}`,
     windowModel === null
       ? "No sell-out date set."
       : `Sales window ${windowModel.startsOnDisplay} to ${windowModel.sellOutByDisplay}, ${windowModel.remainingDisplay.toLowerCase()}.`,
@@ -2190,10 +2205,12 @@ export function buildProjectCharts(
   timeZone: string,
   crmConnected: boolean,
   window: SalesWindow | null,
+  /** Delivered flats for sale whose status no surface draws (delayed, unknown): still flats to sell. */
+  unplacedForSale: readonly { readonly code: string }[] = [],
 ): ProjectCharts {
   return {
     plan: buildSalesPlan({
-      units: catalogueFor(projectId),
+      units: [...catalogueFor(projectId), ...unplacedForSale],
       deals: dealsFor(projectId),
       crmConnected,
       window,

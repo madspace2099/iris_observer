@@ -34,7 +34,8 @@ const METHOD = [
   "Each band is what survived the previous step.",
 ];
 const CLAIMS = [
-  /\d+ sales? dated in the last \d+ days/,
+  /* Northgate configures no sell-out date, and its four dated sales are below the pace's floor (ADR-0055). */
+  /No sell-out date set/,
   /units take \d+% of looking time on \d+% of the unsold stock\./,
 ];
 

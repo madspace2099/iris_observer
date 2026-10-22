@@ -154,7 +154,8 @@ describe("saving the window", () => {
     // 36 unsold over the 129 days to 31 Dec (4.238 months) = 8.494 → "8.5".
     const after = await plan("acct_clara");
     expect(after.window?.sellOutByDisplay).toBe("31 Dec 2026");
-    expect(after.verdictText).toBe("Behind: needs 8.5 a month, selling 4.7");
+    expect(after.verdictText).toBe("Behind");
+    expect([after.pace?.neededDisplay, after.pace?.sellingDisplay]).toEqual(["9.7", "4.7"]);
     // Everyone holding the project reads the same plan.
     expect((await plan("acct_daniel")).verdictText).toBe(after.verdictText);
   });
@@ -241,10 +242,14 @@ describe("the block", () => {
   it("offers Clara the dates, and nobody else", async () => {
     const clara = await block("acct_clara", "shark", "shark-residence");
     expect(clara).toContain("Change the dates");
-    expect(clara).toContain("On pace: needs 3.5 a month, selling 4.7");
+    expect(clara).toContain("On pace");
+    expect(clara).toContain("<dt>Selling a month</dt><dd>4.7</dd>");
+    expect(clara).toContain("<dt>Needed a month</dt><dd>4.0</dd>");
     expect(clara).toContain("14 sales dated in the last 90 days");
-    expect(clara).toContain("30 Jun 2027");
-    expect(clara).toContain("At this pace, sold out in <b>Apr 2027</b>");
+    expect(clara).toContain("At this pace, sold out in <b>May 2027</b>");
+    /* Said once: the sell-out date as the figure, the start alone under the track. */
+    expect(clara.split("30 Jun 2027")).toHaveLength(2);
+    expect(clara).toContain("From 12 Jan 2026");
 
     const daniel = await block("acct_daniel", "shark", "shark-residence");
     expect(daniel).not.toContain("Change the dates");
@@ -255,6 +260,11 @@ describe("the block", () => {
     const tomas = await block("acct_tomas", "alpha", "northgate");
     expect(tomas).toContain("No sell-out date set");
     expect(tomas).toContain("The admin of Alpha Estates sets the sell-out date.");
+    /* Once: no "Not set" figure under a verdict that already says it. */
+    expect(tomas).not.toContain("Not set");
+    expect(tomas).not.toContain("Sell out by");
+    /* Four dated sales: below the floor, so no pace and nothing it would stand on. */
+    expect(tomas).not.toContain("dated in the last");
     expect(tomas).not.toContain("iris-plan-track");
     expect(tomas).not.toContain('<button type="button" class="iris-action"');
 
@@ -266,7 +276,12 @@ describe("the block", () => {
     state.plane = false;
     const clara = await block("acct_clara", "shark", "shark-residence");
     expect(clara).not.toContain("Change the dates");
-    expect(clara).toContain("kept only on a local demonstration server");
+    expect(clara).toContain("the project&#x27;s configured dates stand");
+
+    /* Northgate configures none: the admin is not promised dates that do not exist. */
+    const petra = await block("acct_petra", "alpha", "northgate");
+    expect(petra).toContain("No sell-out date can be set on this deployment");
+    expect(petra).not.toContain("configured dates stand");
   });
 
   it("puts the i beside the title, and never a zero for a split the CRM cannot give", async () => {

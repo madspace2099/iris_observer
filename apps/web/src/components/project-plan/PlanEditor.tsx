@@ -14,7 +14,8 @@ const IDLE: PlanActionState = { ok: null, message: null };
  * the action checks again. Saved, the form closes, the focus returns to the
  * button, the server's sentence is spoken, and the block above is drawn again
  * from the read model. Refused, the form stays open with what was typed and
- * the server's sentence under it.
+ * the server's sentence under it; cancelled, that sentence goes with the form,
+ * so a form opened again never starts under an old refusal.
  */
 export function PlanEditor({
   tenant,
@@ -41,6 +42,8 @@ export function PlanEditor({
     },
     IDLE,
   );
+  /* The answer Cancel closed on: not said again until the next save answers. */
+  const [dismissed, setDismissed] = useState<PlanActionState | null>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const first = useRef<HTMLInputElement>(null);
   const opened = useRef(false);
@@ -55,14 +58,15 @@ export function PlanEditor({
   if (!stored) {
     return (
       <p className="iris-plan-note iris-plan-edit">
-        Dates set here are kept only on a local demonstration server; on this deployment the
-        project&apos;s configured dates stand.
+        {sellOutBy === null
+          ? "No sell-out date can be set on this deployment; dates are kept only on a local demonstration server."
+          : "Dates set here are kept only on a local demonstration server; on this deployment the project's configured dates stand."}
       </p>
     );
   }
 
   const said =
-    state.message === null ? null : (
+    state.message === null || state === dismissed ? null : (
       <p
         className="iris-plan-said"
         data-tone={state.ok === true ? "ok" : "bad"}
@@ -117,6 +121,7 @@ export function PlanEditor({
               onClick={() => {
                 setStart(startsOn ?? "");
                 setEnd(sellOutBy ?? "");
+                setDismissed(state);
                 setOpen(false);
               }}
             >

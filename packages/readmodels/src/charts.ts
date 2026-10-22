@@ -413,17 +413,18 @@ export interface StockPart {
  * How the project is selling against its own plan, read in seconds.
  *
  * The stock is the catalogue's flats; which of them are sold or reserved is the
- * CRM's word, so without a CRM `parts` is empty and `note` says why — never a
- * row of zeros. The pace is the CRM's dated sales over the last 90 days; the
- * needed pace is the unsold flats over the months left to the sell-out date.
- * Below `pace.minimum` dated sales no pace is stated and no verdict is given.
+ * CRM's deal stage for each, so without a CRM's deals `parts` is empty and
+ * `stockNote` says why — never a row of zeros. The pace is the flats whose
+ * first purchase the CRM dates in the last 90 days; the needed pace is the
+ * unsold flats over the months left to the sell-out date. Below
+ * `pace.minimum` dated sales no pace is stated and no verdict is given.
  */
 export interface SalesPlan {
-  /** Every flat in the catalogue; null where no catalogue has reached the project. */
+  /** Every flat for sale in the catalogue; null where no catalogue has reached the project. */
   readonly total: number | null;
   /** Sold, reserved, available — in that order; empty where the CRM cannot say. */
   readonly parts: readonly StockPart[];
-  /** Why `parts` is empty, in a sentence; null when it is not. */
+  /** What the split cannot say, in a sentence: why `parts` is empty, or the deals it leaves out; null for nothing. */
   readonly stockNote: string | null;
   /** The configured window, formatted; null where none is set. */
   readonly window: {
@@ -433,14 +434,14 @@ export interface SalesPlan {
     readonly sellOutByDisplay: string;
     /** How much of the window has gone by today, 0 to 1. */
     readonly elapsed: number;
-    /** "10 months left", "Ended 3 Aug 2026", "Starts in 2 months". */
+    /** "10 months left", "Past the date", "Starts in 2 months". */
     readonly remainingDisplay: string;
   } | null;
-  /** Null where no CRM delivers dated sales. */
+  /** Null where no CRM delivers deals, and before selling starts. */
   readonly pace: {
-    /** Dated sales in the pace window: the pace's sample. */
+    /** Flats first dated at purchase in the pace window: the pace's sample. */
     readonly sales: number;
-    /** The window's length: 90 days, or fewer when selling began later. */
+    /** The window's length: always the last 90 days. */
     readonly days: number;
     readonly minimum: number;
     /** Flats sold a month, one decimal; null below `minimum`. */
@@ -449,11 +450,11 @@ export interface SalesPlan {
     readonly neededDisplay: string | null;
     /** The month the project sells out at the current pace; null below `minimum` or with nothing left. */
     readonly sellsOutDisplay: string | null;
-    /** What the pace stands on, always in view: "14 sales dated in the last 90 days". */
+    /** What the pace stands on, beside a stated pace: "14 sales dated in the last 90 days". */
     readonly basis: string;
   } | null;
   readonly verdict: PlanVerdict;
-  /** The line itself: "On pace", "Behind: needs 3.1 a month, selling 2.0", "No sell-out date set". */
+  /** The line itself, short: "On pace", "Behind", "No sell-out date set"; the paces are figures of their own. */
   readonly verdictText: string;
   /** What every figure means, for the block's `i`. */
   readonly definition: string;
