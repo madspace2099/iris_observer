@@ -149,6 +149,23 @@ function phoneSheet(html: string): string {
   return at === -1 ? "" : html.slice(at, html.indexOf('id="main"'));
 }
 
+describe("a header with its account row on a phone (/projects, /settings)", () => {
+  const NARROW = within(SHELL, "@media (width <= 30rem)");
+
+  it("grows to hold its two rows instead of cramming them into 58px", () => {
+    const header = rule(NARROW, ".irs-header");
+    expect(header).toMatch(/height:\s*auto/);
+    expect(header).toMatch(/min-height:\s*var\(--iris-header-height-mobile\)/);
+    expect(header).toMatch(/padding-block:\s*10px/);
+  });
+
+  it("lifts the laptop cap on the reader's role, sets it at 12px, and makes the controls thumb-sized", () => {
+    expect(rule(NARROW, ".irs-shell .irs-header-end .irs-who")).toMatch(/max-width:\s*none/);
+    expect(rule(NARROW, ".irs-header-end .irs-who-role")).toMatch(/font-size:\s*12px/);
+    expect(rule(NARROW, ".irs-header-end .ox-btn")).toMatch(/min-height:\s*44px/);
+  });
+});
+
 describe("Ask IRIS on a phone", () => {
   it("hides the export's header below 1199px on every variant, Ask IRIS's included", () => {
     const hide = rule(

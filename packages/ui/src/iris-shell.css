@@ -1064,9 +1064,34 @@
  * slightly further down for.
  */
 @media (width <= 30rem) {
+  /*
+   * The row grows to hold them: at a fixed 58px the wordmark touched the top
+   * of the screen and the account row sat on the bottom hairline. A surface
+   * with the phone menu keeps 58px, which is all its wordmark needs and what
+   * the menu bar beside it matches.
+   */
   .irs-header {
     grid-template-columns: minmax(0, 1fr);
-    row-gap: 6px;
+    row-gap: 8px;
+    height: auto;
+    min-height: var(--iris-header-height-mobile);
+    padding-block: 10px;
+    /* Denser than the 62% veil: on a phone the page scrolls right under the account row. */
+    background: rgb(2 5 13 / 92%);
+  }
+
+  /* The laptop cap on the reader's role (76px) has the row to itself here. */
+  .irs-shell .irs-header-end .irs-who {
+    max-width: none;
+    text-align: left;
+  }
+
+  .irs-header-end .irs-who-role {
+    font-size: 12px;
+  }
+
+  .irs-header-end .ox-btn {
+    min-height: 44px;
   }
 
   .irs-header-end {
