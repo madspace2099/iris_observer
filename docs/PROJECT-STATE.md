@@ -6137,3 +6137,78 @@ e2e edited, not run: `project-denominators` (the head now says "the unsold flats
 
 **Next recommended action (unchanged, plus).** On the demo build check the readings' wording with
 Máté: two of Shark's four types now read "selling at the project's rate" with no act.
+
+## 2026-10-22 — Stream SHELL: the phone shell and the shared parts
+
+Máté asked for the demo to be checked on a phone. Three reviewers walked it at 390 and 360; this
+stream took the 23 findings that live in the shell and the shared stylesheets
+(`iris-shell.css`, `observer-product.css`, `showroom.css`, `charts.css`, `iris.css`,
+`ask-iris.css`) and fixed each at the shared rule, so every page gets the fix. Branch
+`worktree-wf_eba45ae8-1e4-5`, from `3373a1c`, not pushed. No ADR.
+
+- **The menu stays in reach.** The phone bar with the menu button is fixed with the sticky header;
+  it used to scroll away, so 2,000px down Sales Flow there was no way to the menu. Inside the sheet
+  the period list opens in the sheet's own flow and scrolls into view: "Year to date" could not be
+  reached before. The sheet's close button draws its X; rows and buttons in the sheet are 44px.
+- **Ask IRIS gets the phone menu below 1199px**, holding what its header holds: the sections, the
+  project switch where there are several, the reader, Sign out. Its old header put three rows in
+  58px, and Sign out and the nav ended up on top of the composer. Its opening questions grow to
+  three lines instead of printing across the next row, and its three quick links are 44px.
+- **Panels are opaque.** The KPI measure panel and the export dialog were 8% and 5% tints, and the
+  page showed through them. Both are now solid `#0b111b`. The export note no longer points at "the
+  bar at the top of the screen"; it names the period control and says it is in the menu on a phone.
+- **/projects and /settings on a phone.** The header grows to fit the account row, the role reads
+  in full at 12px, and Settings and Sign out are 44px.
+- **Content is inset once.** Below 40rem the wide column takes the header's 18px gutter, and a
+  plane drops its side padding and tint, so the card's edge is the only frame. A card now has
+  320px of content at 390, up from 252. This fixed the ids broken mid-token, the squeezed tiles and
+  the rings drawn below their size.
+- **Ranked lists** below 60rem wrap the line under a name at 12px instead of cutting it off with
+  "…" and putting the full text in a `title` (a phone cannot hover). The value column sizes to its
+  value.
+- **Tally tiles** below 30rem: `.ox-value` wraps, so a caption stays beside its figure while both
+  fit ("65 m²") and drops beneath when they don't. The old `flex-basis: 100%` rule never applied.
+  A figure no longer breaks ("15m" over "06s"), and a tile is inset 14px, so "PRESENTATIONS" fits
+  at 360.
+- **Segmented controls** below 40rem span the column as a 14px-radius block, and each segment is
+  44px tall, instead of a wrapped capsule.
+- **No text under 12px on a phone.** Kickers, the evidence line, a finding's foot ("n = 33
+  meetings"), the searched-for filter labels and an agent chip's count were 10–11px. A desktop
+  keeps the scale's 11.
+- **The welcome** on a touch screen hides the "Esc" keycap, and Skip is 44px.
+
+**Verified.** Typecheck clean. eslint and prettier are clean on every changed file.
+`apps/web/test/phone-shell.test.ts` (new, 28 cases) pins every rule on the stylesheets' executable
+text, and the Ask menu's contents on the rendered Shell. Full unit suite (after
+`pnpm release:wrappers`): 284 files, 5204 passed, 1 skipped, 2 failed. `no-secret-recipes` failed
+because there is no web build to scan (environmental). `artefact-consistency` failed because
+REVIEW §1A cites the sha256 of `git diff 7ac84fa..c16b94f`, and `accountableHashes()` recomputes
+that hash with git's automatic abbreviation. The repository has grown enough for the `index` lines
+to use 8 characters instead of 7, so the recomputed hash no longer matches (`-c core.abbrev=7`
+reproduces `b872d6e1…`). It fails on any checkout today and nothing on this branch touches it.
+The one-line fix belongs to the release scripts: pin the abbreviation in that `git diff`. Nine
+product pages, the Ask openings, the /projects header and the welcome were rendered statically (react-dom/server, the product stylesheets,
+headless Chromium) at 1440, 390 and 360, before and after. At 390 and 360 nothing scrolls
+sideways, and the only sub-12px HTML text left is the `i` glyph and the portrait initials
+(`portrait.css`). At 1440 every page is pixel-identical to `3373a1c`. The first five commits were
+also measured against the demo build with this branch's stylesheets swapped in (read-only).
+**Not looked at on a running build of this branch**: no dev server, build or Playwright run.
+E2E specs that pressed Ask's header nav, switch or Sign out on the mobile project now open the menu
+first (`account-login`, `agent-authorisation`, `authorization`, `mobile-menu-containment`,
+`nav-reachability`, `observer`, `project-switching`, `quality`, `switcher.ts`). They are edited,
+not run.
+
+**Left to other streams.** The roster's Meetings and Report links are 18px tall
+(`agents/page.tsx`, AGENTS). The portrait initials are 11.5px (`portrait.css`, AGENTS).
+
+**Integration.** This stream changed `ContextSwitcher.tsx` (scroll into view in the sheet),
+`Shell.tsx` (the Ask menu) and `ExportReport.tsx` (one note), and otherwise only shared CSS. It
+added phone-only rules to `showroom.css` and `iris.css` for classes that the PAGES, ROOMS and
+MOBILE streams' pages use; none of those streams' files were touched. Cherry-pick with the other
+five streams.
+
+**Next recommended action.** Build this branch. On a phone-sized window, sign in as Clara and
+open Sales Flow: scroll down and open the menu, pick Year to date, open a KPI `i`, and read
+Stalled deals. Then open Ask IRIS (menu, openings), the unit S-503 and Lena's agent page (tiles),
+and Presentation (Compare). Run `mobile-menu-containment`, `nav-reachability`,
+`project-switching` and `welcome`.
