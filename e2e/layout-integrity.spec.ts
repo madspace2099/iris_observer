@@ -82,6 +82,15 @@ async function clippedText(page: Page): Promise<string[]> {
       const cs = getComputedStyle(el);
 
       /*
+       * The visually-hidden pattern under another name: an absolutely placed
+       * 1×1 box shows no part of its text, so nothing is cut off before a
+       * reader's eyes. The rooms' `.pr-narrow` words are hidden this way where
+       * a column head says them and shown in a phone's stacked row.
+       */
+      const r = el.getBoundingClientRect();
+      if (cs.position === "absolute" && r.width <= 1 && r.height <= 1) continue;
+
+      /*
        * Only boxes that actually clip.
        *
        * `overflow: visible` cannot hide anything by definition — content
