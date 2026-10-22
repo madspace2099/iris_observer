@@ -364,8 +364,8 @@ export const SOURCE_LINE_WORDS: Readonly<
   hu: {
     lead: "Forrás",
     words: {
-      IRIS_SHOWROOM_OBSERVED: "a bemutatóteremben rögzítette az IRIS alkalmazás",
-      IRIS_SHOWROOM_DERIVED: "az Observer számolta a bemutatótermi rögzítésekből",
+      IRIS_SHOWROOM_OBSERVED: "a showroomban rögzítette az IRIS alkalmazás",
+      IRIS_SHOWROOM_DERIVED: "az Observer számolta a showroom-rögzítésekből",
       CRM_OUTCOME_CONTEXT: "üzleti szakaszok a CRM-ből",
       WEBIRIS_CONTEXT: "weboldal-látogatások a WEBIRIS-ből",
       AI_INTERPRETATION: "MI-modell fogalmazta",
