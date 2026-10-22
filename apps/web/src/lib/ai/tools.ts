@@ -767,31 +767,49 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
 
 /* --- 7. detect_showroom_behavior_changes ----------------------------------- */
 
+/*
+ * Sales Flow's screen of figures (ADR-0060), from the same read model the
+ * screen draws: every figure with its sample and its arrow's words. The draft
+ * says what moved, the top feature, and names what did not move, one short
+ * sentence each, so the answer's ceiling never cuts a figure.
+ */
 const detectShowroomBehaviorChanges: ToolDefinition<z.ZodObject<Record<string, never>>> = {
   name: "detect_showroom_behavior_changes",
-  description: "What changed in how IRIS is being presented, compared with the previous period.",
+  description:
+    "What changed in how IRIS is being presented: the period's presentation figures, each against the same figure 7 days ago.",
   input: z.object({}),
   async run(context) {
     const overview = await repository.getShowroomOverview(query(context));
+    const view = overview.kpis;
+    const moved = view.kpis.filter(
+      (k) => k.trend?.direction === "up" || k.trend?.direction === "down",
+    );
+    const still = view.kpis.filter((k) => k.trend?.direction === "flat" && !k.isName);
+    const top = view.kpis.find((k) => k.isName);
     return {
       tool: "detect_showroom_behavior_changes",
-      facts: overview.changes.map((c) => ({
-        label: c.label,
-        value: c.deltaDisplay,
-        note: c.detail,
+      facts: view.kpis.map((k) => ({
+        label: k.label,
+        value: k.display,
+        note: [k.sample, k.short, k.trend?.display ?? null].filter((n) => n !== null).join(" · "),
       })),
       sources: DERIVED,
       evidence: overview.evidence,
-      sampleSize: overview.meetingCount,
-      caveats: ["Period comparison only. A change is not a trend until it repeats."],
-      action: {
-        label: "Open Presentation Intelligence",
-        href: `${root(context)}/presentation?mode=periods`,
-      },
-      draft:
-        overview.changes
-          .map((c) => `${c.label}: ${c.deltaDisplay} (${c.detail.toLowerCase()})`)
-          .join("; ") + ".",
+      sampleSize: view.meetings,
+      caveats: [
+        view.withheld ?? view.basis,
+        "A movement against the same figures 7 days ago, at the stated sample: not a cause.",
+      ],
+      action: { label: "Open Sales Flow", href: `${root(context)}/flow` },
+      draft: [
+        ...(view.empty === null ? [] : [view.empty]),
+        ...moved.map((k) => `${k.label} is ${k.display}, ${k.trend?.spoken.toLowerCase() ?? ""}`),
+        ...(top === undefined ? [] : [`${top.display} took the most presentation time.`]),
+        ...(still.length === 0
+          ? []
+          : [`No change in ${still.map((k) => k.label.toLowerCase()).join(", ")}.`]),
+        ...(view.withheld === null ? [] : [view.withheld]),
+      ].join(" "),
     };
   },
 };

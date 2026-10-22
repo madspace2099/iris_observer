@@ -505,6 +505,27 @@ describe("the tools state each figure's own denominator", () => {
   });
 
   /*
+   * ADR-0060: what changed is Sales Flow's screen of figures, read from the
+   * screen's own read model — every figure, its sample and its arrow's words —
+   * and every figure the draft states is among the facts a model is shown.
+   */
+  it("answers what changed with the screen's figures, against 7 days ago", async () => {
+    const result = await run("detect_showroom_behavior_changes");
+    const { kpis } = (await repository.getShowroomOverview({ ...SHARK, language: "en" })).kpis;
+    expect(result.facts.map((f) => [f.label, f.value])).toEqual(
+      kpis.map((k) => [k.label, k.display]),
+    );
+    expect(result.facts[0]?.note).toMatch(/^\d+ of \d+ meetings · /);
+    const shown = [
+      ...result.facts.map((f) => `${f.label} ${f.value} ${f.note ?? ""}`),
+      ...result.caveats,
+    ].join(" ");
+    const digits = (text: string) => new Set(text.match(/\d+/g) ?? []);
+    const given = digits(shown);
+    expect([...digits(result.draft)].filter((run) => !given.has(run))).toEqual([]);
+  });
+
+  /*
    * ADR-0055: the plan's own figures, the CRM's deal stages, as the Project
    * page states them on the demonstration's day, and every figure of the draft
    * among the facts a model is shown.

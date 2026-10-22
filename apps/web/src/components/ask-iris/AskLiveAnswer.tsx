@@ -46,7 +46,7 @@ const ANALYSIS_WORDS: Readonly<Record<string, string>> = {
   explain_meeting_journey: "Meeting replay",
   analyze_feature_usage: "Section reach and dwell",
   analyze_unit_attention: "Unit attention",
-  detect_showroom_behavior_changes: "Change against the previous period",
+  detect_showroom_behavior_changes: "Change against 7 days ago",
   analyze_environment_usage: "Environment presets",
   prepare_meeting: "Meeting brief",
   get_metric_evidence: "Metric evidence",
