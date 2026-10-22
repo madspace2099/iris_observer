@@ -1400,11 +1400,16 @@ export function accountableHashes(): ReadonlySet<string> {
    * if the equality the review claims ever stopped holding, this token would
    * become unaccounted for and refuse the package instead of ageing quietly
    * into prose that nobody rechecks.
+   *
+   * The diff's `index` lines carry abbreviated object names whose length git
+   * picks from the size of the object store; the review hashed them at seven.
+   * Pinned, so a store that grew past seven characters (2026-10-22) does not
+   * change the bytes the citation was computed from.
    */
   allowed.add(
     createHash("sha256")
       .update(
-        execFileSync("git", ["diff", `${REWRITE.base}..${REWRITE.head}`], {
+        execFileSync("git", ["-c", "core.abbrev=7", "diff", `${REWRITE.base}..${REWRITE.head}`], {
           cwd: REPO_ROOT,
           maxBuffer: 64 * 1024 * 1024,
         }),
