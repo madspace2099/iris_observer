@@ -99,7 +99,7 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "showroom",
     requirement:
       "Source type must be visible to the reader and machine-readable, not merely a visual label.",
-    contracts: ["InsightSource", "INSIGHT_SOURCE_LABELS"],
+    contracts: ["InsightSource", "SOURCE_LINE_WORDS", "SourceChips"],
     readModels: ["ShowroomFinding", "ReplayStep"],
   },
   {
