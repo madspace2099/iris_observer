@@ -138,7 +138,7 @@
   .sheet-figure,
   .sheet-figure:first-child {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 8.5rem);
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 0.75rem;
     align-items: start;
     padding: 0.875rem 0;
@@ -161,6 +161,7 @@
 
   /* A long comparison ("no earlier period to compare") wraps in its own column. */
   .sheet-figure dd {
+    max-width: 8.5rem;
     align-items: flex-end;
     text-align: right;
   }
