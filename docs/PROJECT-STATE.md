@@ -5906,3 +5906,59 @@ environmental and outside this stream — `no-secret-recipes` (no web build) and
 `artefact-consistency` (the REVIEW.txt diff hash, as above). Static renders at 1440, 390 and 360,
 Shark and Riverside: no sideways scroll, no button or step under 44px on a phone. E2E edited, not
 run.
+
+## 2026-10-22 — Stream PLAN: Sold against the plan, said plainly (ADR-0055)
+
+Máté could not read the "Sold against the plan" bullet chart on the Project page: show the flats,
+how many are sold (from the CRM), and how long the sales run against a date by which everything
+must be sold. Branch `worktree-wf_eba45ae8-1e4-1`, from `3373a1c`, four commits, not pushed. The
+first session was cut off after its main commit; this one finished the e2e edits, the ADR and this
+section.
+
+- **The block** (`components/project-plan/`): one verdict line at the block's largest size ("On
+  pace: needs 3.5 a month, selling 4.7"), what it stands on ("14 sales dated in the last 90
+  days"), Flats / Sold / Reserved / Available as large figures over one bar of the whole stock,
+  "Sell out by 30 Jun 2027" over one track from the sales start with today marked, and "At this
+  pace, sold out in Apr 2027". Definitions behind the `i`. Without a CRM the split is a sentence,
+  never zeros; below five dated sales no pace and no verdict.
+- **The window is configuration**: `SALES_WINDOWS` in `world.ts` (Shark Residence 2026-01-12 to
+  2027-06-30, demonstration configuration; no other project has one, so they say "No sell-out
+  date set"). The hard-coded 2026-01-15 to 2028-06-30 plan is gone (non-negotiable 6).
+- **The company admin sets it** (`maySetSalesWindow`, the `mayConnectCrm` comparison): Clara sees
+  "Change the dates" (two native date fields, Save dates, Cancel); Daniel, members and presenters
+  read. Saved through the server action `saveSalesWindow` into `SalesWindowStore`, a JSON file
+  per project under `OBSERVER_LOCAL_STATE_DIR/plans/`; refused with a sentence where there is no
+  local plane.
+- **Registry**: `plan.stock_position`, `plan.sales_pace`, `plan.needed_pace`, `plan.verdict`,
+  `SALES_PACE_MIN_SAMPLE` = 5, requirement `madspace.sold_against_the_plan`; matrix regenerated.
+  `SalesTarget` became `SalesPlan`.
+- **Not done: Ask IRIS.** It has no tool for the project's sales position, and the tool list is
+  pinned as a product specification (`ask.test.ts`), so none was added; `SalesPlan.summary` is
+  shaped to be its facts. "Are we on track to sell out?" still goes to the period summary.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file;
+`sales-plan` 17 (every state by hand, Shark on 24 Aug 2026: 60 / 24 / 12 / 24, 4.7 against 3.5,
+Apr 2027), `sales-plan-window` 17, `isolation` 40. Full suite (after `pnpm release:wrappers`):
+285 files, 5211 passed, 1 skipped, 2 failed, neither caused by this stream: `no-secret-recipes`
+(no web build; environmental) and `artefact-consistency` "finds no token the repository cannot
+account for". The shared object store has grown past git's 7-character auto-abbreviation, so
+`git diff 7ac84fa..c16b94f` now prints 8-character `index` lines and hashes to `54f81969…`
+instead of the `b872d6e1…` REVIEW.txt cites (`-c core.abbrev=7` reproduces it). Every worktree on
+this `.git` fails it; the one-line fix is `--abbrev=7` on that `git diff` in `accountableHashes`
+(`scripts/release/build-package.ts`), left to whoever owns the release scripts. Static renders of
+the Project page for Clara, Daniel, Tomáš and Petra (Northgate, Riverside without a CRM) at 1440, 390
+and 360, and of the open editor: no sideways scroll, nothing past the block, text 12 px or larger,
+date fields and buttons 44 px tall on a phone, 2 px focus ring. `e2e/p219-screens.spec.ts` (K4's
+plan claim is now "N sales dated in the last 90 days") and `e2e/a11y-contract.spec.ts` (the
+block's `i` on Project) edited, not run.
+
+**Integration.** In `project/page.tsx` this stream changed only the plan block (now one
+`<SalesPlanBlock>`) and two import lines; ROOMS owns the rest. It also touched
+`components/project/SalesCoverage.tsx` (mounted nowhere; it read `charts.targets`) and the design
+lab's bullet data, both only to follow the renamed type.
+
+**Next recommended action.** On the demo build sign in as Clara, open
+`/shark/shark-residence/project` at 1440 and 390, change the dates to 31 Dec 2026 and read
+"Behind: needs 8.5 a month, selling 4.7", then set them back; sign in as Daniel and see no
+control. Run `p219-screens` and `a11y-contract`. Ask Máté whether Ask IRIS should get a
+sales-position tool, and whether the sell-out date is Clara's (the developer's) to set, as built.
