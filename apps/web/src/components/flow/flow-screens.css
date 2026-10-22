@@ -407,3 +407,18 @@ html:has(.iris-salesflow) {
     transition: none;
   }
 }
+
+/* On paper a screen is as tall as what it holds, and there is no rail to scroll by. */
+@media print {
+  .iris-salesflow {
+    display: block;
+  }
+
+  .iris-salesflow .flow-screen {
+    min-height: 0;
+  }
+
+  .iris-salesflow .flow-rail {
+    display: none;
+  }
+}

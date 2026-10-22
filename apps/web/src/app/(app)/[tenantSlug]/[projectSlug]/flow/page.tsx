@@ -143,12 +143,18 @@ export default async function FlowPage({
     return qs === "" ? base : `${base}?${qs}`;
   };
 
+  /*
+   * A window is picked on the summary's own screen, the second (ADR-0059), so
+   * the page stays where it is: by default Next scrolls to the page's top when
+   * that top is out of view, which would throw the reader back to the verdict.
+   */
   const windowChips = KPI_WINDOWS.map((w) => (
     <Link
       key={w.id}
       className="iris-chip"
       aria-current={w.id === kpiWindow ? "true" : undefined}
       href={dynamicRoute(windowHref(w.id))}
+      scroll={false}
     >
       {w.label}
     </Link>

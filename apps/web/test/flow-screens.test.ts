@@ -55,6 +55,11 @@ describe("Sales Flow's screens", () => {
     expect(presentations).toContain("Presentations given");
   });
 
+  it("keeps the reader on the summary screen when a window is picked", () => {
+    const chips = FLOW.slice(FLOW.indexOf("const windowChips"), FLOW.indexOf("const kpiCard"));
+    expect(chips).toMatch(/<Link[\s\S]*className="iris-chip"[\s\S]*scroll=\{false\}/);
+  });
+
   it("keeps a heatmap's denominator in view and its method behind the i", () => {
     const week = screen("flow-week");
     expect(week).toMatch(/caption=\{`Meetings by weekday and hour, across \$\{/);
