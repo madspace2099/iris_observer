@@ -6246,16 +6246,17 @@ and Presentation (Compare). Run `fixed-covers-nothing`, `mobile-menu-containment
 ## 2026-10-22 — Stream MOBILE: page-level phone fixes (Sales Flow, registers, Presentation, report)
 
 Máté asked "Check mobile responsiveness!"; three reviewers walked the demo at 390 and 360 and
-measured 21 findings for these pages. Branch `worktree-wf_eba45ae8-1e4-6`, from `3373a1c`, five
+measured 21 findings for these pages. Branch `worktree-wf_eba45ae8-1e4-6`, from `3373a1c`, eight
 commits, not pushed. No ADR. Every rule is a phone's (`width < 40rem` / `<= 48rem`) or a narrow
 card's (container query), and nearly all are scoped to their page's own class in a page sheet:
 `components/flow/sales-flow.css` (`.iris-salesflow`), `presentation/presentation.css`,
 `audience/audience.css`, `units/[unitCode]/unit.css`, `components/meetings/meetings.css`,
 `components/units/units.css`.
 
-- **Sales Flow.** The summary figures are a list (name and figure on one line, the change on the
-  next; a figure that is a sentence, "7 of 7 sales measured", at body size) instead of 1.6 screens
-  of desktop tiles. "How each agent's meetings end" prints every count once and links each: the
+- **Sales Flow.** The summary figures are a list (name and figure on one line, the change beside
+  its sparkline on the next, its words under both; a figure that is a sentence, "7 of 7 sales
+  measured", at body size) instead of 1.6 screens of desktop tiles, and the window is one line,
+  "Summary over: Last 30 days", its seven choices folded under it. "How each agent's meetings end" prints every count once and links each: the
   team key steps aside where the team row carries the same words and counts, a bar drops the
   counts its line carries, a presenter's line is one row that scrolls with a fade (2.9 screens
   before). The lens's keys scroll as two rows; the lens draws at its card's width (a 240 floor
@@ -6264,16 +6265,15 @@ card's (container query), and nearly all are scoped to their page's own class in
   action link wraps. The trend's "3 Aug17 Aug" was already fixed by SOURCES (verified).
 - **Registers.** Audience no longer scrolls sideways at 360 (a 336px criteria column), and its
   five room types are an even grid with the choice in force in view. A phone orders a register
-  with "Order by" above the records (`DataTable`, the head's own sort links); the clipped head
-  leaves the Tab order. Meetings: a record of a few lines, the first twenty drawn and "Show the
+  with "Order by" above the records (`DataTable`, the head's own sort links); the clipped head's
+  links leave the Tab order and its column names stay for a screen reader. Meetings: a record of a few lines, the first twenty drawn and "Show the
   remaining N meetings" (`?more=1`) for the rest, every row still sent, the wide screen unchanged
   (the page was 52,522px at 390 on the demo; 5,972px in the static render); S-503's meetings get
   the same short record and lose the "Started" cell that repeated the title (`ox-col-wide`). "Compact" tightens a phone's record instead of
   growing it. Building cells 32px tall, column checkboxes 18px in 32px labels, unit codes in a
   record 24px. A figure and its denominator are one element ("150 of 150" at the right). The
-  glossary's definitions start under their term. The register controls are inset like the
-  caption — the one change a wide screen sees: the register sits 4px lower (the finding's own fix;
-  the desktop was flush against the frame too).
+  glossary's definitions start under their term. On a phone the register controls are inset like
+  the caption.
 - **Report on screen.** A long label ("Progressed, of meetings with an outcome") wraps above its
   value instead of being cut mid-word in a record that scrolled sideways: every report scroller
   now 270/270 at 360. The print rules are untouched.
@@ -6298,11 +6298,40 @@ machine's git now prints that fixed, historical diff with another hash (`54f8196
 whatever the HEAD — environmental; nothing in this stream touches it. Static renders
 (react-dom/server, the product stylesheets, headless Chromium) of Sales Flow, IRIS-led, Meetings,
 Units, S-503, Features, Audience, Presentation and the report at 1440, 390 and 360: no sideways
-page scroll at 390 or 360; at 1440 every page pixel-identical to the base except Meetings and
-Units (the 4px inset above). **Not looked at on a running page** (no dev server, build or
-Playwright e2e); no e2e spec asserted changed text.
+page scroll at 390 or 360; at 1440 every page pixel-identical to the base (after review round 1).
+**Not looked at on a running page** (no dev server, build or Playwright e2e); no e2e spec asserted
+changed text.
 
-**Next recommended action.** On the demo build at 390 and 360: Sales Flow top to bottom, Meetings
-("Show the remaining 130 meetings", Compact), Units ("Order by", the building), S-503, Audience at
-360, Presentation (Two agents) and the report's section 04; run `a11y-contract`,
-`layout-integrity`, `p220-table-preferences` and `dontesek1` on the mobile project.
+**Review round 1 (adversarial, five findings; all five confirmed in the code and fixed).**
+
+1. _Hiding the stacked head with `visibility: hidden` dropped the column headers._ Confirmed: in
+   the static render at 390, `getByRole("columnheader")` found 0 of Meetings' nine headers (9 of 9
+   at 1440), so `units-register` (12 headers, and R07-2) and `fejezet1:116` ("Next step") would
+   fail on the mobile project, and a screen reader lost every column name. Now only `.ox-sort`
+   leaves (`display: none`), and a sortable `<th>` carries `data-label`, drawn by `::before`; 9 of 9
+   and 12 of 12 found at 390, no link in the head reached by Tab. The specs stand as written.
+2. _A Tab-focused count in a scrolling row stays under the fade._ Confirmed (a browser does not
+   scroll a link that already shows 32px). A presenter's counts and the lens's keys wrap while
+   the row holds `:focus-visible`, so a tap does not reflow it; every one of seven counts and five
+   keys measured wholly in view and unmasked at 390 and 360.
+3. _f5 not fixed at 360._ Confirmed: captions broke three times beside the sparkline, and the
+   window's chips took four rows. The change now sits beside the sparkline, its words take the
+   tile's width, and the window is a disclosure on a phone (the wide screen keeps its chips; the
+   same links, one set `display: none` at each width). The card is 965px at 360 (1,132) and 905px
+   at 390 (1,049).
+4. _The r10 inset moved every register on desktop._ Confirmed (Meetings and Units 4px taller,
+   controls 20px right). The inset is inside the phone query; both pages pixel-identical to the
+   base at 1440 again.
+5. _"Show the remaining N" reloads at the page's top._ Confirmed: Next scrolls to the page segment
+   when it is out of view. The link goes to `?more=1#remaining-meetings`, the twenty-first row's
+   id (`DataRow.id`), which stops below the sticky header (`scroll-margin-top`); measured landing
+   12px under a 70px sticky header at 390 and 360.
+
+Tests: `registers-phone` 15 (the head's names, the desktop inset, the anchor), `sales-flow-phone`
+8 (the focus wrap, the window's fold). Full suite: FULLSUITE.
+
+**Next recommended action.** On the demo build at 390 and 360: Sales Flow top to bottom (Tab
+through a presenter's counts; "Summary over"), Meetings ("Show the remaining 130 meetings" lands on
+the 21st, Compact), Units ("Order by", the building), S-503, Audience at 360, Presentation (Two
+agents) and the report's section 04; run `a11y-contract`, `layout-integrity`,
+`p220-table-preferences`, `units-register`, `fejezet1` and `dontesek1` on the mobile project.
