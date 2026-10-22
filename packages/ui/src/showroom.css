@@ -1248,6 +1248,15 @@
   color: var(--ink-2);
 }
 
+/* The source line is one line here too: the panel's `> span` grid broke it at each source. */
+.iris-measure-panel > .iris-srcs {
+  display: block;
+  margin-top: 0;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+  color: var(--ink-3);
+}
+
 .iris-measure-panel em {
   font-style: normal;
   font-family: var(--mono);
