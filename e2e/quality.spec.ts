@@ -229,9 +229,9 @@ test.describe("the chart vocabulary", () => {
     // A control that does not move the number it labels is decoration.
     expect(year).not.toBe(today);
     // Five figures on Northgate, whose CRM states Sold dates: the sales cycle
-    // Counted in the summary strip: the not-interested section draws its own figure tiles (ADR-0053).
     // stands in Cycle time since Máté's decision of 2026-10-02 (R05-4). The one
-    // group nothing measures, Conversion, still says what is missing.
+    // group nothing measures, Conversion, still says what is missing. Counted in
+    // the summary strip: the not-interested section draws its own tiles (ADR-0053).
     await expect(page.locator(".iris-kpi-groups .iris-kpi-value")).toHaveCount(5);
     await expect(page.locator(".iris-kpi-groups .iris-kpi-missing")).toHaveCount(1);
   });
