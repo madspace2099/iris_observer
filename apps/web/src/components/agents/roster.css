@@ -67,8 +67,9 @@
   stroke-width: 20;
 }
 
+/* The count under the rate: the rate is the card's one headline, so the largest figure on it. */
 [data-charts="d"] .d-card.ag-card .iris-ring-figure {
-  font-size: 36px;
+  font-size: 28px;
 }
 
 /* The one headline figure: the rate large with its `i`, what it is of under it. */
@@ -151,6 +152,23 @@
   margin: 0;
 }
 
+/*
+ * A median is never cut. On a phone the count needs two digits, not the base
+ * rule's 4rem, so the name and its median get the room; a line that still does
+ * not fit wraps rather than ending in an ellipsis.
+ */
+.ag-presenters .iris-ranked-name em {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+@media (max-width: 60rem) {
+  .ag-presenters .iris-ranked li {
+    grid-template-columns: 1.25rem minmax(0, 1fr) 2.5rem;
+  }
+}
+
 /* The quiet links, and the workload list's names, a 24px target each. */
 .ag-card-foot .iris-meta a,
 .ag-presenters .iris-ranked-name a {
@@ -181,8 +199,9 @@
   gap: 0.75rem;
 }
 
+/* A fixed value column, so every track is one length and the shares are on one scale. */
 .ag-repeats .iris-bar {
-  grid-template-columns: 10.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 10.5rem minmax(0, 1fr) 5.5rem;
 }
 
 .ag-repeats .iris-bar-label {
@@ -232,7 +251,7 @@
   text-wrap: pretty;
 }
 
-/* The key is the chart's control: a name lifts, hides or draws its agent; the link opens them. */
+/* The key is the chart's control: a name lifts its agent; the arrow opens their page. */
 .ag-coach-key {
   display: flex;
   flex-wrap: wrap;
@@ -296,23 +315,21 @@
   text-underline-offset: 3px;
 }
 
-/* Hidden: the face fades and the name is struck, so the reader still knows whose it is. */
-.ag-coach-key li[data-hidden="true"] .ag-portrait {
-  opacity: 0.35;
+/* The arrow to the agent's page: a thumb's target. */
+.ag-coach-key a {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: 8px;
+  font-size: 1.125rem;
+  color: var(--d-ink-3, var(--ink-2));
 }
 
-.ag-coach-key li[data-hidden="true"] b {
-  color: var(--d-ink-4, var(--ink-2));
-  text-decoration: line-through;
-}
-
-.ag-coach-key a,
-.ag-coach-undrawn a {
+.ag-coach-people a {
   display: inline-block;
   padding-block: 0.1875rem;
-  font-size: 0.8125rem;
-  color: var(--d-ink-3, var(--ink-2));
-  white-space: nowrap;
+  color: var(--d-ink, var(--ink));
 }
 
 /*
@@ -391,9 +408,19 @@
   color: var(--d-ink, var(--ink));
 }
 
+/*
+ * A row's marks sit in lanes (`--lanes`, each mark's `--lane` from the read
+ * model): a mark too close to another takes the next lane, so no agent's dot
+ * lies under someone else's. One lane keeps the row's own height.
+ */
+.ag-coach-rows > li {
+  --lanes: 1;
+}
+
 .ag-coach-track {
+  --ag-lane: 1.125rem;
   position: relative;
-  height: 1.75rem;
+  height: max(1.75rem, calc(var(--lanes) * var(--ag-lane) + 0.375rem));
   margin-inline: calc(var(--ag-dot) / 2);
   background:
     linear-gradient(rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.16)) center / 100% 1px no-repeat,
@@ -404,7 +431,7 @@
 
 .ag-coach-track > i {
   position: absolute;
-  top: 50%;
+  top: calc(50% + (var(--lane, 0) - (var(--lanes) - 1) / 2) * var(--ag-lane));
   left: calc(var(--at) * 100%);
   width: var(--ag-dot);
   height: var(--ag-dot);
@@ -466,11 +493,32 @@
   font-style: normal;
 }
 
-.ag-coach-undrawn {
-  margin: 0;
+/* An agent off the chart: face, name and count each, as the key gives the drawn. */
+.ag-coach-people {
+  display: grid;
+  gap: 0.5rem;
   font-size: 0.8125rem;
   line-height: 1.125rem;
   color: var(--d-ink-3, var(--ink-2));
+}
+
+.ag-coach-people p {
+  margin: 0;
+}
+
+.ag-coach-people ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ag-coach-people li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* A narrow card: each row's label over its track, the ends under both. */
@@ -495,7 +543,7 @@
     line-height: 1.5rem;
   }
 
-  /* One agent a line: face, name over count, the link at the far edge; a long name wraps, never cut. */
+  /* One agent a line: face, name over count, the arrow at the far edge; a long name wraps, never cut. */
   .ag-coach-key {
     display: grid;
   }
@@ -506,5 +554,9 @@
 
   .ag-coach-key button {
     flex: 1;
+  }
+
+  .ag-coach-people ul {
+    display: grid;
   }
 }

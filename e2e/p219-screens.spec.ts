@@ -76,8 +76,12 @@ test("K5 · Sales Agents keeps the radars on a Coaching tab, with their scale, a
   /*
    * One question, one chart since the owner's word of 2026-10-22 (ADR-0057):
    * its key names whoever is drawn, and the answer stands under the title.
+   * With one agent at the floor there is no chart, and they are named under
+   * the answer, face and count, as the agents under the floor are.
    */
-  await expect(page.locator("main .ag-coach .ag-coach-key li").first()).toBeVisible();
+  await expect(
+    page.locator("main .ag-coach").locator(".ag-coach-key li, .ag-coach-people li").first(),
+  ).toBeVisible();
   await expect(page.getByRole("heading", { name: "How do the presenters differ?" })).toBeVisible();
   const coaching = await page.locator("main").innerText();
   expect(coaching).toMatch(/They differ most in |so no two agents are compared|so nobody is compared/);

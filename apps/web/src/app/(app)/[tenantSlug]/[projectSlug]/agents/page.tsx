@@ -158,7 +158,10 @@ export default async function AgentsPage({
                     follow-up. The rate is of the meetings with an outcome recorded, and below{" "}
                     {AGENT_MIN_SAMPLE} recorded none is given.
                   </p>
-                  <p>Typical length: {a.medianDurationDisplay} (the median).</p>
+                  {/* Under the floor the workload list beside it withholds the median too. */}
+                  {a.belowMinimum ? null : (
+                    <p>Typical length: {a.medianDurationDisplay} (the median).</p>
+                  )}
                   {/*
                    * The habit's own gate, on the set the habit stands on: "leans
                    * on" is a share of the TIMED meetings, so under the timed
@@ -309,7 +312,7 @@ export default async function AgentsPage({
                       A meeting counts as a buyer&rsquo;s second, third or later when it is linked
                       to a contact who had met here before. A meeting linked to no contact has no
                       history, so it is neither a first nor a return: it is counted apart, as
-                      &ldquo;Buyer not identified&rdquo;.
+                      &ldquo;Not linked to a contact&rdquo;, the Meetings register&rsquo;s words.
                     </p>
                   </InfoTip>
                 </header>
@@ -386,7 +389,9 @@ export default async function AgentsPage({
  *  - one chart, a row per part of the showroom and a dot per agent at the
  *    share of their own meetings that used it, the widest gap first; the three
  *    widest name who sits at each end, face and figure (`CoachingChart`);
- *  - the agents under the floor said under it with their counts, never drawn;
+ *  - the agents under the floor said under it, face, name and count, never
+ *    drawn; under two drawn, no chart, since one agent alone has no gap, and
+ *    that agent said the same way, a face and a count;
  *  - how it is measured, the floor and the parts not measured behind the `i`.
  *
  * Every word and figure is the read model's; this component only places them.
@@ -408,6 +413,25 @@ function Coaching({
   const drawn = usage.profiles.filter((p) => !p.belowMinimum);
   const undrawn = usage.profiles.filter((p) => p.belowMinimum);
   const counted = (n: number) => `${n} ${n === 1 ? "meeting" : "meetings"}`;
+  /* A face, the name to their page, the count: how every agent off the chart is said. */
+  const faces = (people: typeof drawn) => (
+    <ul>
+      {people.map((p) => (
+        <li key={p.id}>
+          <AgentPortrait
+            name={p.label}
+            src={portraits[p.id] ?? null}
+            tone={p.tone}
+            size="row"
+            alt=""
+          />
+          <span>
+            <Link href={dynamicRoute(detailHref(p.id))}>{p.label}</Link> · {counted(p.meetings)}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
     <section className="ag-coach d-card" aria-labelledby="coach-title">
@@ -421,7 +445,8 @@ function Coaching({
       </header>
       <p className="ag-coach-headline">{comparison.headline}</p>
 
-      {drawn.length === 0 ? null : (
+      {/* Under two agents drawn there is no gap to draw; the headline says why. */}
+      {comparison.rows.length === 0 ? null : (
         <CoachingChart
           key={period}
           rows={comparison.rows}
@@ -437,16 +462,17 @@ function Coaching({
       )}
       <p className="ox-sr">{usage.summary}</p>
 
+      {comparison.rows.length > 0 || drawn.length === 0 ? null : (
+        <div className="ag-coach-people">
+          <p>Reached {AGENT_MIN_SAMPLE} meetings:</p>
+          {faces(drawn)}
+        </div>
+      )}
       {undrawn.length === 0 ? null : (
-        <p className="ag-coach-undrawn">
-          Not drawn, under {AGENT_MIN_SAMPLE} meetings:{" "}
-          {undrawn.map((p, i) => (
-            <span key={p.id}>
-              {i === 0 ? null : ", "}
-              <Link href={dynamicRoute(detailHref(p.id))}>{p.label}</Link> · {counted(p.meetings)}
-            </span>
-          ))}
-        </p>
+        <div className="ag-coach-people">
+          <p>Not drawn, under {AGENT_MIN_SAMPLE} meetings:</p>
+          {faces(undrawn)}
+        </div>
       )}
 
       <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />

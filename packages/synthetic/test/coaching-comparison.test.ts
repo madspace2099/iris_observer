@@ -3,7 +3,7 @@ import type { ShowroomSession, ShowroomUnitInteraction } from "@observer/contrac
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { DEFAULT_LANGUAGE, type OverviewQuery, type Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src";
-import { buildFeatureUsage } from "../src/showroom/charts";
+import { buildFeatureUsage, markLanes } from "../src/showroom/charts";
 
 /**
  * COACHING'S ONE QUESTION: HOW DO THE AGENTS DIFFER? (ADR-0057)
@@ -154,6 +154,30 @@ describe("the rows", () => {
   it("name nobody on a row with no gap, or past the third", () => {
     expect(comparison.rows.slice(3).map((r) => r.ends)).toEqual([null, null, null, null]);
   });
+
+  it("give a tied agent the next lane, so no dot lies under another", () => {
+    /* Compare: A 75%, B 25%, C 75%. Of the tied two, the later seat takes lane 1; B is far from both. */
+    expect(comparison.rows[0]?.marks.map((m) => [m.agentId, m.lane])).toEqual(
+      seat([A, B, C]).map((id) => [id, id === seat([A, C])[1] ? 1 : 0]),
+    );
+    expect(comparison.rows[0]?.lanes).toBe(2);
+    /* Favourite: 50%, 60%, 40%, ten points apart each, one lane. */
+    expect(comparison.rows[2]?.lanes).toBe(1);
+  });
+});
+
+describe("the lanes", () => {
+  it("open a lane only for a mark under 7 points from the last on every lane below", () => {
+    /*
+     * Sorted: 0.10 (lane 0), 0.15 (5 points on: lane 1), 0.17 (7 from 0.10:
+     * lane 0), 0.20 (3 from 0.17, 5 from 0.15: lane 2), 0.90 (lane 0).
+     */
+    expect(markLanes([0.9, 0.17, 0.1, 0.2, 0.15])).toEqual([0, 0, 0, 2, 1]);
+  });
+
+  it("keep a tie in the order given, the first on the line", () => {
+    expect(markLanes([0.5, 0.5, 0.5])).toEqual([0, 1, 2]);
+  });
 });
 
 describe("the headline", () => {
@@ -173,7 +197,8 @@ describe("the headline", () => {
     expect(one.headline).toBe(
       `Only ${name(A)} reached 20 meetings in this period, so no two agents are compared.`,
     );
-    expect(one.rows.every((r) => r.ends === null)).toBe(true);
+    /* One agent alone has no gap: no row is drawn, so nothing sits under the question. */
+    expect(one.rows).toEqual([]);
   });
 
   it("draws nobody when nobody is at the floor", () => {
@@ -182,6 +207,33 @@ describe("the headline", () => {
       "No agent reached 20 meetings in this period, so nobody is compared.",
     );
     expect(none.rows).toEqual([]);
+  });
+});
+
+describe("the screen reader's summary", () => {
+  it("reads every drawn agent's figures in the rows' own words and order", () => {
+    expect(usage.summary).toContain(
+      "3 agents drawn, each at the share of their own meetings that used a part of the showroom at least once, the widest gap first.",
+    );
+    expect(usage.summary).toContain(
+      `${name(B)} · 20 meetings: Compare two apartments side by side 25%, Take a screenshot of an apartment 70%, Mark an apartment as a favourite 60%,`,
+    );
+    expect(usage.summary).toContain(
+      "Not measured yet: stopping at a named place in Surroundings, filtering the apartments on show and walking the site in spaceman mode.",
+    );
+    expect(usage.summary).toContain(`Not drawn, under 20 meetings: ${name(D)}.`);
+  });
+
+  it("says no chart is drawn when one agent alone clears the floor", () => {
+    const one = buildFeatureUsage(
+      [...agent(A, AGENT_MIN_SAMPLE, pick(1, 1, 1)), ...agent(D, 5, pick(5, 5, 5))],
+      LOCALE,
+      "en",
+    );
+    expect(one.summary).toContain(
+      `Only ${name(A)} reached 20 meetings in this period, so no chart is drawn.`,
+    );
+    expect(one.summary).not.toContain(`${name(A)} · 20 meetings:`);
   });
 });
 

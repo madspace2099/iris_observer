@@ -248,7 +248,7 @@ export interface PresenterComparison {
    * their meetings; or why nothing is compared.
    */
   readonly headline: string;
-  /** One row per measured part, the widest gap first. Empty with no agent drawn. */
+  /** One row per measured part, the widest gap first. Empty under two agents drawn: no gap to show. */
   readonly rows: readonly PresenterRow[];
   /** What the chart is and is not: the measure, the order, the floor, the parts not measured. The `i`. */
   readonly method: string;
@@ -264,7 +264,14 @@ export interface PresenterRow {
     readonly share: number;
     /** "76%" */
     readonly display: string;
+    /**
+     * 0 on the row's line; 1, 2… for a mark too close to one already placed,
+     * so no agent's dot lies under another's (ADR-0057, review round).
+     */
+    readonly lane: number;
   }[];
+  /** How many lanes the row's marks take: 1 when none sits close to another. */
+  readonly lanes: number;
   /** Who sit at the two ends: on the three widest rows that have a gap, null on the rest. */
   readonly ends: { readonly high: PresenterEnd; readonly low: PresenterEnd } | null;
 }
@@ -371,7 +378,11 @@ export interface FeatureUsageProfile {
 export interface FeatureUsage {
   readonly axes: readonly FeatureUsageAxis[];
   readonly profiles: readonly FeatureUsageProfile[];
-  /** Every drawn agent's figures in words, the axes not measured, and who is not drawn and why. */
+  /**
+   * Coaching's chart in words for a screen reader: every drawn agent's figure
+   * on each row, in the rows' words and order; the parts not measured; who is
+   * not drawn and why.
+   */
   readonly summary: string;
   /** Coaching's one question on the measured axes: how the drawn agents differ. */
   readonly comparison: PresenterComparison;

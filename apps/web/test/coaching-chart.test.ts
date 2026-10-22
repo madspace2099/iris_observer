@@ -11,7 +11,7 @@ import { CoachingChart, shownPeople, type CoachingPerson } from "@/showroom/Coac
  * panels wanted to show. One chart now: a row per part of the showroom, a dot
  * per drawn agent at the share of their own meetings, and under the widest
  * rows who sits at each end. The key is its control: one entry per agent, a
- * button that hides or draws them (`aria-pressed`) and a link to their page.
+ * button that lifts them (`aria-pressed`) and an arrow to their page.
  * Rendered on the server, as a reader first receives it: every agent drawn,
  * none lifted.
  */
@@ -25,16 +25,18 @@ const person = (id: string, tone: string): CoachingPerson => ({
   portrait: null,
 });
 const PEOPLE = [person("a", "var(--d-series-1)"), person("b", "var(--d-series-2)")];
-const mark = (agentId: string, share: number) => ({
+const mark = (agentId: string, share: number, lane = 0) => ({
   agentId,
   share,
   display: `${Math.round(share * 100)}%`,
+  lane,
 });
 const ROWS: readonly PresenterRow[] = [
   {
     id: "comparing",
     label: "Compare two apartments side by side",
     marks: [mark("a", 0.76), mark("b", 0.19)],
+    lanes: 1,
     ends: {
       high: { agentIds: ["a"], names: "Agent a", share: "76%", of: "of 33 meetings" },
       low: { agentIds: ["b"], names: "Agent b", share: "19%", of: "of 26 meetings" },
@@ -43,20 +45,29 @@ const ROWS: readonly PresenterRow[] = [
   {
     id: "sharing",
     label: "Share an apartment",
-    marks: [mark("a", 0.1), mark("b", 0.1)],
+    /* A tie: the second agent takes the lane above, never the same spot. */
+    marks: [mark("a", 0.1), mark("b", 0.1, 1)],
+    lanes: 2,
     ends: null,
   },
 ];
 const html = renderToStaticMarkup(createElement(CoachingChart, { people: PEOPLE, rows: ROWS }));
 
 describe("CoachingChart", () => {
-  it("keys every agent once, each drawn and pressable, face beside the name", () => {
-    expect(html.match(/aria-pressed="true"/g)).toHaveLength(2);
+  it("keys every agent once, each pressable and none pressed, face beside the name", () => {
+    expect(html.match(/aria-pressed="false"/g)).toHaveLength(2);
+    expect(html).not.toContain('aria-pressed="true"');
     expect(html.match(/class="ag-portrait ag-portrait-initials"/g)?.length).toBeGreaterThan(2);
   });
 
-  it("links each key entry to the agent's own page", () => {
+  it("links each key entry to the agent's own page, named for a screen reader", () => {
     for (const p of PEOPLE) expect(html).toContain(`href="${p.href}"`);
+    expect(html).toContain('<span class="ox-sr">Agent page for Agent a</span>');
+  });
+
+  it("puts a tied agent in the lane the read model gives, and sizes the row to its lanes", () => {
+    expect(html).toContain("--lanes:2");
+    expect(html).toContain("--at:0.1;--lane:1");
   });
 
   it("draws one row per part, with a dot per agent at their share", () => {
@@ -83,18 +94,13 @@ describe("CoachingChart", () => {
 
 describe("lifting an agent from the key", () => {
   it("draws the lifted agent last, at full strength, and fades the rest", () => {
-    const { lift, shown } = shownPeople(PEOPLE, new Set(), "a");
-    expect(lift).toBe("a");
-    expect(shown.map((p) => [p.id, p.tone])).toEqual([
+    expect(shownPeople(PEOPLE, "a").map((p) => [p.id, p.tone])).toEqual([
       ["b", "color-mix(in oklab, var(--d-series-2) 22%, transparent)"],
       ["a", "var(--d-series-1)"],
     ]);
   });
 
-  it("fades nobody when the agent pointed at is hidden", () => {
-    /* The press that hides an agent leaves the pointer on their entry: every dot faded before. */
-    const { lift, shown } = shownPeople(PEOPLE, new Set(["a"]), "a");
-    expect(lift).toBeNull();
-    expect(shown.map((p) => p.tone)).toEqual(["var(--d-series-2)"]);
+  it("draws every agent at full strength, in seat order, with nobody lifted", () => {
+    expect(shownPeople(PEOPLE, null)).toEqual(PEOPLE);
   });
 });

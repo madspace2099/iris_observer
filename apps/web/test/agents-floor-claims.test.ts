@@ -37,6 +37,14 @@ describe("the roster", () => {
     );
   });
 
+  it("gives the typical length behind the card's i only above the floor", () => {
+    /* The workload list beside it withholds the median under the floor; the card's i did not. */
+    expect(ROSTER, "the card's i prints a median under the floor").toMatch(
+      /\{a\.belowMinimum \? null : \(\s*<p>Typical length: \{a\.medianDurationDisplay\}/,
+    );
+    expect(ROSTER.match(/Typical length:/g)).toHaveLength(1);
+  });
+
   it("feeds Coaching's one chart only the agents at or above the floor", () => {
     expect(ROSTER, "an agent is drawn whatever the sample").toMatch(
       /const drawn = usage\.profiles\.filter\(\(p\) => !p\.belowMinimum\);[\s\S]*?<CoachingChart[\s\S]*?people=\{drawn\.map\(/,
@@ -45,7 +53,14 @@ describe("the roster", () => {
 
   it("names the agents under the floor beside the chart, with their counts, not drawn", () => {
     expect(ROSTER).toMatch(
-      /const undrawn = usage\.profiles\.filter\(\(p\) => p\.belowMinimum\);[\s\S]*?Not drawn, under \{AGENT_MIN_SAMPLE\} meetings:[\s\S]*?\{counted\(p\.meetings\)\}/,
+      /const undrawn = usage\.profiles\.filter\(\(p\) => p\.belowMinimum\);[\s\S]*?\{counted\(p\.meetings\)\}[\s\S]*?Not drawn, under \{AGENT_MIN_SAMPLE\} meetings:<\/p>\s*\{faces\(undrawn\)\}/,
+    );
+  });
+
+  it("draws no chart for one agent alone, and names them the same way", () => {
+    expect(ROSTER).toMatch(/\{comparison\.rows\.length === 0 \? null : \(\s*<CoachingChart/);
+    expect(ROSTER).toMatch(
+      /comparison\.rows\.length > 0 \|\| drawn\.length === 0 \? null : \([\s\S]*?\{faces\(drawn\)\}/,
     );
   });
 

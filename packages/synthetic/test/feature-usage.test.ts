@@ -251,6 +251,8 @@ describe("the feature-usage lines wear the radar's colours", () => {
     const usage = buildFeatureUsage([meeting("1")], LOCALE, "en");
     expect(usage.summary).toContain("so nobody is drawn");
     expect(usage.summary).toContain(`Not drawn, under ${String(AGENT_MIN_SAMPLE)} meetings:`);
-    expect(usage.summary).toContain("Not measured: Exploring, Filtering and Walking.");
+    expect(usage.summary).toContain(
+      "Not measured yet: stopping at a named place in Surroundings, filtering the apartments on show and walking the site in spaceman mode.",
+    );
   });
 });

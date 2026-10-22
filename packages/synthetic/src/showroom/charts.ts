@@ -1136,9 +1136,34 @@ const FEATURE_AXES: readonly FeatureAxis[] = [
  * agent's own meetings that used a part of the showroom. The rows run from the
  * widest gap between agents to the narrowest; the three widest that have a gap
  * name who sits at each end, with the meetings each figure is of; the widest is
- * the headline. Below two drawn there is no gap to name, and the headline says
- * why. A description at the stated sample sizes, never a cause or a rank.
+ * the headline. Below two drawn there is no gap to name: no row is drawn, and
+ * the headline says why. A description at the stated sample sizes, never a
+ * cause or a rank.
  */
+
+/*
+ * Two marks closer than this share of the scale take separate lanes. A dot is
+ * 14px; on a 360 phone the track is about 210px, so 7 points is a dot's width.
+ * ponytail: one gap for every width, so a desktop row stacks dots that would
+ * have fitted side by side; a gap per width is the upgrade if that reads badly.
+ */
+const LANE_GAP = 0.07;
+
+/** Each share's lane, in the shares' order: the lowest lane whose last mark is a gap away. */
+export function markLanes(shares: readonly number[]): number[] {
+  const last: number[] = [];
+  const lanes = shares.map(() => 0);
+  /* Low to high; a stable sort keeps a tie in seat order, the first on the line. */
+  for (const k of [...shares.keys()].sort((a, b) => (shares[a] ?? 0) - (shares[b] ?? 0))) {
+    const share = shares[k] ?? 0;
+    const free = last.findIndex((at) => share - at >= LANE_GAP - 1e-9);
+    const lane = free === -1 ? last.length : free;
+    last[lane] = share;
+    lanes[k] = lane;
+  }
+  return lanes;
+}
+
 function comparePresenters(
   drawn: readonly FeatureUsageProfile[],
   measured: readonly { readonly axis: FeatureAxis; readonly i: number }[],
@@ -1170,15 +1195,16 @@ function comparePresenters(
       of: `of ${AND.format(at.map((p, k) => (k === at.length - 1 ? meetings(p.meetings, locale, language) : count(p.meetings, locale))))}`,
     };
   };
-  const shaped = rows.map((row, k) => ({
-    id: row.axis.id,
-    label: row.axis.plain,
-    marks: row.marks,
-    ends:
-      drawn.length >= 2 && k < 3 && row.spread > 0
-        ? { high: end(row, row.high), low: end(row, row.low) }
-        : null,
-  }));
+  const shaped = rows.map((row, k) => {
+    const lanes = markLanes(row.marks.map((m) => m.share));
+    return {
+      id: row.axis.id,
+      label: row.axis.plain,
+      marks: row.marks.map((m, j) => ({ ...m, lane: lanes[j] ?? 0 })),
+      lanes: Math.max(0, ...lanes) + 1,
+      ends: k < 3 && row.spread > 0 ? { high: end(row, row.high), low: end(row, row.low) } : null,
+    };
+  });
 
   const [only] = drawn;
   const widest = shaped[0]?.ends;
@@ -1192,7 +1218,8 @@ function comparePresenters(
           : widest == null
             ? `The ${count(drawn.length, locale)} agents drawn used every part of the showroom in the same share of their meetings.`
             : `They differ most in ${doing}: ${widest.high.names} did it in ${widest.high.share} ${widest.high.of}, ${widest.low.names} in ${widest.low.share} ${widest.low.of}.`,
-    rows: only === undefined ? [] : shaped,
+    /* One agent alone is a profile, not a comparison: their page draws it. */
+    rows: drawn.length < 2 ? [] : shaped,
     method: [
       "Each row is one part of the showroom; each dot is an agent, at the share of their own meetings that used it at least once.",
       "The rows run from the widest gap between agents to the narrowest.",
@@ -1231,24 +1258,29 @@ export function buildFeatureUsage(
   const notDrawn = profiles.filter((p) => p.belowMinimum).map((p) => p.label);
   const floor = count(AGENT_MIN_SAMPLE, locale);
   const measured = FEATURE_AXES.flatMap((axis, i) => (axis.used === null ? [] : [{ axis, i }]));
+  /* The measured axes only: an axis the build cannot answer is never ranked or set beside anyone. */
+  const comparison = comparePresenters(drawn, measured, locale, language);
+  const [only] = drawn;
   return {
     axes: FEATURE_AXES.map(({ id, label, note, missing }) => ({ id, label, note, missing })),
     profiles,
+    /* The chart in the rows' own words and order: what a sighted reader sees, heard. */
     summary: [
-      drawn.length === 0
+      only === undefined
         ? `No agent reached ${floor} meetings in this period, so nobody is drawn.`
-        : `${count(drawn.length, locale)} ${drawn.length === 1 ? "agent" : "agents"} drawn, each at the share of their meetings that used a part of the showroom at least once.`,
-      ...drawn.map(
+        : comparison.rows.length === 0
+          ? `Only ${only.label} reached ${floor} meetings in this period, so no chart is drawn.`
+          : `${count(drawn.length, locale)} agents drawn, each at the share of their own meetings that used a part of the showroom at least once, the widest gap first.`,
+      ...(comparison.rows.length === 0 ? [] : drawn).map(
         (p) =>
-          `${p.label} · ${meetings(p.meetings, locale, language)}: ${AND.format(measured.map(({ axis, i }) => `${axis.label} ${percent(p.values[i] ?? 0, locale)}`))}.`,
+          `${p.label} · ${meetings(p.meetings, locale, language)}: ${AND.format(comparison.rows.map((r) => `${r.label} ${r.marks.find((m) => m.agentId === p.id)?.display ?? ""}`))}.`,
       ),
-      `Not measured: ${AND.format(FEATURE_AXES.filter((a) => a.used === null).map((a) => a.label))}.`,
+      `Not measured yet: ${AND.format(FEATURE_AXES.filter((a) => a.used === null).map((a) => a.doing))}.`,
       ...(notDrawn.length === 0
         ? []
         : [`Not drawn, under ${floor} meetings: ${AND.format(notDrawn)}.`]),
     ].join(" "),
-    /* The measured axes only: an axis the build cannot answer is never ranked or set beside anyone. */
-    comparison: comparePresenters(drawn, measured, locale, language),
+    comparison,
   };
 }
 

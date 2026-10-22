@@ -331,7 +331,7 @@ test.describe("the chart vocabulary", () => {
      * drawn, with theirs. Either way the count must be the ring's.
      */
     const radarLabel = await page
-      .locator(".ag-coach-key li, .ag-coach-undrawn span", { hasText: name })
+      .locator(".ag-coach-key li, .ag-coach-people li", { hasText: name })
       .first()
       .textContent();
     expect(radarLabel, `${name}'s entry in the Coaching chart does not carry the count the ring does`).toContain(

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type CSSProperties } from "react";
+import { useState, type CSSProperties, type PointerEvent } from "react";
 import type { PresenterEnd, PresenterRow } from "@observer/readmodels";
 
 import { AgentPortrait } from "@/components/agents/Portrait";
@@ -18,10 +18,13 @@ import { dynamicRoute } from "@/lib/href";
  * under the row they belong to. Every figure arrives from the read model
  * (`PresenterComparison`); nothing here counts.
  *
- * The key is the interaction. Pointing at a name, or moving the keyboard onto
- * it, lifts that agent's dots, prints their figures on them and dims the
- * others; pressing the name draws or hides them (`aria-pressed`); the link
- * beside it opens their page.
+ * The key is the interaction. Pressing a name (a tap, a click, Space or
+ * Enter) lifts that agent: their dots on top with their figure over each, the
+ * others faded, until it is pressed again (`aria-pressed`). A mouse pointing at
+ * a name lifts it for as long as it rests there. The arrow beside the name
+ * opens their page. A tap is never taken for pointing: a phone lifts on the
+ * press alone, so a tap never lifts and drops in one move (review round).
+ * Marks too close to share a line sit in lanes the read model gives them.
  */
 
 export interface CoachingPerson {
@@ -40,22 +43,14 @@ function dimmed(tone: string): string {
   return `color-mix(in oklab, ${tone} 22%, transparent)`;
 }
 
-/**
- * The agents drawn, the lifted one last so it lies on top, the rest faded.
- * A hidden agent cannot be lifted: pointing at their entry, or the press that
- * just hid them, would otherwise fade every dot and lift none.
- */
+/** Every agent drawn, the lifted one last so it lies on top, the rest faded. */
 export function shownPeople<P extends { readonly id: string; readonly tone: string }>(
   people: readonly P[],
-  hidden: ReadonlySet<string>,
-  lifted: string | null,
-): { readonly lift: string | null; readonly shown: readonly P[] } {
-  const lift = lifted !== null && !hidden.has(lifted) ? lifted : null;
-  const shown = people
-    .filter((p) => !hidden.has(p.id))
+  lift: string | null,
+): readonly P[] {
+  return [...people]
     .sort((a, b) => Number(a.id === lift) - Number(b.id === lift))
     .map((p) => ({ ...p, tone: lift === null || lift === p.id ? p.tone : dimmed(p.tone) }));
-  return { lift, shown };
 }
 
 /** One end of a row: the faces, the names, the figure and what it is of. */
@@ -96,19 +91,15 @@ export function CoachingChart({
   readonly people: readonly CoachingPerson[];
   readonly rows: readonly PresenterRow[];
 }) {
-  const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
-  const [lifted, setLifted] = useState<string | null>(null);
-
-  const toggle = (id: string) =>
-    setHidden((was) => {
-      const next = new Set(was);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-
-  const { lift, shown } = shownPeople(people, hidden, lifted);
+  const [pressed, setPressed] = useState<string | null>(null);
+  const [pointed, setPointed] = useState<string | null>(null);
+  const lift = pointed ?? pressed;
+  const shown = shownPeople(people, lift);
   const byId = new Map(people.map((p) => [p.id, p]));
+  /* A mouse only: a touch fires the same events on its way to the press. */
+  const point = (id: string | null) => (e: PointerEvent) => {
+    if (e.pointerType === "mouse") setPointed(id);
+  };
 
   return (
     <div className="ag-coach-chart">
@@ -116,18 +107,14 @@ export function CoachingChart({
         {people.map((p) => (
           <li
             key={p.id}
-            data-hidden={hidden.has(p.id) ? "true" : undefined}
             data-lifted={lift === p.id ? "true" : undefined}
-            onMouseEnter={() => setLifted(p.id)}
-            onMouseLeave={() => setLifted(null)}
-            onFocus={() => setLifted(p.id)}
-            onBlur={() => setLifted(null)}
+            onPointerEnter={point(p.id)}
+            onPointerLeave={point(null)}
           >
             <button
               type="button"
-              aria-pressed={!hidden.has(p.id)}
-              title={hidden.has(p.id) ? `Draw ${p.name}` : `Hide ${p.name}`}
-              onClick={() => toggle(p.id)}
+              aria-pressed={pressed === p.id}
+              onClick={() => setPressed((was) => (was === p.id ? null : p.id))}
             >
               <AgentPortrait name={p.name} src={p.portrait} tone={p.tone} size="row" alt="" />
               <span>
@@ -135,57 +122,64 @@ export function CoachingChart({
                 <em>{p.meetings}</em>
               </span>
             </button>
-            <Link href={dynamicRoute(p.href)}>
-              Agent page<span className="ox-sr"> for {p.name}</span>
+            <Link href={dynamicRoute(p.href)} title="Agent page">
+              <span aria-hidden="true">→</span>
+              <span className="ox-sr">Agent page for {p.name}</span>
             </Link>
           </li>
         ))}
       </ul>
 
-      {shown.length === 0 ? (
-        <p className="iris-meta">Every agent is hidden. Press a name above to draw them again.</p>
-      ) : (
-        <div className="ag-coach-plot">
-          {/* The base of every dot, said once over the rows; the screen reader's summary says it too. */}
-          <div className="ag-coach-scale" aria-hidden="true">
-            <span className="ag-coach-base">Share of each agent&rsquo;s own meetings</span>
-            <span className="ag-coach-ticks">
-              <span>0%</span>
-              <span>50%</span>
-              <span>100%</span>
-            </span>
-          </div>
-          <ol className="ag-coach-rows">
-            {rows.map((row) => (
-              <li key={row.id} data-named={row.ends === null ? undefined : "true"}>
-                <span className="ag-coach-label">{row.label}</span>
-                {/* Pointer detail: the screen reader's summary beside the chart carries every figure. */}
-                <span className="ag-coach-track" aria-hidden="true">
-                  {shown.map((p) => {
-                    const mark = row.marks.find((m) => m.agentId === p.id);
-                    return mark === undefined ? null : (
-                      <i
-                        key={p.id}
-                        data-lifted={p.id === lift ? "true" : undefined}
-                        title={`${p.name}: ${mark.display}`}
-                        style={{ "--at": mark.share, "--tone": p.tone } as CSSProperties}
-                      >
-                        {p.id === lift ? <b>{mark.display}</b> : null}
-                      </i>
-                    );
-                  })}
-                </span>
-                {row.ends === null ? null : (
-                  <p className="ag-coach-ends">
-                    <End end={row.ends.high} people={byId} />
-                    <End end={row.ends.low} people={byId} />
-                  </p>
-                )}
-              </li>
-            ))}
-          </ol>
+      <div className="ag-coach-plot">
+        {/* The base of every dot, said once over the rows; the screen reader's summary says it too. */}
+        <div className="ag-coach-scale" aria-hidden="true">
+          <span className="ag-coach-base">Share of each agent&rsquo;s own meetings</span>
+          <span className="ag-coach-ticks">
+            <span>0%</span>
+            <span>50%</span>
+            <span>100%</span>
+          </span>
         </div>
-      )}
+        <ol className="ag-coach-rows">
+          {rows.map((row) => (
+            <li
+              key={row.id}
+              data-named={row.ends === null ? undefined : "true"}
+              style={{ "--lanes": row.lanes } as CSSProperties}
+            >
+              <span className="ag-coach-label">{row.label}</span>
+              {/* Pointer detail: the screen reader's summary beside the chart carries every figure. */}
+              <span className="ag-coach-track" aria-hidden="true">
+                {shown.map((p) => {
+                  const mark = row.marks.find((m) => m.agentId === p.id);
+                  return mark === undefined ? null : (
+                    <i
+                      key={p.id}
+                      data-lifted={p.id === lift ? "true" : undefined}
+                      title={`${p.name}: ${mark.display}`}
+                      style={
+                        {
+                          "--at": mark.share,
+                          "--lane": mark.lane,
+                          "--tone": p.tone,
+                        } as CSSProperties
+                      }
+                    >
+                      {p.id === lift ? <b>{mark.display}</b> : null}
+                    </i>
+                  );
+                })}
+              </span>
+              {row.ends === null ? null : (
+                <p className="ag-coach-ends">
+                  <End end={row.ends.high} people={byId} />
+                  <End end={row.ends.low} people={byId} />
+                </p>
+              )}
+            </li>
+          ))}
+        </ol>
+      </div>
     </div>
   );
 }
