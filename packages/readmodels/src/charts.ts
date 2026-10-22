@@ -157,15 +157,78 @@ export interface BehaviourStep {
   readonly comparisonNote: string | null;
 }
 
+/**
+ * One presenter's meetings in the group (`flow.not_interested_by_agent`): how
+ * many of the group were theirs, and how many of their own recorded meetings
+ * ended so. In the roster's order, never ranked.
+ */
+export interface CohortAgent {
+  readonly agentId: string;
+  readonly name: string;
+  /** Their meetings in the group. */
+  readonly count: number;
+  /** "22 recorded": the rate's denominator, every meeting of theirs with an outcome recorded. */
+  readonly recordedDisplay: string;
+  /** "8 of 22 · 36%"; under `AGENT_MIN_SAMPLE` recorded, "3 of 19 · no rate, 1 short of 20". */
+  readonly display: string;
+  readonly belowMinimum: boolean;
+  /** The register, narrowed to this presenter and the group's outcome; null where they have none in it. */
+  readonly href: string | null;
+}
+
+/**
+ * A typical figure per meeting, the group's against every other recorded
+ * meeting's (`flow.not_interested_length`, `flow.not_interested_interactions`).
+ */
+export interface CohortFigure {
+  readonly id: "length" | "features_opened" | "apartments_opened";
+  readonly metricId: string;
+  readonly label: string;
+  /** The group's median, or "No median" where too few meetings on a side could answer it. */
+  readonly value: string;
+  /** The others' median, the middle halves where stated, and both samples; or the shortfall. */
+  readonly qualifier: string;
+}
+
+/** One behaviour on its own, in the group and among the others (`flow.not_interested_reach`). */
+export interface CohortReach {
+  readonly id: string;
+  readonly label: string;
+  /** Of the group, 0 to 1. */
+  readonly share: number;
+  /** Of every other recorded meeting, 0 to 1. */
+  readonly comparisonShare: number;
+  /** "Used Compare: 11% of the not-interested meetings, against 58% of the others." */
+  readonly text: string;
+}
+
 export interface BehaviourFunnel {
   readonly cohortLabel: string;
-  /** Empty when the group has no meeting in it: seven bands at nought would draw an absence as a reading. */
+  /**
+   * Nested bands, each the meetings that did this and everything above it.
+   * Sales Flow no longer draws them (ADR-0053); the design lab still does.
+   * Empty when the group has no meeting in it.
+   */
   readonly steps: readonly BehaviourStep[];
-  /** What to say instead of the funnel when `steps` is empty; null otherwise. */
+  /** What to say instead of the section when the group is empty; null otherwise. */
   readonly empty: string | null;
   /** Names the group each `comparisonNote` is measured against. */
   readonly comparisonLabel: string;
+  /** How the comparison is made and what it does not claim: the section's `i`. */
   readonly disclaimer: string;
+  /**
+   * The clearest difference between the group and the others, with both
+   * sample sizes, said as association; or why none is said. Null with no group.
+   */
+  readonly lead: string | null;
+  /** Length, features opened and apartments opened, typical per meeting. Empty with no group, or where no side clears the floor. */
+  readonly figures: readonly CohortFigure[];
+  /** Every presenter of the period, in the roster's order. Empty with no group. */
+  readonly byAgent: readonly CohortAgent[];
+  /** Each behaviour on its own, the widest gap first. Empty where a side is under the floor. */
+  readonly reach: readonly CohortReach[];
+  /** What the reach rates are shares of; or, with `reach` empty, why it is not drawn. */
+  readonly reachOf: string;
 }
 
 /* --- what a chart of agents shows, in words ------------------------------------ */

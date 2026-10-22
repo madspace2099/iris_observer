@@ -479,43 +479,120 @@ export function buildActivity(
 
 /* --- what precedes a poor outcome --------------------------------------------- */
 
+/* `did` follows "The 19 meetings that ended "not interested"" in the lead. */
 const BEHAVIOURS = [
   {
     id: "reached_surroundings",
     label: "Reached Surroundings at all",
+    did: "reached Surroundings",
     test: (s: ShowroomSession) => s.steps.some((x) => x.sectionId === "surroundings"),
   },
   {
     id: "opened_amenities",
     label: "Opened Amenities",
+    did: "opened Amenities",
     test: (s: ShowroomSession) => s.steps.some((x) => x.sectionId === "amenities"),
   },
   {
     id: "three_units",
     label: "Opened three or more units",
+    did: "opened three or more units",
     test: (s: ShowroomSession) => s.units.length >= 3,
   },
   {
     id: "shortlisted",
     label: "Shortlisted anything",
+    did: "shortlisted anything",
     test: (s: ShowroomSession) => s.units.some((u) => u.favourited),
   },
   {
     id: "used_compare",
     label: "Used Compare",
+    did: "used Compare",
     test: (s: ShowroomSession) => s.steps.some((x) => x.sectionId === "compare"),
   },
   {
     id: "returned",
     label: "Returned to a section before closing",
+    did: "returned to a section",
     test: (s: ShowroomSession) => s.steps.some((x) => x.isReturn),
   },
 ] as const;
+
+/** The nearest-rank percentile of values sorted ascending; never called on none. */
+function nearestRank(sorted: readonly number[], p: number): number {
+  return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)] ?? 0;
+}
+
+/*
+ * WHY THEY ENDED SO (ADR-0053). The owner, 2026-10-22: which feature was opened
+ * how often is not enough; he wants to see whose the meetings were, how long
+ * they ran and how much was opened in them. Each typical figure is a median
+ * over the meetings on a side that can answer it, set beside the same median of
+ * every other recorded meeting; the floor is the registry's, per side.
+ *
+ * "Features opened" is every opening of a showroom section, a return counted
+ * again (`steps`): the showroom records openings, not clicks or taps, and a
+ * click count is a measure the event contract does not carry.
+ */
+const COHORT_FIGURES: readonly {
+  readonly id: "length" | "features_opened" | "apartments_opened";
+  readonly metricId: string;
+  readonly label: string;
+  /** The meetings on a side that can answer it, and what they are called in a sample. */
+  readonly answers: (s: ShowroomSession) => boolean;
+  readonly sample: string;
+  readonly value: (s: ShowroomSession) => number;
+  /** A length is said with its middle half; a count is not. */
+  readonly spread: boolean;
+  /** Following "The 19 meetings that ended "not interested"", for a group below and above the others. */
+  readonly fewer: string;
+  readonly more: string;
+}[] = [
+  {
+    id: "length",
+    metricId: "flow.not_interested_length",
+    label: "Median length",
+    answers: (s) => !s.timingUnavailable,
+    sample: "timed",
+    value: (s) => s.durationSeconds,
+    spread: true,
+    fewer: "ran shorter",
+    more: "ran longer",
+  },
+  {
+    id: "features_opened",
+    metricId: "flow.not_interested_interactions",
+    label: "Median features opened",
+    answers: () => true,
+    sample: "meetings",
+    value: (s) => s.steps.length,
+    spread: false,
+    fewer: "opened fewer features",
+    more: "opened more features",
+  },
+  {
+    id: "apartments_opened",
+    metricId: "flow.not_interested_interactions",
+    label: "Median apartments opened",
+    answers: () => true,
+    sample: "meetings",
+    value: (s) => s.units.length,
+    spread: false,
+    fewer: "opened fewer apartments",
+    more: "opened more apartments",
+  },
+];
+
+/** A typical figure or a behaviour is said in the lead once it differs by this much: relative for a median, in points for a share. */
+const LEAD_GAP = 0.15;
 
 export function buildBehaviourFunnel(
   sessions: readonly ShowroomSession[],
   locale: string,
   language: Language,
+  at: ProjectAddress,
+  periodLabel: string,
 ): BehaviourFunnel {
   const cohort = sessions.filter((s) => s.outcome === "not_interested");
   const rest = sessions.filter(
@@ -552,6 +629,11 @@ export function buildBehaviourFunnel(
           : `None of the ${meetings(sessions.length, locale, language)} in this period ended "not interested", so there is no group to describe.`,
       comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
       disclaimer: "",
+      lead: null,
+      figures: [],
+      byAgent: [],
+      reach: [],
+      reachOf: "",
     };
   }
 
@@ -577,13 +659,143 @@ export function buildBehaviourFunnel(
     });
   }
 
+  const n = (v: number) => count(v, locale);
+  const group = meetings(cohort.length, locale, language);
+  const others = `${n(rest.length)} other recorded ${rest.length === 1 ? "meeting" : "meetings"}`;
+  const floor = (metricId: string) => getMetric(metricId)?.minimumSampleSize ?? AGENT_MIN_SAMPLE;
+
+  /*
+   * Whose they were: every presenter of the period in the roster's order, the
+   * rings' order, so a name stands where it stood in the rows above. Each
+   * count is of the group; each rate of the presenter's own recorded meetings,
+   * and only from the floor up.
+   */
+  const root = `/${at.tenantSlug}/${at.projectSlug}`;
+  const byAgent = presentersIn(sessions, language)
+    .filter((p) => sessions.some((s) => s.agentId === p.id))
+    .map((p) => {
+      const mine = cohort.filter((s) => s.agentId === p.id).length;
+      const recorded = sessions.filter(
+        (s) => s.agentId === p.id && !outcomeIsUnknown(s.outcome),
+      ).length;
+      const belowMinimum = recorded < AGENT_MIN_SAMPLE;
+      return {
+        agentId: p.id,
+        name: p.name,
+        count: mine,
+        recordedDisplay: `${n(recorded)} recorded`,
+        display:
+          recorded === 0
+            ? "no outcome recorded"
+            : belowMinimum
+              ? `${n(mine)} of ${n(recorded)} · no rate, ${n(AGENT_MIN_SAMPLE - recorded)} short of ${n(AGENT_MIN_SAMPLE)}`
+              : `${n(mine)} of ${n(recorded)} · ${percent(share(mine, recorded), locale)}`,
+        belowMinimum,
+        href:
+          mine === 0
+            ? null
+            : `${root}/meetings?agent=${encodeURIComponent(p.id)}&outcome=not_interested`,
+      };
+    });
+
+  /* Each typical figure, and the lead's clause where it differs enough to say. */
+  const differs: { readonly gap: number; readonly text: string }[] = [];
+  let medians = 0;
+  const figures = COHORT_FIGURES.map((f) => {
+    const mine = cohort
+      .filter(f.answers)
+      .map(f.value)
+      .sort((a, b) => a - b);
+    const theirs = rest
+      .filter(f.answers)
+      .map(f.value)
+      .sort((a, b) => a - b);
+    const minimum = floor(f.metricId);
+    const sizes = `${n(mine.length)} and ${n(theirs.length)} ${f.sample}`;
+    if (mine.length < minimum || theirs.length < minimum) {
+      return {
+        id: f.id,
+        metricId: f.metricId,
+        label: f.label,
+        value: "No median",
+        qualifier: `a side needs ${n(minimum)} ${f.sample} · ${sizes}`,
+      };
+    }
+    medians += 1;
+    const say = (v: number) => (f.spread ? duration(v, language) : typical(v, locale));
+    const g = median(mine);
+    const o = median(theirs);
+    if (o > 0 && Math.abs(g - o) / o >= LEAD_GAP) {
+      differs.push({
+        gap: Math.abs(g - o) / o,
+        text: `${g < o ? f.fewer : f.more} (median ${say(g)} against ${say(o)})`,
+      });
+    }
+    const middle = (xs: readonly number[]) =>
+      `${say(nearestRank(xs, 0.25))}–${say(nearestRank(xs, 0.75))}`;
+    return {
+      id: f.id,
+      metricId: f.metricId,
+      label: f.label,
+      value: say(g),
+      qualifier: f.spread
+        ? `others ${say(o)} · middle half ${middle(mine)} against ${middle(theirs)} · ${sizes}`
+        : `others ${say(o)} · ${sizes}`,
+    };
+  });
+
+  /* Each behaviour on its own, the widest gap first: what the old band's "on its own · elsewhere" meant. */
+  const reachFloor = floor("flow.not_interested_reach");
+  const compared = cohort.length >= reachFloor && rest.length >= reachFloor;
+  const gapOf = (r: { readonly share: number; readonly comparisonShare: number }) =>
+    Math.abs(r.share - r.comparisonShare);
+  const reach = compared
+    ? BEHAVIOURS.map((b) => {
+        const g = share(cohort.filter(b.test).length, cohort.length);
+        const o = share(rest.filter(b.test).length, rest.length);
+        return {
+          id: b.id,
+          label: b.label,
+          share: g,
+          comparisonShare: o,
+          text: `${b.label}: ${percent(g, locale)} of the not-interested meetings, against ${percent(o, locale)} of the others.`,
+        };
+      }).sort((a, b) => gapOf(b) - gapOf(a))
+    : [];
+
+  /* At most the two widest typical differences, then the widest behaviour. */
+  const said = [...differs].sort((a, b) => b.gap - a.gap).map((c) => c.text);
+  said.splice(2);
+  const widest = reach[0];
+  if (widest !== undefined && gapOf(widest) >= LEAD_GAP) {
+    const did = BEHAVIOURS.find((b) => b.id === widest.id)?.did ?? widest.label;
+    said.push(
+      `${did} ${widest.share < widest.comparisonShare ? "less" : "more"} often (${percent(widest.share, locale)} against ${percent(widest.comparisonShare, locale)})`,
+    );
+  }
+
+  const period = periodLabel.toLowerCase();
+  const lead =
+    !compared && medians === 0
+      ? `${group} ended "not interested", ${period}, against ${others}: a comparison needs ${n(reachFloor)} meetings on each side, so none is made.`
+      : said.length === 0
+        ? `The ${group} that ended "not interested" looked much like the ${others}, ${period}: none of the figures below differs from theirs by ${percent(LEAD_GAP, locale)} or more.`
+        : `The ${group} that ended "not interested" ${AND.format(said)} than the ${others}, ${period}. That is what they had in common, not why they ended so.`;
+
   return {
-    cohortLabel: `Ended "not interested" · ${meetings(cohort.length, locale, language)}`,
+    cohortLabel: `Ended "not interested" · ${group}`,
     steps,
     empty: null,
     comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
-    disclaimer:
-      "Each band is the meetings that did everything above it as well, so the bands narrow. Beside each is that behaviour on its own, in this group and in every other recorded meeting. This describes what the group had in common, at the stated sample sizes. It is not evidence that any of these behaviours produced the outcome — buyers who arrive uninterested are also shown less.",
+    disclaimer: `Every figure here sets the meetings that ended "not interested" beside every other meeting of the period with an outcome recorded; a meeting with none recorded is on neither side. Whose they were: each bar is the presenter's part of the group, and beside it how many of their own recorded meetings ended so, a rate only from ${n(AGENT_MIN_SAMPLE)} recorded up. Length is the median, with the middle half of the meetings (the 25th to the 75th percentile). Features opened counts every opening of a showroom section, a return counted again: the showroom records what was opened, not clicks. What they did is each behaviour on its own, in the group and among the others, the widest gap first. A median or a share is stated only where a side has ${n(reachFloor)} meetings. This describes what the group had in common at the stated sample sizes; it is not evidence that any of it produced the outcome — buyers who arrive uninterested are also shown less.`,
+    lead,
+    /* Three cells of "No median" would be a strip of nothing; the lead says why instead. */
+    figures: medians === 0 ? [] : figures,
+    byAgent,
+    reach,
+    reachOf: compared
+      ? `The share of meetings that did each: of the ${group} that ended "not interested", and of the ${others}. Each on its own; the widest gap first.`
+      : `Not compared: a side needs ${n(reachFloor)} meetings, and the group has ${n(cohort.length)} against ${n(rest.length)}.`,
   };
 }
 
@@ -1754,7 +1966,13 @@ export function buildFlowCharts(
     activity: buildActivity(sessions, timeZone),
     composition: buildComposition(sessions, locale, timeZone, monthSpan, context.language),
     trend: buildTrend(sessions, locale, timeZone, span),
-    funnel: buildBehaviourFunnel(sessions, locale, context.language),
+    funnel: buildBehaviourFunnel(
+      sessions,
+      locale,
+      context.language,
+      addressOf(context),
+      context.period.label,
+    ),
     rankedAgents: charts.ranked,
     longestMeetings: buildLongestMeetings(
       sessions,
