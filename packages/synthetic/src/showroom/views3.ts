@@ -1669,7 +1669,16 @@ export function buildProjectView(
       statement: `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of looking time on the unsold stock, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
       baseline: `${percent(lead.stockShare, locale)} of the unsold stock`,
       soWhat: lead.soWhat,
-      nextStep: { label: `Open ${lead.label}`, href: `${base}/project?segment=${lead.id}` },
+      /*
+       * The Project page stands the room types side by side and selects none
+       * (ADR-0056), so "Open Two-room" would reload the page it is on. The act
+       * the finding leads to is the audience of the type's buyers.
+       */
+      nextStep: {
+        label: "Build an audience",
+        href:
+          lead.rooms === null ? `${base}/audience` : `${base}/audience?rooms=${String(lead.rooms)}`,
+      },
       evidence: evidenceRef(
         "project-segment",
         "statistical_association",
