@@ -120,8 +120,22 @@ html:has(.iris-salesflow) {
     font-size: clamp(1.5rem, 0.9rem + 1.2vw, 2.125rem);
   }
 
+  /* The sparkline beside its words where the cell holds both, under them where it does not. */
+  .iris-salesflow #flow-summary .iris-kpi-foot {
+    flex-wrap: wrap;
+    row-gap: 0.75rem;
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi-foot > div:not(.dld-draw) {
+    flex: 1 1 10rem;
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi-foot > .dld-draw {
+    margin-left: auto;
+  }
+
   .iris-salesflow #flow-summary .iris-kpi-foot .iris-spark {
-    width: 8.5rem;
+    width: 8rem;
     height: auto;
   }
 }
