@@ -1401,6 +1401,32 @@ a.iris-evidence:hover {
   color: var(--ink);
 }
 
+/*
+ * On a phone the track spans the column and its segments share each row out
+ * between them. A 999px capsule that wrapped became a lopsided blob with the
+ * selected segment in its top-left corner ("Two agents | Outcome cohorts |
+ * This period vs last" at 390); a rounded block whose rows are filled reads as
+ * one control however many rows it takes, and each segment is a thumb's height.
+ */
+@media (width < 40rem) {
+  .iris-segmented {
+    display: flex;
+    width: 100%;
+    border-radius: 14px;
+  }
+
+  .iris-segmented button,
+  .iris-segmented a {
+    flex: 1 1 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    border-radius: 11px;
+    text-align: center;
+  }
+}
+
 /* --- category rows and the collection card, from the browser 6964:245 ----- */
 
 /*

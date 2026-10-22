@@ -256,3 +256,16 @@ describe("the welcome on a touch screen", () => {
     expect(rule(TOUCH, ".welcome-skip")).toMatch(/min-height:\s*44px/);
   });
 });
+
+describe("a segmented control on a phone", () => {
+  const PHONE = within(sheet("iris.css"), "@media (width < 40rem)");
+
+  it("is a block across the column whose rows its segments share, not a capsule that wraps", () => {
+    const track = rule(PHONE, ".iris-segmented");
+    expect(track).toMatch(/width:\s*100%/);
+    expect(track).toMatch(/border-radius:\s*14px/);
+    const segment = rule(PHONE, ".iris-segmented button,\n  .iris-segmented a");
+    expect(segment).toMatch(/flex:\s*1 1 auto/);
+    expect(segment).toMatch(/min-height:\s*44px/);
+  });
+});
