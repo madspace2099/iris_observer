@@ -203,8 +203,8 @@ export default async function BriefingPage({
          * --- the figures behind the verdict, at the size that reads first.
          * Measured, so: paper. Each says what it is against or out of in view;
          * what it measures is the `i` beside its name, and the clause the
-         * verdict rests on, the sources and the sample are the `i` beside the
-         * title.
+         * verdict rests on and the sample are the `i` beside the title. The
+         * sources stay in view, under the figures.
          */}
         <div className="ox-plate ox-paper">
           <div className="ox-plate-inner">
@@ -213,9 +213,6 @@ export default async function BriefingPage({
                 <h2 className="ox-section-title">The figures behind it</h2>
                 <InfoTip id="figures" label="the figures behind the verdict">
                   <p>{home.because}</p>
-                  <p>
-                    <Sources language={home.context.language} sources={home.sources} />
-                  </p>
                   <p>
                     <Sample n={home.meetingCount} noun="presentations" />
                   </p>
@@ -256,7 +253,13 @@ export default async function BriefingPage({
               })}
             </dl>
 
+            {/*
+             * Which system each figure comes from stays in view (ADR-0052's
+             * one source line; showroom.source_visible): "Progressing" reads
+             * the CRM's deal stages, and nothing else on the plate says so.
+             */}
             <div className="ox-finding-foot">
+              <Sources language={home.context.language} sources={home.sources} />
               <Evidence language={home.context.language} evidence={home.evidence} period={period} />
             </div>
           </div>
@@ -315,12 +318,7 @@ export default async function BriefingPage({
                 {/* How the plan is drawn is the `i`; the counts stay in view. */}
                 <InfoTip id="building" label="the stacking plan">
                   <StackPlanKey peakViews={pulse.peakViews} />
-                  <p>
-                    Every cell opens the unit&rsquo;s own page.
-                    {pulse.totals.soldInPeriod === null
-                      ? " How many were sold in this period is not observed yet."
-                      : null}
-                  </p>
+                  <p>Every cell opens the unit&rsquo;s own page.</p>
                 </InfoTip>
               </div>
             </div>
@@ -328,8 +326,13 @@ export default async function BriefingPage({
             <p className="sheet-line">
               {pulse.totals.units} units · {pulse.totals.available} available ·{" "}
               {pulse.totals.reserved} reserved · {pulse.totals.sold} sold
+              {/*
+               * Under a period's kicker "24 sold" would read as the period's
+               * sales, so where those are not observed the line says so in view:
+               * a refusal, not an explanation.
+               */}
               {pulse.totals.soldInPeriod === null
-                ? null
+                ? "; how many of them in this period is not observed yet"
                 : `, ${pulse.totals.soldInPeriod} of them in this period`}
             </p>
 

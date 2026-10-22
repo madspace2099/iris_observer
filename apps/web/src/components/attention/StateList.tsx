@@ -146,10 +146,10 @@ export function StateList({
             {/*
              * The title, and beside it the `i` that holds the card's
              * provenance (the owner, 2026-10-22, ADR-0058): the tier and what
-             * it claims, the evidence, the sample and the rank, and the
-             * sources in words. The detail sentence carries the state's own
-             * figure and its denominator in view; a state too thin to rank
-             * says so in view, below.
+             * it claims, the evidence, the sample and the rank. The detail
+             * sentence carries the state's own figure and its denominator in
+             * view; the source line and a state too thin to rank stay in
+             * view, below.
              */}
             <div className="sheet-titled">
               <h3 className="ox-alert-title">
@@ -166,9 +166,6 @@ export function StateList({
                   {state.belowMinimum
                     ? null
                     : ` · n = ${state.sampleSize} ${SAMPLE_NOUNS[state.kind]} · Rank ${state.rank} of ${states.length}`}
-                </p>
-                <p>
-                  <Sources language={language} sources={state.sources} />
                 </p>
               </InfoTip>
             </div>
@@ -215,21 +212,26 @@ export function StateList({
               </div>
             )}
 
-            {state.belowMinimum ? (
-              /*
-               * The raw figure and how far short it falls, and no rank beside
-               * it. A state worth naming from eleven observations is still
-               * worth naming; calling it the second most important thing on
-               * the project is the part that is not supported. A refusal, so
-               * it stays in view rather than behind the `i`.
-               */
-              <div className="ox-alert-foot">
+            {/*
+             * Which system the state reads stays in view, as ADR-0052's one
+             * source line does on every surface (showroom.source_visible).
+             */}
+            <div className="ox-alert-foot">
+              <Sources language={language} sources={state.sources} />
+              {state.belowMinimum ? (
+                /*
+                 * The raw figure and how far short it falls, and no rank beside
+                 * it. A state worth naming from eleven observations is still
+                 * worth naming; calling it the second most important thing on
+                 * the project is the part that is not supported. A refusal, so
+                 * it stays in view rather than behind the `i`.
+                 */
                 <span className="ox-shortfall">
                   {state.sampleSize} of {state.minimumSampleSize} {SAMPLE_NOUNS[state.kind]} —
                   stated, not ranked
                 </span>
-              </div>
-            ) : null}
+              ) : null}
+            </div>
           </div>
 
           {/*
