@@ -730,7 +730,7 @@ export default async function FlowPage({
               <p className="iris-meta iris-meta-measured">{noOutcomes}</p>
             ) : (
               <OutcomeRows
-                label="What those meetings became, month by month"
+                label="Month by month, how they ended"
                 rows={charts.composition.columns}
                 keys={charts.composition.keys}
                 keyCounts={teamParts}
