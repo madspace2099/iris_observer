@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { FlowRail } from "@/components/flow/FlowRail";
+import { FlowRail, wheelTarget } from "@/components/flow/FlowRail";
 
 /**
  * SALES FLOW, ONE SCREEN AT A TIME (the owner, 2026-10-22, ADR-0059).
@@ -203,5 +203,36 @@ describe("the rail", () => {
     expect(html).toContain('href="#flow-verdict" aria-label="The verdict"');
     expect(html).toMatch(/href="#flow-verdict"[^>]*aria-current="location"/);
     expect(html).not.toMatch(/href="#flow-summary"[^>]*aria-current/);
+  });
+});
+
+/*
+ * One turn of the wheel, one screen (the owner, 2026-10-22). Three screens of
+ * 771 at 0, 800 and 1600 under a 771 view; then a tall middle screen.
+ */
+describe("Sales Flow's wheel", () => {
+  const tops = [0, 800, 1600];
+  const fit = [771, 771, 771];
+
+  it("goes to the next or the previous screen, and lets the page scroll past the ends", () => {
+    expect(wheelTarget(0, 771, tops, fit, 1)).toBe(1);
+    expect(wheelTarget(800, 771, tops, fit, -1)).toBe(0);
+    expect(wheelTarget(800, 771, tops, fit, 1)).toBe(2);
+    expect(wheelTarget(0, 771, tops, fit, -1)).toBeNull();
+    expect(wheelTarget(1600, 771, tops, fit, 1)).toBeNull();
+  });
+
+  it("reads a screen taller than the view through before it moves on", () => {
+    const tall = [0, 800, 2000];
+    const heights = [771, 1200, 771];
+    expect(wheelTarget(800, 771, tall, heights, 1)).toBeNull();
+    expect(wheelTarget(1229, 771, tall, heights, 1)).toBe(2);
+    expect(wheelTarget(1000, 771, tall, heights, -1)).toBeNull();
+    expect(wheelTarget(800, 771, tall, heights, -1)).toBe(0);
+  });
+
+  it("takes a reader above the first screen to it, and no further up", () => {
+    expect(wheelTarget(0, 771, [120, 900], fit, 1)).toBe(0);
+    expect(wheelTarget(0, 771, [120, 900], fit, -1)).toBeNull();
   });
 });

@@ -185,3 +185,11 @@ proximity at every size: the reader scrolls freely and the page settles on a scr
 stop near one; the screens still fill the viewport, so a screen at rest shows nothing of the next.
 Reduced motion still turns snapping off. `apps/web/test/flow-screens.test.ts` holds that no rule asks
 for mandatory.
+
+Proximity alone pulled a short turn of the wheel back to the screen it started on (measured with
+100px wheel steps on the demo build). So where the screens fit (64rem × 40rem and up) and motion is
+allowed, one turn of the wheel is one screen: `FlowRail` takes the turn, moves to the next or the
+previous screen, and swallows the rest of that gesture, a touchpad's momentum included, until it
+pauses. A screen taller than the view is read through first; before the first screen and past the
+last, an element that can still scroll the way the wheel turns, a phone and reduced motion all keep
+the page's own scrolling. `wheelTarget` is tested in `apps/web/test/flow-screens.test.ts`.
