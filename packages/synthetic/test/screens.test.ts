@@ -303,6 +303,18 @@ describe("getAttention", () => {
     }
   });
 
+  it("tallies the answers it returns, so a screen prints the split without counting", async () => {
+    for (const project of EVERY_PROJECT) {
+      const view = await repo.getAttention(project);
+      for (const state of ["raised", "clear", "unavailable"] as const) {
+        expect(view.tally[state], `${project.projectSlug} ${state}`).toBe(
+          view.checks.filter((c) => c.state === state).length,
+        );
+      }
+      expect(view.tally.raised, project.projectSlug).toBe(view.states.length);
+    }
+  });
+
   it("declares the check it cannot answer instead of dropping it", async () => {
     // Observer holds no ingestion telemetry, and a plausible lag figure would
     // be indistinguishable from a measured one.

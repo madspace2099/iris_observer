@@ -9,6 +9,7 @@ import type {
   AlertItem,
   AlertSeverity,
   AttentionCheck,
+  AttentionCheckState,
   AttentionKind,
   AttentionState,
   AttentionSubject,
@@ -712,7 +713,8 @@ export function buildAttention(
       } satisfies AttentionState;
     });
 
-  const unanswerable = checks.filter((c) => c.state === "unavailable").length;
+  const answered = (state: AttentionCheckState) => checks.filter((c) => c.state === state).length;
+  const unanswerable = answered("unavailable");
 
   return {
     context,
@@ -723,6 +725,7 @@ export function buildAttention(
       const found = checks.find((c) => c.kind === definition.kind);
       return found === undefined ? [] : [found];
     }),
+    tally: { raised: answered("raised"), clear: answered("clear"), unavailable: unanswerable },
     emptyState: `Nothing on ${context.project.name} needs attention in ${context.period.label.toLowerCase()}. ${count(unanswerable, locale)} of ${count(ATTENTION_KIND_DEFINITIONS.length, locale)} checks could not be evaluated, and each says why.`,
     meetingCount: sessions.length,
     evidence: evidenceRef("attention", "observed_sequence", `${root}/overview`, sessions.length),

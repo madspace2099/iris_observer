@@ -871,6 +871,11 @@ export interface AttentionView {
   /** Raised states, ranked. Severity first, then how much they are about. */
   readonly states: readonly AttentionState[];
   readonly checks: readonly AttentionCheck[];
+  /**
+   * How many of `checks` came back in each answer, so a screen can print the
+   * split ("1 raised, 3 clear, 3 not evaluated, of 7") without counting.
+   */
+  readonly tally: Readonly<Record<AttentionCheckState, number>>;
   /** What to say when nothing is raised. Distinguishes quiet from unmeasured. */
   readonly emptyState: string;
   readonly meetingCount: number;
