@@ -159,7 +159,7 @@ export function CoachingChart({
             {rows.map((row) => (
               <li key={row.id} data-named={row.ends === null ? undefined : "true"}>
                 <span className="ag-coach-label">{row.label}</span>
-                {/* The dots repeat the figures named under the row and in the key: pointer detail. */}
+                {/* Pointer detail: the screen reader's summary beside the chart carries every figure. */}
                 <span className="ag-coach-track" aria-hidden="true">
                   {shown.map((p) => {
                     const mark = row.marks.find((m) => m.agentId === p.id);

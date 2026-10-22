@@ -5974,3 +5974,48 @@ with "Needed a month 9.7", then set them back; ask Ask IRIS "Are we on track to 
 `p219-screens` and `a11y-contract`.
 
 **Full unit suite** (after `pnpm release:wrappers`, at `b2be482`): 285 files, 5218 passed, 1 skipped, 2 failed, neither this stream's. `no-secret-recipes` needs a web build (environmental). `artefact-consistency` cannot account for `b872d6e1…` in `docs/release/REVIEW.txt`: the shared object store has outgrown git's 7-character auto-abbreviation, so `git diff 7ac84fa..c16b94f` prints 8-character `index` lines and hashes differently (`-c core.abbrev=7` reproduces it); every worktree on this `.git` fails it, and the one-line fix (`--abbrev=7` in `accountableHashes`, `scripts/release/build-package.ts`) belongs to whoever owns the release scripts.
+
+## 2026-10-22 — Stream AGENTS: the roster by type size, and Coaching as one question (ADR-0057)
+
+Máté's four comments on `/shark/shark-residence/agents`: portraits beside every name and bigger,
+centred rings; cards oversaturated, no hierarchy by size, the same seven outcomes on every card
+with 0 printed; "Across every agent" not understood; Coaching (both lenses) "a complete mess".
+Branch `worktree-wf_eba45ae8-1e4-3`, from `3373a1c`, four commits, not pushed.
+
+- **Roster card, three levels.** Portrait and name at Section size; a 176px ring centred; one
+  headline figure, the progressed rate at Figure size with "progressed · 29 of 36 recorded" under
+  it (`AgentProfile.headline`, `progressedHeadline`); the seven outcomes in ladder order at Body
+  size on every card, 0 where none (`AgentProfile.outcomes`), aligned across the row by subgrid.
+  Length, habit and the floor's sentence behind the card's `i`; a flag stays in sight.
+- **"Was it the buyer's first meeting?"** replaces "Across every agent": plain rows (First,
+  Second, Third meeting, Fourth or later, Buyer not identified), each count and share, the base
+  under the title ("Share of all 150 meetings, quarter to date", `AgentsView.repeatsOf`).
+- **Coaching, one question.** "How do the presenters differ?", the answer in one sentence
+  (`PresenterComparison.headline`: "They differ most in comparing two apartments side by side:
+  Marek Dvořák did it in 76% of 33 meetings, Oliver Grant in 19% of 26 meetings."), one dot-row
+  chart of the parts of the showroom, each agent at the share of their own meetings, the widest gap
+  first, the three widest naming both ends with faces and samples; the key with portraits lifts,
+  hides and opens; under the floor said, not drawn; method, floor and unmeasured parts behind the
+  `i`. The radar lens and `CoachingReading` (`readAgents`, `outcomeSplit`, `behaviourTest`) are
+  retired; the radar stays on the agent's own page. ADR-0057 records why.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; the agent suites
+(`coaching-comparison` 11 new with hand-computed figures, `roster-card` 10, `feature-usage`,
+`agent-charts-floor`, `shark-story`, `coaching-chart`, `agents-floor-claims`, `radar-caption`,
+`agents-denominators`) 83 passed. Full suite (after `pnpm release:wrappers`, from Git Bash): 284
+files, 5185 passed, 1 skipped, 2 failed, both environmental — `no-secret-recipes` (no web build to
+scan) and `artefact-consistency`'s hash accounting: REVIEW cites the sha256 of
+`git diff 7ac84fa..c16b94f` as `b872d6e1…`, and this machine's git 2.55.0 prints a diff that hashes
+to `54f81969…`; this stream touches neither commit, `scripts/release` nor `docs/release`. Static
+renders (`react-dom/server`, the product stylesheets, headless Chromium) of the roster and Coaching at 1440, 390 and 360 on Shark quarter to
+date, Shark last 28 days (one agent at the floor) and Northgate: no sideways scroll, nothing under
+12px but the shared `i` glyph, one key entry a line on a phone. `e2e/p219-screens.spec.ts` and
+`e2e/quality.spec.ts` edited for the new words and classes, not run.
+
+**Left for others.** The `.iris-coach*` rules in `packages/ui/src/charts.css` and the
+`.iris-coach-plot` rules in `design-lab-d.css` are now unused; both files are SHELL's this round, so
+they stay for a later sweep. The design lab still composes its own parallel-plot summary.
+
+**Next recommended action.** On the demo build (after the cherry-pick) open
+`/shark/shark-residence/agents` and `?view=coaching` as Clara at 1440 and on a phone, point at each
+name in the key, open the `i`; run `p219-screens`, `quality` and `a11y-contract` for Sales Agents.
