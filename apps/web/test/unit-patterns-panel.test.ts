@@ -28,6 +28,13 @@ describe("What the most-opened flats share, on Units", () => {
     expect(first).not.toBe("");
     expect(html.indexOf(first)).toBeGreaterThan(-1);
     expect(html.indexOf(sale)).toBeGreaterThan(html.indexOf(first));
+    /* What the sales lines cannot say stands in print beside them, not behind an `i`. */
+    const salesNote = view.salesNote ?? "";
+    expect(salesNote).toMatch(/demonstration CRM/);
+    expect(html.indexOf(salesNote)).toBeGreaterThan(html.indexOf(sale));
+    /* A text section on an ox- page: the page's own section head, and no chart card. */
+    expect(html).toContain('<h2 class="ox-section-title">What the most-opened flats share</h2>');
+    expect(html).not.toContain("d-card");
     for (const flat of view.top) {
       expect(html).toContain(`href="${flat.href}?period=last_28_days"`);
     }

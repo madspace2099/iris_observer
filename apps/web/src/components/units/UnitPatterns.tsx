@@ -1,11 +1,10 @@
 import Link from "next/link";
 import type { PeriodPreset, UnitAttentionPatterns } from "@observer/readmodels";
 
-import { InfoTip } from "@/components/iris/InfoTip";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 
-/** Two columns where the card is wide, one where it is not. */
+/** Two columns where the plane is wide, one where it is not. */
 const COLUMNS = {
   display: "grid",
   gap: "1.25rem 2.5rem",
@@ -20,10 +19,12 @@ const STACK = { display: "grid", gap: ".5rem", alignContent: "start" } as const;
  * aspect, floors, rooms, price — and the list only as its evidence. Every
  * finding is the read model's sentence, printed as it arrives: the causal guard
  * reads the read models, and a finding composed here is one nothing checks.
- * What they share stands first; the spans the flats cover under it, quieter;
- * whether they sold, and the flats themselves as links to their own pages, in
- * the second column. How a tie was ordered and what the comparison cannot say
- * stand behind the `i`.
+ *
+ * A text section on an `ox-` page, so it wears the page's own section head and
+ * no card (`.d-card` is a chart region's). What they share stands first, the
+ * spans the flats cover under it, quieter; whether they sold, what those lines
+ * cannot say, and the flats themselves as links in the second column. What
+ * the comparison cannot say about cause is the section's note.
  */
 export function UnitPatterns({
   view,
@@ -38,26 +39,25 @@ export function UnitPatterns({
       : view.note === null
         ? []
         : [view.note];
-  const about = [view.tieNote, ...view.caveats].filter((c): c is string => c !== null);
   return (
-    <div className="d-card">
-      <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
-        <h2 className="iris-kicker iris-kicker-measured">What the most-opened flats share</h2>
-        {about.length === 0 ? null : (
-          <InfoTip id="unit-patterns" label="what the most-opened flats share">
-            {about.join(" ")}
-          </InfoTip>
-        )}
-      </header>
+    <>
+      <div className="ox-section-head">
+        <h2 className="ox-section-title">What the most-opened flats share</h2>
+        {view.caveats.map((caveat) => (
+          <p key={caveat} className="ox-section-note">
+            {caveat}
+          </p>
+        ))}
+      </div>
       <div style={COLUMNS}>
         <div style={STACK}>
           {lines.map((line) => (
-            <p key={line} className="iris-body">
+            <p key={line} className="ox-lede" style={{ margin: 0 }}>
               {line}
             </p>
           ))}
           {view.ranges.map((line) => (
-            <p key={line} className="iris-meta" style={{ margin: 0 }}>
+            <p key={line} className="ox-section-note">
               {line}
             </p>
           ))}
@@ -65,29 +65,31 @@ export function UnitPatterns({
         {view.top.length === 0 ? null : (
           <div style={STACK}>
             {view.conversion.map((line) => (
-              <p key={line} className="iris-body">
+              <p key={line} className="ox-lede" style={{ margin: 0 }}>
                 {line}
               </p>
             ))}
-            <p className="iris-meta" style={{ margin: ".5rem 0 0" }}>
-              The most-opened flats, with how many of the period&apos;s {view.meetings} meetings
-              opened each
+            {view.salesNote === null ? null : <p className="ox-section-note">{view.salesNote}</p>}
+            <p className="ox-subhead" style={{ marginTop: ".5rem" }}>
+              Most opened, of the period&apos;s {view.meetings} meetings
             </p>
-            <div className="iris-chips">
+            <ul className="ox-chipset">
               {view.top.map((flat) => (
-                <Link
-                  key={flat.unitCode}
-                  className="iris-chip"
-                  href={dynamicRoute(withPeriod(flat.href, period))}
-                  aria-label={`${flat.unitCode}, opened in ${String(flat.meetings)} of ${String(view.meetings)} meetings`}
-                >
-                  {flat.unitCode} <b>{flat.meetings}</b>
-                </Link>
+                <li key={flat.unitCode}>
+                  <Link
+                    className="ox-toggle"
+                    href={dynamicRoute(withPeriod(flat.href, period))}
+                    aria-label={`${flat.unitCode}, opened in ${String(flat.meetings)} of ${String(view.meetings)} meetings`}
+                  >
+                    {flat.unitCode} · {flat.meetings}
+                  </Link>
+                </li>
               ))}
-            </div>
+            </ul>
+            {view.tieNote === null ? null : <p className="ox-section-note">{view.tieNote}</p>}
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }
