@@ -6242,3 +6242,62 @@ open Sales Flow: scroll down and open the menu, pick Year to date, open a KPI `i
 Stalled deals. Then open Ask IRIS (menu, openings), the unit S-503 and Lena's agent page (tiles),
 and Presentation (Compare). Run `fixed-covers-nothing`, `mobile-menu-containment`,
 `nav-reachability`, `project-switching` and `welcome`.
+
+## 2026-10-22 — Stream MOBILE: page-level phone fixes (Sales Flow, registers, Presentation, report)
+
+Máté asked "Check mobile responsiveness!"; three reviewers walked the demo at 390 and 360 and
+measured 21 findings for these pages. Branch `worktree-wf_eba45ae8-1e4-6`, from `3373a1c`, three
+commits, not pushed. No ADR. Every rule is a phone's (`width < 40rem` / `<= 48rem`) or a narrow
+card's (container query), and nearly all are scoped to their page's own class in a page sheet:
+`components/flow/sales-flow.css` (`.iris-salesflow`), `presentation/presentation.css`,
+`audience/audience.css`, `units/[unitCode]/unit.css`, `components/meetings/meetings.css`,
+`components/units/units.css`.
+
+- **Sales Flow.** The summary figures are a list (name and figure on one line, the change on the
+  next; a figure that is a sentence, "7 of 7 sales measured", at body size) instead of 1.6 screens
+  of desktop tiles. "How each agent's meetings end" prints every count once and links each: the
+  team key steps aside where the team row carries the same words and counts, a bar drops the
+  counts its line carries, a presenter's line is one row that scrolls with a fade (2.9 screens
+  before). The lens's keys scroll as two rows; the lens draws at its card's width (a 240 floor
+  scaled its labels to 11px at 360); small bubbles get a 24px target; the ring's and dial's
+  captions land at 12px; the IRIS-led axis thins its labels by drawn width (`axisTicks`); a long
+  action link wraps. The trend's "3 Aug17 Aug" was already fixed by SOURCES (verified).
+- **Registers.** Audience no longer scrolls sideways at 360 (a 336px criteria column), and its
+  five room types are an even grid with the choice in force in view. A phone orders a register
+  with "Order by" above the records (`DataTable`, the head's own sort links); the clipped head
+  leaves the Tab order. Meetings: a record of a few lines, the first twenty drawn and "Show the
+  remaining N meetings" (`?more=1`) for the rest, every row still sent, the wide screen unchanged
+  (the page was 52,522px at 390 on the demo; 5,972px in the static render); S-503's meetings get
+  the same short record and lose the "Started" cell that repeated the title (`ox-col-wide`). "Compact" tightens a phone's record instead of
+  growing it. Building cells 32px tall, column checkboxes 18px in 32px labels, unit codes in a
+  record 24px. A figure and its denominator are one element ("150 of 150" at the right). The
+  glossary's definitions start under their term. The register controls are inset like the
+  caption — the one change a wide screen sees: the register sits 4px lower (the finding's own fix;
+  the desktop was flush against the frame too).
+- **Report on screen.** A long label ("Progressed, of meetings with an outcome") wraps above its
+  value instead of being cut mid-word in a record that scrolled sideways: every report scroller
+  now 270/270 at 360. The print rules are untouched.
+- **Presentation.** "What differs" drops its head's gap cell where the rows drop their bar (Marek's
+  figures stood under "gap"); the DNA lanes wrap so all nine sections are in view (Compare and
+  Shortlist were the hidden half), width still following reach between a floor and a cap; 10px
+  counts are 12px; the three modes are three equal parts of one row.
+
+**Not done here, by ownership.** The "How to read this" summaries' tap height (`Method`, on
+Attention and Project), Project's unit-type switch and the tally labels belong to PAGES, ROOMS and
+SHELL; kickers and the evidence link measure 11px on these pages (SHELL's kicker rule, a shared
+component).
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; new suites
+`sales-flow-phone` (6) and `registers-phone` (12: the order control, twenty records and the
+offer of the rest, every row still sent, the folded row number matching the component, the
+denominator in one element, the comparison head, every page sheet scoped). Static renders
+(react-dom/server, the product stylesheets, headless Chromium) of Sales Flow, IRIS-led, Meetings,
+Units, S-503, Features, Audience, Presentation and the report at 1440, 390 and 360: no sideways
+page scroll at 390 or 360; at 1440 every page pixel-identical to the base except Meetings and
+Units (the 4px inset above). **Not looked at on a running page** (no dev server, build or
+Playwright e2e); no e2e spec asserted changed text.
+
+**Next recommended action.** On the demo build at 390 and 360: Sales Flow top to bottom, Meetings
+("Show the remaining 130 meetings", Compact), Units ("Order by", the building), S-503, Audience at
+360, Presentation (Two agents) and the report's section 04; run `a11y-contract`,
+`layout-integrity`, `p220-table-preferences` and `dontesek1` on the mobile project.
