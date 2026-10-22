@@ -67,7 +67,8 @@ export interface BuildingSpec {
   /**
    * The catalogue was exported after the demonstration CRM's deals: a flat the
    * CRM holds a purchase on reads sold, one it holds a reservation on reads
-   * reserved. Only on screen — the session generator reads the building as it
+   * reserved, and a flat it holds nothing on reads available, whatever the
+   * building's own rule or pin said. Only on screen — the session generator reads the building as it
    * stood before those deals, which is also what keeps this from feeding back
    * into the meetings it is derived from.
    */
@@ -425,9 +426,16 @@ function withCrmStatus(projectId: string, units: readonly RawUnit[]): readonly R
     if (d.stage === "purchase") held.set(d.unitCode, "sold");
     else if (d.stage === "reservation" && !held.has(d.unitCode)) held.set(d.unitCode, "reserved");
   }
+  /*
+   * The CRM is the only source of a status here. The synthetic building's own
+   * sold flats (a pin, the low floors' sold pressure) had no deal behind them,
+   * so the catalogue said 24 sold where the CRM held 19, and the Briefing and
+   * Sold against the plan disagreed on camera (2026-10-22). A flat no deal
+   * holds is available.
+   */
   const out = units.map((u) => {
-    const status = held.get(u.code);
-    return status === undefined || u.status === "sold" ? u : { ...u, status };
+    const status = held.get(u.code) ?? "available";
+    return status === u.status ? u : { ...u, status };
   });
   crmStatused.set(projectId, out);
   return out;
