@@ -224,13 +224,17 @@ describe("one meeting at a time", () => {
     it("names both inputs when no meeting has a recorded place", () => {
       // The live connectors' shape today: `places: []` on every meeting.
       const said = unavailable([meeting("mtg_live", [])], TRANSPORT);
-      expect(said?.missing).toMatch(/UE5 v2 event/);
-      expect(said?.missing).toMatch(/legacy Amenities items mapped to places/);
+      expect(said?.missing).toMatch(
+        /does not record (that for Surroundings|which one was shown) yet/,
+      );
+      expect(said?.missing).toMatch(/Amenities only where its items are mapped to places/);
     });
 
-    it("names the UE5 v2 event when the kind was reached only where nothing is recorded", () => {
+    it("says the showroom does not record it when the kind was reached only where nothing is recorded", () => {
       const said = unavailable([meeting("mtg_tram", [TRAM_STOP]), AMENITY], TRANSPORT);
-      expect(said?.missing).toMatch(/UE5 v2 event/);
+      expect(said?.missing).toMatch(
+        /does not record (that for Surroundings|which one was shown) yet/,
+      );
       expect(said?.missing).not.toMatch(/Amenities/);
     });
 
@@ -246,8 +250,10 @@ describe("one meeting at a time", () => {
       expect(unavailable(MEETINGS, FAMILY)).toBeNull();
       expect(unavailable(MEETINGS, { ...FAMILY, placeCategory: null })).toBeNull();
       const said = unavailable([meeting("mtg_live", [])], { ...FAMILY, placeCategory: null });
-      expect(said?.missing).toMatch(/UE5 v2 event/);
-      expect(said?.missing).toMatch(/legacy Amenities items mapped to places/);
+      expect(said?.missing).toMatch(
+        /does not record (that for Surroundings|which one was shown) yet/,
+      );
+      expect(said?.missing).toMatch(/Amenities only where its items are mapped to places/);
     });
   });
 });

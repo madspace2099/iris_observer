@@ -42,7 +42,6 @@ import type {
   ViewContext,
 } from "@observer/readmodels";
 import {
-  DAYS,
   MEETINGS,
   OUTCOME_WORDS,
   actionWorthTaking,
@@ -73,6 +72,7 @@ import {
   hasUnstatedRooms,
   roomCounts,
   roomLabel,
+  type RawUnit,
 } from "../pulse";
 import {
   AGENT_MIN_SAMPLE,
@@ -318,24 +318,27 @@ function sectionDwell(sessions: readonly ShowroomSession[], sectionId: SectionId
  * no project (the tests hand-place sessions at UTC midnights) keeps its
  * arithmetic literal.
  */
-/** "Last week, first 3 days": a bucket's label where the week is still running. */
+/*
+ * "Last week, first 3 days": a bucket's label where the week is still running.
+ * One day is "first day", never "first 1 day".
+ */
+const FIRST_DAYS = {
+  en: { one: "first day", other: "first {count} days" },
+  sk: { one: "prvý deň", few: "prvé {count} dni", other: "prvých {count} dní" },
+  hu: { one: "első nap", other: "első {count} nap" },
+} as const;
+
 export const VIEWS3_LAST_WEEK_SENTENCE: Sentence = {
-  en: { text: "Last week, first {count} {days|count}", words: { days: DAYS.en } },
-  sk: {
-    text: "Minulý týždeň, {first|count} {count} {days|count}",
-    words: { first: { one: "prvý", few: "prvé", other: "prvých" }, days: DAYS.sk },
-  },
-  hu: { text: "Előző hét, első {count} nap" },
+  en: { text: "Last week, {first|count}", words: { first: FIRST_DAYS.en } },
+  sk: { text: "Minulý týždeň, {first|count}", words: { first: FIRST_DAYS.sk } },
+  hu: { text: "Előző hét, {first|count}", words: { first: FIRST_DAYS.hu } },
 };
 
 /** "Last month, first 24 days". */
 export const VIEWS3_LAST_MONTH_SENTENCE: Sentence = {
-  en: { text: "Last month, first {count} {days|count}", words: { days: DAYS.en } },
-  sk: {
-    text: "Minulý mesiac, {first|count} {count} {days|count}",
-    words: { first: { one: "prvý", few: "prvé", other: "prvých" }, days: DAYS.sk },
-  },
-  hu: { text: "Előző hónap, első {count} nap" },
+  en: { text: "Last month, {first|count}", words: { first: FIRST_DAYS.en } },
+  sk: { text: "Minulý mesiac, {first|count}", words: { first: FIRST_DAYS.sk } },
+  hu: { text: "Előző hónap, {first|count}", words: { first: FIRST_DAYS.hu } },
 };
 
 /** The recency windows by name, in each language a report can be printed in. Slovak and Hungarian are drafts (P2-17). */
@@ -839,7 +842,6 @@ const VERDICT_WORDS: Readonly<Record<Language, VerdictWords>> = {
 
 interface FlowWords {
   readonly teamBaseline: (share: string) => string;
-  readonly periodBaseline: (share: string) => string;
   readonly flagSoWhat: string;
   readonly unrecordedSoWhat: string;
   readonly open: (firstName: string) => string;
@@ -849,31 +851,25 @@ interface FlowWords {
 const FLOW_WORDS: Readonly<Record<Language, FlowWords>> = {
   en: {
     teamBaseline: (share) => `${share} for the team`,
-    periodBaseline: (share) => `${share} of the period`,
     flagSoWhat:
       "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
-    unrecordedSoWhat:
-      "Every comparison that uses outcome silently drops these. The fix is a habit at the end of the meeting, not a change to the data.",
+    unrecordedSoWhat: "Every comparison that uses an outcome leaves these meetings out.",
     open: (firstName) => `Open ${firstName}`,
     seeMeetings: "See the meetings",
   },
   sk: {
     teamBaseline: (share) => `${share} v tíme`,
-    periodBaseline: (share) => `${share} obdobia`,
     flagSoWhat:
       "Ak sa ukáže vzorec v tom, ako sa stretnutia končia, je to dôvod pozrieť sa na ich priebeh: na prezentáciu, tempo aj to, čo sa ukazuje. Nie je to hodnotenie človeka.",
-    unrecordedSoWhat:
-      "Každé porovnanie, ktoré pracuje s výsledkom, ich potichu vynecháva. Riešením je návyk na konci stretnutia, nie zmena údajov.",
+    unrecordedSoWhat: "Každé porovnanie, ktoré pracuje s výsledkom, tieto stretnutia vynecháva.",
     open: (firstName) => `Otvoriť: ${firstName}`,
     seeMeetings: "Zobraziť stretnutia",
   },
   hu: {
     teamBaseline: (share) => `a csapatban ${share}`,
-    periodBaseline: (share) => `az időszak ${share}-a`,
     flagSoWhat:
       "Ha kirajzolódik egy minta abban, hogyan végződnek a találkozók, érdemes megnézni a menetüket: a bemutatót, a tempót és azt, mit mutatnak meg. Ez nem az értékesítő személyének megítélése.",
-    unrecordedSoWhat:
-      "Minden eredményalapú összevetés szó nélkül kihagyja ezeket. A megoldás egy szokás a találkozó végén, nem az adatok módosítása.",
+    unrecordedSoWhat: "Minden eredményalapú összevetés kihagyja ezeket a találkozókat.",
     open: (firstName) => `${firstName} megnyitása`,
     seeMeetings: "A találkozók megtekintése",
   },
@@ -1053,7 +1049,11 @@ export function buildSalesFlow(
     findings.push({
       id: `flow-flag-${flagged[0].agentId}`,
       statement: `${flagged[0].name}: ${flagged[0].flag.text}`,
-      baseline: flowWords.teamBaseline(percent(teamFigure[flagged[0].flag.measure], locale)),
+      /* A progression flag already states the team's figure ("22% against 56% for the team"). */
+      baseline:
+        flagged[0].flag.measure === "progressed"
+          ? null
+          : flowWords.teamBaseline(percent(teamFigure[flagged[0].flag.measure], locale)),
       soWhat: flowWords.flagSoWhat,
       nextStep: {
         label: flowWords.open(flagged[0].name.split(" ")[0] ?? ""),
@@ -1066,7 +1066,8 @@ export function buildSalesFlow(
         flagged[0].flag.sampleSize,
       ),
       sampleSize: flagged[0].flag.sampleSize,
-      sources: [...WITH_OUTCOME],
+      /* Outcomes the agent recorded in the room: the showroom's, not the CRM's deal stages. */
+      sources: [...DERIVED],
       caveat: null,
     });
   }
@@ -1080,7 +1081,8 @@ export function buildSalesFlow(
         from: slovakZForm(sessions.length),
         n: unrecorded,
       }),
-      baseline: flowWords.periodBaseline(percent(share(unrecorded, sessions.length), locale)),
+      /* "19 of 150" is already the share; "13% of the period" beside it said it twice. */
+      baseline: null,
       soWhat: flowWords.unrecordedSoWhat,
       // The meetings it counts, as What needs attention's same state opens them (24e573e).
       nextStep: { label: flowWords.seeMeetings, href: `${base}/meetings?outcome=skipped` },
@@ -1091,7 +1093,7 @@ export function buildSalesFlow(
         unrecorded,
       ),
       sampleSize: sessions.length,
-      sources: [...WITH_OUTCOME],
+      sources: [...DERIVED],
       caveat: null,
     });
   }
@@ -1556,6 +1558,30 @@ function buildSegmentScatter(
   };
 }
 
+/**
+ * The catalogue's available units a search matches now: the same tests the
+ * session generator words its filters with (`sessions.ts`). A field it does
+ * not word keeps the count the session carried.
+ */
+function availableMatching(
+  catalogue: readonly RawUnit[],
+  filter: { readonly field: string; readonly value: string; readonly matches: number },
+): number {
+  const test: ((u: RawUnit) => boolean) | null =
+    filter.field === "rooms"
+      ? (u) => u.rooms === Number(filter.value)
+      : filter.field === "price"
+        ? (u) => u.price !== null && u.price <= Number(filter.value.replace(/[^0-9]/g, ""))
+        : filter.field === "orientation"
+          ? (u) => u.orientation === filter.value
+          : filter.field === "floor"
+            ? (u) => u.floor !== null && u.floor >= Number.parseInt(filter.value, 10)
+            : null;
+  return test === null
+    ? filter.matches
+    : catalogue.filter((u) => u.status === "available" && test(u)).length;
+}
+
 export function buildProjectView(
   context: ViewContext,
   sessions: readonly ShowroomSession[],
@@ -1578,7 +1604,12 @@ export function buildProjectView(
       ? (segments[0] ?? null)
       : (segments.find((s) => s.id === selectedSegmentId) ?? null);
 
-  /* Stated demand. */
+  /*
+   * Stated demand. "Units matching" is counted here against the catalogue as it
+   * stands now, the stock the column's header names ("of 28 available now").
+   * The count a session stored was made against the building at generation,
+   * before the CRM's holds were laid over it, and read 33 under a header of 28.
+   */
   const demandMap = new Map<string, StatedDemand>();
   for (const s of sessions) {
     for (const f of s.filters) {
@@ -1589,7 +1620,7 @@ export function buildProjectView(
         label: filterLabel(f.field),
         value: f.value,
         applications: (existing?.applications ?? 0) + 1,
-        matches: f.matches,
+        matches: existing?.matches ?? availableMatching(catalogue, f),
         availability: "requires_ue5_v2_event",
       });
     }
@@ -1709,8 +1740,7 @@ export function buildProjectView(
       ),
       sampleSize: sessions.length,
       sources: [...OBSERVED],
-      caveat:
-        "Filter state is not emitted by the current showroom build. This is a demonstration of what the UE5 v2 event would answer.",
+      caveat: "The showroom does not record searches yet: these figures are a demonstration.",
     });
   }
 
@@ -1737,7 +1767,7 @@ export function buildProjectView(
       sampleSize: sessions.length,
       sources: [...OBSERVED],
       caveat:
-        "Points of interest in Surroundings need a UE5 v2 event; amenities are recorded at item level today.",
+        "Which place in Surroundings was shown is not recorded yet; amenities are recorded one by one.",
     });
   }
 
@@ -2146,14 +2176,14 @@ function audienceUnavailable(
     return {
       headline: "No list: no meeting in this period has a recorded place.",
       missing:
-        "A place selects a meeting only where its presentation was recorded. That needs either the UE5 v2 event that names which point of interest in Surroundings was presented, or the legacy Amenities items mapped to places.",
+        "A place selects a meeting only where the showroom recorded which place was shown. It does not record that for Surroundings yet, and for Amenities only where its items are mapped to places.",
     };
   }
   if (reached.some((p) => p.availability === "requires_ue5_v2_event")) {
     return {
       headline: "No list: no place of this kind was recorded in this period.",
       missing:
-        "These meetings reached places of this kind, but which one was presented needs the UE5 v2 event that names it. Until that event exists, they select no meeting.",
+        "These meetings reached places of this kind, but the showroom does not record which one was shown yet, so they select no meeting.",
     };
   }
   return null;
@@ -2258,7 +2288,7 @@ export function buildAudience(
       "This selects meetings, not people. A meeting's replay names no contact, and Observer has no page for one: each row names the agent who ran the meeting.",
       // A privacy guarantee, not a product-boundary note: it stays on screen.
       "Time spent on a category of place is a behaviour, not a fact about anyone's household. Family status is never inferred from it.",
-      "Only places whose presentation was recorded count. Which point of interest in Surroundings was presented needs a UE5 v2 event, so Surroundings places select no meeting and appear in no row.",
+      "Only places whose showing was recorded count. The showroom does not record which place in Surroundings was shown yet, so those select no meeting.",
     ],
     evidence: evidenceRef(
       `audience-${criteria.rooms ?? "any"}-${criteria.placeCategory ?? "any"}`,
@@ -2609,7 +2639,8 @@ export function buildHome(
         : {
             text: leading.alert.title,
             href: leading.alert.actionHref,
-            actionLabel: "Look at it",
+            /* The state's own words for its action ("See the meetings"), never a bare "Look at it". */
+            actionLabel: leading.alert.actionLabel ?? "Open what needs attention",
           };
 
   const project = buildProjectView(context, sessions, null);
@@ -2641,10 +2672,11 @@ export function buildHome(
         id: "project",
         label: "Project",
         question: "What do buyers want, and what do they linger on?",
+        /* Both shares with what each is of, as the Project verdict says them; an index ("0.46×") is not a headline. */
         headline:
           lead === undefined
             ? "Segments, filters and places"
-            : `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of attention`,
+            : `${lead.label} units · ${percent(lead.stockShare, locale)} of unsold stock, ${percent(lead.attentionShare, locale)} of looking time`,
         href: `${base}/project`,
       },
       {

@@ -85,7 +85,7 @@ describe("the flagged agent's finding", () => {
     expect(finding?.baseline).toBe("25% for the team");
   });
 
-  it("keeps a progression flag against the team's progression", () => {
+  it("keeps a progression flag against the team's progression, said once", () => {
     // A: 4 of 20 progressed (20%). B: 20 of 20. Team: 24 of 40 = 60%; 20% is under three quarters of it.
     const finding = flagFinding([
       ...times(4, "agent_a", "purchase"),
@@ -94,7 +94,8 @@ describe("the flagged agent's finding", () => {
       ...times(20, "agent_b", "purchase"),
     ]);
     expect(finding?.statement).toMatch(/20% progressed against 60% for the team/);
-    expect(finding?.baseline).toBe("60% for the team");
+    /* The statement already sets it against the team; a baseline repeating "60% for the team" said it twice. */
+    expect(finding?.baseline).toBeNull();
   });
 
   /* EJJEL1: below the 20-meeting floor a comparison with the team is a verdict, and none is drawn. */

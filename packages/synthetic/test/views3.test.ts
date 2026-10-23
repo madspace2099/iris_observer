@@ -100,7 +100,7 @@ describe("bucketBounds — last month clipped like last week already is", () => 
   it("first day of a month: last month is clipped to a single day", () => {
     const bounds = bucketBounds(utc(2027, 4, 1), "UTC", "en"); // 1 May 2027
     const lastMonth = bounds.find((b) => b.id === "last_month");
-    expect(lastMonth?.label).toBe("Last month, first 1 day");
+    expect(lastMonth?.label).toBe("Last month, first day");
     expect(lastMonth?.from).toBe(Date.UTC(2027, 3, 1));
     expect((lastMonth?.to ?? 0) - (lastMonth?.from ?? 0)).toBe(DAY);
   });
