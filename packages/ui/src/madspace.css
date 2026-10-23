@@ -2303,18 +2303,34 @@ button.mad-quiet {
     border-bottom: 0;
   }
 
+  /*
+   * The label keeps the width it needs, up to half the row, and the value
+   * wraps in the rest. With the value column `auto`, a long value ("No
+   * showroom or WEB IRIS connected", "Needs setup: no source connected")
+   * took the row and printed over its label at 360 (review round 8).
+   */
   .mad-table[data-stack] tbody td {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: fit-content(55%) minmax(0, 1fr);
     column-gap: var(--space-3);
     align-items: baseline;
     text-align: right;
     white-space: normal;
   }
 
+  /* A cell with no column of its own (a diagnosis that could not be read) takes the row. */
+  .mad-table[data-stack] tbody td:not([data-label]) {
+    display: block;
+  }
+
   .mad-table[data-stack] tbody td > * {
     grid-column: 2;
     justify-self: end;
+  }
+
+  .mad-table[data-stack] tbody td .mad-chip {
+    white-space: normal;
+    text-align: left;
   }
 
   .mad-table[data-stack] tbody td[data-label]::before {
