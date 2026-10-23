@@ -270,7 +270,7 @@ function toRawInput(messages: readonly ModelMessage[]): RawItem[] {
   return items;
 }
 
-function readUsage(usage: unknown): ModelUsage | null {
+export function readUsage(usage: unknown): ModelUsage | null {
   if (usage === null || typeof usage !== "object") return null;
   const u = usage as Record<string, unknown>;
   const details = (u["output_tokens_details"] ?? {}) as Record<string, unknown>;
@@ -282,7 +282,7 @@ function readUsage(usage: unknown): ModelUsage | null {
   };
 }
 
-function readToolCalls(output: unknown): ModelToolCall[] {
+export function readToolCalls(output: unknown): ModelToolCall[] {
   if (!Array.isArray(output)) return [];
   const calls: ModelToolCall[] = [];
   for (const item of output as RawItem[]) {
@@ -327,7 +327,7 @@ export function readOutputText(response: {
  * the point: a reviewer should be able to read one function and know what
  * leaves the building.
  */
-function buildBody(turn: ModelTurn, model: string): Record<string, unknown> {
+export function buildBody(turn: ModelTurn, model: string): Record<string, unknown> {
   const body: Record<string, unknown> = {
     model,
     instructions: turn.instructions,
@@ -338,13 +338,15 @@ function buildBody(turn: ModelTurn, model: string): Record<string, unknown> {
     // Opaque and stable. Never a user id, an email or a display name.
     safety_identifier: turn.safetyIdentifier,
     max_output_tokens: turn.maxOutputTokens,
-    reasoning: { effort: turn.reasoningEffort },
     // The model answers from Observer evidence and nothing else. No hosted
     // tools, no web search: a model that can search can contradict the figures
     // on the screen with something it read, and the reader cannot tell which is
     // which.
     truncation: "auto",
   };
+
+  /* Only the reasoning families take an effort; any other model refuses the request (ADR-0040). */
+  if (/^(o\d|gpt-5)/.test(model)) body["reasoning"] = { effort: turn.reasoningEffort };
 
   if (turn.tools.length > 0) {
     body["tools"] = turn.tools.map((tool) => ({

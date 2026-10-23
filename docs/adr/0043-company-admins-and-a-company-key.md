@@ -73,3 +73,27 @@ machine.
   audit subject are Clara's. She shares its static tenants and projects only: grants made in
   MADSPACE administration follow the account id, so a project granted to Clara there is not Nora's.
   An account of her own is the fix when that matters.
+
+## Amendment, 2026-10-23: the reader picks the model, and OpenAI is asked through Responses
+
+The first real key exposed three things. Each is now settled:
+
+- **The model is the reader's choice.** Where a demonstration key answers (this ADR, or ADR-0040's
+  owner key), the Ask composer's model menu lists the catalogue's models as buttons. The choice is
+  the `observer_ask_model` cookie on that browser (`lib/ai/model-choice.ts`), set by
+  `chooseAskModel` for a signed-in account and only to a catalogue id. The page names the model from
+  it, and the stream route spends the key on it through `demoGrant`, so the two cannot disagree. A
+  key configured with a model outside the catalogue keeps that model as the first option, which
+  clears the choice. An account's own connection keeps its Settings preferences and never reads the
+  cookie.
+- **OpenAI is asked through the Responses API.** The GPT-5.6 family answers 400 on chat completions
+  to any request that carries function tools and a reasoning effort together, which is every
+  planning and composition turn. `providers/transport.ts` now posts `buildBody`'s request to
+  `/v1/responses` (transport `openai-responses`, catalogue `2026-10-23.1`). The key test, which
+  carries no tools, had passed throughout.
+- **A failure says why, in the log only.** A failed connection test logs its status and the vendor's
+  short code, or for no answer the error's name and system code. A failed turn's message carries the
+  status, the code, and the name of the field the vendor objected to. None of them carries the key or
+  the vendor's sentence. The demo launcher trusts the operating system's certificates
+  (`NODE_USE_SYSTEM_CA=1`), because an HTTPS-inspecting antivirus re-signs api.openai.com with a
+  root that only the Windows store holds.

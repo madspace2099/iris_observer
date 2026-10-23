@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 
 import { sampleWords, toolOfBundle } from "@/lib/ai/sample-units";
@@ -90,6 +90,8 @@ export function AskLiveAnswer({
   readonly nextQuestions: readonly string[];
 }) {
   const session = useObserver(context);
+  /* The notice this question was sent under (keyed by question); a model picked mid-answer answers the next one. */
+  const [requestNotice] = useState(modelNotice);
   const asked = useRef<string | null>(null);
   const { ask } = session;
 
@@ -157,7 +159,7 @@ export function AskLiveAnswer({
               ? `Worded by ${author}, a language model, from figures Observer's read models computed for ${context.projectLabel}, ${periodLabel.toLowerCase()}. Each figure it gives in digits was matched to one the read models returned before it was shown.`
               : /* One line: the pill names the project, the stamp the period (the owner's review, 2026-10-23). */
                 "Composed by Observer's read models. No language model wrote any of this."
-            : (modelNotice ??
+            : (requestNotice ??
               "Answered by Observer's analysis tools from this project's read models. No language model is connected here, so the wording is the read models' own.")}
         </span>
       </p>

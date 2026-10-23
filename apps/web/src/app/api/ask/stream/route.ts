@@ -10,10 +10,10 @@ import {
 } from "@/lib/ai/admission";
 import { admittedHeaders, gate } from "@/lib/ai/gate";
 import { LIMITS } from "@/lib/ai/limits";
+import { askModelCookie, demoGrant } from "@/lib/ai/model-choice";
 import type { ModelGrant } from "@/lib/ai/provider";
 import { companyModelAccess } from "@/lib/credentials/company-keys";
 import { demoModelAccess, loopbackHost } from "@/lib/env";
-import { RECOMMENDED_DEFAULT } from "@/lib/models/catalogue";
 import { publicOutcome, reportOutcome } from "../route";
 
 /**
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
   }
   const access: ModelGrant =
     demo !== null
-      ? { model: RECOMMENDED_DEFAULT, apiKey: demo.apiKey, wireModel: demo.model }
+      ? demoGrant(demo, parseOverride(askModelCookie(request)))
       : admission === null
         ? { blocked: "unavailable" }
         : admission.ok

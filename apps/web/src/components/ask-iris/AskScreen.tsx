@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import type { AskAnswer, AskHistoryView, AskSession, AskThreadSummary } from "@observer/readmodels";
 
+import { chooseAskModel } from "@/lib/ai/model-choice-actions";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { askLink } from "./ask-link";
@@ -262,6 +263,15 @@ function initialsOf(name: string): string {
  * THE FRAME — ground, composer, and whatever hangs beneath.
  * ========================================================================= */
 
+/** The empty form the model buttons submit, outside the composer's GET form. */
+const MODEL_FORM = "ask-model-form";
+
+export interface AskModelChoice {
+  readonly options: readonly { readonly id: string; readonly label: string }[];
+  /** The id that answers now: the reader's choice, else the key's own model. */
+  readonly current: string;
+}
+
 export function AskFrame({
   root,
   periodParam,
@@ -275,8 +285,14 @@ export function AskFrame({
   otherProjects,
   modelNotice = null,
   keyNote = null,
+  modelChoice = null,
   children,
 }: {
+  /**
+   * The catalogue's models, where a demonstration key answers and the reader
+   * may pick which of them (ADR-0043). Null everywhere else.
+   */
+  readonly modelChoice?: AskModelChoice | null;
   /**
    * The sentence that says a language model may word a typed question, shown
    * at the prompt box before the first question is sent (Gate 1). Null when no
@@ -383,10 +399,11 @@ export function AskFrame({
 
                   {/*
                    * `tabIndex={0}`: this box is `.ask-model-menu`'s own
-                   * `overflow-y: auto` scroller (§ `ask-iris.css`), and every
-                   * option inside it is inert — `aria-current`/`aria-disabled`
-                   * spans, never a button or a link, because no model this
-                   * account holds is yet used to answer here. A scrollable
+                   * `overflow-y: auto` scroller (§ `ask-iris.css`), and unless a
+                   * demonstration key answers, every option inside it is
+                   * inert — `aria-current`/`aria-disabled` spans, never a
+                   * button or a link, because no model this account holds is
+                   * yet used to answer here. A scrollable
                    * region with nothing focusable inside it is otherwise
                    * unreachable by keyboard, which is exactly what axe's
                    * `scrollable-region-focusable` catches.
@@ -405,17 +422,61 @@ export function AskFrame({
                      * and all, on the phone sheet below.
                      */}
                     <div className="ask-menu-scroll">
+                      {/*
+                       * THE ONE PLACE A MODEL IS CHOSEN HERE: a demonstration
+                       * key answers, and the catalogue's models are buttons
+                       * that set this browser's choice (`chooseAskModel`).
+                       * First in the menu, above the notes, so the choice is in
+                       * view without scrolling the 112px box.
+                       *
+                       * They submit `#ask-model-form`, the empty form after
+                       * this one, not the composer: a function `formAction`
+                       * on the button would make React drop its name and
+                       * value, reset the composer and its unsent question, and
+                       * make Luna the composer's default button for Enter.
+                       */}
+                      {modelChoice === null ? null : (
+                        <div role="group" aria-label="Model">
+                          {modelChoice.options.map((option) => {
+                            const current = option.id === modelChoice.current;
+                            return (
+                              <button
+                                key={option.id}
+                                type="submit"
+                                form={MODEL_FORM}
+                                className="ask-model-option ask-model-choice"
+                                name="model"
+                                value={option.id}
+                                aria-pressed={current}
+                              >
+                                <span>{option.label}</span>
+                                {current ? (
+                                  <span className="ask-model-dot" aria-hidden="true" />
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      {modelChoice === null ? null : (
+                        <p className="ask-menu-note">
+                          Luna is the fastest, Terra balanced, Sol the deepest and dearest. The
+                          choice is kept on this browser and answers from the next question.
+                        </p>
+                      )}
                       <p className="ask-menu-note">
                         {modelNotice === null
                           ? "Answers here are composed by Observer’s own read models, not written by a language model."
                           : `${modelNotice} The other openings are answered in the read models’ own words.`}
                       </p>
                       {keyNote === null ? null : <p className="ask-menu-note">{keyNote}</p>}
-                      <span className="ask-model-option" aria-current="true">
-                        <span>{composerLabel}</span>
-                        <span className="ask-model-dot" aria-hidden="true" />
-                      </span>
-                      {models.length === 0 ? (
+                      {modelChoice !== null ? null : (
+                        <span className="ask-model-option" aria-current="true">
+                          <span>{composerLabel}</span>
+                          <span className="ask-model-dot" aria-hidden="true" />
+                        </span>
+                      )}
+                      {modelChoice !== null ? null : models.length === 0 ? (
                         <p className="ask-menu-note">
                           This account holds no model connection, so there is nothing else to
                           choose. One is added in Settings.
@@ -651,6 +712,7 @@ export function AskFrame({
               </div>
             </div>
           </form>
+          {modelChoice === null ? null : <form id={MODEL_FORM} action={chooseAskModel} hidden />}
         </div>
 
         {/*

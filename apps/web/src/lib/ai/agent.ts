@@ -1284,10 +1284,17 @@ export async function* askStream(
    * question nobody asked in order to avoid saying no.
    */
   if (run.results.length === 0 && run.rejected.length > 0 && !run.forbidden) {
-    run = await runTools(
+    /*
+     * The model's own calls keep their "rejected" outputs: the composition turn
+     * replays every call, and the Responses API refuses a function_call with no
+     * output. Router calls carry no callId, so they add none of their own.
+     */
+    const answered = run.outputs;
+    const routed = await runTools(
       routeQuestion(trimmed, context).map((c) => ({ ...c })),
       context,
     );
+    run = { ...routed, outputs: [...answered, ...routed.outputs] };
   }
 
   for (const result of run.results) yield { type: "tool", name: result.tool };

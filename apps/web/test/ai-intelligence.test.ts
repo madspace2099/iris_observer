@@ -262,6 +262,29 @@ describe("a model that misbehaves", () => {
     expect(outcome.toolsUsed.length).toBeGreaterThan(0);
   });
 
+  it("answers every call it replays, when the router stands in for rejected ones", async () => {
+    /*
+     * The composition turn replays the planning calls, and the Responses API
+     * refuses a function_call with no output (2026-10-23). The router's own
+     * calls carry no callId, so the model's rejected ones must keep theirs.
+     */
+    const model = useModel([
+      { toolCalls: [{ name: "run_sql", argumentsJson: "{}", callId: "call_bad" }] },
+      { text: composed() },
+    ]);
+    await ask("Summarise the period.", CONTEXT, grant());
+
+    const composition = model.seen[1];
+    const called = composition?.messages.flatMap((m) =>
+      m.role === "assistant_tool_calls" ? m.calls.map((c) => c.callId) : [],
+    );
+    const answered = composition?.messages.flatMap((m) =>
+      m.role === "tool_result" ? [m.callId] : [],
+    );
+    expect(called).toEqual(["call_bad"]);
+    expect(answered).toContain("call_bad");
+  });
+
   it("discards tool arguments that do not match the schema", async () => {
     /*
      * The tool still runs, and that is correct.

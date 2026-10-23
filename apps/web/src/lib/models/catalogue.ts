@@ -41,7 +41,7 @@
  */
 
 /** Bumped whenever any price, endpoint or model in this file changes. */
-export const CATALOGUE_VERSION = "2026-08-31.1";
+export const CATALOGUE_VERSION = "2026-10-23.1";
 
 /* The catalogue, its prices and their provenance: ADR-0031. */
 
@@ -103,7 +103,7 @@ export type ProviderId = "openai";
  * One shape today. Named rather than assumed so a second vendor with a
  * different request shape has somewhere to declare itself.
  */
-export type Transport = "openai-compatible";
+export type Transport = "openai-responses";
 
 export interface Provider {
   readonly id: ProviderId;
@@ -123,7 +123,7 @@ export const PROVIDERS: readonly Provider[] = Object.freeze([
   {
     id: "openai",
     label: "OpenAI",
-    transport: "openai-compatible",
+    transport: "openai-responses",
     baseUrl: "https://api.openai.com/v1",
     consoleUrl: "https://platform.openai.com/api-keys",
     pricingUrl: PRICE_SOURCE_URL,

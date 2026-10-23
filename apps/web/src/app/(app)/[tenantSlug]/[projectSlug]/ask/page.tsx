@@ -1,15 +1,16 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { currentAccount, requireViewer } from "@/lib/session";
-import { connectedProviders } from "@/lib/ai/admission";
+import { connectedProviders, parseOverride } from "@/lib/ai/admission";
+import { ASK_MODEL_COOKIE, demoModelNamed } from "@/lib/ai/model-choice";
 import { companyKeyState, companyModelName } from "@/lib/credentials/company-keys";
 import { demoModelName, environment, loopbackHost } from "@/lib/env";
-import { modelsForProviders } from "@/lib/models/catalogue";
+import { CATALOGUE, modelsForProviders } from "@/lib/models/catalogue";
 import { findAnswer } from "@/components/ask/questions";
 import {
   AskConversationPanel,
@@ -163,6 +164,8 @@ export default async function AskPage({
    * the stream route would spend it, and says in one line when a company's key
    * is missing or cannot be spent here (ADR-0043).
    */
+  const chosen = parseOverride((await cookies()).get(ASK_MODEL_COOKIE)?.value);
+  const companyWire = account === null ? null : companyModelName(account.accountId);
   const {
     model: demoModel,
     modelNotice,
@@ -170,11 +173,29 @@ export default async function AskPage({
   } = composerNotices({
     aiEnabled: environment().ai.enabled,
     local: loopbackHost((await headers()).get("host")),
-    companyModel: account === null ? null : companyModelName(account.accountId),
-    demoModel: demoModelName(),
+    companyModel: demoModelNamed(companyWire, chosen),
+    demoModel: demoModelNamed(demoModelName(), chosen),
     connected: connected.length > 0,
     company: account === null ? null : companyKeyState(account),
   });
+
+  /*
+   * Where a demonstration key answers, the reader picks among the catalogue's
+   * models. A key configured with a model outside the catalogue keeps it as the
+   * first option, whose empty value clears the choice.
+   */
+  const ownWire = companyWire ?? demoModelName();
+  const ownEntry = CATALOGUE.find((entry) => entry.apiIdentifier === ownWire);
+  const modelChoice =
+    demoModel === null || ownWire === null
+      ? null
+      : {
+          options: [
+            ...(ownEntry === undefined ? [{ id: "", label: ownWire }] : []),
+            ...CATALOGUE.map(({ id, label }) => ({ id, label })),
+          ],
+          current: chosen ?? ownEntry?.id ?? "",
+        };
 
   const scope = parseAskScope(first(search, "scope"), every(search, "with"));
   const otherProjects = await otherProjectsFor(viewer, tenant.id, project.id);
@@ -193,6 +214,7 @@ export default async function AskPage({
       otherProjects={otherProjects}
       modelNotice={modelNotice}
       keyNote={keyNote}
+      modelChoice={modelChoice}
     >
       {demo === "thinking" ? (
         <AskThinkingPanel

@@ -2,7 +2,11 @@ import "server-only";
 
 import { LIMITS } from "@/lib/ai/limits";
 import {
+  buildBody,
   ModelConfigurationError,
+  readOutputText,
+  readToolCalls,
+  readUsage,
   type ModelToolCall,
   type ModelTurn,
   type ModelTurnResult,
@@ -52,6 +56,7 @@ import type { EnvSource } from "@/lib/supabase-env";
 export interface Usage {
   readonly inputTokens: number;
   readonly outputTokens: number;
+  readonly reasoningTokens: number | null;
 }
 
 export interface TransportResult {
@@ -59,14 +64,25 @@ export interface TransportResult {
   readonly toolCalls: readonly ModelToolCall[];
   readonly usage: Usage;
   readonly model: string;
+  /** The reply stopped at the output ceiling: a 200 whose status is "incomplete". */
+  readonly truncated: boolean;
 }
 
-/** A vendor failure, reduced to the two fields the classifier reads. */
+/**
+ * A vendor failure, reduced to the two fields the classifier reads.
+ *
+ * The message adds the vendor's short code and the name of the field it
+ * objected to, for the server log: both come from the vendor's closed
+ * vocabulary and the request's own field names, never from its content. Two
+ * 400s with nothing but a status cost a round trip to the owner (2026-10-23).
+ */
 export class TransportFailure extends Error {
   readonly status: number;
   readonly code: string | null;
-  constructor(status: number, code: string | null) {
-    super(`provider request failed with status ${status}`);
+  constructor(status: number, code: string | null, param: string | null = null) {
+    super(
+      `provider request failed with status ${status}${code === null ? "" : ` · ${code}`}${param === null ? "" : ` · ${param}`}`,
+    );
     this.name = "TransportFailure";
     this.status = status;
     this.code = code;
@@ -83,145 +99,77 @@ export class TransportFailure extends Error {
  */
 async function failureFrom(response: Response): Promise<TransportFailure> {
   let code: string | null = null;
+  let param: string | null = null;
+  const short = (value: unknown): string | null =>
+    typeof value === "string" && /^[\w.[\]-]{1,63}$/.test(value) ? value : null;
   try {
     const body: unknown = await response.json();
-    const error = (body as { error?: { code?: unknown; type?: unknown } } | null)?.error;
+    const error = (body as { error?: { code?: unknown; type?: unknown; param?: unknown } } | null)
+      ?.error;
     const raw = error?.code ?? error?.type;
     if (typeof raw === "string" && raw.length > 0 && raw.length < 64) code = raw;
+    param = short(error?.param);
   } catch {
     /* A body that is not JSON tells us nothing, and that is fine. */
   }
-  return new TransportFailure(response.status, code);
+  return new TransportFailure(response.status, code, param);
 }
 
 function deadline(turn: ModelTurn): AbortSignal {
   return turn.signal ?? AbortSignal.timeout(LIMITS.requestTimeoutMs);
 }
 
-/* ====================================================== the OpenAI-compatible one */
+/* ============================================================ the OpenAI one */
 
-type ChatMessage = Record<string, unknown>;
-
-function chatMessages(turn: ModelTurn): ChatMessage[] {
-  const messages: ChatMessage[] = [];
-  if (turn.instructions.length > 0) {
-    messages.push({ role: "system", content: turn.instructions });
-  }
-
-  for (const message of turn.messages) {
-    switch (message.role) {
-      case "user":
-      case "assistant":
-        messages.push({ role: message.role, content: message.content });
-        break;
-      case "assistant_tool_calls":
-        messages.push({
-          role: "assistant",
-          content: null,
-          tool_calls: message.calls.map((call) => ({
-            id: call.callId,
-            type: "function",
-            function: { name: call.name, arguments: call.argumentsJson },
-          })),
-        });
-        break;
-      case "tool_result":
-        messages.push({
-          role: "tool",
-          tool_call_id: message.callId,
-          content: message.output,
-        });
-        break;
-    }
-  }
-  return messages;
-}
-
-async function openAiCompatible(
+/**
+ * OPENAI, THROUGH THE RESPONSES API.
+ *
+ * It spoke chat completions until 2026-10-23, when the first real key reached
+ * a planning turn: the GPT-5.6 family answers 400 on chat completions to any
+ * request that carries function tools and a reasoning effort together, and
+ * points at /v1/responses. A key test passed, because the probe carries no
+ * tools; every question then fell back to the read models' own words.
+ *
+ * The body is `buildBody`'s, the one `provider.ts` already wrote and reviewed
+ * for this API — `store: false`, the opaque safety identifier, the effort, the
+ * tools declared even when forbidden, the schema as `text.format` — so there is
+ * one description of what leaves the building, not two. The reply is read with
+ * the same readers.
+ */
+async function openAiResponses(
   baseUrl: string,
   apiKey: string,
   model: string,
   turn: ModelTurn,
 ): Promise<TransportResult> {
-  const body: Record<string, unknown> = {
-    model,
-    messages: chatMessages(turn),
-    /*
-     * `max_completion_tokens`, not `max_tokens`: the current OpenAI chat models
-     * refuse the older name outright, and on a reasoning model this ceiling
-     * covers its reasoning as well as its words.
-     */
-    max_completion_tokens: turn.maxOutputTokens,
-  };
-
-  /*
-   * The effort the turn asked for, where the model takes one. Only the
-   * reasoning families accept the field; any other model refuses the request
-   * if it is sent, so it is sent only to those.
-   */
-  if (/^(o\d|gpt-5)/.test(model)) body["reasoning_effort"] = turn.reasoningEffort;
-
-  if (turn.tools.length > 0) {
-    body["tools"] = turn.tools.map((tool) => ({
-      type: "function",
-      function: { name: tool.name, description: tool.description, parameters: tool.parameters },
-    }));
-    body["tool_choice"] = turn.toolChoice === "none" ? "none" : "auto";
-  }
-
-  if (turn.responseSchema !== null) {
-    body["response_format"] = {
-      type: "json_schema",
-      json_schema: {
-        name: turn.responseSchema.name,
-        schema: turn.responseSchema.schema,
-        strict: false,
-      },
-    };
-  }
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
+  const response = await fetch(`${baseUrl}/responses`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    body: JSON.stringify(buildBody(turn, model)),
     signal: deadline(turn),
   });
 
   if (!response.ok) throw await failureFrom(response);
 
   const parsed = (await response.json()) as {
-    choices?: {
-      message?: {
-        content?: unknown;
-        tool_calls?: { id?: unknown; function?: { name?: unknown; arguments?: unknown } }[];
-      };
-    }[];
-    usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+    output_text?: string;
+    output?: unknown;
+    usage?: unknown;
     model?: unknown;
+    incomplete_details?: { reason?: unknown } | null;
   };
-
-  const message = parsed.choices?.[0]?.message;
-  const toolCalls: ModelToolCall[] = (message?.tool_calls ?? []).flatMap((call) => {
-    const name = call.function?.name;
-    if (typeof name !== "string") return [];
-    return [
-      {
-        callId: typeof call.id === "string" ? call.id : name,
-        name,
-        argumentsJson:
-          typeof call.function?.arguments === "string" ? call.function.arguments : "{}",
-      },
-    ];
-  });
+  const usage = readUsage(parsed.usage);
 
   return {
-    text: typeof message?.content === "string" ? message.content : "",
-    toolCalls,
+    text: readOutputText(parsed),
+    toolCalls: readToolCalls(parsed.output),
     usage: {
-      inputTokens: Number(parsed.usage?.prompt_tokens ?? 0),
-      outputTokens: Number(parsed.usage?.completion_tokens ?? 0),
+      inputTokens: usage?.inputTokens ?? 0,
+      outputTokens: usage?.outputTokens ?? 0,
+      reasoningTokens: usage?.reasoningTokens ?? null,
     },
     model: typeof parsed.model === "string" ? parsed.model : model,
+    truncated: parsed.incomplete_details?.reason === "max_output_tokens",
   };
 }
 
@@ -261,8 +209,8 @@ export async function callModel(
    * being spoken instead of assuming.
    */
   switch (provider.transport) {
-    case "openai-compatible":
-      return openAiCompatible(provider.baseUrl, apiKey, apiIdentifier, turn);
+    case "openai-responses":
+      return openAiResponses(provider.baseUrl, apiKey, apiIdentifier, turn);
   }
 }
 
@@ -305,10 +253,10 @@ export function modelFor(
     usage: {
       inputTokens: transport.usage.inputTokens,
       outputTokens: transport.usage.outputTokens,
-      reasoningTokens: null,
+      reasoningTokens: transport.usage.reasoningTokens,
     },
     model: transport.model,
-    truncated: false,
+    truncated: transport.truncated,
   });
 
   return {

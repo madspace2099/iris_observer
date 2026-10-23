@@ -600,6 +600,16 @@
   box-shadow: 0 0 7px rgb(43 180 255 / 80%);
 }
 
+/* The catalogue's models as buttons, where a demonstration key answers. */
+.ask-model-choice:focus-visible {
+  outline: 2px solid var(--ask-accent);
+  outline-offset: -2px;
+}
+
+.ask-model-choice[aria-pressed="true"] {
+  color: #ffffff;
+}
+
 /* --- which project(s) a question is asked against ------------------------ */
 
 /*
