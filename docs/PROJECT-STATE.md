@@ -7133,6 +7133,16 @@ and the svg at 100%) and `RoomTypes.tsx` in `Lines`' measurement only; everythin
 page and the new sheet. `PROJECT-STATE.md` will conflict with the parallel streams: keep both
 sections.
 
+**Review round 1.** Both findings confirmed on static renders of `7c842a2a`: between 761 and
+879px tall (1280×800, 1366×768, 1440×810, 1536×864) and at 1199×800, interest against sales, the
+searches, the findings and flat types ran 8–75px past the view, so a wheel turn scrolled ~100px
+instead of a screen. Fixed in `project-screens.css`: the flat-types and readings cards are their
+screen's height and their rows and the interest line grow into what is left (the line's drawing out
+of the flow, so `Lines` measures the box; never under 196px) instead of the screen less 21rem or
+26rem; the short-window tightening holds under 900px tall, not 760px. Every Shark and Northgate
+screen now fits from 720 to 1080px tall at 1280–1920px wide; Riverside's search reads through only at
+1280×720–740; phones unchanged. `project-screens` gains the fill test (fails on the old sheet).
+
 **Next recommended action.** Cherry-pick, build, and walk `/shark/shark-residence/project` as
 Clara at 1440×900 and 1280×720 with motion on: one wheel turn per screen, each chart drawing in
 as its screen arrives, the room-type window chips switching in place, the interest line at the
