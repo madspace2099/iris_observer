@@ -124,19 +124,18 @@ export default async function IrisLedPage({
             ) : (
               <div className="d-card">
                 {/*
-                 * What the figures leave out and the Sales Flow card's other
-                 * frame stand behind the title's `i`, one press from the figures
-                 * they qualify; each figure's own denominator stays under it.
+                 * The Sales Flow card's other frame stands behind the title's
+                 * `i`, one press from the figures it qualifies; what the figures
+                 * leave out is printed under them, as the read model's contract
+                 * says (review, round 9), and each figure's denominator under it.
                  */}
                 <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
                   <h2 className="iris-kicker iris-kicker-measured">
                     {view.context.period.label}: the sales against their showings
                   </h2>
-                  {view.unplacedNote === null && view.frameNote === null ? null : (
+                  {view.frameNote === null ? null : (
                     <InfoTip id="led-figures" label="these figures">
-                      {[view.unplacedNote, view.frameNote].map((note) =>
-                        note === null ? null : <p key={note}>{note}</p>,
-                      )}
+                      {view.frameNote}
                     </InfoTip>
                   )}
                 </header>
@@ -152,6 +151,11 @@ export default async function IrisLedPage({
                     />
                   ))}
                 </div>
+                {view.unplacedNote === null ? null : (
+                  <p className="iris-meta iris-meta-measured" style={{ marginTop: ".75rem" }}>
+                    {view.unplacedNote}
+                  </p>
+                )}
               </div>
             )}
 
@@ -274,24 +278,27 @@ export default async function IrisLedPage({
              * The sales the showroom never showed, and where every sale here was
              * read, are one card (review, 2026-10-23): two cards closed the page
              * with the same thirty-word sentence on the demonstration CRM. With
-             * sales, the never-shown note says it and the reading note stands
-             * behind the title's `i`; with none, the reading note is the card.
+             * a sale never shown, the never-shown note says it and the reading
+             * note stands behind the title's `i`. With none, the headline's
+             * "N of N" already says every sale was shown, and the reading note
+             * is the card: the two notes end on the same sentence, so one card
+             * printed it twice, once in view and once behind its `i` (round 9).
              */}
             <div className="d-card">
               <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
                 <h2 className="iris-kicker iris-kicker-measured">
-                  {view.counts.sales === 0
+                  {view.neverShown.length === 0
                     ? "Where these sales were read"
                     : "Sales the showroom never showed"}
                 </h2>
-                {view.counts.sales === 0 ? null : (
+                {view.neverShown.length === 0 ? null : (
                   <InfoTip id="led-read" label="where these sales were read">
                     {view.source.note}
                   </InfoTip>
                 )}
               </header>
               <p className="iris-meta iris-meta-measured" style={{ marginBottom: ".75rem" }}>
-                {view.counts.sales === 0 ? view.source.note : view.neverShownNote}
+                {view.neverShown.length === 0 ? view.source.note : view.neverShownNote}
               </p>
               {view.neverShown.length === 0 ? null : (
                 <ul className="ir-led-never">
