@@ -68,6 +68,17 @@ export default async function Projects() {
     projects.map((project) => ({ tenant, project })),
   );
 
+  /*
+   * One project is no choice: it opens, as signing in does. A chooser of one
+   * row was a mostly empty frame, reached from settings' "Projects" link
+   * (review round 8). An administrator keeps the page, which carries "New
+   * project".
+   */
+  const [only] = cards;
+  if (cards.length === 1 && only !== undefined && viewer.role !== "madspace_admin") {
+    redirect(dynamicRoute(`/${only.tenant.slug}/${only.project.slug}/${HOME_SEGMENT}`));
+  }
+
   async function signOut(): Promise<void> {
     "use server";
     const store = await cookies();
