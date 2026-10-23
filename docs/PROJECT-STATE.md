@@ -7094,3 +7094,47 @@ new static render.
 
 **Next.** Cherry-pick with R9 PAGES and SHARED, build, warm every URL, and look at Sales Flow, the
 Briefing, Units and IRIS-led at 1440×900 on the running build before recording.
+
+## 2026-10-23 — Stream PROJECT-SCREENS: Project, one screen at a time (ADR-0063)
+
+Máté, before recording the marketing video: the Project page was not rebuilt like Sales Flow and
+Sales Agents, where every panel fills the whole screen. Branch `r9-project-screens`, from
+`acce16ba`, not pushed.
+
+- **Eight screens**, each a `.screen` under `.iris-screens` with the shared `ScreenRail` after
+  them ("Project screens", keyed on the period): the verdict with Presentation DNA, Report and the
+  export; sold against the plan; flat types; interest against sales; the room types side by side;
+  the searches beside the kinds of place with the named places under both; how far the
+  presentations got; the findings. The rules between blocks are gone. Without a catalogue the
+  "no unit catalogue" sentence closes the plan's screen and the three room-type screens drop out.
+- **Each drawing sized to its screen** in `components/project/project-screens.css` (scoped to
+  `.pr-page` and the screen ids; `plan.css` and `rooms.css` untouched but for `.pr-lines`): the
+  plan's figures, stock bar and track; the type rows spread with the interest line the screen's
+  height (`Lines` now draws at its box's height, 196px unless raised, never under); the readings'
+  and the comparison's rows spread with thicker bars; the path's bands up to 64px. A short
+  desktop window tightens padding and rows. Controls, `i`s, denominators, refusals, the window
+  chips (still client state) and the plan editor are unchanged; the page's only `Link`s are the
+  two action pills ADR-0062 kept.
+- **Measured** on static renders (real Shell, product stylesheets, the line drawn at its measured
+  box, headless Chromium): every Shark screen fits 1440×900 (largest 767 of 771) and 1280×720
+  (largest 591 of 591; the plan with the editor's line 575), Northgate fits both, Riverside's
+  search screen is 629 of 591 at 1280×720 (four rows of place names) and is read through; phones
+  stack and read through; no sideways scroll and no new text under 12px at 1440×900, 1280×720,
+  390×844 and 360×780. **Not looked at on a running page.**
+
+**Verified.** `pnpm -s typecheck` clean; eslint and prettier clean on the changed files;
+`project-screens` (new, 10), `agents-screens`, `flow-screens`, `project-page-figures`,
+`entrances-and-prefetch` green. Full unit suite (after `pnpm release:wrappers`, on the committed
+page change): 298 files, 5438 passed, 1 skipped, 1 failed — `no-secret-recipes`, which needs a
+web build (environmental).
+
+**Merging with r9 PAGES.** This stream touches `rooms.css` in one rule (`.pr-lines`: its height,
+and the svg at 100%) and `RoomTypes.tsx` in `Lines`' measurement only; everything else is the
+page and the new sheet. `PROJECT-STATE.md` will conflict with the parallel streams: keep both
+sections.
+
+**Next recommended action.** Cherry-pick, build, and walk `/shark/shark-residence/project` as
+Clara at 1440×900 and 1280×720 with motion on: one wheel turn per screen, each chart drawing in
+as its screen arrives, the room-type window chips switching in place, the interest line at the
+screen's height; then 390×844. Run `a11y-contract` (Project), `project-denominators`,
+`nav-reachability` and `p219-screens`.
