@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  FOLLOW_UP_LABELS,
   NOT_STATED,
   NotFoundError,
   NotPermittedError,
@@ -18,7 +19,8 @@ import { repository } from "@/lib/repository";
 import { maySeeSurface } from "@/lib/routes";
 import { portraitSources } from "@/lib/portraits/server";
 import { AgentName, AgentPortrait } from "@/components/agents/Portrait";
-import { MEETINGS_NOT_OPENABLE } from "@/components/meetings";
+import { Chip, FOLLOW_UP_TONES, MEETINGS_NOT_OPENABLE, OUTCOME_TONES } from "@/components/meetings";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { requireViewer } from "@/lib/session";
 import { TrendLine } from "@/showroom/charts2";
 import { DrawIn } from "@/showroom/DrawIn";
@@ -49,6 +51,9 @@ import {
   type RegisterSearch,
 } from "@/components/units";
 import "./unit.css";
+/* `.sheet-titled`: a title and the `i` after its last word, as the answer sheets draw it. */
+import "@/components/sheet/sheet.css";
+import "@/components/units/titled.css";
 
 export const metadata: Metadata = { title: "Unit" };
 
@@ -165,28 +170,43 @@ export default async function UnitPage({
   ]);
 
   /*
-   * The stages no source can answer, stated once each above the funnel.
-   *
-   * `Figure` draws the terse missing mark inside the stage; the reason belongs
-   * to the region, which is the defect `docs/12-visual-autopsy.md` recorded —
-   * four panels in one viewport each repeating "the CRM is not connected". Two
-   * bands at most, and only where the two reasons genuinely differ: the offer
-   * stage is unanswerable on every project, the follow-up stage only where no
-   * CRM is connected.
+   * A stage no source can answer says so in its own row ("No source in this
+   * product records an offer…", "Unavailable · no source"). A band above the
+   * funnel said it a second time, in the read model's engineering words with
+   * an ADR number on camera (Máté's video review, 2026-10-23), so there is none.
    */
-  const unanswerable = detail.funnel.filter((stage) => stage.verification === "unavailable");
 
-  const timelineSteps: readonly TimelineStep[] = detail.timeline.map((entry) => ({
-    id: entry.id,
-    when: entry.atDisplay,
-    label: entry.label,
-    detail:
-      entry.detail === null
-        ? `${entry.channelLabel} · ${entry.agentName}`
-        : `${entry.detail} · ${entry.channelLabel} · ${entry.agentName}`,
-    channel: entry.channel,
-    sources: entry.sources,
-  }));
+  /*
+   * WHAT IRIS RECORDED, ONE LINE AN ENTRY.
+   *
+   * A meeting's end carried the same sentence eight times — "N units were open
+   * in this meeting, so the outcome is the meeting's rather than this unit's".
+   * The rule is said once behind the section's `i`; the entry keeps the count,
+   * read from the same view's row for that meeting, as "3 units open".
+   */
+  const unitsOpenIn = new Map(
+    detail.relatedMeetings.map((meeting) => [meeting.meetingId, meeting.unitCount]),
+  );
+  const timelineSteps: readonly TimelineStep[] = detail.timeline.map((entry) => {
+    const open = entry.kind === "outcome_recorded" ? unitsOpenIn.get(entry.meetingId) : undefined;
+    const what =
+      entry.kind !== "outcome_recorded"
+        ? entry.detail
+        : open === undefined
+          ? null
+          : `${open} ${open === 1 ? "unit" : "units"} open`;
+    return {
+      id: entry.id,
+      when: entry.atDisplay,
+      label: entry.label,
+      detail:
+        what === null
+          ? `${entry.channelLabel} · ${entry.agentName}`
+          : `${what} · ${entry.channelLabel} · ${entry.agentName}`,
+      channel: entry.channel,
+      sources: entry.sources,
+    };
+  });
 
   /*
    * A meeting row opens the replay only for a role the replay admits (R08-6).
@@ -213,8 +233,20 @@ export default async function UnitPage({
       length: meeting.durationDisplay,
       units: meeting.unitCount,
       shortlisted: meeting.favourites,
-      outcome: meeting.outcomeLabel,
-      followUp: meeting.followUpLabel,
+      /* The meeting register's chips, so one field reads in one vocabulary. */
+      outcome: (
+        <Chip
+          tone={OUTCOME_TONES[meeting.outcome]}
+          title="Recorded by the agent at the end of the meeting."
+        >
+          {meeting.outcomeLabel}
+        </Chip>
+      ),
+      followUp: (
+        <Chip tone={FOLLOW_UP_TONES[meeting.followUp]} title={meeting.followUpLabel}>
+          {FOLLOW_UP_LABELS[meeting.followUp]}
+        </Chip>
+      ),
     },
   }));
 
@@ -406,12 +438,17 @@ export default async function UnitPage({
 
         <section className="ox-plane">
           <div className="ox-section-head">
-            <h2 className="ox-section-title">From opened to sold</h2>
-            <p className="ox-section-note">
-              Six stages, and each says which source stands behind it. Only the two the unit
-              catalogue states about this flat are drawn as verified; a shortlist is the strongest
-              signal the showroom produces and it is still not a sale.
-            </p>
+            <div className="sheet-titled">
+              <h2 className="ox-section-title">From opened to sold</h2>
+              <InfoTip id="funnel" label="from opened to sold">
+                <p>
+                  Six stages, and each says which source stands behind it. Only the two the unit
+                  catalogue states about this flat are drawn as verified, and they are a yes or a no
+                  rather than a bar against the meetings: a shortlist is the strongest signal the
+                  showroom produces and it is still not a sale.
+                </p>
+              </InfoTip>
+            </div>
             {/*
              * The evidence for the region, stated once.
              *
@@ -424,16 +461,6 @@ export default async function UnitPage({
               <Evidence language={context.language} evidence={detail.evidence} period={period} />
             </span>
           </div>
-
-          {unanswerable.map((stage) => (
-            <Unavailable
-              key={stage.id}
-              what={stage.step.label}
-              why={stage.step.metric.message ?? stage.basis}
-              action={null}
-              period={period}
-            />
-          ))}
 
           <DrawIn kind="fill">
             <UnitFunnel language={context.language} stages={detail.funnel} />
@@ -489,8 +516,16 @@ export default async function UnitPage({
         <div className="ox-plate ox-paper">
           <div className="ox-plate-inner">
             <div className="ox-section-head">
-              <h2 className="ox-section-title">What IRIS recorded</h2>
-              <p className="ox-section-note">{detail.timelineNote}</p>
+              <div className="sheet-titled">
+                <h2 className="ox-section-title">What IRIS recorded</h2>
+                <InfoTip id="recorded" label="what IRIS recorded">
+                  <p>{detail.timelineNote}</p>
+                  <p>
+                    A meeting&rsquo;s recorded outcome belongs to the meeting, in which other units
+                    were also open, so it is the meeting&rsquo;s rather than this unit&rsquo;s.
+                  </p>
+                </InfoTip>
+              </div>
             </div>
 
             {timelineSteps.length === 0 ? (
@@ -509,15 +544,20 @@ export default async function UnitPage({
 
             <div className="ox-section-head">
               {/* This table has the Shortlisted and Follow-up columns. */}
-              <h2 className="ox-section-title" id="meetings-that-opened-it">
-                Meetings that opened it
-              </h2>
-              <p className="ox-section-note">
-                No buyer is named here. The visitor column is a privacy-safe label built from a
-                closed vocabulary and a count of previous meetings; the type it comes from has no
-                field a name, an address or a telephone number could sit in. The agent column names
-                the staff member who presented.
-              </p>
+              <div className="sheet-titled">
+                <h2 className="ox-section-title" id="meetings-that-opened-it">
+                  Meetings that opened it
+                </h2>
+                <InfoTip id="opened-it" label="the meetings that opened it">
+                  <p>
+                    The visitor column is a privacy-safe label built from a closed vocabulary and a
+                    count of previous meetings; the type it comes from has no field a name, an
+                    address or a telephone number could sit in. The agent column names the staff
+                    member who presented.
+                  </p>
+                </InfoTip>
+              </div>
+              <p className="ox-section-note">No buyer is named here.</p>
             </div>
 
             {/* A phone reads each meeting as a few lines, not nine labelled rows (`unit.css`). */}

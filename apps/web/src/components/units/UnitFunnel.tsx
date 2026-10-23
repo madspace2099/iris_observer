@@ -25,7 +25,10 @@ import { Figure, Sources, Tier } from "@/components/product";
  *
  * `observer-product.css` §15 gives exactly one of them a treatment —
  * `.ox-stage[data-verified="true"] .ox-stage-fill` takes the human mark — and
- * this component sets that attribute for `verified` and for nothing else. A
+ * this component sets that attribute for `verified` and for nothing else.
+ * Since 2026-10-23 a verified stage draws no bar at all (a catalogue's yes is
+ * not a share of the meetings), so the attribute marks the row and its
+ * figure carries the answer. A
  * shortlist is the strongest signal the showroom produces and it is still not a
  * sale; drawing the two the same way is how a presentation record ends up
  * standing in for a contract, which ADR-0021 refuses from the other direction.
@@ -90,61 +93,93 @@ export function UnitFunnel({
    * width from two integers so the six bars share one scale.
    */
   const first = stages[0]?.step.toCount ?? null;
+  /*
+   * The stages' sources, said once under the funnel rather than on every row
+   * (Máté's video review, 2026-10-23): each row's sentence and its word on the
+   * right already say which source stands behind it.
+   */
+  const sources = [...new Set(stages.flatMap((stage) => stage.sources))];
 
   return (
-    <div className="ox-funnel" role="group" aria-label={label}>
-      {stages.map((stage) => {
-        const { step } = stage;
-        const drawable = first !== null && first > 0 && step.toCount !== null;
-        const width = drawable ? `${Math.min(100, (step.toCount / first) * 100)}%` : null;
+    <>
+      <div className="ox-funnel" role="group" aria-label={label}>
+        {stages.map((stage) => {
+          const { step } = stage;
+          /*
+           * A catalogue's yes or no about this flat is not a share of the
+           * meetings that opened it: drawn on their scale, a "Yes" was a 3%
+           * sliver under a full "Opened in a meeting" bar, so a sale read as
+           * almost nothing. A verified stage draws no bar; its figure says it.
+           */
+          const drawable =
+            stage.verification !== "verified" &&
+            first !== null &&
+            first > 0 &&
+            step.toCount !== null;
+          const width = drawable ? `${Math.min(100, (step.toCount / first) * 100)}%` : null;
 
-        return (
-          <div
-            className="ox-stage"
-            key={stage.id}
-            {...(stage.verification === "verified" ? { "data-verified": "true" } : {})}
-          >
-            <span className="ox-stage-label">{step.label}</span>
+          return (
+            <div
+              className="ox-stage"
+              key={stage.id}
+              {...(stage.verification === "verified" ? { "data-verified": "true" } : {})}
+            >
+              <span className="ox-stage-label">{step.label}</span>
 
-            <div>
-              {width === null ? null : (
-                <div className="ox-stage-bar">
-                  <div className="ox-stage-fill" style={{ width } as CSSProperties} />
-                </div>
-              )}
-              {/*
-               * `.ox-time-detail` and `.ox-time-foot` rather than a pair of
-               * funnel-specific classes, which the sheet does not have: a
-               * funnel stage IS a step in a sequence, the two classes carry the
-               * quiet caption ink and the rhythm this needs, and inventing
-               * `.ox-stage-basis` would be one author adding a dialect to a
-               * design system with one owner.
-               */}
-              <p className="ox-time-detail">{stage.basis}</p>
-              {/*
-               * Tier and source, and no evidence line.
-               *
-               * `UnitFunnelStage.step.metric` carries no `EvidenceRef` on any
-               * of the six stages, and `Evidence` says "No evidence" in words
-               * rather than rendering nothing — which is right beside a single
-               * claim and wrong six times in one panel, where it would read as
-               * six failures rather than as one shape of read model. The
-               * screen states the view's own reference once for the region
-               * instead, and the missing per-stage reference is reported.
-               */}
-              <div className="ox-time-foot">
-                <Tier language={language} tier={stage.tier} />
-                <Sources language={language} sources={stage.sources} />
+              <div>
+                {width === null ? null : (
+                  <div className="ox-stage-bar">
+                    <div className="ox-stage-fill" style={{ width } as CSSProperties} />
+                  </div>
+                )}
+                {/*
+                 * `.ox-time-detail` and `.ox-time-foot` rather than a pair of
+                 * funnel-specific classes, which the sheet does not have: a
+                 * funnel stage IS a step in a sequence, the two classes carry the
+                 * quiet caption ink and the rhythm this needs, and inventing
+                 * `.ox-stage-basis` would be one author adding a dialect to a
+                 * design system with one owner.
+                 */}
+                <p className="ox-time-detail">{stage.basis}</p>
+                {/*
+                 * Tier and source, and no evidence line.
+                 *
+                 * `UnitFunnelStage.step.metric` carries no `EvidenceRef` on any
+                 * of the six stages, and `Evidence` says "No evidence" in words
+                 * rather than rendering nothing — which is right beside a single
+                 * claim and wrong six times in one panel, where it would read as
+                 * six failures rather than as one shape of read model. The
+                 * screen states the view's own reference once for the region
+                 * instead, and the missing per-stage reference is reported.
+                 */}
+                {/* A stage no source answers claims nothing, so it carries no tier. */}
+                {stage.verification === "unavailable" ? null : (
+                  <div className="ox-time-foot">
+                    <Tier language={language} tier={stage.tier} />
+                  </div>
+                )}
+              </div>
+
+              <div className="ox-stage-figures">
+                <Figure language={language} value={step.metric} />
+                {/*
+                 * A verified stage's figure already says who states it ("Yes ·
+                 * stated by the unit catalogue"); the word again under it read
+                 * "stated by the catalogue" twice in one cell.
+                 */}
+                {stage.verification === "verified" ? null : (
+                  <span className="ox-stage-drop">{VERIFICATION_WORDS[stage.verification]}</span>
+                )}
               </div>
             </div>
-
-            <div className="ox-stage-figures">
-              <Figure language={language} value={step.metric} />
-              <span className="ox-stage-drop">{VERIFICATION_WORDS[stage.verification]}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
+          );
+        })}
+      </div>
+      {sources.length === 0 ? null : (
+        <div className="ox-time-foot">
+          <Sources language={language} sources={sources} />
+        </div>
+      )}
+    </>
   );
 }

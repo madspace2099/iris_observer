@@ -54,3 +54,15 @@
     color: var(--ox-ink-3);
   }
 }
+
+/*
+ * Between a phone and 90rem: the outcome and the follow-up are the meeting
+ * register's chips since 2026-10-23, wider than the words they replaced, and
+ * at 1280 the table ran 21px past its plate. The register's own answer, seven
+ * pixels a side (`components/meetings/meetings.css`).
+ */
+@media screen and (48rem < width < 90rem) {
+  .ox-unit-meetings .ox-table :is(th, td) {
+    padding-inline: 0.4375rem;
+  }
+}
