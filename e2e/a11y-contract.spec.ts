@@ -196,7 +196,11 @@ const SURFACES: readonly Surface[] = [
   {
     key: "Report",
     path: `${ROOT}/report`,
-    popups: [PERIOD],
+    popups: [
+      PERIOD,
+      /* What the report is, beside its print control (2026-10-23): a native popover. */
+      { name: "the report's explanation", trigger: "main button.iris-info", kind: "popover" },
+    ],
     change: null,
   },
 ];
