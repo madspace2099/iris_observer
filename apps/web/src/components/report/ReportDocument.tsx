@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 
 import type { Language, ReportScope, ReportScopeView, ReportSection } from "@observer/readmodels";
 
-import { Synthetic } from "@/components/product";
+import { InfoTip } from "@/components/iris/InfoTip";
+import { PrintPage } from "./PrintPage";
+import { Synthetic, Tally, TallyItem } from "@/components/product";
 import { LANGUAGE_NAMES } from "@/lib/language";
 import { AGENT_REPORT_WORDS, REPORT_DOCUMENT_WORDS, REPORT_WORDS } from "./words";
 
@@ -212,7 +214,8 @@ export function ReportContents({
           {doc.contents}
         </h2>
       </div>
-      <p className="ox-section-note">{statement}</p>
+      {/* Paper's; on screen the same statement stands behind the head's `i`. */}
+      <p className="ox-section-note ox-report-statement">{statement}</p>
       <ol className="ox-report-contents">
         {sections.map((section) => {
           const n = numbers.get(section.id);
@@ -230,7 +233,10 @@ export function ReportContents({
               <a className="ox-toc-label" href={`#${section.id}`}>
                 {section.label}
               </a>
-              <span className="ox-toc-state">{words.availability[section.availability]}</span>
+              {/* A state only where it is news; the appendix lists every one. */}
+              {section.availability === "ready" ? null : (
+                <span className="ox-toc-state">{words.availability[section.availability]}</span>
+              )}
               <span className="ox-toc-summary">{section.summary}</span>
             </li>
           );
@@ -324,6 +330,57 @@ export function notedSections(
   );
 }
 
+/**
+ * WHAT THE DOCUMENT IS, BEHIND AN `i` IN THE HEAD'S ASIDE (the owner,
+ * 2026-10-23: simplify). On screen the head keeps its title and its verdict;
+ * the lede and the contents' statement (audience, attribution, blank and
+ * left-out counts) stand here. Paper has no `i`: it prints the statement over
+ * the contents, and the cover says the rest.
+ */
+export function ReportAbout({
+  kind,
+  language,
+  lede,
+  statement,
+  print,
+}: {
+  readonly kind: ReportScope["kind"];
+  readonly language: Language;
+  readonly lede: ReactNode;
+  readonly statement: ReactNode;
+  /** The print control's words, in the report's language: it shares the `i`'s row. */
+  readonly print: string;
+}) {
+  return (
+    <div className="ox-report-actions">
+      <InfoTip id="report-about" label={documentKind(kind, language)}>
+        <p>{lede}</p>
+        <p>{statement}</p>
+      </InfoTip>
+      <PrintPage label={print} />
+    </div>
+  );
+}
+
+/**
+ * The cover's headline figures, on screen, under the head: the cover is
+ * paper's alone, and without these the first screen of a report held a
+ * heading, a verdict and prose, and no figure. Print hides them; the cover
+ * carries the same figures.
+ */
+function HeadlineFigures({ figures }: { readonly figures: readonly CoverFigure[] }) {
+  if (figures.length === 0) return null;
+  return (
+    <div className="ox-report-headline">
+      <Tally>
+        {figures.map((figure) => (
+          <TallyItem key={figure.key} label={figure.label} value={figure.value} />
+        ))}
+      </Tally>
+    </div>
+  );
+}
+
 /** A count with the set it is counted in, as one figure: "57 of 274 meetings". */
 export function Count({ n, of }: { readonly n: number; readonly of: string }) {
   return (
@@ -349,6 +406,7 @@ export function ReportDocument({
   cover,
   footer,
   statement,
+  figures = [],
   children,
 }: {
   readonly report: ReportScopeView;
@@ -359,6 +417,8 @@ export function ReportDocument({
   readonly head: ReactNode;
   /** The cover, on paper. */
   readonly cover: ReactNode;
+  /** The cover's headline figures, which the screen draws under its head. */
+  readonly figures?: readonly CoverFigure[];
   /** The footer's parts after the product's name. */
   readonly footer: readonly string[];
   /** The contents' opening statement. */
@@ -373,6 +433,7 @@ export function ReportDocument({
       {head}
       {cover}
       <div className="ox-body">
+        <HeadlineFigures figures={figures} />
         <ReportContents
           sections={report.sections}
           numbers={numbers}

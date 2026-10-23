@@ -33,12 +33,12 @@ import {
   Tally,
   TallyItem,
 } from "@/components/product";
-import { PrintPage } from "@/components/report";
 import { omittedFrom, printedSections } from "@/components/report/omit";
 import { CellBar, OutcomeMix, OutcomeSwatch } from "@/components/report/ReportCharts";
 import { DrawIn } from "@/showroom/DrawIn";
 import {
   Count,
+  ReportAbout,
   ReportCover,
   ReportDocument,
   documentKind,
@@ -384,15 +384,38 @@ async function ProjectReport({
         ) : null}
       </>
     ),
-    "channel-split": (
-      <p className="ox-section-note">
-        {words.channelSplit[0]}{" "}
-        <Link href={link(`${root}/meetings?channel=showroom`)}>{words.channelSplit[1]}</Link>
-        {words.channelSplit[2]}
-        <Link href={link(`${root}/meetings?channel=webiris`)}>{words.channelSplit[3]}</Link>
-        {words.channelSplit[4]}
-      </p>
-    ),
+    /*
+     * The split itself, each channel against the period's meetings: the
+     * register's own period counts (`options.channels`, which lists a channel
+     * only where it holds meetings), each opening that channel's register.
+     * It was a sentence with two links and no figure under a heading that
+     * promised how the period divides.
+     */
+    "channel-split":
+      meetings.options.channels.length === 0 ? null : (
+        <Tally>
+          {meetings.options.channels.map((channel) => (
+            <TallyItem
+              key={channel.id}
+              label={
+                <Link prefetch={false} href={link(`${root}/meetings?channel=${channel.id}`)}>
+                  {channel.id === "showroom"
+                    ? words.channelSplit[1]
+                    : channel.id === "webiris"
+                      ? words.channelSplit[3]
+                      : channel.label}
+                </Link>
+              }
+              value={
+                <Count
+                  n={channel.count}
+                  of={AGENT_REPORT_WORDS[language].ofMeetings(meetings.periodTotal)}
+                />
+              }
+            />
+          ))}
+        </Tally>
+      ),
     "meeting-summary":
       meetings.rows.length === 0 ? null : (
         <DataTable
@@ -499,6 +522,32 @@ async function ProjectReport({
         ]),
   ];
 
+  const statement = (
+    <>
+      {words.audience}{" "}
+      {words.attribution(
+        report.context.attribution.version,
+        report.context.attribution.effectiveFrom.slice(0, 10),
+      )}{" "}
+      {report.unavailableCount === 0
+        ? words.everyWritable
+        : sentence(language, REPORT_BLANK_SECTIONS, {
+            count: String(report.unavailableCount),
+            total: String(report.sections.length),
+            from: slovakZForm(report.sections.length),
+            n: report.unavailableCount,
+          })}
+      {leftOut.length === 0
+        ? ""
+        : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
+            count: String(leftOut.length),
+            total: String(report.sections.length),
+            from: slovakZForm(report.sections.length),
+            n: leftOut.length,
+          })}`}
+    </>
+  );
+
   return (
     <ReportDocument
       report={report}
@@ -510,7 +559,6 @@ async function ProjectReport({
           kicker={`${report.context.project.name} · ${words.report} · ${report.periodLabel}`}
           title={words.title}
           answer={flow.verdict}
-          lede={words.lede}
           crumbs={[
             { label: report.context.project.name, href: `${root}/project` },
             { label: words.report },
@@ -518,7 +566,13 @@ async function ProjectReport({
           aside={
             <>
               <Synthetic language={language} />
-              <PrintPage label={words.print} />
+              <ReportAbout
+                kind="project"
+                language={language}
+                lede={words.lede}
+                statement={statement}
+                print={words.print}
+              />
             </>
           }
           period={period}
@@ -535,32 +589,9 @@ async function ProjectReport({
           language={language}
         />
       }
+      figures={figures}
       footer={[report.context.project.name, documentKind("project", language), report.periodLabel]}
-      statement={
-        <>
-          {words.audience}{" "}
-          {words.attribution(
-            report.context.attribution.version,
-            report.context.attribution.effectiveFrom.slice(0, 10),
-          )}{" "}
-          {report.unavailableCount === 0
-            ? words.everyWritable
-            : sentence(language, REPORT_BLANK_SECTIONS, {
-                count: String(report.unavailableCount),
-                total: String(report.sections.length),
-                from: slovakZForm(report.sections.length),
-                n: report.unavailableCount,
-              })}
-          {leftOut.length === 0
-            ? ""
-            : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
-                count: String(leftOut.length),
-                total: String(report.sections.length),
-                from: slovakZForm(report.sections.length),
-                n: leftOut.length,
-              })}`}
-        </>
-      }
+      statement={statement}
     >
       {/* --- the sections, in the read model's order ---------------------- */}
       {(number) =>
@@ -701,7 +732,6 @@ async function MeetingReport({
           kicker={`${report.context.project.name} · ${words.meetingSummary} · ${report.scope.label}`}
           title={words.meetingSummary}
           answer={replay.headline}
-          lede={words.meetingLede}
           crumbs={[
             { label: report.context.project.name, href: `${root}/project` },
             { label: words.meetings, href: `${root}/meetings` },
@@ -711,7 +741,13 @@ async function MeetingReport({
           aside={
             <>
               <Synthetic language={language} />
-              <PrintPage label={words.print} />
+              <ReportAbout
+                kind="meeting"
+                language={language}
+                lede={words.meetingLede}
+                statement={words.audience}
+                print={words.print}
+              />
             </>
           }
           period={period}

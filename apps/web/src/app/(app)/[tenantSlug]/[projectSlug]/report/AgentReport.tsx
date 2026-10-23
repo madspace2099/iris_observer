@@ -40,11 +40,11 @@ import {
   type DataColumn,
   type DataRow,
 } from "@/components/product";
-import { PrintPage } from "@/components/report";
 import { printedSections } from "@/components/report/omit";
 import { CellBar, OutcomeMix, OutcomeSwatch } from "@/components/report/ReportCharts";
 import { DrawIn } from "@/showroom/DrawIn";
 import {
+  ReportAbout,
   ReportCover,
   ReportDocument,
   documentKind,
@@ -534,6 +534,36 @@ export async function AgentReport({
       value: <Figure value={metric} language={language} />,
     }));
   const answer = agentAnswer(view, language);
+  const statement = (
+    <>
+      {reportWords.audience}{" "}
+      {report.unavailableCount === 0
+        ? words.everyWritable
+        : sentence(language, REPORT_BLANK_SECTIONS, {
+            count: String(report.unavailableCount),
+            total: String(total),
+            from: slovakZForm(total),
+            n: report.unavailableCount,
+          })}
+      {partialCount === 0
+        ? ""
+        : ` ${sentence(language, REPORT_PARTIAL_SECTIONS, {
+            count: String(partialCount),
+            countAt: hungarianAdessive(String(partialCount)),
+            total: String(total),
+            from: slovakZForm(total),
+            n: partialCount,
+          })}`}
+      {leftOut.length === 0
+        ? ""
+        : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
+            count: String(leftOut.length),
+            total: String(total),
+            from: slovakZForm(total),
+            n: leftOut.length,
+          })}`}
+    </>
+  );
 
   return (
     <ReportDocument
@@ -546,7 +576,6 @@ export async function AgentReport({
           kicker={`${report.context.project.name} · ${words.kicker} · ${report.scope.label}`}
           title={<AgentName name={view.name} src={portrait} size="head" />}
           answer={answer}
-          lede={words.lede(view.organisationName)}
           crumbs={[
             { label: report.context.project.name, href: `${root}/project` },
             { label: words.crumbAgents, href: `${root}/agents` },
@@ -560,7 +589,13 @@ export async function AgentReport({
                 n={view.sampleSize}
                 noun={language === "en" ? "meetings" : plural(language, view.sampleSize, MEETINGS)}
               />
-              <PrintPage label={reportWords.print} />
+              <ReportAbout
+                kind="agent"
+                language={language}
+                lede={words.lede(view.organisationName)}
+                statement={statement}
+                print={reportWords.print}
+              />
             </>
           }
           period={period}
@@ -582,36 +617,7 @@ export async function AgentReport({
         view.name,
         periodLabel,
       ]}
-      statement={
-        <>
-          {reportWords.audience}{" "}
-          {report.unavailableCount === 0
-            ? words.everyWritable
-            : sentence(language, REPORT_BLANK_SECTIONS, {
-                count: String(report.unavailableCount),
-                total: String(total),
-                from: slovakZForm(total),
-                n: report.unavailableCount,
-              })}
-          {partialCount === 0
-            ? ""
-            : ` ${sentence(language, REPORT_PARTIAL_SECTIONS, {
-                count: String(partialCount),
-                countAt: hungarianAdessive(String(partialCount)),
-                total: String(total),
-                from: slovakZForm(total),
-                n: partialCount,
-              })}`}
-          {leftOut.length === 0
-            ? ""
-            : ` ${sentence(language, REPORT_LEFT_OUT_SECTIONS, {
-                count: String(leftOut.length),
-                total: String(total),
-                from: slovakZForm(total),
-                n: leftOut.length,
-              })}`}
-        </>
-      }
+      statement={statement}
     >
       {(number) =>
         printed.map((section) => (

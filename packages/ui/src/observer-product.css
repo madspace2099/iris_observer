@@ -3127,6 +3127,22 @@
   margin-top: 0;
 }
 
+/* The head's `i` (what this report is) and the print control, on one row. */
+.ox-report-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--ox-tight);
+}
+
+/*
+ * On screen a section's source line is its foot's `i`, and the contents'
+ * statement is the head's `i` (`ReportAbout`); paper prints both (below).
+ */
+.ox-report-foot > .ox-report-sources,
+.ox-report-toc > .ox-report-statement {
+  display: none;
+}
+
 .ox-report-ladder {
   display: grid;
   gap: 0.75rem;
@@ -3370,6 +3386,17 @@
     padding: 0;
     background: #fff !important;
     color: var(--ox-ink);
+  }
+
+  /*
+   * The sheet's own scheme. `html { color-scheme: dark }` (components.css)
+   * made Chrome paint every page box in the dark Canvas (#121212) before the
+   * white page area, so pages 2 onward printed inside a near-black frame with
+   * the footer grey on black. Measured in the PDF: a full-page 18,18,18 fill
+   * on every sheet; with this line, none.
+   */
+  :root:has(.ox-report) {
+    color-scheme: light;
   }
 
   .ox-report > .ox-head {
@@ -3632,11 +3659,14 @@
     break-inside: avoid;
   }
 
+  /* Two lines at most: one line cut English summaries mid-word ("how deep a typical meeting we…"). */
   .ox-report .ox-toc-summary {
     max-width: none;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
     overflow: hidden;
-    white-space: nowrap;
-    text-overflow: ellipsis;
   }
 
   .ox-report-section {
@@ -3645,6 +3675,24 @@
 
   .ox-report-foot {
     gap: var(--ox-tight) var(--ox-inner);
+  }
+
+  /* Paper has no `i`: the source line and the statement print, and every `i` leaves. */
+  .ox-report-foot > .ox-report-sources {
+    display: inline;
+  }
+
+  .ox-report-toc > .ox-report-statement {
+    display: block;
+  }
+
+  /* The cover carries the headline figures on paper. */
+  .ox-report .ox-report-headline {
+    display: none;
+  }
+
+  .ox-report .iris-info {
+    display: none !important;
   }
 
   /*

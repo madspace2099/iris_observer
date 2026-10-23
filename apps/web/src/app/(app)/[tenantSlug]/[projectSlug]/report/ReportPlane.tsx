@@ -6,9 +6,10 @@ import {
   type ReportSection,
   type ReportSectionAvailability,
 } from "@observer/readmodels";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { Evidence, Sample, Sources } from "@/components/product";
 import { sectionNumber } from "@/components/report/ReportDocument";
-import { REPORT_WORDS } from "@/components/report/words";
+import { REPORT_WORDS, SOURCE_LINE_WORDS } from "@/components/report/words";
 
 /**
  * ONE SECTION OF A PRINTED REPORT: THE MANIFEST'S FRAME AROUND THE PAGE'S BODY.
@@ -67,21 +68,44 @@ export function ReportPlane({
         <h2 className="ox-section-title" id={headingId}>
           <span className="ox-report-num">{sectionNumber(number)}</span> {section.label}
         </h2>
-        <span className="ox-chip" data-tone={AVAILABILITY_TONES[section.availability]}>
-          <span className="ox-chip-mark" aria-hidden="true" />
-          {REPORT_WORDS[language].availability[section.availability]}
-        </span>
+        {/*
+         * A state only where it is news: eight "Ready" chips down a ready
+         * report said nothing. The appendix's State column keeps every one.
+         */}
+        {section.availability === "ready" ? null : (
+          <span className="ox-chip" data-tone={AVAILABILITY_TONES[section.availability]}>
+            <span className="ox-chip-mark" aria-hidden="true" />
+            {REPORT_WORDS[language].availability[section.availability]}
+          </span>
+        )}
       </div>
       {section.availability === "unavailable" && section.reason !== null ? (
         <p className="ox-section-note">{section.reason}</p>
       ) : null}
       {children}
+      {/*
+       * The sample and the evidence stay in view. The source line repeated the
+       * same sentence under every section, so on screen it stands behind the
+       * `i` at the end of this row; on paper, which has no `i`, it prints.
+       */}
       <div className="ox-alert-foot ox-report-foot">
-        <Sources sources={section.sources} language={language} />
+        <span className="ox-report-sources">
+          <Sources sources={section.sources} language={language} />
+        </span>
         {section.sampleSize === null ? null : (
           <Sample n={section.sampleSize} noun={section.sampleNoun} />
         )}
         <Evidence evidence={section.evidence} period={period} language={language} />
+        {section.sources.length === 0 ? null : (
+          <InfoTip
+            id={`sources-${section.id}`}
+            label={`${section.label}: ${SOURCE_LINE_WORDS[language].lead}`}
+          >
+            <p>
+              <Sources sources={section.sources} language={language} />
+            </p>
+          </InfoTip>
+        )}
       </div>
     </section>
   );
