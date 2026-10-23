@@ -44,6 +44,14 @@ const DEMO_ENV = {
   OBSERVER_LOCAL_STATE_DIR: ".observer-local/demo",
   OBSERVER_ACTIVATION_CODE_PEPPER: "b".repeat(64),
   OBSERVER_SOURCE_TOKEN_PEPPER: "c".repeat(64),
+  /*
+   * Trust what the operating system trusts. An antivirus that inspects HTTPS
+   * (Avast's Web Shield on the recording laptop) re-signs api.openai.com with a
+   * root it installs in the Windows store; Node's own bundle does not have it,
+   * so the key check failed with UNABLE_TO_VERIFY_LEAF_SIGNATURE and the admin
+   * read "OpenAI could not be reached" (2026-10-23). Verification stays on.
+   */
+  NODE_USE_SYSTEM_CA: "1",
 };
 
 const env = { ...process.env };

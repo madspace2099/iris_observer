@@ -169,7 +169,9 @@ describe("who may set it, and who asks with it", () => {
   it("refuses a value that is not printable ASCII once cleaned, without a probe", async () => {
     const sent: string[] = [];
     const recording: ConnectionProbe = async (key) => (sent.push(key), { ok: true });
-    expect(await setCompanyKey(CLARA, `${KEY}${String.fromCharCode(0x00e9)}`, recording, ON)).toEqual({
+    expect(
+      await setCompanyKey(CLARA, `${KEY}${String.fromCharCode(0x00e9)}`, recording, ON),
+    ).toEqual({
       ok: false,
       failure: "rejected",
     });
