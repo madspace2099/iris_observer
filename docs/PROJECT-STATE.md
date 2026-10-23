@@ -7148,3 +7148,48 @@ Clara at 1440×900 and 1280×720 with motion on: one wheel turn per screen, each
 as its screen arrives, the room-type window chips switching in place, the interest line at the
 screen's height; then 390×844. Run `a11y-contract` (Project), `project-denominators`,
 `nav-reachability` and `p219-screens`.
+
+## 2026-10-23 — Round 9, stream PAGES: each page fits and reads (branch `r9-pages`)
+
+Before the marketing video, the open items of the round-8 routed and checker lists whose cause sits
+in the page files. Branch `r9-pages` from `acce16ba`, not pushed. Each item was confirmed on a static
+render (react-dom/server in the real Shell, every product stylesheet, headless Chromium) first.
+
+- **Sales Flow.** Every screen fits its band at 1440×900, 1440×789, 1366×768 and 1280×720, quarter
+  and year to date (the lens, agents, not-interested group and a year's months ran 30–450px over): a
+  short window sets the same drawings tighter, the months sit a line each over their bar, the
+  agents' five cards are one line per flag. A stalled row reads "S-503 · one buyer's deal" (the flat
+  alone read as stuck one frame from the same flat sold). "What changed"'s basis only where arrows
+  are drawn. An `i` panel subtracts the chrome only when it opens above.
+- **IRIS-led.** The demonstration-CRM sentence once on the closing card; the unplaced note under
+  the figures, as the read model's contract says.
+- **Sales Agents.** The short-window layout reaches 860px of height (1440×789 overflowed), activity
+  and coaching fit 1280×720; a title's `i` follows its last word; on a phone a unit is one table line
+  and a meeting a flowing line of pairs.
+- **Stock pages.** Project's `i` panels wrap (they inherited the title row's nowrap); an `i` never
+  stands alone on the stock pages' titles; Features ends on Time and weather (the limits are the
+  instrument title's `i`), the 14rem names only on the running order, its notes shorter; Audience's
+  phone faces in one column; a unit's lengths whole at 1280, a catalogue stage without "Observed";
+  the Units register fades its edge while it scrolls (1024).
+- **Attention, Briefing, report.** A clear check is "Clear" with its finding behind the `i`; the
+  Briefing's unrecorded count names its window; the report's team tile reads at a phrase's size.
+
+**By design, left:** the YTD verdict reading as QTD (ADR-0048), developers not opening replays,
+client-657 / Valami (demo data), slow first loads under QA load. The Units "not observed yet" line
+was already gone at `acce16ba`.
+
+**Other streams' files, left:** read-model words and figures (`synthetic/showroom/charts.ts`,
+`views3.ts`, `deals.ts`, `iris-led.ts`, `screens.ts`, `attention.ts`, `reports.ts`, `pulse.ts`,
+`ask-*`; "What changed"'s repeated clause is `showroom/change-kpis.ts:219,224`; a verified funnel
+stage's `IRIS_SHOWROOM_OBSERVED` source and tier; `readmodels/iris-led.ts` comments) — SYN.
+`InfoTip`'s English "About" on SK/HU reports, the 10px `i` glyph, the header's 11px text, "Show all"
+mid-list, `DrawIn` at 360, `Finding`'s visible source line, the wheel under reduced motion — SHARED.
+
+**Verified.** Typecheck, eslint and prettier clean; 22 touched suites green; static renders of 19
+pages at 1440×900, 1280×720, 390×844, 360×780: no sideways scroll, no new text under 12px, no screen
+over its band. e2e edited, not run: `iris-led`, `veghajras1` (comments). **Not looked at on the
+running demo.**
+
+**Next.** Cherry-pick with SYN and SHARED, build, warm every URL, record at 1440×900 with animation
+effects on; run `flow-screens`, `fejezet1`, `p221-render`, `p221-meres`, `veghajras1`, `iris-led`,
+`a11y-contract`, `layout-integrity`.
