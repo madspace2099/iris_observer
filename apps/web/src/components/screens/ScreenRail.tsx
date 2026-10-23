@@ -58,9 +58,10 @@ export function wheelTarget(
 
 /**
  * Where one press of Page Down, Page Up, Space or an arrow takes the reader:
- * the scroll position to go to, or null to leave the key to the browser. A screen that fits goes to the next or the previous; a
- * screen taller than the view is read a view at a time and never past its own
- * edge, so the next press starts the next screen at its top.
+ * the scroll position to go to, or null to leave the key to the browser. A
+ * screen that fits goes to the next or the previous; a screen taller than the
+ * view is read a view at a time and never past its own edge, either way: going
+ * up, it is entered at its last view, not its top (review round 9).
  */
 export function pageTarget(
   y: number,
@@ -70,7 +71,10 @@ export function pageTarget(
   direction: 1 | -1,
 ): number | null {
   const next = wheelTarget(y, view, tops, heights, direction);
-  if (next !== null) return tops[next] ?? null;
+  if (next !== null) {
+    const top = tops[next] ?? 0;
+    return direction === -1 ? Math.max(top, top + (heights[next] ?? 0) - view) : top;
+  }
   let at = -1;
   for (let i = 0; i < tops.length; i += 1) if ((tops[i] ?? Infinity) <= y + 2) at = i;
   if (at === -1) return null;
@@ -168,18 +172,25 @@ export function ScreenRail({
       )
         return;
       /*
-       * Only where the key would have scrolled the page: the page itself, a
-       * link, or a screen the rail focused. A field, a button (Space presses
-       * it), a menu, a popover or a scrolling box keeps its own keys.
+       * Only where the key would have scrolled the page: the page, a link, a
+       * screen the rail focused, and for every key but Space (which presses
+       * it) a button or a summary (review round 9). A field, an open menu, a
+       * popover or a scrolling box keeps its own keys.
        */
       const target = event.target;
       const step = event.key === " " && event.shiftKey ? -1 : direction;
+      const from =
+        event.key === " "
+          ? "a[href], [tabindex='-1']"
+          : "a[href], button, summary, [tabindex='-1']";
       if (
         target instanceof Element &&
         target !== document.body &&
         target !== document.documentElement &&
-        (!target.matches("a[href]:not([role]), [tabindex='-1']") ||
-          target.closest("[popover], [role='dialog'], dialog") !== null ||
+        (!target.matches(from) ||
+          target.closest(
+            "[popover], [role='dialog'], dialog, .ox-menu[open], .irs-mobile-menu[open]",
+          ) !== null ||
           scrollsItself(target, step))
       )
         return;
@@ -222,7 +233,7 @@ export function ScreenRail({
       if (travel < 40) return;
       travel = 0;
       quietAt = now + 700;
-      go(tops[target] ?? y);
+      go(pageTarget(y, view, tops, heights, direction) ?? y);
     };
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("keydown", onKey);

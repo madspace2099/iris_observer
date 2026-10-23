@@ -211,10 +211,20 @@ describe("the keys", () => {
     expect(pageTarget(1058, 771, tall, heights, -1)).toBe(800);
   });
 
+  it("go back into a tall screen at its last view, not its top", () => {
+    const tall = [0, 800, 2600];
+    const heights = [771, 1800, 771];
+    expect(pageTarget(2600, 771, tall, heights, -1)).toBe(1829);
+    expect(pageTarget(1829, 771, tall, heights, -1)).toBe(1058);
+    expect(pageTarget(800, 771, tall, heights, -1)).toBe(0);
+  });
+
   it("are stepped by the shared rail, at once under reduced motion, and leave a control its keys", () => {
     const rail = source("src/components/screens/ScreenRail.tsx");
     const keys = rail.slice(rail.indexOf("const onKey"), rail.indexOf("const onWheel"));
-    expect(keys).toContain(`target.matches("a[href]:not([role]), [tabindex='-1']")`);
+    expect(keys).toContain(`"a[href], [tabindex='-1']"`);
+    expect(keys).toContain(`"a[href], button, summary, [tabindex='-1']"`);
+    expect(keys).toContain(".ox-menu[open], .irs-mobile-menu[open]");
     expect(keys).toContain("event.defaultPrevented");
     expect(rail).toContain('behavior: still.matches ? "instant" : "smooth"');
     expect(rail).toContain('window.addEventListener("keydown", onKey)');
