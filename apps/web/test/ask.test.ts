@@ -594,6 +594,25 @@ describe("the tools state each figure's own denominator", () => {
     expect(said).not.toMatch(/median \d{3,}s\b/);
   });
 
+  it("says a brief's looking time as a length too", async () => {
+    const tool = TOOLS.find((t) => t.name === "prepare_meeting");
+    if (tool === undefined) throw new Error("no tool prepare_meeting");
+    const result = await tool.run(
+      {
+        viewer: VIEWERS.salesAgent,
+        tenantSlug: "alpha",
+        projectSlug: "northgate",
+        period: "quarter_to_date",
+      },
+      { meetingId: "mtg_viktoria0827" },
+    );
+    const notes = result.facts.map((f) => f.note ?? "").filter((n) => /meaningful looking/.test(n));
+    expect(notes.length).toBeGreaterThan(0);
+    for (const note of notes)
+      expect(note).toMatch(/^(shortlisted · )?(\d+m \d{2}s|\d+s) of meaningful looking$/);
+    expect(notes.join(" ")).not.toMatch(/\b\d{3,}s\b/);
+  });
+
   it("keeps the read model's own note on a behaviour row", async () => {
     const original = repository.getPresentationIntelligence.bind(repository);
     vi.spyOn(repository, "getPresentationIntelligence").mockImplementation(async (q, pair) => {

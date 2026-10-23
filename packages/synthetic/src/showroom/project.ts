@@ -2370,7 +2370,7 @@ export function buildStorytelling(
       sampleSize: n,
       sources: OBSERVED,
       caveat:
-        "Which unit was on screen at the moment of the change is not recorded by the current build.",
+        "The showroom does not record which unit was on screen when the preset changed, so it cannot be tied to an aspect or a floor.",
     });
   }
 

@@ -931,9 +931,7 @@ const prepareMeeting: ToolDefinition<z.ZodObject<{ meetingId: z.ZodString }>> = 
       ...b.observed.unitInterest.slice(0, 4).map((u) => ({
         label: brief.units[u.unitId]?.code ?? u.unitId,
         value: `${u.uniqueViews} views`,
-        note: u.favourited
-          ? `shortlisted · ${Math.round(u.meaningfulDwellMs / 1000)}s of meaningful dwell`
-          : `${Math.round(u.meaningfulDwellMs / 1000)}s of meaningful dwell`,
+        note: `${u.favourited ? "shortlisted · " : ""}${duration(Math.round(u.meaningfulDwellMs / 1000), DEFAULT_LANGUAGE)} of meaningful looking`,
       })),
       ...b.interpretation.preferredAttributes.slice(0, 3).map((a) => ({
         label: a.attribute,

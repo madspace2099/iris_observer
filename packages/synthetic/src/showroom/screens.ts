@@ -1262,7 +1262,6 @@ interface AgentDetailWords {
   readonly comparePresentations: string;
   readonly signatureCaveat: string;
   readonly unrecordedStatement: (unrecorded: string, total: string, totalN: number) => string;
-  readonly unrecordedBaseline: (share: string) => string;
   readonly unrecordedSoWhat: string;
 }
 
@@ -1326,7 +1325,6 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     signatureCaveat: "An association across their meetings, not an account of any one of them.",
     unrecordedStatement: (unrecorded, total) =>
       `${unrecorded} of their ${total} meetings ended with no outcome recorded.`,
-    unrecordedBaseline: (share) => `${share} of their meetings`,
     unrecordedSoWhat: "Every rate on this page that uses an outcome leaves these meetings out.",
   },
   sk: {
@@ -1379,7 +1377,6 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     signatureCaveat: "Súvislosť naprieč stretnutiami, nie opis ktoréhokoľvek z nich.",
     unrecordedStatement: (unrecorded, total, totalN) =>
       `Bez zaznamenaného výsledku: ${unrecorded} ${slovakZForm(totalN)} ${total} stretnutí.`,
-    unrecordedBaseline: (share) => `${share} stretnutí`,
     unrecordedSoWhat:
       "Každá miera na tejto stránke, ktorá vychádza z výsledku stretnutia, tieto stretnutia vynechá.",
   },
@@ -1431,7 +1428,6 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     signatureCaveat: "Összefüggés a találkozói között, nem egyetlen találkozó leírása.",
     unrecordedStatement: (unrecorded, total) =>
       `Rögzített eredmény nélkül zárult: ${total} találkozóból ${unrecorded}.`,
-    unrecordedBaseline: (share) => `${share} a találkozói közül`,
     unrecordedSoWhat:
       "Az oldalon minden aránymutató, amely a találkozó eredményére épül, kihagyja ezeket a találkozókat.",
   },
@@ -1803,7 +1799,8 @@ export function buildAgentDetail(
         count(mine.length, locale),
         mine.length,
       ),
-      baseline: words.unrecordedBaseline(percent(share(unrecorded, mine.length), locale)),
+      /* The statement is already "6 of their 25": a share of the same 25 would only say it again. */
+      baseline: null,
       soWhat: words.unrecordedSoWhat,
       nextStep: { label: words.seeMeetings, href: `${root}/meetings?agent=${agentId}` },
       evidence: evidenceRef(
