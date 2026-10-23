@@ -205,6 +205,43 @@ describe("the screens' stylesheet", () => {
   });
 
   /*
+   * The owner, 2026-10-23: the presentations screen's presenters at the agents'
+   * size, on both halves, and the ten longest on screen ("there is room").
+   */
+  it("draws the presentations screen's faces and names at the agents' size, a plain disc", () => {
+    const here = ".iris-salesflow #flow-presentations";
+    const face = rule(`${here} .ag-portrait`);
+    expect(face).toContain("--ag-size: 2.75rem;");
+    expect(face).not.toMatch(/border|outline|box-shadow/);
+    expect(rule(`${here} .iris-ranked-name`)).toContain("font-size: 1.375rem;");
+    expect(rule(`${here} .iris-ranked-name em`)).toContain("font-size: 0.875rem;");
+    /* Both halves' name columns hold the face beside its line, wider than the 12rem and 17.75rem before. */
+    expect(rule(`  ${here} > div:first-child .iris-ranked li`)).toContain("minmax(0, 20rem)");
+    expect(rule(`  ${here} .iris-band-side .iris-ranked li`)).toContain("minmax(0, 15.5rem)");
+  });
+
+  it("shows the ten longest presentations and every presenter, and gives the height back", () => {
+    const presentations = screen("flow-presentations");
+    expect([...presentations.matchAll(/collapseAfter=\{(\d+)\}/g)].map((m) => m[1])).toEqual([
+      "10",
+    ]);
+    /* Presentations given is never collapsed: every row carries its own denominator. */
+    const given = presentations.slice(presentations.indexOf("<PresenterBars"));
+    expect(given.slice(0, given.indexOf("/>"))).not.toContain("collapseAfter");
+    /* The rows take the height, not the type: 2px at most at the fixed sizes, none in a short window. */
+    const fixed = SHEET.indexOf(
+      "@media (width >= 64rem) and (height >= 40rem) {\n  .iris-salesflow #flow-presentations",
+    );
+    expect(fixed).toBeGreaterThan(-1);
+    expect(SHEET.slice(fixed, SHEET.indexOf("}", fixed))).toContain("padding-block: 0.125rem;");
+    const short = SHEET.indexOf("@media (width >= 64rem) and (40rem <= height < 54rem) {");
+    expect(short).toBeGreaterThan(-1);
+    expect(SHEET.slice(short, SHEET.indexOf("\n}", short))).toMatch(
+      /#flow-presentations \.iris-ranked li \{\s*padding-block: 0;/,
+    );
+  });
+
+  /*
    * Review, 2026-10-23: forced to the viewport where the wheel does not step,
    * a phone's screens ended in 160–280px of black.
    */

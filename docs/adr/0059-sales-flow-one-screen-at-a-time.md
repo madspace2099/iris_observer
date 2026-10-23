@@ -193,3 +193,23 @@ previous screen, and swallows the rest of that gesture, a touchpad's momentum in
 pauses. A screen taller than the view is read through first; before the first screen and past the
 last, an element that can still scroll the way the wheel turns, a phone and reduced motion all keep
 the page's own scrolling. `wheelTarget` is tested in `apps/web/test/flow-screens.test.ts`.
+
+## The owner, 2026-10-23: the presentations screen at recording size, ten longest
+
+The presenters' faces and names on the presentations screen were too small to read on the
+recording, and "Longest presentations this period" has room for ten rows, not five. This overrides
+point 5's "a ranked list's five rows" and R05 item 8's five for that one list; stalled deals and
+IRIS-assisted sales still show five.
+
+- On both halves, at every width, the face is 44px (a plain disc, as everywhere), the row's line
+  22px (a date on the longest, a name on the given) and the line under it 14px, as on the agents'
+  screen. Above 60rem the name columns are 20rem and 15.5rem (17.75rem and 12rem before).
+- The longest show ten and the rest behind "Show all"; the read model lists the twenty longest
+  (eight before), so a period with more than ten still has a rest. Presentations given stays a full
+  list.
+- The rows give the height back, never the type: 2px of padding where the screens are fixed and
+  none from 40rem to 54rem tall, where the card's padding is 16px and "Show all" has nothing under
+  it. By arithmetic, ten 46px rows, the title and the control take about 579px of the 591px at
+  1280 × 720, and the rows spread to 56–61px at 1440 × 900. Not yet measured in a browser.
+- On the longest the presenter's name opens the 14px line; the 22px line stays the date, which is
+  the replay's link, so the screen carries no run of same-named links to different meetings.

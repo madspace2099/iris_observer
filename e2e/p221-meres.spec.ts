@@ -127,7 +127,7 @@ test("R05-2 · each group carries its own definition", async ({ page }) => {
   }
 });
 
-test("R05-8 · a long list shows five rows and keeps every other row, numbered on, behind Show all", async ({
+test("R05-8 · a long list shows five rows (the longest presentations ten) and keeps every other row, numbered on, behind Show all", async ({
   page,
 }) => {
   await mainText(page, "Tomáš Varga", `${ROOT}/flow`);
@@ -143,9 +143,12 @@ test("R05-8 · a long list shows five rows and keeps every other row, numbered o
         start: rest?.tagName === "OL" ? rest.getAttribute("start") : null,
         rest: rest?.querySelectorAll(":scope > li").length ?? 0,
         open: (d as HTMLDetailsElement).open,
+        longest: d.closest("#flow-presentations") !== null,
       };
     });
-    expect(shape).toMatchObject({ shown: 5, start: "6", open: false });
+    /* The owner, 2026-10-23: ten longest presentations on Sales Flow, "there is room". */
+    const first = shape.longest ? 10 : 5;
+    expect(shape).toMatchObject({ shown: first, start: String(first + 1), open: false });
     expect(shape.rest, "the folded rows are there, not dropped").toBeGreaterThan(0);
     const rest = fold.locator("xpath=preceding-sibling::ol[1]");
     await expect(rest).toBeHidden();

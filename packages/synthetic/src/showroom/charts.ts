@@ -1328,6 +1328,12 @@ export function buildFeatureUsage(
 
 /* --- ordered lists -------------------------------------------------------------- */
 
+/**
+ * The period's twenty longest timed meetings, longest first. Sales Flow shows
+ * ten and the rest behind "Show all" (the owner, 2026-10-23: ten fit the
+ * screen; it was five of eight), so a period with more than ten still has a
+ * rest to show.
+ */
 export function buildLongestMeetings(
   sessions: readonly ShowroomSession[],
   at: ProjectAddress,
@@ -1338,7 +1344,7 @@ export function buildLongestMeetings(
   return [...sessions]
     .filter((s) => !s.timingUnavailable)
     .sort((a, b) => b.durationSeconds - a.durationSeconds)
-    .slice(0, 8)
+    .slice(0, 20)
     .map((s) => ({
       id: s.meetingId,
       label: dayLabel(s.startedAt, locale, timeZone),

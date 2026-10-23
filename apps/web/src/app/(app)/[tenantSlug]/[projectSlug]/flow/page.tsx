@@ -1012,7 +1012,8 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".875rem" }}>
               Longest presentations this period
             </h2>
-            {/* R05 item 8: a date, a length and a line of context per row, no denominator. */}
+            {/* R05 item 8: a date, a length and a line of context per row, no denominator.
+                Ten on screen, the rest behind Show all (the owner, 2026-10-23: there is room). */}
             <RankedBars
               period={query.period}
               rows={
@@ -1021,7 +1022,7 @@ export default async function FlowPage({
                   : charts.longestMeetings.map((row) => ({ ...row, href: null }))
               }
               measured
-              collapseAfter={5}
+              collapseAfter={10}
               // Each meeting wears the face of who gave it, the name its line opens with (ADR-0054).
               marks={Object.fromEntries(
                 charts.longestMeetings.flatMap((row) =>

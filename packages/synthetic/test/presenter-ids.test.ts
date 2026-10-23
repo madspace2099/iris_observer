@@ -36,6 +36,18 @@ describe("on Shark Residence, quarter to date", () => {
     expect(charts.rankedAgents.every((row) => row.agentId === undefined)).toBe(true);
   });
 
+  /*
+   * Sales Flow shows ten and the rest behind "Show all" (the owner,
+   * 2026-10-23), so the read model hands it more than ten where the period
+   * has them: the twenty longest, longest first.
+   */
+  it("lists the twenty longest presentations, longest first, so ten leave a rest", async () => {
+    const charts = await repository.getFlowCharts(query, "month");
+    const lengths = charts.longestMeetings.map((row) => row.value);
+    expect(lengths).toHaveLength(20);
+    expect(lengths).toEqual([...lengths].sort((a, b) => b - a));
+  });
+
   it("names the presenter of every register row and of the replay it opens", async () => {
     const view = await repository.getMeetings(query, {
       agentId: null,
