@@ -31,6 +31,8 @@ test("the tenant's company admin is told portraits are kept only on a local serv
 }) => {
   await signIn(page, "Clara Weiss");
   await page.goto(LENA);
+  // Behind one quiet control on the head (the owner's review, 2026-10-23).
+  await page.getByText("Edit portrait", { exact: true }).click();
   const control = page.getByRole("region", { name: "Portrait", exact: true });
   await expect(control).toContainText(HOSTED);
   await expect(control.getByRole("button")).toHaveCount(0);
@@ -42,6 +44,7 @@ test("the agency's manager sees the initials and no control", async ({ page }) =
   // Drawn from the attribute, so the heading's text is the name alone.
   await expect(page.locator("h1 .ag-portrait")).toHaveAttribute("data-initials", "LF");
   await expect(page.locator(".ag-editor")).toHaveCount(0);
+  await expect(page.getByText("Edit portrait", { exact: true })).toHaveCount(0);
 });
 
 test("the agent finds her profile and is told why there is nothing to change", async ({
@@ -51,6 +54,7 @@ test("the agent finds her profile and is told why there is nothing to change", a
   await page.goto("/shark/shark-residence/agents");
   await page.getByRole("link", { name: "Your profile →" }).click();
   await expect(page).toHaveURL(/\/agents\/agt_sharklena01/);
+  await page.getByText("Edit portrait", { exact: true }).click();
   const own = page.getByRole("region", { name: "Your portrait", exact: true });
   await expect(own).toContainText(HOSTED);
 });

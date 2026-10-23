@@ -24,9 +24,15 @@ async function choose(page: Page, name: string, buffer: Buffer, mimeType = "imag
   await page.locator(".ag-editor input[type=file]").setInputFiles({ name, mimeType, buffer });
 }
 
+/* The editor stands behind "Edit portrait" on the head (the owner's review, 2026-10-23). */
+async function openEditor(page: Page) {
+  await page.getByText("Edit portrait", { exact: true }).click();
+}
+
 test("the company admin adds, replaces and removes a presenter's portrait", async ({ page }) => {
   await signIn(page, "Clara Weiss");
   await page.goto(`${ROOT}/agents/agt_sharkiva01`);
+  await openEditor(page);
   const control = page.getByRole("region", { name: "Portrait", exact: true });
   await expect(control.getByRole("button", { name: "Choose image" })).toBeVisible();
 
@@ -49,6 +55,7 @@ test("the company admin adds, replaces and removes a presenter's portrait", asyn
 
   // Removed after one confirmation.
   await page.goto(`${ROOT}/agents/agt_sharkiva01`);
+  await openEditor(page);
   await control.getByRole("button", { name: "Remove", exact: true }).click();
   await expect(control.getByRole("button", { name: "Remove portrait" })).toBeFocused();
   await control.getByRole("button", { name: "Remove portrait" }).click();
@@ -61,6 +68,7 @@ test("refuses what is not an image by its bytes, and what is too large before se
 }) => {
   await signIn(page, "Clara Weiss");
   await page.goto(`${ROOT}/agents/agt_sharkiva01`);
+  await openEditor(page);
   const control = page.getByRole("region", { name: "Portrait", exact: true });
 
   await choose(page, "looks-like.png", Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'/>"));
@@ -77,6 +85,7 @@ test("refuses what is not an image by its bytes, and what is too large before se
 test("the agent replaces and removes her own, and only her own", async ({ page }) => {
   await signIn(page, "Clara Weiss");
   await page.goto(`${ROOT}/agents/agt_sharklena01`);
+  await openEditor(page);
   await choose(page, "lena.png", PIXEL);
   await page.getByRole("button", { name: "Save portrait" }).click();
   await expect(
@@ -86,6 +95,7 @@ test("the agent replaces and removes her own, and only her own", async ({ page }
   await signIn(page, "Lena Fischer");
   await page.goto(`${ROOT}/agents`);
   await page.getByRole("link", { name: "Your profile →" }).click();
+  await openEditor(page);
   const own = page.getByRole("region", { name: "Your portrait", exact: true });
   await expect(own.getByRole("button", { name: "Replace" })).toBeVisible();
   await choose(page, "me.png", PIXEL);
@@ -97,6 +107,7 @@ test("the agent replaces and removes her own, and only her own", async ({ page }
   await expect(page.locator(".ag-editor")).toHaveCount(0);
 
   await page.goto(`${ROOT}/agents/agt_sharklena01`);
+  await openEditor(page);
   await own.getByRole("button", { name: "Remove", exact: true }).click();
   await own.getByRole("button", { name: "Remove portrait" }).click();
   // The same control stays: its status says so, the focus is on its heading, no button is left.

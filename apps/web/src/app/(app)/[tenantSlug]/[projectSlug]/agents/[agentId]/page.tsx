@@ -172,19 +172,28 @@ export default async function AgentPage({
       : portraitRight(actorFor(account, viewer), tenant, view.agentId, portrait !== null);
   const portraitMode =
     portraitBy ?? (account !== null && viewer.agentId === view.agentId ? "self" : null);
+  /*
+   * Behind one quiet "Edit portrait" on the head's aside (the owner's review,
+   * 2026-10-23): open, the editor read as part of the agent's figures in the
+   * page's first frame. A native disclosure, so it opens with no script and is
+   * announced as one; the editor inside is unchanged.
+   */
   const portraitControl =
     portraitMode === null ? null : (
-      <PortraitEditor
-        endpoint={portraitEndpoint(tenantSlug, projectSlug, view.agentId)}
-        name={view.name}
-        src={portrait}
-        tone={shape?.tone}
-        mode={portraitMode}
-        owner={tenant.name}
-        available={portraitStore() !== null}
-        unavailable={NO_PORTRAIT_STORE}
-        maxBytes={PORTRAIT_MAX_BYTES}
-      />
+      <details className="ag-editor-toggle">
+        <summary className="ox-toggle">Edit portrait</summary>
+        <PortraitEditor
+          endpoint={portraitEndpoint(tenantSlug, projectSlug, view.agentId)}
+          name={view.name}
+          src={portrait}
+          tone={shape?.tone}
+          mode={portraitMode}
+          owner={tenant.name}
+          available={portraitStore() !== null}
+          unavailable={NO_PORTRAIT_STORE}
+          maxBytes={PORTRAIT_MAX_BYTES}
+        />
+      </details>
     );
 
   /* The ten-second answer: `agentAnswer`, shared with the printed summary. */
@@ -402,6 +411,16 @@ export default async function AgentPage({
                     including the ones nobody recorded. The tier on each says how strong the claim
                     is; the source says what kind of fact it rests on.
                   </p>
+                  {/* Why the two absences below are absent: their own lines say only that they are. */}
+                  <p>
+                    Follow-ups completed:{" "}
+                    {view.followUp.completed.message ??
+                      "no source records whether a follow-up happened."}
+                  </p>
+                  <p>
+                    Verified outcomes: Observer links no deal to a meeting, so no CRM or other
+                    system of record has confirmed an outcome of theirs.
+                  </p>
                 </InfoTip>
                 {/*
                  * An absence is a state, so it stands in sight, once for the
@@ -475,13 +494,14 @@ export default async function AgentPage({
                * No action is offered. Connecting a CRM belongs to the MADSPACE
                * administration surface and is not this reader's to do, and a
                * control that looks ready and does nothing is forbidden.
+               *
+               * The state in sight in five words; the read model's reason is
+               * the screen's `i`'s (the owner's review, 2026-10-23: a viewer
+               * reads a screen in five seconds).
                */}
               <Unavailable
                 what="Follow-ups completed"
-                why={
-                  view.followUp.completed.message ??
-                  "No source records whether a follow-up happened."
-                }
+                why="no source records it."
                 action={null}
                 period={period}
               />
@@ -526,7 +546,7 @@ export default async function AgentPage({
               {/* Verified outcomes, stated as unavailable and apart from what the agent recorded: no deal is linked to a meeting (ADR-0039), so this claims nothing (R13-3). */}
               <Unavailable
                 what="Verified outcomes"
-                why="Observer links no deal to a meeting, so no CRM or other system of record has confirmed an outcome of theirs."
+                why="no deal is linked to a meeting."
                 action={null}
                 period={period}
               />
@@ -890,38 +910,39 @@ export default async function AgentPage({
                 <p className="ox-section-note">
                   Scoped to the projects this account holds, never to the projects the agent holds.
                 </p>
-              </div>
 
-              {/*
-               * THE GATE, DECIDED HERE AND NOT BY A STYLESHEET.
-               *
-               * The register is the meeting drill-down's own material, one row
-               * per meeting, and it keeps the drill-down's audience
-               * (`AGENT_REGISTER_ROLES`, the web's `[meetingId]` roles):
-               * docs/22 §5's decision (B) narrows this region, not the page. A
-               * reader outside it gets no table in the document at all — a
-               * hidden element is not a gate — and a sentence that says what is
-               * missing and why, here, closing this screen: a screen of one
-               * sentence would be a black field. Everything else on the page
-               * stays theirs.
-               */}
-              {register ? null : (
-                <>
-                  <p className="ox-result">
-                    <span className="ox-chip" data-tone="none">
-                      <span className="ox-chip-mark" aria-hidden="true" />
-                      Kept for the sales team
-                    </span>
-                    {/* Its own subject: under the apartments, "this register" read as their table (review round). */}
-                    <span>
-                      {view.name}&rsquo;s meetings, one by one, are the meeting drill-down&rsquo;s
-                      own material, which this account does not open. Every one of them is counted
-                      in the figures above.
-                    </span>
-                  </p>
-                  {everyMeeting}
-                </>
-              )}
+                {/*
+                 * THE GATE, DECIDED HERE AND NOT BY A STYLESHEET.
+                 *
+                 * The register is the meeting drill-down's own material, one
+                 * row per meeting, and it keeps the drill-down's audience
+                 * (`AGENT_REGISTER_ROLES`, the web's `[meetingId]` roles):
+                 * docs/22 §5's decision (B) narrows this region, not the page.
+                 * A reader outside it gets no table in the document at all — a
+                 * hidden element is not a gate — and a sentence that says what
+                 * is missing, here, beside where else they present: a screen
+                 * of one sentence would be a black field, and under the
+                 * apartments it pushed the screen past a 720px window. In
+                 * plain words, as the owner's review asked (2026-10-23).
+                 * Everything else on the page stays theirs.
+                 */}
+                {register ? null : (
+                  <>
+                    <p className="ox-result">
+                      <span className="ox-chip" data-tone="none">
+                        <span className="ox-chip-mark" aria-hidden="true" />
+                        Kept for the sales team
+                      </span>
+                      {/* Its own subject: under the apartments, "this register" read as their table (review round). */}
+                      <span>
+                        {view.name}&rsquo;s meetings one by one are for the sales team only; all{" "}
+                        {view.sampleSize} are counted on this page.
+                      </span>
+                    </p>
+                    {everyMeeting}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -959,23 +980,16 @@ export default async function AgentPage({
 
         {/* --- FINDINGS, AND HOW TO READ THE PAGE --------------------------------- */}
 
+        {/*
+         * The reading note is the findings' own line, under their title, with
+         * how a rate and the floor behave behind its `i`: as a section of its
+         * own it was the page's last frame, one line in a black field (the
+         * owner's review, 2026-10-23).
+         */}
         <div className="screen ag-screen ag-closing" id="agent-findings">
           <section className="ox-plane">
-            <div className="ox-section-head">
-              <h2 className="ox-section-title">What this period found</h2>
-            </div>
-            <FindingList
-              language={view.context.language}
-              findings={view.findings}
-              period={period}
-              emptyNote={`No finding about ${view.name} was produced for this period. That is the read model's answer rather than a gap in it.`}
-            />
-          </section>
-
-          {/* The reading note in one line; how a rate and the floor behave is the `i`'s. */}
-          <section className="ox-plane">
             <div className="ox-section-head ag-head">
-              <h2 className="ox-section-title">How to read this</h2>
+              <h2 className="ox-section-title">What this period found</h2>
               <InfoTip id="agent-reading" label="how to read this page">
                 <p>
                   Every figure on this page is what was recorded beside something else that was
@@ -986,11 +1000,17 @@ export default async function AgentPage({
                   shortfall beside it, no series is drawn, and no comparison is made.
                 </p>
               </InfoTip>
+              <p className="ox-section-note ag-head-note">
+                Nothing on this page ranks {view.name} against a colleague, and nothing adds these
+                figures into a score.
+              </p>
             </div>
-            <p className="ox-section-note">
-              Nothing on this page ranks {view.name} against a colleague, and nothing adds these
-              figures into a score.
-            </p>
+            <FindingList
+              language={view.context.language}
+              findings={view.findings}
+              period={period}
+              emptyNote={`No finding about ${view.name} was produced for this period. That is the read model's answer rather than a gap in it.`}
+            />
           </section>
         </div>
       </div>

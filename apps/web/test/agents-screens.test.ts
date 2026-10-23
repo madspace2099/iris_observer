@@ -88,9 +88,9 @@ describe("an agent's page", () => {
       /\.\.\.\(register \? \[\{ id: "agent-meetings", label: "Their most recent meetings" \}\] : \[\]\)/,
     );
     expect(DETAIL).toMatch(/\{register \? null : \([\s\S]*?Kept for the sales team/);
-    /* Under the apartments, it names what it withholds (review round). */
+    /* It names what it withholds (review round), and that every one is counted (2026-10-23). */
     expect(DETAIL).toMatch(
-      /Kept for the sales team[\s\S]*?\{view\.name\}&rsquo;s meetings, one by one/,
+      /Kept for the sales team[\s\S]*?\{view\.name\}&rsquo;s meetings one by one are for the sales team only; all\{" "\}\s*\{view\.sampleSize\} are counted on this page\./,
     );
   });
 

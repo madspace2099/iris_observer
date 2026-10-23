@@ -35,6 +35,30 @@
   gap: clamp(0.875rem, 0.5rem + 1vw, 1.5rem);
 }
 
+/* The portrait's editor behind one quiet control on the head's aside; open, it stands under it. */
+.ag-detail .ag-editor-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: inherit;
+  gap: 0.75rem;
+}
+
+.ag-detail .ag-editor-toggle > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  list-style: none;
+}
+
+.ag-detail .ag-editor-toggle > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ag-detail .ag-editor-toggle[open] > summary {
+  color: var(--ox-ink, #f4f7fc);
+  border-color: var(--ox-ink-3, #98a4b8);
+}
+
 /* --- a section's title and its `i` on one line ------------------------------ */
 
 .ag-detail .ag-head {
@@ -44,8 +68,8 @@
   gap: 0.5rem;
 }
 
-/* A screen's one line of absence, under its title (review round). */
-.ag-detail .ag-head > .ag-unreferenced {
+/* A screen's one line under its title: an absence (review round), or the reading note. */
+.ag-detail .ag-head > :is(.ag-unreferenced, .ag-head-note) {
   flex-basis: 100%;
   max-width: none;
   margin: 0;
@@ -122,6 +146,44 @@
   min-width: 0;
 }
 
+/*
+ * THE TWO TABLES ON A PHONE (the owner's review, 2026-10-23).
+ *
+ * The shared sheet turns a row into a record that names every column
+ * (`observer-product.css`): a unit took 185px and Lena's own page ran to
+ * seventeen screens at 360. The records stay records, each figure beside its
+ * name, closer together; a unit's share drops the "of their meetings" its own
+ * label already says. Every column and figure stays.
+ */
+@media screen and (width <= 48rem) {
+  .ag-detail :is(.ag-units, #agent-meetings) .ox-table tr {
+    padding: 0.5rem 0.75rem;
+  }
+
+  /* Three insets nested inside 360px left a record 216px: the plate's own gives some back. */
+  .ag-detail :is(#agent-units, #agent-meetings) .ox-plate-inner {
+    padding-inline: 0.75rem;
+  }
+
+  .ag-detail :is(.ag-units, #agent-meetings) .ox-table td {
+    padding-block: 0;
+  }
+
+  .ag-detail :is(.ag-units, #agent-meetings) .ox-table td.ox-table-code {
+    padding-bottom: 0.125rem;
+  }
+
+  /* A name and its figure on one line: the names' tracking is what pushed the figures under them. */
+  .ag-detail :is(.ag-units, #agent-meetings) .ox-table td[data-label]::before {
+    letter-spacing: 0.02em;
+  }
+
+  /* The share column is the third of four; under the floor it is not drawn at all. */
+  .ag-detail .ag-units .ox-table tr:has(> td:nth-child(4)) > td:nth-child(3) .ox-of {
+    display: none;
+  }
+}
+
 /* --- two charts on a screen -------------------------------------------------- */
 
 .ag-detail .ag-pair {
@@ -185,6 +247,19 @@
   }
 }
 
+/*
+ * The axis's end ticks stand inside the axis: centred on its edge, "0%" was cut
+ * to "%" by the plot's clip on a phone, where no label column stands left of
+ * it (the owner's review, 2026-10-23).
+ */
+.ag-detail .iris-paired-axis em:first-child {
+  transform: none;
+}
+
+.ag-detail .iris-paired-axis em:last-child {
+  transform: translateX(-100%);
+}
+
 /* What their buyers opened: the rows spread down the card, the marks on longer tracks. */
 @media (width >= 40rem) {
   .ag-detail .ag-frame .iris-paired-row {
@@ -205,6 +280,36 @@
  */
 .ag-detail .ag-frame .iris-sequence li {
   padding-block: 0.375rem;
+}
+
+/*
+ * A short desktop window (1280 × 720 leaves 591px under the chrome): the
+ * running order was 744px tall, cut at its eighth stop on arrival (the owner's
+ * review, 2026-10-23). The card's inset and the rows close up; every stop,
+ * figure and team median stays.
+ */
+@media (width >= 64rem) and (height <= 760px) {
+  .ag-detail .ag-frame {
+    padding-block: 1rem;
+  }
+
+  .ag-detail .ag-frame .iris-sequence li {
+    padding-block: 0.125rem;
+  }
+
+  .ag-detail .ag-frame :is(.iris-sequence-name, .iris-sequence-time) {
+    gap: 0;
+    line-height: 1.25rem;
+  }
+
+  .ag-detail .ag-frame :is(.iris-sequence-name, .iris-sequence-time) em {
+    line-height: 1rem;
+  }
+
+  /* Their eight recent meetings: 653px on the same window, so the rows close up too. */
+  .ag-detail #agent-meetings .ox-table :is(th, td) {
+    padding-block: 0.375rem;
+  }
 }
 
 /* A shortfall under a drawing is one line across the card, not a 58ch column (review round). */
