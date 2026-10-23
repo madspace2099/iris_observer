@@ -81,6 +81,14 @@ describe("the ring beside the steps", () => {
     ]);
   });
 
+  it("keeps a two-line period's block centred where a one-line one is", () => {
+    const middle = (html: string) => {
+      const ys = [...html.matchAll(/<text[^>]* y="([^"]+)"/g)].map((m) => Number(m[1]));
+      return (ys[0]! + ys[ys.length - 1]!) / 2;
+    };
+    expect(middle(ring("Last completed quarter"))).toBeCloseTo(middle(ring("Quarter to date")), 6);
+  });
+
   it("draws the hole as before where no period is passed", () => {
     const html = ring();
     expect(captions(html)).toEqual(["meetings"]);

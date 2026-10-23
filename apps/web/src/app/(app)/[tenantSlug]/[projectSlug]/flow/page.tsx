@@ -506,8 +506,8 @@ export default async function FlowPage({
                   The lighter column is every meeting; the solid part is those that reached a
                   follow-up or better. Each window counts back from today, and a part-week is
                   compared against the same days of the week before, never against a whole one. The
-                  ring beside it counts the {view.context.period.label.toLowerCase()} as a whole,
-                  not these windows.
+                  outcome ring counts the {view.context.period.label.toLowerCase()} as a whole, not
+                  these windows.
                 </InfoTip>
               ) : null}
             </header>

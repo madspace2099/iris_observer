@@ -270,12 +270,15 @@ html:has(.iris-salesflow) {
 }
 
 /*
- * As large as a column lets "Yesterday" stand whole: 2.6% of the half is about
- * 16px in a 1280 window's six columns, 19px at 1440 and the 22px cap from
- * about 1700. A longer name wraps between its words.
+ * As large as a column lets "Yesterday" stand whole: 2.8% of the half is about
+ * 17.5px in a 1280 window, 20px at 1440 and 21px from about 1490 on, where the
+ * wide main column stops at 1440 and the half near 750px. The 22px cap is reached
+ * only stacked (75rem and under), where the steps have the card's width.
+ * Narrowest side by side (1201px), "Yesterday" takes 73 of its column's 77px.
+ * A longer name wraps between its words.
  */
 .iris-salesflow #flow-meetings .iris-step-label {
-  font-size: clamp(1rem, 2.6cqi, 1.375rem);
+  font-size: clamp(1rem, 2.8cqi, 1.375rem);
   line-height: 1.25;
   text-wrap: balance;
 }

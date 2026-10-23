@@ -139,6 +139,8 @@ export function OutcomeRing({
   const r = (size - stroke) / 2 - 1;
   const c = size / 2;
   const lines = period === undefined ? [] : holeLines(period);
+  // A second line of period lifts the whole block by half a line, so it stays centred in the hole.
+  const lift = Math.max(0, lines.length - 1) * size * 0.0325;
   let cursor = 0;
 
   return (
@@ -176,10 +178,10 @@ export function OutcomeRing({
             </path>
           );
         })}
-        {/* With a period's name under it, the count rises to keep the three lines centred. */}
+        {/* With a period's name under it, the count rises to keep the block centred. */}
         <text
           x={c}
-          y={period === undefined ? c - 2 : c - size * 0.06}
+          y={period === undefined ? c - 2 : c - size * 0.06 - lift}
           className="iris-ring-figure"
           textAnchor="middle"
           dominantBaseline="middle"
@@ -188,7 +190,7 @@ export function OutcomeRing({
         </text>
         <text
           x={c}
-          y={c + size * (period === undefined ? 0.14 : 0.08)}
+          y={c + size * (period === undefined ? 0.14 : 0.08) - lift}
           className="iris-ring-caption"
           textAnchor="middle"
         >
@@ -198,7 +200,7 @@ export function OutcomeRing({
           <text
             key={line}
             x={c}
-            y={c + size * (0.145 + i * 0.065)}
+            y={c + size * (0.145 + i * 0.065) - lift}
             className="iris-ring-caption"
             textAnchor="middle"
           >
