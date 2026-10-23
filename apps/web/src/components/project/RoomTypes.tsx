@@ -213,15 +213,21 @@ function Lines({
   readonly label: string;
 }) {
   /*
-   * Drawn at the width it is shown, so its 12px labels stay 12px at 1440 and
+   * Drawn at the size it is shown, so its 12px labels stay 12px at 1440 and
    * at 360 alike. The server renders a phone's width; the browser measures.
+   * The height is the box's (`rooms.css`, 196px), which the Project page's
+   * screen raises to the screen's (ADR-0063); never drawn under 196.
    */
   const box = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(320);
+  const [{ width, height }, setSize] = useState({ width: 320, height: HEIGHT });
   useEffect(() => {
     const el = box.current;
     if (el === null) return;
-    const measure = () => setWidth(Math.max(240, Math.round(el.clientWidth)));
+    const measure = () =>
+      setSize({
+        width: Math.max(240, Math.round(el.clientWidth)),
+        height: Math.max(HEIGHT, Math.round(el.clientHeight)),
+      });
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
@@ -230,7 +236,7 @@ function Lines({
 
   const parts = trend.parts.length;
   const innerW = width - PAD.left - PAD.right;
-  const innerH = HEIGHT - PAD.top - PAD.bottom;
+  const innerH = height - PAD.top - PAD.bottom;
   const x = (i: number) => PAD.left + ((i + 0.5) / parts) * innerW;
   const y = (v: number) => PAD.top + (1 - v) * innerH;
 
@@ -259,9 +265,9 @@ function Lines({
   return (
     <div className="pr-lines" ref={box}>
       <svg
-        viewBox={`0 0 ${String(width)} ${String(HEIGHT)}`}
+        viewBox={`0 0 ${String(width)} ${String(height)}`}
         width={width}
-        height={HEIGHT}
+        height={height}
         role="img"
         aria-label={`Share of meetings that opened each flat type, ${label.toLowerCase()}. ${summary}.`}
       >
@@ -315,7 +321,7 @@ function Lines({
           );
         })}
         {ticks.map(([i, at]) => (
-          <text key={i} x={at} y={HEIGHT - 6} textAnchor="middle" className="pr-tick">
+          <text key={i} x={at} y={height - 6} textAnchor="middle" className="pr-tick">
             {trend.parts[i]?.label}
           </text>
         ))}

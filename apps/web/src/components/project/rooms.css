@@ -269,14 +269,16 @@
   color: var(--d-ink-2);
 }
 
+/* The line is drawn at its box's size (`RoomTypes`' `Lines`): 196px tall unless a screen raises it. */
 .pr-lines {
   min-width: 0;
+  height: 196px;
 }
 
 .pr-lines svg {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   overflow: visible;
 }
 

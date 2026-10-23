@@ -1,0 +1,315 @@
+/*
+ * THE PROJECT PAGE, ONE SCREEN AT A TIME (the owner, 2026-10-23, ADR-0063).
+ *
+ * Each block of `project/page.tsx` is a `.screen` (`components/screens/
+ * screens.css`): as tall as the viewport under the sticky chrome, so the next
+ * starts below the fold. What a screen holds stands in its middle, its drawing
+ * sized against `--screen-h`, the screen's height, less what the screen also
+ * holds, and never under the size it is drawn at. Every rule is scoped to the
+ * page (`.pr-page`) and a screen's id, so the cards keep their own sheets
+ * (`rooms.css`, `plan.css`) for every other place they are drawn.
+ */
+
+.pr-page .screen {
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+/* --- the verdict, alone and large (ADR-0048), the page's ways on under it ---- */
+
+.pr-page #project-verdict {
+  gap: 2rem;
+  padding: 2rem 0;
+}
+
+.pr-page #project-verdict .iris-spoken {
+  grid-template-columns: 72px minmax(0, 1fr);
+  column-gap: 1.5rem;
+}
+
+.pr-page #project-verdict .iris-spoken-mark {
+  width: 72px;
+  height: 72px;
+}
+
+.pr-page #project-verdict .iris-spoken-line {
+  max-width: 30ch;
+  font-size: clamp(1.75rem, 0.9rem + 2.6vw, 3.5rem);
+  line-height: 1.14;
+}
+
+.pr-page #project-verdict .iris-actions {
+  margin: 0;
+}
+
+/* --- each screen's drawing, given the screen --------------------------------- */
+
+@media (width >= 40rem) {
+  /*
+   * Sold against the plan: the verdict, the stock's figures and the window's
+   * date at a screen's scale, the stock bar and the window's track thick
+   * enough to read across a room.
+   */
+  .pr-page
+    #project-plan
+    .iris-plan-verdict:is(
+      [data-verdict="on_pace"],
+      [data-verdict="behind"],
+      [data-verdict="sold_out"]
+    ) {
+    font-size: clamp(2.125rem, 1rem + 2vw, 3rem);
+    line-height: 1.15;
+  }
+
+  .pr-page #project-plan .iris-plan-mark {
+    width: 14px;
+    height: 14px;
+  }
+
+  .pr-page #project-plan .iris-plan-cols {
+    margin-top: clamp(1.75rem, calc((var(--screen-h) - 30rem) / 5), 3.5rem);
+  }
+
+  .pr-page #project-plan .iris-plan-figures dd {
+    font-size: clamp(2.5rem, 1rem + 2.4vw, 4rem);
+    line-height: 1.1;
+  }
+
+  .pr-page #project-plan .iris-plan-figures dt {
+    font-size: 14px;
+  }
+
+  .pr-page #project-plan .iris-plan-stock {
+    height: clamp(14px, calc((var(--screen-h) - 26rem) / 8), 40px);
+    margin-top: clamp(18px, calc((var(--screen-h) - 30rem) / 8), 32px);
+  }
+
+  .pr-page #project-plan .iris-plan-time {
+    margin-top: clamp(16px, calc((var(--screen-h) - 30rem) / 10), 28px);
+  }
+
+  .pr-page #project-plan .iris-plan-track {
+    height: clamp(8px, calc((var(--screen-h) - 30rem) / 16), 16px);
+    border-radius: 8px;
+  }
+
+  .pr-page #project-plan .iris-plan-track i {
+    border-radius: 8px 0 0 8px;
+  }
+
+  .pr-page #project-plan .iris-plan-out {
+    font-size: 17px;
+    line-height: 24px;
+  }
+
+  /*
+   * Flat types: the rows spread down the screen and the interest line takes
+   * the screen's height beside them, its labels drawn at 12px whatever its
+   * size (`Lines` draws at its box's size). Stacked under the rows on a
+   * narrower card, it keeps a third of the screen.
+   */
+  .pr-page #project-types .pr-rows li {
+    padding-block: clamp(12px, calc((var(--screen-h) - 34rem) / 8), 1.5rem);
+  }
+
+  .pr-page #project-types .pr-flats {
+    height: 18px;
+  }
+
+  .pr-page #project-types .pr-bar {
+    height: 12px;
+  }
+
+  .pr-page #project-types .pr-lines {
+    height: max(196px, calc(var(--screen-h) / 3));
+  }
+
+  /* Interest against sales: four rows down the screen, the meters thicker. */
+  .pr-page #project-readings .pr-read-rows li {
+    padding-block: clamp(14px, calc((var(--screen-h) - 26rem) / 8), 2.25rem);
+  }
+
+  .pr-page #project-readings .pr-read-say b {
+    font-size: 20px;
+    line-height: 28px;
+  }
+
+  .pr-page #project-readings .pr-meter-figure {
+    font-size: 20px;
+    line-height: 24px;
+  }
+
+  .pr-page #project-readings .pr-meter-track {
+    height: 14px;
+  }
+
+  .pr-page #project-readings .pr-meter-track b {
+    top: -5px;
+    bottom: -5px;
+  }
+
+  /* The room types side by side: the rows down the screen, each rate and its bar larger. */
+  .pr-page #project-compare .pr-grid-row > * {
+    padding-block: clamp(10px, calc((var(--screen-h) - 30rem) / 14), 1.25rem);
+  }
+
+  .pr-page #project-compare .pr-grid [role="cell"] > b {
+    font-size: 20px;
+    line-height: 24px;
+  }
+
+  .pr-page #project-compare .pr-grid [role="cell"] > i {
+    height: 8px;
+  }
+
+  .pr-page #project-compare .pr-grid [role="rowheader"] {
+    font-size: 15px;
+  }
+
+  /* How far the presentations got: the bands the screen's height between them, each thicker. */
+  .pr-page #project-path .pr-path {
+    gap: clamp(14px, calc((var(--screen-h) - 24rem) / 5), 5rem);
+  }
+
+  .pr-page #project-path .dld-band {
+    height: clamp(14px, calc((var(--screen-h) - 24rem) / 7), 64px);
+  }
+
+  .pr-page #project-path .pr-path-say {
+    font-size: 17px;
+    line-height: 24px;
+  }
+
+  .pr-page #project-path .pr-path-say b {
+    font-size: clamp(22px, 1rem + 1.2vw, 34px);
+    line-height: 1.15;
+  }
+
+  .pr-page #project-path .dld-jf.pr-path em {
+    font-size: 17px;
+  }
+
+  /* The kinds of place spread down their card where the screen leaves room. */
+  .pr-page #project-search .pr-bars {
+    gap: clamp(0.5rem, calc((var(--screen-h) - 36rem) / 7), 1.5rem);
+  }
+}
+
+/* The path's say column, wide enough for its larger count beside a phrase. */
+@container (width >= 40rem) {
+  .pr-page #project-path .dld-jf.pr-path li {
+    grid-template-columns: 20rem minmax(0, 1fr) 4rem;
+  }
+}
+
+/* Flat types on a wide card: the line beside the rows, as tall as the screen leaves it. */
+@container (width >= 62rem) {
+  .pr-page #project-types .pr-lines {
+    height: clamp(196px, calc(var(--screen-h) - 21rem), 34rem);
+  }
+}
+
+/*
+ * The kinds of place in the narrow side card: each name and its share on one
+ * line, its bar the card's width under them. Stacked as `rooms.css` stacks
+ * them for a phone, name over bar and share, seven kinds took 356px of a
+ * 591px screen.
+ */
+@container (width < 30rem) {
+  .pr-page #project-search .pr-bars .iris-bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pr-page #project-search .pr-bars .iris-bar-label {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .pr-page #project-search .pr-bars .iris-bar-value {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .pr-page #project-search .pr-bars .iris-bar-track {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* The named places' source a step under the places, as every other source line stands. */
+.pr-page #project-search .iris-places + .iris-srcs {
+  margin-top: 0.75rem;
+}
+
+/*
+ * The findings close the page, the lead one's sentence a step above Body, as
+ * on the agents' workload screen (ADR-0061). Their own padding and hairline
+ * part them; the screen's gap stands only before what this source cannot say.
+ */
+.pr-page #project-findings {
+  gap: 0;
+}
+
+.pr-page #project-findings .iris-gap {
+  margin-top: 1.5rem;
+}
+
+.pr-page #project-findings .iris-finding[data-lead] .iris-finding-statement {
+  max-width: 52ch;
+  font-size: clamp(1.125rem, 0.85rem + 0.6vw, 1.5rem);
+  line-height: 1.3;
+}
+
+/*
+ * A short desktop window (1280 × 720 leaves a 591px screen): the cards'
+ * padding, the rows and the gaps closer, so each screen fits the view with
+ * its source line in sight. Every row, figure and sentence stays.
+ */
+@media (width >= 64rem) and (height <= 760px) {
+  .pr-page .screen {
+    gap: 1rem;
+  }
+
+  .pr-page .screen .d-card {
+    padding-block: 16px;
+  }
+
+  .pr-page #project-types .pr-rooms,
+  .pr-page #project-readings .pr-readings {
+    gap: 12px;
+  }
+
+  .pr-page #project-types .pr-rooms-reading {
+    font-size: 15px;
+    line-height: 22px;
+  }
+
+  .pr-page #project-types .pr-rows li {
+    padding-block: 8px;
+  }
+
+  .pr-page #project-readings .pr-read-rows li {
+    padding-block: 10px;
+  }
+
+  .pr-page #project-search .iris-matrix-row {
+    padding-block: 0.1875rem;
+  }
+
+  .pr-page #project-search .iris-place {
+    padding-block: 0.25rem;
+  }
+
+  .pr-page #project-findings .iris-finding {
+    gap: 0.375rem;
+    padding-block: 0.5rem 0.625rem;
+  }
+
+  .pr-page #project-findings .iris-finding[data-lead] .iris-finding-statement {
+    font-size: 1.25rem;
+  }
+
+  .pr-page #project-findings .iris-gap {
+    margin-top: 0.75rem;
+  }
+}
