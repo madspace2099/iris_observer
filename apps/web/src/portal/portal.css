@@ -1318,8 +1318,13 @@ details.mp-demo > summary strong {
     --gutter: 16px;
   }
 
+  /*
+   * Tall enough that the line sits under the founders' faces, not across
+   * them: at 390 the square photograph's chins fall about 110px down, so a
+   * 168px band put the hero line over their mouths on camera.
+   */
   .mp-hero {
-    min-height: 168px;
+    min-height: 224px;
   }
 
   .mp-login-panel {
