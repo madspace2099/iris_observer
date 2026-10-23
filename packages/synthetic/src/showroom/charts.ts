@@ -231,10 +231,21 @@ export function buildKpis(
   const units = now.reduce((a, s) => a + s.units.length, 0);
   const unitsBefore = before.reduce((a, s) => a + s.units.length, 0);
 
+  const presentationsDelta =
+    before.length === 0
+      ? null
+      : signedPercent((now.length - before.length) / before.length, locale);
+  // Two shares set against each other differ in points, not per cent.
+  const progressedDelta =
+    decidedBefore.length === 0 || decided.length === 0
+      ? null
+      : signedPoints(progressed - progressedBefore);
+
   /*
    * No verdict below the floor. Under five meetings on either side the caveat
    * below says the comparisons are not verdicts, so the colour does not give
-   * one either: "Today, 2 against 3" was drawn red.
+   * one either: "Today, 2 against 3" was drawn red. A change the printed delta
+   * rounds to "no change" is flat too, or 56.2% against 56.0% was green.
    */
   const tone = (
     a: number,
@@ -242,7 +253,9 @@ export function buildKpis(
     better: "up" | "down",
     sample: number,
     earlierSample: number,
+    delta: string | null,
   ): "good" | "bad" | "flat" => {
+    if (delta === null || delta === "no change") return "flat";
     if (a === b || sample < KPI_FLOOR || earlierSample < KPI_FLOOR) return "flat";
     return a > b === (better === "up") ? "good" : "bad";
   };
@@ -275,11 +288,8 @@ export function buildKpis(
         before.length === 0
           ? `${windowWords} · no earlier window`
           : `${windowWords} · ${count(before.length, locale)} before`,
-      delta:
-        before.length === 0
-          ? null
-          : signedPercent((now.length - before.length) / before.length, locale),
-      tone: tone(now.length, before.length, "up", now.length, before.length),
+      delta: presentationsDelta,
+      tone: tone(now.length, before.length, "up", now.length, before.length, presentationsDelta),
       points,
     },
     {
@@ -321,12 +331,15 @@ export function buildKpis(
         decided.length === 0
           ? `no outcome recorded, ${spec.label.toLowerCase()}`
           : `${count(decided.length, locale)} with an outcome, ${spec.label.toLowerCase()}`,
-      // Two shares set against each other differ in points, not per cent.
-      delta:
-        decidedBefore.length === 0 || decided.length === 0
-          ? null
-          : signedPoints(progressed - progressedBefore),
-      tone: tone(progressed, progressedBefore, "up", decided.length, decidedBefore.length),
+      delta: progressedDelta,
+      tone: tone(
+        progressed,
+        progressedBefore,
+        "up",
+        decided.length,
+        decidedBefore.length,
+        progressedDelta,
+      ),
       points: seriesOf((slice) => {
         const known = slice.filter((s) => !outcomeIsUnknown(s.outcome));
         return known.length === 0
@@ -486,8 +499,11 @@ export function buildActivity(
     busiest:
       busiestSlots.length === 0 || busiestSlots.length > 3
         ? null
-        : { ...slotWords(busiestSlots), meetings: peakCell },
-    quietest: quietDays.length > 3 ? null : { weekday: AND.format(quietDays), meetings: fewest },
+        : { ...slotWords(busiestSlots), meetings: peakCell, slots: busiestSlots.length },
+    quietest:
+      quietDays.length > 3
+        ? null
+        : { weekday: AND.format(quietDays), meetings: fewest, days: quietDays.length },
     meetingsCounted: counted,
     day: {
       hours: day.map((count, hour) => ({ hour, label: clock(hour), count })),
@@ -777,12 +793,14 @@ export function buildBehaviourFunnel(
        */
       const shortBy = minimum - Math.min(mine.length, theirs.length);
       const leadSaidIt = !compared && minimum === reachFloor && shortBy === short;
+      /* Where the others are the short side, they are named: "of 25 timed · 5 short" read as the 25. */
+      const shortSide = theirs.length < mine.length ? `the others' ${n(theirs.length)} are ` : "";
       return {
         ...base,
         value: say(g),
         qualifier: leadSaidIt
           ? `of ${n(mine.length)} ${f.sample} · not compared`
-          : `of ${n(mine.length)} ${f.sample} · not compared, ${n(shortBy)} short of ${n(minimum)}`,
+          : `of ${n(mine.length)} ${f.sample} · not compared, ${shortSide}${n(shortBy)} short of ${n(minimum)}`,
       };
     }
     const o = median(theirs);
@@ -1144,7 +1162,7 @@ const FEATURE_AXES: readonly FeatureAxis[] = [
     plain: "Stop at a named place in Surroundings",
     doing: "stopping at a named place in Surroundings",
     missing:
-      "Not measured yet. Surroundings is recorded only as a section reached, never place by place; the contract's word for it is requires_ue5_v2_event.",
+      "Not measured yet. The showroom records Surroundings as a section reached, not place by place.",
   },
   {
     id: "filtering",
@@ -1153,8 +1171,7 @@ const FEATURE_AXES: readonly FeatureAxis[] = [
     used: null,
     plain: "Filter the apartments on show",
     doing: "filtering the apartments on show",
-    missing:
-      "Not measured yet. The contract has a place for a filter, but the current build sends no filter event at all.",
+    missing: "Not measured yet. The showroom does not record filtering.",
   },
   {
     id: "walking",
@@ -1163,7 +1180,7 @@ const FEATURE_AXES: readonly FeatureAxis[] = [
     used: null,
     plain: "Walk the site in spaceman mode",
     doing: "walking the site in spaceman mode",
-    missing: "Not measured yet. Spaceman mode is not modelled in the contract at all.",
+    missing: "Not measured yet. The showroom does not record spaceman mode.",
   },
 ];
 

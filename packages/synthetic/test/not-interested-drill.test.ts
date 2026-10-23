@@ -257,6 +257,25 @@ describe("how long they ran and what was opened in them", () => {
       "others 8 · 20 and 27 meetings",
     );
   });
+
+  it("names the others when they are the short side", () => {
+    // 25 in the group, all timed at 900s; 20 others, 5 of them untimed: 15 timed, 5 short of 20.
+    const othersShort = buildBehaviourFunnel(
+      [
+        ...times(25, () => meeting(LENA, "not_interested", 900)),
+        ...times(15, () => meeting(OLIVER, "follow_up_needed", 1_200)),
+        ...times(5, () => meeting(OLIVER, "follow_up_needed", 1_200, { timed: false })),
+      ],
+      "en-GB",
+      "en",
+      AT,
+      "Quarter to date",
+    );
+    expect(othersShort.figures.find((f) => f.id === "length")).toMatchObject({
+      value: "15m 00s",
+      qualifier: "of 25 timed · not compared, the others' 15 are 5 short of 20",
+    });
+  });
 });
 
 describe("what they did, against the others", () => {

@@ -170,21 +170,21 @@ describe("buildFeatureUsage: the three axes the current build cannot answer", ()
     const { value, missing } = readAxis("exploring", everything);
     expect(value).toBeNull();
     expect(missing).toMatch(/^Not measured yet\. /);
-    expect(missing).toContain("requires_ue5_v2_event");
+    expect(missing).toContain("as a section reached, not place by place");
   });
 
-  it("Filtering returns no value and its own reason: the build sends no filter event", () => {
+  it("Filtering returns no value and its own reason: the showroom records no filtering", () => {
     const { value, missing } = readAxis("filtering", everything);
     expect(value).toBeNull();
     expect(missing).toMatch(/^Not measured yet\. /);
-    expect(missing).toContain("sends no filter event");
+    expect(missing).toContain("does not record filtering");
   });
 
-  it("Walking returns no value and its own reason: spaceman mode is not modelled", () => {
+  it("Walking returns no value and its own reason: spaceman mode is not recorded", () => {
     const { value, missing } = readAxis("walking", everything);
     expect(value).toBeNull();
     expect(missing).toMatch(/^Not measured yet\. /);
-    expect(missing).toContain("Spaceman mode is not modelled");
+    expect(missing).toContain("does not record spaceman mode");
   });
 
   it("the three reasons are three different sentences, and no measured axis carries one", () => {

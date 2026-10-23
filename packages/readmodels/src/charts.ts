@@ -106,10 +106,18 @@ export interface ActivityMatrix {
   readonly busiest: {
     readonly weekday: string;
     readonly hour: string;
+    /** Meetings in EACH named slot, not in all of them together. */
     readonly meetings: number;
+    /** How many slots tie, so a tie reads "6 meetings each" (as `day.busiest.hours`). */
+    readonly slots: number;
   } | null;
-  /** The quietest weekday, every tied one named ("Sat and Sun"); null where more than three tie. */
-  readonly quietest: { readonly weekday: string; readonly meetings: number } | null;
+  /** The quietest weekday, every tied one named ("Sat and Sun"), `meetings` each; null where more than three tie. */
+  readonly quietest: {
+    readonly weekday: string;
+    readonly meetings: number;
+    /** How many weekdays tie. */
+    readonly days: number;
+  } | null;
   readonly meetingsCounted: number;
   /**
    * The same meetings by the hour each started, every day together and all
