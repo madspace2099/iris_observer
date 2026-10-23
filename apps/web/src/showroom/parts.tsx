@@ -184,6 +184,7 @@ export function Finding({
         <span>n = {finding.sampleSize} meetings</span>
         {finding.nextStep === null ? null : (
           <Link
+            prefetch={false}
             className="iris-action"
             href={dynamicRoute(withPeriod(finding.nextStep.href, period))}
           >
@@ -439,6 +440,7 @@ export function Changes({ changes }: { changes: readonly BehaviourChange[] }) {
             }}
           >
             <Link
+              prefetch={false}
               className="iris-body"
               href={dynamicRoute(change.href)}
               style={{ fontWeight: 600 }}

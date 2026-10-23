@@ -85,7 +85,11 @@ export function AssistedSales({
       <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
       {irisLedHref === undefined ? null : (
         <p style={{ marginTop: ".875rem" }}>
-          <Link className="iris-action" href={dynamicRoute(withPeriod(irisLedHref, period))}>
+          <Link
+            prefetch={false}
+            className="iris-action"
+            href={dynamicRoute(withPeriod(irisLedHref, period))}
+          >
             Open IRIS-led sales
           </Link>
         </p>

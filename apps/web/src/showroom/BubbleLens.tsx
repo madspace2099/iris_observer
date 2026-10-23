@@ -779,7 +779,9 @@ export function BubbleLens({
           <p>{tipWords.agent}</p>
           <p>{tipWords.units}</p>
           {tip.held && tipMeeting.href !== null ? (
-            <Link href={dynamicRoute(tipMeeting.href)}>Open the meeting</Link>
+            <Link prefetch={false} href={dynamicRoute(tipMeeting.href)}>
+              Open the meeting
+            </Link>
           ) : null}
         </div>
       )}

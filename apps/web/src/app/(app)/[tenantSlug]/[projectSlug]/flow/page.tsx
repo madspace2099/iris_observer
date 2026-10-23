@@ -149,6 +149,7 @@ export default async function FlowPage({
    */
   const windowChips = KPI_WINDOWS.map((w) => (
     <Link
+      prefetch={false}
       key={w.id}
       className="iris-chip"
       aria-current={w.id === kpiWindow ? "true" : undefined}
@@ -570,6 +571,7 @@ export default async function FlowPage({
                 </p>
               )}
               <Link
+                prefetch={false}
                 className="iris-action"
                 href={dynamicRoute(
                   withPeriod(`/${tenantSlug}/${projectSlug}/meetings`, query.period),
@@ -672,7 +674,10 @@ export default async function FlowPage({
                 {charts.lens.nearest.map((row) => (
                   <li key={row.id}>
                     {canOpenMeeting && row.href !== null ? (
-                      <Link href={dynamicRoute(withPeriod(row.href, query.period))}>
+                      <Link
+                        prefetch={false}
+                        href={dynamicRoute(withPeriod(row.href, query.period))}
+                      >
                         {row.label}
                       </Link>
                     ) : (
@@ -685,6 +690,7 @@ export default async function FlowPage({
             </div>
           )}
           <Link
+            prefetch={false}
             className="iris-action"
             href={dynamicRoute(
               withPeriod(
@@ -838,6 +844,7 @@ export default async function FlowPage({
                   </p>
                 )}
                 <Link
+                  prefetch={false}
                   className="iris-action"
                   href={dynamicRoute(withPeriod(ring.href, query.period))}
                 >

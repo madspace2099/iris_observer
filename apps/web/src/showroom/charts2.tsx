@@ -517,7 +517,14 @@ export function OutcomeRows({
                   <b>{row.parts[k.id]}</b>
                 </span>
               ) : (
+                /*
+                 * No viewport prefetch on a chart's links: a Sales Flow screen
+                 * shows dozens, each a filtered register rendered in full on the
+                 * server, and prefetching them sent 600 requests in 8 seconds
+                 * on the demo (2026-10-23). A click still goes straight there.
+                 */
                 <Link
+                  prefetch={false}
                   key={k.id}
                   href={href}
                   tabIndex={-1}
@@ -571,6 +578,7 @@ export function OutcomeRows({
                     <span className="iris-orow-open">
                       {linked.map((k) => (
                         <Link
+                          prefetch={false}
                           key={k.id}
                           href={k.href}
                           className="iris-orow-count"
@@ -830,6 +838,7 @@ export function Funnel({
                   <span className="iris-orow-who">
                     {canOpen && a.href !== null ? (
                       <Link
+                        prefetch={false}
                         className="iris-orow-name iris-orow-link"
                         href={dynamicRoute(withPeriod(a.href, period))}
                         aria-label={`${a.name}: ${a.count} ${a.count === 1 ? "meeting" : "meetings"} ended "not interested" — open ${a.count === 1 ? "it" : "them"}`}
@@ -1073,7 +1082,9 @@ export function RankedBars({
         {row.href === undefined || row.href === null ? (
           row.label
         ) : (
-          <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>
+          <Link prefetch={false} href={dynamicRoute(withPeriod(row.href, period))}>
+            {row.label}
+          </Link>
         )}
         {/* Truncated visibly, and never unreachable: the full line is the
             element's own title. */}

@@ -46,6 +46,7 @@ export function ChangeKpis({
                   <span className="iris-ckpi-name">{kpi.label}</span>
                 ) : (
                   <Link
+                    prefetch={false}
                     className="iris-ckpi-name"
                     href={dynamicRoute(withPeriod(kpi.href, period))}
                   >
