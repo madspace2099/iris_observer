@@ -15,7 +15,7 @@ import {
 } from "@observer/readmodels";
 import { ROOM_TYPE_SOLD_GAP, attentionIndexDisplay, getMetric } from "@observer/metrics";
 import { catalogueFor } from "../pulse";
-import { count, dayLabel, shareDisplay } from "../format";
+import { count, dayLabel, shareDisplay, signedPoints } from "../format";
 import { endOfDayIn, startOfDayIn } from "../time";
 import { meetings } from "./views3";
 
@@ -73,12 +73,9 @@ function within(sessions: readonly ShowroomSession[], from: number, to: number):
 }
 
 function points(delta: number): RoomTypeShare["change"] {
-  const p = Math.round(delta * 100);
-  if (p === 0) return { direction: "flat", display: "no change" };
-  return {
-    direction: p > 0 ? "up" : "down",
-    display: `${p > 0 ? "+" : "−"}${Math.abs(p)} ${Math.abs(p) === 1 ? "pt" : "pts"}`,
-  };
+  const display = signedPoints(delta);
+  if (display === "no change") return { direction: "flat", display };
+  return { direction: delta > 0 ? "up" : "down", display };
 }
 
 /** "two-room", for the second place onwards of a sentence that starts with the first. */

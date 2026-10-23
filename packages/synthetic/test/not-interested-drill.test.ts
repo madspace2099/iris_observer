@@ -225,12 +225,12 @@ describe("whose they were", () => {
 describe("how long they ran and what was opened in them", () => {
   const figure = (id: string) => funnel.figures.find((f) => f.id === id);
 
-  it("sets the group's median length and middle half beside the others', untimed meetings left out", () => {
+  /* The middle half is no longer printed: a figure, the others' and both samples (the owner: "SIMPLIFY"). */
+  it("sets the group's median length beside the others', untimed meetings left out", () => {
     expect(figure("length")).toMatchObject({
       metricId: "flow.not_interested_length",
       value: "9m 30s",
-      qualifier:
-        "others 15m 00s · middle half 7m 00s–12m 00s against 15m 00s–15m 00s · 20 and 25 timed",
+      qualifier: "others 15m 00s · 20 and 25 timed",
     });
   });
 
@@ -250,7 +250,8 @@ describe("how long they ran and what was opened in them", () => {
     const short = buildBehaviourFunnel(fixture(false), "en-GB", "en", AT, "Quarter to date");
     expect(short.figures.find((f) => f.id === "length")).toMatchObject({
       value: "10m 00s",
-      qualifier: "of 19 timed · not compared with the others' 25: a side needs 20, 1 short",
+      /* 19 timed of 20 in the group: its own sample is short of the lead's, so it says by how much. */
+      qualifier: "of 19 timed · not compared, 1 short of 20",
     });
     expect(short.figures.find((f) => f.id === "features_opened")?.qualifier).toBe(
       "others 8 · 20 and 27 meetings",
@@ -276,7 +277,7 @@ describe("what they did, against the others", () => {
       "Returned to a section before closing: 10% of the not-interested meetings, against 15% of the others.",
     );
     expect(funnel.reachOf).toBe(
-      'The share of meetings that did each: of the 20 meetings that ended "not interested", and of the 27 other recorded meetings. Each on its own; the widest gap first.',
+      "Of the 20 not-interested meetings and the 27 others; the widest gap first.",
     );
   });
 });
@@ -286,7 +287,7 @@ describe("the lead", () => {
     // Features 4 against 8 is a gap of 0.5; length 570 against 900 one of 0.37, over
     // 20 and 25 timed rather than the 20 and 27 recorded; apartments none.
     expect(funnel.lead).toBe(
-      'The 20 meetings that ended "not interested" opened fewer features (median 4 against 8), ran shorter (median 9m 30s against 15m 00s, 20 and 25 timed) and shortlisted anything less often (0% against 100%) than the 27 other recorded meetings, quarter to date. That is what they had in common, not why they ended so.',
+      'The 20 meetings that ended "not interested" opened fewer features (4 against 8), ran shorter (9m 30s against 15m 00s, 20 and 25 timed) and shortlisted anything less often (0% against 100%) than the 27 other recorded meetings, quarter to date: what they had in common, not why.',
     );
   });
 
@@ -302,23 +303,23 @@ describe("the lead", () => {
       "Quarter to date",
     );
     expect(alike.lead).toBe(
-      'The 20 meetings that ended "not interested" looked much like the 20 other recorded meetings, quarter to date: no median below differs from theirs by 15% or more, and no share by 15 points or more.',
+      'The 20 meetings that ended "not interested" looked much like the 20 other recorded meetings, quarter to date: no median differs by 15% or more, no share by 15 points.',
     );
   });
 
   it("makes no comparison under the floor, and says how far short", () => {
+    /* The shortfall is said here once; the figures and the behaviours only say "not compared". */
     expect(nineteen.lead).toBe(
-      '19 meetings ended "not interested", quarter to date, against 27 other recorded meetings: a comparison needs 20 meetings on each side, and the group is 1 short, so none is made.',
+      '19 meetings ended "not interested", quarter to date. A comparison with the 27 other recorded meetings needs 20 on each side: this group is 1 short.',
     );
     expect(nineteen.reach).toEqual([]);
-    expect(nineteen.reachOf).toBe(
-      "Not compared: a side needs 20 meetings, and the group has 19 against 27.",
-    );
+    expect(nineteen.reachOf).toBe("Not compared at this sample.");
     // The group's own medians still stand: length the 10th of 19, 600s; features 4; apartments 3.
+    // Each is short by the lead's 1 (20 - 19), so none says it again.
     expect(nineteen.figures.map((f) => [f.value, f.qualifier])).toEqual([
-      ["10m 00s", "of 19 timed · not compared with the others' 25: a side needs 20, 1 short"],
-      ["4", "of 19 meetings · not compared with the others' 27: a side needs 20, 1 short"],
-      ["3", "of 19 meetings · not compared with the others' 27: a side needs 20, 1 short"],
+      ["10m 00s", "of 19 timed · not compared"],
+      ["4", "of 19 meetings · not compared"],
+      ["3", "of 19 meetings · not compared"],
     ]);
     expect(nineteen.byAgent.map((a) => a.count)).toEqual([2, 0, 17]);
   });
@@ -398,7 +399,7 @@ describe("Shark Residence", () => {
   it("quarter to date, compares nothing: the 19 are one short of the cohort floor", async () => {
     const shark = await read();
     expect(shark.lead).toBe(
-      '19 meetings ended "not interested", quarter to date, against 112 other recorded meetings: a comparison needs 20 meetings on each side, and the group is 1 short, so none is made.',
+      '19 meetings ended "not interested", quarter to date. A comparison with the 112 other recorded meetings needs 20 on each side: this group is 1 short.',
     );
     expect(shark.reach).toEqual([]);
     expect(shark.figures.map((f) => f.id)).toEqual([
@@ -406,7 +407,10 @@ describe("Shark Residence", () => {
       "features_opened",
       "apartments_opened",
     ]);
-    for (const f of shark.figures) expect(f.qualifier, f.id).toContain("1 short");
+    /* Once, in the lead: it was stated five times on one screen (review, 2026-10-23). */
+    const said = [shark.lead, ...shark.figures.map((f) => f.qualifier), shark.reachOf];
+    expect(said.filter((s) => s?.includes("short")).length).toBe(1);
+    for (const f of shark.figures) expect(f.qualifier, f.id).toMatch(/^of 19 \w+ · not compared$/);
   });
 
   it("year to date, prints each behaviour's pair as the design lab's bands print it, widest gap first", async () => {

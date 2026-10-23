@@ -102,6 +102,18 @@ export function signedPercent(value: number, locale: string): string {
 }
 
 /**
+ * The difference between two shares, in percentage points: "+5 pts", "−1 pt".
+ * Two rates are not set against each other as a percentage of a percentage;
+ * "+5%" beside 58% reads as a relative change it is not. A difference that
+ * rounds away to nothing is no change, as in `signedPercent`.
+ */
+export function signedPoints(delta: number): string {
+  const p = Math.round(delta * 100);
+  if (p === 0) return "no change";
+  return `${p > 0 ? "+" : "−"}${Math.abs(p)} ${Math.abs(p) === 1 ? "pt" : "pts"}`;
+}
+
+/**
  * A movement and the words for it, produced together.
  *
  * The two were computed separately once and disagreed: a change that rounded to

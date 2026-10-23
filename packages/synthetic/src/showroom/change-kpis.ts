@@ -216,12 +216,13 @@ export function buildChangeKpis(
 
   const view = {
     title: `What changed since ${AGO}`,
-    about: `How the presentations were run, not how many there were. Each arrow sets a figure against the same figure computed ${AGO}, and is drawn only when both rest on ${String(floor)} meetings: a movement at the stated sample, never a cause.`,
+    /* `about` says what an arrow is and when it is drawn; `basis` what it is set against. Neither repeats the other. */
+    about: `How the presentations were run, not how many there were. An arrow is drawn only when both figures rest on ${String(floor)} meetings: a movement at that sample, never a cause.`,
     meetings: current.length,
     earlierMeetings: earlier.length,
     minimumSample: floor,
     sources: DERIVED,
-    basis: `Each arrow sets the figure against the same figure ${AGO}: ${days(windows.earlier)}, ${meetings(earlier.length)}. A share that moved under ${String(Math.round(RATE_STEP * 100))} points is unchanged, and so is a median that moved under ${String(Math.round(MEDIAN_STEP * 100))}% of where it stood or, for a count, by less than a whole one.`,
+    basis: `Set against the same figure ${AGO}: ${days(windows.earlier)}, ${meetings(earlier.length)}. A share that moved under ${String(Math.round(RATE_STEP * 100))} points, a median under ${String(Math.round(MEDIAN_STEP * 100))}% or a count by less than one is unchanged.`,
   };
 
   if (current.length === 0) {

@@ -50,7 +50,8 @@ describe("Sales Flow's Cycle time group", () => {
         expect(Number(counted[2]), window.id).toBeLessThanOrEqual(sold.length);
         expect(Number(counted[1]), window.id).toBeLessThanOrEqual(Number(counted[2]));
       } else {
-        expect(figure.qualifier, window.id).toMatch(/needed for a median/);
+        expect(figure.value, window.id).toBe("Too few sales");
+        expect(figure.qualifier, window.id).toMatch(/^\d+ measured, 10 needed · /);
       }
     }
   });

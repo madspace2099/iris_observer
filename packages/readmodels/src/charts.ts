@@ -98,11 +98,17 @@ export interface ActivityMatrix {
   readonly columns: readonly string[];
   /** Keyed `${weekday}|${hour}`. */
   readonly cells: Readonly<Record<string, number>>;
+  /**
+   * The busiest weekday-hour slot, every tied one named: "`weekday` at `hour`"
+   * reads "Thu at 13:00 and Sun at 15:00", `meetings` each. Null with no
+   * meeting, or where more than three slots tie.
+   */
   readonly busiest: {
     readonly weekday: string;
     readonly hour: string;
     readonly meetings: number;
   } | null;
+  /** The quietest weekday, every tied one named ("Sat and Sun"); null where more than three tie. */
   readonly quietest: { readonly weekday: string; readonly meetings: number } | null;
   readonly meetingsCounted: number;
   /**

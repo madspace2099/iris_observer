@@ -61,6 +61,7 @@ import {
   percent,
   shareDisplay,
   signedPercent,
+  signedPoints,
 } from "../format";
 import { endOfDayIn, monthKeyIn, startOfMonthIn, startOfWeekIn, zoneParts } from "../time";
 import { presenterName, presentersIn } from "./sessions";
@@ -113,6 +114,9 @@ function within(sessions: readonly ShowroomSession[], from: number, to: number):
  * group's name would say something untrue about it, so it stays in the row
  * outside the groups.
  */
+/** Below this many meetings in a window, its figures are shown and its comparisons judge nothing. */
+const KPI_FLOOR = 5;
+
 const KPI_GROUPS: readonly KpiGroup[] = [
   {
     id: "volume",
@@ -133,12 +137,14 @@ const KPI_GROUPS: readonly KpiGroup[] = [
   {
     id: "conversion",
     label: "Conversion",
-    // The registry's own words for `flow.stage_conversion`.
+    /*
+     * The registry's own words for `flow.stage_conversion`, then why it is
+     * empty: behind the `i`, so the card itself reads one short line.
+     */
     definition:
-      "The share of buyers who move forward from each rung to the next, counted by when they entered it rather than when they moved.",
+      "The share of buyers who move forward from each rung to the next, counted by when they entered it. Not measured yet: the deal ladder counts where each deal stands, not the path it took. Progress counts meetings, not deals.",
     figureIds: [],
-    missing:
-      "Not measured yet. The deal ladder counts where each deal stands, not the path it took, and the stage-to-stage figure is defined but not computed. Progress above is about meetings, not deals.",
+    missing: "Not measured yet.",
   },
   {
     id: "cycle_time",
@@ -225,8 +231,19 @@ export function buildKpis(
   const units = now.reduce((a, s) => a + s.units.length, 0);
   const unitsBefore = before.reduce((a, s) => a + s.units.length, 0);
 
-  const tone = (a: number, b: number, better: "up" | "down"): "good" | "bad" | "flat" => {
-    if (a === b) return "flat";
+  /*
+   * No verdict below the floor. Under five meetings on either side the caveat
+   * below says the comparisons are not verdicts, so the colour does not give
+   * one either: "Today, 2 against 3" was drawn red.
+   */
+  const tone = (
+    a: number,
+    b: number,
+    better: "up" | "down",
+    sample: number,
+    earlierSample: number,
+  ): "good" | "bad" | "flat" => {
+    if (a === b || sample < KPI_FLOOR || earlierSample < KPI_FLOOR) return "flat";
     return a > b === (better === "up") ? "good" : "bad";
   };
 
@@ -262,7 +279,7 @@ export function buildKpis(
         before.length === 0
           ? null
           : signedPercent((now.length - before.length) / before.length, locale),
-      tone: tone(now.length, before.length, "up"),
+      tone: tone(now.length, before.length, "up", now.length, before.length),
       points,
     },
     {
@@ -304,11 +321,12 @@ export function buildKpis(
         decided.length === 0
           ? `no outcome recorded, ${spec.label.toLowerCase()}`
           : `${count(decided.length, locale)} with an outcome, ${spec.label.toLowerCase()}`,
+      // Two shares set against each other differ in points, not per cent.
       delta:
         decidedBefore.length === 0 || decided.length === 0
           ? null
-          : signedPercent(progressed - progressedBefore, locale),
-      tone: tone(progressed, progressedBefore, "up"),
+          : signedPoints(progressed - progressedBefore),
+      tone: tone(progressed, progressedBefore, "up", decided.length, decidedBefore.length),
       points: seriesOf((slice) => {
         const known = slice.filter((s) => !outcomeIsUnknown(s.outcome));
         return known.length === 0
@@ -343,7 +361,7 @@ export function buildKpis(
     caveat:
       now.length === 0
         ? `No meetings fall inside ${spec.label.toLowerCase()}. That is an observation about the window, not a gap in the data.`
-        : now.length < 5
+        : now.length < KPI_FLOOR
           ? `${meetings(now.length, locale, language)} is too few to read a rate from. The figures are shown; the comparisons are not verdicts.`
           : null,
     groups: KPI_GROUPS.map((group) =>
@@ -390,22 +408,20 @@ function saleCycleFigure(
   const days = (n: number) =>
     `${count(Math.round(n), locale)} ${Math.round(n) === 1 ? "day" : "days"}`;
   const measured = `${count(summary.measured, locale)} of ${count(summary.examined, locale)} sales measured`;
+  const medianDays = summary.state === "ok" ? summary.medianDays : null;
   return {
     id: "sale_cycle",
     label: "Sales cycle",
     measurementId: "flow.showroom_sale_cycle",
+    /* Below the floor the value says there is no median, and the counts it rests on qualify it. */
     value:
-      summary.examined === 0
-        ? "No sale"
-        : summary.state === "ok" && summary.medianDays !== null
-          ? days(summary.medianDays)
-          : measured,
+      summary.examined === 0 ? "No sale" : medianDays === null ? "Too few sales" : days(medianDays),
     qualifier:
       summary.examined === 0
         ? windowWords
-        : summary.state === "ok" && summary.p80Days !== null
+        : medianDays !== null && summary.p80Days !== null
           ? `median · 80% within ${days(summary.p80Days)} · ${measured}`
-          : `${count(minimum, locale)} measured sales needed for a median · ${windowWords}`,
+          : `${count(summary.measured, locale)} measured, ${count(minimum, locale)} needed · ${windowWords}`,
     delta: null,
     tone: "flat",
     points: [],
@@ -441,12 +457,23 @@ export function buildActivity(
     counted += 1;
   }
 
-  const busiest = Object.entries(cells).sort((a, b) => b[1] - a[1])[0];
+  /*
+   * Every tie is named, never the first of a sort: "Thu at 13:00 and Sun at
+   * 15:00" both held six. A tie of more than three names no slot or day, as
+   * the dial below would not call one hour of many the busiest either.
+   */
+  const peakCell = Math.max(0, ...Object.values(cells));
+  const busiestSlots = WEEKDAYS.flatMap((d) =>
+    hours.flatMap((h) =>
+      peakCell > 0 && cells[`${d}|${h}`] === peakCell ? [[d, h] as const] : [],
+    ),
+  );
   const perDay = WEEKDAYS.map((d) => ({
     weekday: d,
     meetings: hours.reduce((a, h) => a + (cells[`${d}|${h}`] ?? 0), 0),
   }));
-  const quietest = [...perDay].sort((a, b) => a.meetings - b.meetings)[0];
+  const fewest = Math.min(...perDay.map((d) => d.meetings));
+  const quietDays = perDay.filter((d) => d.meetings === fewest).map((d) => d.weekday);
 
   const clock = (h: number) => `${String(h % 24).padStart(2, "0")}:00`;
   const peak = Math.max(0, ...day);
@@ -457,14 +484,10 @@ export function buildActivity(
     columns: hours,
     cells,
     busiest:
-      busiest === undefined
+      busiestSlots.length === 0 || busiestSlots.length > 3
         ? null
-        : {
-            weekday: busiest[0].split("|")[0] ?? "",
-            hour: busiest[0].split("|")[1] ?? "",
-            meetings: busiest[1],
-          },
-    quietest: quietest ?? null,
+        : { ...slotWords(busiestSlots), meetings: peakCell },
+    quietest: quietDays.length > 3 ? null : { weekday: AND.format(quietDays), meetings: fewest },
     meetingsCounted: counted,
     day: {
       hours: day.map((count, hour) => ({ hour, label: clock(hour), count })),
@@ -481,6 +504,25 @@ export function buildActivity(
       outsideGrid: sessions.length - counted,
     },
   };
+}
+
+/**
+ * Tied weekday-hour slots as `{ weekday, hour }`, so "`weekday` at `hour`"
+ * names every one: one hour shared ("Tue and Thu" at "14:00"), one day shared
+ * ("Thu" at "11:00 and 14:00"), or each slot whole ("Thu at 13:00 and Sun" at
+ * "15:00").
+ */
+function slotWords(slots: readonly (readonly [string, string])[]): {
+  weekday: string;
+  hour: string;
+} {
+  const days = [...new Set(slots.map(([d]) => d))];
+  const hours = [...new Set(slots.map(([, h]) => h))];
+  if (hours.length === 1) return { weekday: AND.format(days), hour: hours[0] ?? "" };
+  if (days.length === 1) return { weekday: days[0] ?? "", hour: AND.format(hours) };
+  const last = slots[slots.length - 1]?.[1] ?? "";
+  const named = AND.format(slots.map(([d, h]) => `${d} at ${h}`));
+  return { weekday: named.slice(0, -` at ${last}`.length), hour: last };
 }
 
 /* --- what precedes a poor outcome --------------------------------------------- */
@@ -525,11 +567,6 @@ const BEHAVIOURS = [
   },
 ] as const;
 
-/** The nearest-rank percentile of values sorted ascending; never called on none. */
-function nearestRank(sorted: readonly number[], p: number): number {
-  return sorted[Math.max(0, Math.ceil(p * sorted.length) - 1)] ?? 0;
-}
-
 /*
  * WHY THEY ENDED SO (ADR-0053). The owner, 2026-10-22: which feature was opened
  * how often is not enough; he wants to see whose the meetings were, how long
@@ -549,8 +586,8 @@ const COHORT_FIGURES: readonly {
   readonly answers: (s: ShowroomSession) => boolean;
   readonly sample: string;
   readonly value: (s: ShowroomSession) => number;
-  /** A length is said with its middle half; a count is not. */
-  readonly spread: boolean;
+  /** A length is said as a duration; a count as a number. */
+  readonly isDuration: boolean;
   /** Following "The 19 meetings that ended "not interested"", for a group below and above the others. */
   readonly fewer: string;
   readonly more: string;
@@ -562,7 +599,7 @@ const COHORT_FIGURES: readonly {
     answers: (s) => !s.timingUnavailable,
     sample: "timed",
     value: (s) => s.durationSeconds,
-    spread: true,
+    isDuration: true,
     fewer: "ran shorter",
     more: "ran longer",
   },
@@ -573,7 +610,7 @@ const COHORT_FIGURES: readonly {
     answers: () => true,
     sample: "meetings",
     value: (s) => s.steps.length,
-    spread: false,
+    isDuration: false,
     fewer: "opened fewer features",
     more: "opened more features",
   },
@@ -584,7 +621,7 @@ const COHORT_FIGURES: readonly {
     answers: () => true,
     sample: "meetings",
     value: (s) => s.units.length,
-    spread: false,
+    isDuration: false,
     fewer: "opened fewer apartments",
     more: "opened more apartments",
   },
@@ -712,6 +749,9 @@ export function buildBehaviourFunnel(
    * group's own median stands alone with its sample and how far short it is,
    * the raw figure the doctrine keeps under a floor, and no comparison.
    */
+  const reachFloor = floor("flow.not_interested_reach");
+  const compared = cohort.length >= reachFloor && rest.length >= reachFloor;
+  const short = reachFloor - Math.min(cohort.length, rest.length);
   const differs: { readonly gap: number; readonly text: string }[] = [];
   const figures = COHORT_FIGURES.map((f) => {
     const mine = cohort
@@ -723,17 +763,26 @@ export function buildBehaviourFunnel(
       .map(f.value)
       .sort((a, b) => a - b);
     const minimum = floor(f.metricId);
-    const say = (v: number) => (f.spread ? duration(v, language) : typical(v, locale));
+    const say = (v: number) => (f.isDuration ? duration(v, language) : typical(v, locale));
     const base = { id: f.id, metricId: f.metricId, label: f.label };
     if (mine.length === 0) {
       return { ...base, value: "No median", qualifier: `no ${f.sample} meeting in the group` };
     }
     const g = median(mine);
     if (mine.length < minimum || theirs.length < minimum) {
+      /*
+       * The shortfall is said once, in the lead. A figure short by what the
+       * lead already said only says it is not compared; one whose own sample
+       * falls further short (fewer timed meetings) says by how much.
+       */
+      const shortBy = minimum - Math.min(mine.length, theirs.length);
+      const leadSaidIt = !compared && minimum === reachFloor && shortBy === short;
       return {
         ...base,
         value: say(g),
-        qualifier: `of ${n(mine.length)} ${f.sample} · not compared with the others' ${n(theirs.length)}: a side needs ${n(minimum)}, ${n(minimum - Math.min(mine.length, theirs.length))} short`,
+        qualifier: leadSaidIt
+          ? `of ${n(mine.length)} ${f.sample} · not compared`
+          : `of ${n(mine.length)} ${f.sample} · not compared, ${n(shortBy)} short of ${n(minimum)}`,
       };
     }
     const o = median(theirs);
@@ -744,23 +793,13 @@ export function buildBehaviourFunnel(
         mine.length === cohort.length && theirs.length === rest.length ? "" : `, ${sizes}`;
       differs.push({
         gap: Math.abs(g - o) / o,
-        text: `${g < o ? f.fewer : f.more} (median ${say(g)} against ${say(o)}${own})`,
+        text: `${g < o ? f.fewer : f.more} (${say(g)} against ${say(o)}${own})`,
       });
     }
-    const middle = (xs: readonly number[]) =>
-      `${say(nearestRank(xs, 0.25))}–${say(nearestRank(xs, 0.75))}`;
-    return {
-      ...base,
-      value: say(g),
-      qualifier: f.spread
-        ? `others ${say(o)} · middle half ${middle(mine)} against ${middle(theirs)} · ${sizes}`
-        : `others ${say(o)} · ${sizes}`,
-    };
+    return { ...base, value: say(g), qualifier: `others ${say(o)} · ${sizes}` };
   });
 
   /* Each behaviour on its own, the widest gap first: what the old band's "on its own · elsewhere" meant. */
-  const reachFloor = floor("flow.not_interested_reach");
-  const compared = cohort.length >= reachFloor && rest.length >= reachFloor;
   const gapOf = (r: { readonly share: number; readonly comparisonShare: number }) =>
     Math.abs(r.share - r.comparisonShare);
   const reach = compared
@@ -790,26 +829,27 @@ export function buildBehaviourFunnel(
 
   const period = periodLabel.toLowerCase();
   const points = n(Math.round(LEAD_GAP * 100));
-  const short = reachFloor - Math.min(cohort.length, rest.length);
+  /* The one place the shortfall is said: the figures and the behaviours below only say "not compared". */
   const lead = !compared
-    ? `${group} ended "not interested", ${period}, against ${others}: a comparison needs ${n(reachFloor)} meetings on each side, and ${cohort.length < reachFloor ? "the group is" : "the others are"} ${n(short)} short, so none is made.`
+    ? `${group} ended "not interested", ${period}. A comparison with the ${others} needs ${n(reachFloor)} on each side: ${cohort.length < reachFloor ? "this group is" : "the others are"} ${n(short)} short.`
     : said.length === 0
-      ? `The ${group} that ended "not interested" looked much like the ${others}, ${period}: no median below differs from theirs by ${percent(LEAD_GAP, locale)} or more, and no share by ${points} points or more.`
-      : `The ${group} that ended "not interested" ${AND.format(said)} than the ${others}, ${period}. That is what they had in common, not why they ended so.`;
+      ? `The ${group} that ended "not interested" looked much like the ${others}, ${period}: no median differs by ${percent(LEAD_GAP, locale)} or more, no share by ${points} points.`
+      : `The ${group} that ended "not interested" ${AND.format(said)} than the ${others}, ${period}: what they had in common, not why.`;
 
   return {
     cohortLabel: `Ended "not interested" · ${group}`,
     steps,
     empty: null,
     comparisonLabel: `every other recorded meeting · ${count(rest.length, locale)}`,
-    disclaimer: `Every figure here sets the meetings that ended "not interested" beside every other meeting of the period with an outcome recorded; a meeting with none recorded is on neither side. Whose they were: each presenter's count of the group over their own recorded meetings, the bar drawn to that rate, both only from ${n(AGENT_MIN_SAMPLE)} recorded up. Length is the median, with the middle half of the meetings (the 25th to the 75th percentile). Features opened counts every opening of a showroom section, a return counted again: the showroom records what was opened, not clicks. What they did is each behaviour on its own, in the group and among the others, the widest gap first. The two groups are set side by side only where each has ${n(reachFloor)} meetings, the floor Presentation DNA keeps on its own outcome cohorts; below it the group's own medians stand alone. A median is said to differ from the others' at ${percent(LEAD_GAP, locale)} of theirs, a share at ${points} points. This describes what the group had in common at the stated sample sizes; it is not evidence that any of it produced the outcome — buyers who arrive uninterested are also shown less.`,
+    /* What a reader needs behind the `i`, and no more (the owner: "where there is a lot of text, SIMPLIFY"). */
+    disclaimer: `The meetings that ended "not interested" against every other meeting with an outcome recorded. The two are compared only where each has ${n(reachFloor)} meetings, and a presenter's rate only from ${n(AGENT_MIN_SAMPLE)} recorded. Features opened counts every section opening. This is what the group had in common, not why it ended so.`,
     lead,
     figures,
     byAgent,
     reach,
     reachOf: compared
-      ? `The share of meetings that did each: of the ${group} that ended "not interested", and of the ${others}. Each on its own; the widest gap first.`
-      : `Not compared: a side needs ${n(reachFloor)} meetings, and the group has ${n(cohort.length)} against ${n(rest.length)}.`,
+      ? `Of the ${n(cohort.length)} not-interested meetings and the ${n(rest.length)} others; the widest gap first.`
+      : "Not compared at this sample.",
   };
 }
 
@@ -1446,8 +1486,8 @@ export function buildTrend(
   let annotationIndex = -1;
   let biggest = 0;
   for (let i = 1; i < points.length; i += 1) {
-    const delta = Math.abs((points[i]?.value ?? 0) - (points[i - 1]?.value ?? 0));
-    if (delta > biggest) {
+    const delta = (points[i]?.value ?? 0) - (points[i - 1]?.value ?? 0);
+    if (Math.abs(delta) > Math.abs(biggest)) {
       biggest = delta;
       annotationIndex = i;
     }
@@ -1455,12 +1495,13 @@ export function buildTrend(
 
   return {
     points,
+    /* The change with its sign: "+7" or "−7", never "±7", which says neither. */
     annotation:
-      annotationIndex < 1 || biggest < 3
+      annotationIndex < 1 || Math.abs(biggest) < 3
         ? null
         : {
             index: annotationIndex,
-            text: `${biggest > 0 ? "±" : ""}${biggest} against the week before`,
+            text: `${biggest > 0 ? "+" : "−"}${Math.abs(biggest)} against the week before`,
           },
     valueLabel: "Meetings per week",
   };
@@ -2015,7 +2056,7 @@ export function buildMeetingLens(
     });
 
   const period = context.period.label.toLowerCase();
-  const notDrawnWords = `Not drawn: ${n(notDrawn.purchase)} that ended "${OUTCOME_LABELS.purchase}", a deal already closed; ${n(notDrawn.presentationOnly)} "${OUTCOME_LABELS.presentation_only}" and ${n(notDrawn.unrecorded)} with no outcome recorded, which the rule gives no size.`;
+  const notDrawnWords = `Not drawn: ${n(notDrawn.purchase)} "${OUTCOME_LABELS.purchase}", a deal already closed; ${n(notDrawn.presentationOnly)} "${OUTCOME_LABELS.presentation_only}" and ${n(notDrawn.unrecorded)} with no outcome recorded.`;
   return {
     agents,
     outcomes,
@@ -2025,20 +2066,24 @@ export function buildMeetingLens(
     total: sessions.length,
     notDrawn,
     nearest,
-    /* An empty period, or one whose every outcome the rule leaves unsized, says so rather than describing bubbles it does not draw. */
+    /*
+     * An empty period, or one whose every outcome the rule leaves unsized, says
+     * so rather than describing bubbles it does not draw. The lead stays in
+     * view and the rule's detail goes behind the `i`, both short.
+     */
     lead:
       sessions.length === 0
         ? "No meeting in this period, so no bubble is drawn."
         : largest === undefined || meetings.length === 0
-          ? `${n(sessions.length)} meetings, ${period}, and none ended in an outcome the rule sizes, so no bubble is drawn. ${notDrawnWords}`
-          : `${n(sessions.length)} meetings, ${period}, ${n(meetings.length)} of them drawn: one bubble each, in the colour of the agent who presented it and the size of the outcome recorded at its end. ${
+          ? `${n(sessions.length)} meetings, ${period}, and none ended in an outcome the rule sizes, so no bubble is drawn.`
+          : `${n(meetings.length)} of ${n(sessions.length)} meetings drawn, ${period}: one bubble each, coloured by presenter, sized by outcome. ${
               largest.count === 0
-                ? `None ended "${largest.label}", the largest size and the nearest a purchase.`
+                ? `None ended "${largest.label}", the nearest a purchase.`
                 : largest.count === 1
                   ? `The largest, the one that ended "${largest.label}", is the nearest a purchase.`
-                  : `The largest, the ${n(largest.count)} that ended "${largest.label}", are the nearest a purchase.`
-            } ${notDrawnWords}`,
-    note: "The sizes follow the order of the outcome ladder; they are not a computed likelihood. The outcome is the one the agent recorded in the room, not the CRM's stage. A week of one agent is not a sample: how each agent's meetings end, at its sample size, is further down this page.",
+                  : `The ${n(largest.count)} largest ended "${largest.label}", the nearest a purchase.`
+            }`,
+    note: `${sessions.length === 0 ? "" : `${notDrawnWords} `}The sizes follow the outcome ladder, not a computed likelihood, and the outcome is the one recorded in the room.`,
     summary: `${n(sessions.length)} meetings, ${period}: ${n(meetings.length)} drawn as bubbles, ${AND.format(outcomes.map((o) => `${o.label} ${n(o.count)}`))}. By agent: ${AND.format(agents.map((a, i) => `${a.label} ${n(meetings.filter((m) => m.a === i).length)}`))}. ${notDrawnWords}`,
     stripLabel: "The period, a column per day: move the lens",
   };

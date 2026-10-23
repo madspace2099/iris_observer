@@ -93,8 +93,7 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     whatItMeasures: "How many meetings ended with this unit marked as a favourite.",
     howItIsComputed: "One per meeting, counted when the shortlist mark was set at any point.",
     sources: OBSERVED,
-    limitation:
-      "The current showroom build records no un-favourite, so a unit taken off a shortlist still counts.",
+    limitation: "The showroom does not record a unit taken off a shortlist, so it still counts.",
     unit: "count",
   },
   {
@@ -222,7 +221,7 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     whatItMeasures:
       "Measured from the first recorded showroom opening to the date the deal entered the Sold stage.",
     howItIsComputed:
-      "The median and 80th percentile days for sales whose Sold date falls in the window, from the unit's earliest showroom opening anywhere in the visible history. Sales with no Sold date, no recorded opening, an opening after the sale or an opening at the very start of the data are counted and left out.",
+      "The median and 80th percentile, in days, over the sales dated in the window. A sale with no Sold date or no earlier opening is left out.",
     sources: ["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"],
     limitation:
       "It starts at the showroom, not at a buyer's first contact: online visits before the first showing are not counted yet.",
@@ -268,10 +267,10 @@ export const GLOSSARY: readonly MeasurementDefinition[] = [
     icon: "clock",
     whatItMeasures: "How long the presenter typically stays in a section before moving on.",
     howItIsComputed:
-      "The median of every visit to that section across their meetings. Median rather than average, so one long stop does not drag the figure up. It is the stay per visit, not the total time in the section.",
+      "The median stay per visit to that section across their meetings, so one long stop does not drag it up.",
     sources: OBSERVED,
     limitation:
-      "Time on screen is not attention, and sixteen of the imported sessions carry no per-step timing at all — those meetings are absent from this figure rather than counted as zero.",
+      "Time on screen is not attention. A meeting with no per-step timing is left out, not counted as zero.",
     unit: "seconds",
   },
   {

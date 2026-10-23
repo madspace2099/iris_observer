@@ -91,8 +91,10 @@ describe("the summary row in four groups", () => {
         expect(group.missing === null, `${at} ${group.id}`).toBe(group.figureIds.length > 0);
       }
       const missing = Object.fromEntries(kpis.groups.map((g) => [g.id, g.missing ?? ""]));
-      expect(missing.conversion, at).toMatch(/not the path it took/);
-      expect(missing.conversion, at).toMatch(/not computed/);
+      /* The card says it in a line; why stands behind the group's `i`, its definition. */
+      expect(missing.conversion, at).toBe("Not measured yet.");
+      const conversion = kpis.groups.find((g) => g.id === "conversion");
+      expect(conversion?.definition, at).toMatch(/not the path it took/);
       if (at.startsWith("northgate/")) expect(missing.cycle_time, at).toBe("");
       else expect(missing.cycle_time, at).toMatch(/No CRM is connected/);
       for (const text of Object.values(missing)) expect(text, at).not.toMatch(/no data/i);
