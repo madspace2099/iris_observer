@@ -114,24 +114,6 @@
   grid-row: span 2;
 }
 
-/*
- * A chip-sized face keeps to the name's line and the count stands under the
- * name: the agents' rows on Sales Flow (review round 1), where the 32px face
- * beside both lines took 42px from every bar, wrapped a row of counts and
- * pushed the screen past one panel at 1440×900. This costs the name column 26px.
- */
-.iris-orow-who[data-marked]:has(> .ag-portrait[data-size="chip"]) {
-  column-gap: 0.375rem;
-}
-
-.iris-orow-who[data-marked] > .ag-portrait[data-size="chip"] {
-  grid-row: auto;
-}
-
-.iris-orow-who[data-marked] > .ag-portrait[data-size="chip"] ~ * {
-  grid-column: 2;
-}
-
 /* A presenter's DNA lane (Presentation): the disc beside the name and its count line. */
 .iris-dna-name[data-marked] {
   display: grid;
@@ -208,10 +190,6 @@
 
   .iris-dna-name[data-marked] {
     display: flex;
-  }
-
-  .iris-orow-who[data-marked] > .ag-portrait[data-size="chip"] ~ * {
-    grid-column: auto;
   }
 }
 

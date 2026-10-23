@@ -459,6 +459,47 @@ html:has(.iris-salesflow) {
 }
 
 /*
+ * The presenters, large enough to read on a recording (the owner, 2026-10-23:
+ * the names and faces were too small to see on the video). On the agents'
+ * screen, its flags and the not-interested group's "Whose they were", the face
+ * is about twice the chip it was and stands beside the name and its count, the
+ * name half as large again (the team's with it, so the column reads as one) and
+ * the count a step up. The name's column grows to hold a long name whole
+ * (`fit-content`, so a short one takes no more), and a name wider than that
+ * wraps between its words, never inside one, and never over its bar.
+ */
+.iris-salesflow :is(#flow-agents, #flow-not-interested) .ag-portrait {
+  --ag-size: 2.75rem;
+}
+
+.iris-salesflow :is(#flow-agents, #flow-not-interested) .iris-orow-who[data-marked] {
+  display: grid;
+  column-gap: 0.75rem;
+}
+
+.iris-salesflow :is(#flow-agents, #flow-not-interested) :is(.iris-orow-name, .ag-named-text) {
+  font-size: 1.375rem;
+  line-height: 1.2;
+}
+
+.iris-salesflow :is(#flow-agents, #flow-not-interested) .iris-orow-total {
+  font-size: 0.875rem;
+  line-height: 1.25;
+}
+
+@container (width >= 56rem) {
+  .iris-salesflow #flow-agents .iris-orows-list {
+    grid-template-columns: fit-content(15.5rem) minmax(8rem, 1fr) fit-content(18rem);
+  }
+}
+
+@container (width >= 30rem) {
+  .iris-salesflow #flow-not-interested .iris-orows-list {
+    grid-template-columns: fit-content(15.5rem) minmax(5rem, 1fr) fit-content(12rem);
+  }
+}
+
+/*
  * A ranked list (stalled deals, IRIS-assisted sales, the longest presentations,
  * who gave them) spreads its five rows down the screen, its bar thicker. Where
  * a sale is named, a name gets a third more width in a wide card, so "H-1003 ·
@@ -644,7 +685,7 @@ html:has(.iris-salesflow) {
   }
 
   .iris-salesflow #flow-agents .iris-orows-list {
-    grid-template-columns: fit-content(10rem) minmax(8rem, 1fr) fit-content(13rem);
+    grid-template-columns: fit-content(15.5rem) minmax(8rem, 1fr) fit-content(13rem);
     row-gap: 0.25rem;
   }
 

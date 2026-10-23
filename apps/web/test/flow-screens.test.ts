@@ -168,6 +168,25 @@ describe("the screens' stylesheet", () => {
   });
 
   /*
+   * The owner, 2026-10-23: the presenters' names and faces were too small to
+   * read on the recording. The face is twice the chip it was, beside the name
+   * and its count, and every column of names holds a long name whole.
+   */
+  it("draws the presenters' faces and names large enough to read on a recording", () => {
+    const both = ".iris-salesflow :is(#flow-agents, #flow-not-interested)";
+    expect(rule(`${both} .ag-portrait`)).toContain("--ag-size: 2.75rem;");
+    expect(rule(`${both} :is(.iris-orow-name, .ag-named-text)`)).toContain("font-size: 1.375rem;");
+    const columns = [
+      ...SHEET.matchAll(
+        /#flow-(?:agents|not-interested) \.iris-orows-list \{[^}]*grid-template-columns: fit-content\(([\d.]+)rem\)/g,
+      ),
+    ].map((m) => Number(m[1]));
+    expect(columns).toHaveLength(3);
+    for (const width of columns) expect(width).toBeGreaterThanOrEqual(15.5);
+    expect(screen("flow-agents")).not.toContain('"chip"');
+  });
+
+  /*
    * Review, 2026-10-23: forced to the viewport where the wheel does not step,
    * a phone's screens ended in 160–280px of black.
    */

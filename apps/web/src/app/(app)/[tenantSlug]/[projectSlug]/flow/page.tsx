@@ -20,7 +20,7 @@ import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
 import { PresenterBars, seatTones } from "@/components/agents/PresenterBars";
-import { AgentName, AgentPortrait, type PortraitSize } from "@/components/agents/Portrait";
+import { AgentName, AgentPortrait } from "@/components/agents/Portrait";
 import { portraitSources } from "@/lib/portraits/server";
 import {
   OUTCOME_KEYS,
@@ -143,20 +143,18 @@ export default async function FlowPage({
     ]),
   ]);
   const tones = seatTones(charts.lens.agents.map((agent) => agent.id));
-  const face = (agentId: string, name: string, size: PortraitSize = "row") => (
+  const face = (agentId: string, name: string) => (
     <AgentPortrait
       key={agentId}
       name={name}
       src={portraits[agentId] ?? null}
       tone={tones[agentId]}
-      size={size}
+      size="row"
       alt=""
     />
   );
-  const faces = (
-    people: readonly { readonly agentId: string; readonly name: string }[],
-    size: PortraitSize = "row",
-  ) => Object.fromEntries(people.map((p) => [p.agentId, face(p.agentId, p.name, size)]));
+  const faces = (people: readonly { readonly agentId: string; readonly name: string }[]) =>
+    Object.fromEntries(people.map((p) => [p.agentId, face(p.agentId, p.name)]));
   const nameOf = new Map(charts.lens.agents.map((agent) => [agent.id, agent.label]));
 
   // The team's own counts: its row, and both outcome keys. The key never sums
@@ -911,8 +909,8 @@ export default async function FlowPage({
               }))}
               keys={OUTCOME_KEYS}
               keyCounts={teamParts}
-              // On the name's line, so the bars keep their width and the screen its one panel.
-              marks={faces(view.rings, "chip")}
+              // Beside the name and its count, at the size a recording reads (`flow-screens.css`).
+              marks={faces(view.rings)}
               // Each part opens its meetings in the register (ADR-0053), for a reader it admits.
               open={
                 maySeeSurface(viewer.role, "meetings")
@@ -938,7 +936,7 @@ export default async function FlowPage({
                           name={ring.name}
                           src={portraits[ring.agentId] ?? null}
                           tone={tones[ring.agentId]}
-                          size="chip"
+                          size="row"
                         />
                         <span className="iris-ring-flag" data-severity={ring.flag.severity}>
                           {ring.flag.text}
