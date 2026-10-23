@@ -37,7 +37,8 @@ import { withPeriod } from "@/lib/period";
  * width; the questions stand behind the `i` beside the register's title
  * (`CheckQuestions`), and a refusal — a check that could not be asked — is
  * marked "Not evaluated" in view, its reason behind the `i` beside its name
- * (the owner, 2026-10-23: the reasons ran two and three lines a row).
+ * (the owner, 2026-10-23: the reasons ran two and three lines a row). A clear
+ * check is "Clear" in view and what it found behind its `i` too (round 9).
  *
  * ## Every check names its next step (R04-7)
  *
@@ -111,15 +112,24 @@ export function ChecksRegister({
               <span className="ox-chip-mark" aria-hidden="true" />
               {STATE_WORDS[check.state]}
             </span>
-            {check.state === "unavailable" ? (
+            {check.state !== "raised" ? (
               /*
-               * Why a check could not be asked is method, two or three lines
-               * of it (the owner, 2026-10-23: simplify). "Not evaluated" stays
-               * in view on the chip; the reason is the `i` beside the name.
+               * Why a check could not be asked, or what a clear one found and
+               * on how much, is method, two or three lines of it (the owner,
+               * 2026-10-23: simplify; review, round 9: a clear row still ran
+               * two lines at 1440, three at 360). "Not evaluated" or "Clear"
+               * stays in view on the chip; the sentence is the `i` beside the name.
                */
               <div className="sheet-titled">
                 <p className="sheet-check-name">{check.label}</p>
-                <InfoTip id={`check-${check.kind}`} label={`why ${check.label} was not evaluated`}>
+                <InfoTip
+                  id={`check-${check.kind}`}
+                  label={
+                    check.state === "clear"
+                      ? `what ${check.label} found`
+                      : `why ${check.label} was not evaluated`
+                  }
+                >
                   <p data-part="found">{check.reason}</p>
                 </InfoTip>
               </div>

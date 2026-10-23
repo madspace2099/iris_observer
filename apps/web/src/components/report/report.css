@@ -1,0 +1,16 @@
+/*
+ * THE REPORT ON SCREEN, ITS HEADLINE FIGURES (review, round 9).
+ *
+ * A figure that is a sentence ("55% progressed · 72 of 131 recorded") stood at
+ * the figures' size and wrapped into two lines with no leading between them,
+ * on the report's first screen, beside three tiles of "number + small unit".
+ * On screen it reads at a phrase's size and leading; paper keeps the cover's.
+ */
+@media screen {
+  .ox-report .ox-report-headline .ox-cover-statement {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+  }
+}

@@ -7,6 +7,7 @@ import { PrintPage } from "./PrintPage";
 import { Synthetic, Tally, TallyItem } from "@/components/product";
 import { LANGUAGE_NAMES } from "@/lib/language";
 import { AGENT_REPORT_WORDS, REPORT_DOCUMENT_WORDS, REPORT_WORDS } from "./words";
+import "./report.css";
 
 /**
  * THE REPORT AS A PRINTED DOCUMENT (ADR-0050).

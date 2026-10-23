@@ -247,7 +247,17 @@ export default async function BriefingPage({
                          * figure rather than sitting in a nowrap delta.
                          */}
                         {figure.against === null ? null : (
-                          <span className="sheet-of">{figure.against}</span>
+                          <span className="sheet-of">
+                            {figure.against}
+                            {/*
+                             * The unrecorded count is the whole period's, beside
+                             * two figures named "this month": its window is
+                             * said too (review, round 9).
+                             */}
+                            {figure.id === "unrecorded"
+                              ? `, ${home.context.period.label.toLowerCase()}`
+                              : null}
+                          </span>
                         )}
                       </dd>
                     </div>
@@ -376,7 +386,11 @@ export default async function BriefingPage({
                * above compare two months: "55% progressing" below "54%" read
                * as a contradiction until the window was named where they meet.
                */}
-              <h2 className="ox-section-title">Where to look next · {home.context.period.label}</h2>
+              {/* The window is one phrase: at 360 "Quarter to / date" broke mid-label (round 9). */}
+              <h2 className="ox-section-title">
+                Where to look next ·{" "}
+                <span style={{ whiteSpace: "nowrap" }}>{home.context.period.label}</span>
+              </h2>
               <InfoTip id="doors" label="where to look next">
                 {home.doors.map((door) => (
                   <p key={door.id}>
