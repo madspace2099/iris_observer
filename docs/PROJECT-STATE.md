@@ -6852,3 +6852,60 @@ recording. Developers do not open replays (R08-6): record the replay segment as 
 390×844 as Clara (Daniel for a replay) read Units, S-503, Meetings with Lena + Purchase, Features,
 Audience and Project; run `units-register`, `dontesek1`, `veghajras1`, `nav-reachability`,
 `p221-render`, `layout-integrity` and `a11y-contract`. **Not looked at on a running page.**
+
+## 2026-10-23 — Round 8, PEOPLE: Sales Agents, an agent, Presentation and Ask before the video
+
+The owner asked for a bug, overlap and text check of every page before recording, and for the
+text-heavy blocks to be simplified. This group took Sales Agents, one agent's page, Presentation
+DNA and Ask IRIS (its answers and Earlier questions). Each finding was confirmed in the code and on
+a static render first; a definition, a method or a caveat moved behind the block's `i`, and every
+figure, denominator, state and refusal stayed in sight.
+
+- **Presentation.** "What differs" names a side by its whole name where it is not a presenter
+  ("Did not progress", not "Did"); a phone gives each behaviour its own line, both figures under
+  the two names. Transitions print section names ("Time & weather", not "environment"). The DNA's
+  intro, the transitions' denominator note and "What this source cannot say" stand behind an `i`
+  (still in the aside, as R11-5 reads it); the association line stays. Every lane prints codes
+  with the key beneath. Kickers, chip counts and the finding foot are 12px at every width.
+- **Sales Agents.** The findings and a one-line reading note close "Presentations given": the
+  fourth screen held one sentence in 771px. From 64rem with 760px or less of height (1280 × 720) a
+  card is 589px, not 799px (ring 104px, its caption kept at 12px in its own units).
+- **An agent.** The register's refusal in plain words beside where else they present; the two
+  absences say their state in five words, their reasons behind the activity `i`; the reading note
+  is the findings' own line; "Edit portrait" is a disclosure on the head's aside (two e2e portrait
+  specs open it first); the buyers' axis anchors its end ticks ("0%" was "%" on a phone); a unit on
+  a phone is one figure a line (185px → 107px; Lena's own page 11,108 → 9,890px at 360); the
+  running order and recent meetings fit 1280 × 720.
+- **Ask IRIS.** On a phone the composer card is 212px, so an asked question no longer runs under
+  the pills, and "Shark Residence" is not cut. Above an answer: no Enter hint, the company-key note
+  in the model picker, one line "Composed by Observer's read models. No language model wrote any
+  of this." A read models' answer keeps headline, figures, sample and tier in sight; its
+  interpretation and caveats stand behind the headline's `i` (a model's stay in sight). Earlier
+  questions opens on one line and the list; the notes are the Demo data mark's `i`.
+
+**Routed, not fixed here (outside this group's files).** `apps/web/src/lib/ai/tools.ts:422` ranks
+Iva (19 recorded of 25, under the 20-recorded floor) among "5 presenters with enough recorded
+outcomes": filter on `ring.decidedMeetings >= AGENT_MIN_SAMPLE`. `tools.ts:601,617` print "median
+282s": use the agent page's duration format. `packages/synthetic/src/showroom/screens.ts:1557-1561`
+counts "Where else they present" to `context.period.to` while the page counts through the slice
+end (Oliver 25 against 26, Zsófia 26 against 27). `screens.ts:1330` (the finding's remedy
+sentence), `showroom/unit-patterns.ts` (the 120-word units answer), `ask-history.ts:42` ("Ask
+Observer"), `ask-computed.ts:523` (ties by code, not shortlisted then code), `ask-computed.ts:502,
+557` (three figures of five outcomes and of five presenters, no agent id for a portrait): the
+synthetic read models. `iris-shell.css:219` (`by MADSPACE` at 7px): the shell.
+
+**Verified.** Typecheck, eslint and prettier clean on every changed file; the touched suites pass
+(agents-screens, agents-floor-claims, agent-detail-claims, presentation-scope,
+presentation-denominators, registers-phone, registers-no-crm, entrances-and-prefetch,
+radar-caption, portrait-display, ask, ask-honesty-note, ask-scope, ask-inert-controls,
+ai-notice-tripwire, phone-shell, surfaces, history-read-only). Static renders of the thirteen
+pages (react-dom/server in the real Shell, the product stylesheets, headless Chromium; Ask answers
+from the real deterministic pipeline) at 1440×900, 1280×720, 768×1024, 390×844 and 360×780: no
+sideways scroll, nothing under 12px but the shared `i` mark, every Sales Agents and agent screen
+within one viewport at 1280×720 and 1440×900. e2e edited, not run: `agent-portraits`,
+`lab-agent-portraits`, `p221-render` R03-4. **Not looked at on the running demo.**
+
+**Next recommended action.** Route the findings above to the Ask pipeline and synthetic owners,
+build, and on the demo at 1440×900 and 390×844 read Sales Agents, Lena's page (as Clara and as
+Lena), Presentation in its three modes and two Ask answers; run `agent-portraits`, `p221-render`,
+`p221-meres`, `register-gate`, `a11y-contract` and `layout-integrity`.
