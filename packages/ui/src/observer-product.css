@@ -1424,6 +1424,11 @@
   display: none;
 }
 
+/* First in the foot, its 16px mark on the text's left edge rather than 8px in. */
+.ox-finding-foot > .iris-info {
+  margin-inline-start: -0.25rem;
+}
+
 @media print {
   .ox-finding-foot > .ox-finding-sources {
     display: inline;

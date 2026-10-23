@@ -127,14 +127,13 @@ export function FindingList({
           <div className="ox-finding-foot">
             {/*
              * The source line said the same sentence under every finding, down
-             * the report (review round 8). On screen it is the foot's `i`; paper,
-             * which has no `i`, prints the line (`observer-product.css`).
+             * the report (review round 8). On screen it is an `i` where the line
+             * stood, first in the foot; paper, which has no `i`, prints the line
+             * (`observer-product.css`).
              */}
             <span className="ox-finding-sources">
               <Sources sources={finding.sources} language={language} />
             </span>
-            <Evidence evidence={finding.evidence} period={period} language={language} />
-            <Sample n={finding.sampleSize} noun={noun(finding.sampleSize)} />
             {finding.sources.length === 0 ? null : (
               <InfoTip
                 id={`finding-src-${finding.id.replace(/[^\w-]/g, "-")}`}
@@ -145,6 +144,8 @@ export function FindingList({
                 </p>
               </InfoTip>
             )}
+            <Evidence evidence={finding.evidence} period={period} language={language} />
+            <Sample n={finding.sampleSize} noun={noun(finding.sampleSize)} />
             {finding.nextStep === null ? null : (
               <Link
                 prefetch={false}
