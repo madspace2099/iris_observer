@@ -183,6 +183,14 @@ describe("the screens' stylesheet", () => {
     ].map((m) => Number(m[1]));
     expect(columns).toHaveLength(3);
     for (const width of columns) expect(width).toBeGreaterThanOrEqual(15.5);
+    // The agents' wider names come out of the figure's column, not the bars' (review, 2026-10-23).
+    const figures = [
+      ...SHEET.matchAll(
+        /#flow-agents \.iris-orows-list \{[^}]*grid-template-columns: fit-content\([\d.]+rem\) minmax\([^)]*\) fit-content\(([\d.]+)rem\)/g,
+      ),
+    ].map((m) => Number(m[1]));
+    expect(figures).toHaveLength(2);
+    for (const width of figures) expect(width).toBeLessThanOrEqual(13);
     expect(screen("flow-agents")).not.toContain('"chip"');
   });
 
