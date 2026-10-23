@@ -12,3 +12,19 @@
 .ox-page:not(.sheet) .sheet-titled > :is(.ox-section-title, .ox-subhead) {
   line-height: 1.5;
 }
+
+/*
+ * The row never breaks between the title and its `i`, only inside the title,
+ * so the last word goes down with it (review, round 9: at 390 and 320 the `i`
+ * stood alone on a line under "What the system of record verifies", "What
+ * this register does not cover" and "Meetings that opened it"). Project does
+ * the same for its titles (`components/project/rooms.css`). The title and the
+ * explanation the `i` opens wrap as before.
+ */
+.ox-page:not(.sheet) .sheet-titled {
+  white-space: nowrap;
+}
+
+.ox-page:not(.sheet) .sheet-titled > :not(.iris-info) {
+  white-space: normal;
+}

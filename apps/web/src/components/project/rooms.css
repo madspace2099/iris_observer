@@ -866,7 +866,12 @@
   white-space: nowrap;
 }
 
-.pr-page .iris-titled > .iris-kicker {
+/*
+ * Only the row: the title wraps inside, and so does the explanation the `i`
+ * opens, which stands inside the row and inherited the nowrap (review, round
+ * 9: every panel on this page was one line, cut at its edge).
+ */
+.pr-page .iris-titled > :is(.iris-kicker, .iris-info-panel) {
   white-space: normal;
 }
 
