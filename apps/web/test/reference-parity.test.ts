@@ -247,6 +247,8 @@ const ADDED_SINCE_REFERENCE: readonly string[] = [
    * a company admin connects the CRM IRIS-led sales are read from.
    */
   "/settings/crm",
+  /* `/settings` itself, which only redirects to AI and usage instead of a 404. */
+  "/settings",
 ];
 
 describe("every route the reference served is still served", () => {

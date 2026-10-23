@@ -4,7 +4,8 @@ import type { Metadata } from "next";
 
 import { dynamicRoute } from "@/lib/href";
 import { requireAccount, requireViewer } from "@/lib/session";
-import { companyOf } from "@/lib/accounts";
+import { ROLE_WORDS, companyOf } from "@/lib/accounts";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { SettingsFrame, originFrom } from "../chrome";
 import { companyKeyState, type CompanyKeyState } from "@/lib/credentials/company-keys";
 import { connectionFor, type ConnectionMetadata } from "@/lib/credentials/service";
@@ -165,8 +166,8 @@ export default async function AiSettings({
   return (
     <SettingsFrame
       displayName={account.displayName}
-      /* The shell's role slot holds a word, not a sentence; the panel below names the company and who holds its key. */
-      roleWord={standing.role === "admin" ? "Company admin" : "Member"}
+      /* The shell's role slot holds a phrase, not a sentence; the panel below names the company and who holds its key. */
+      roleWord={`${ROLE_WORDS[viewer.role]} · ${standing.role === "admin" ? "company admin" : "member"}`}
       roleTitle={standingLine}
       origin={origin}
       current="ai"
@@ -176,11 +177,26 @@ export default async function AiSettings({
           <p className="ox-kicker">Account settings</p>
           <h1 className="ox-title">AI and usage</h1>
           {companyOnly ? (
-            <p className="ox-lede">
-              On this local demonstration Ask IRIS answers with one OpenAI key per company, held in
-              this server&rsquo;s memory. Keys, models and budgets of your own need the hosted
-              credential store, which this server does not have.
-            </p>
+            /*
+             * The answer in view; where the key is held, and why keys of your
+             * own are not offered here, behind the `i` beside it.
+             */
+            <div className="os-info-row">
+              <p className="ox-lede">
+                With your company&rsquo;s OpenAI key, a language model words Ask IRIS&rsquo;s
+                answers. Every figure it writes is checked against Observer&rsquo;s own numbers.
+              </p>
+              <InfoTip id="ai-demo" label="where the key is kept">
+                <p>
+                  On this local demonstration the key is held in this server&rsquo;s memory, one per
+                  company, until the server restarts.
+                </p>
+                <p>
+                  Keys, models and budgets of your own need the hosted credential store, which this
+                  server does not have.
+                </p>
+              </InfoTip>
+            </div>
           ) : (
             <p className="ox-lede">
               These are your own provider accounts. Everything here belongs to{" "}
@@ -331,12 +347,17 @@ function CompanyKeyPanel({
         </h2>
       </div>
 
-      <p className="ox-section-note">
-        One OpenAI key for everyone at {state.company}, kept in this server&rsquo;s memory until it
-        restarts and never shown again. With it, {MODEL_WORDED} in Ask IRIS are worded by a language
-        model from the figures Observer&rsquo;s read models compute; every figure it writes in
-        digits is checked against them before it is shown.
-      </p>
+      <div className="os-info-row">
+        <p className="ox-section-note">One OpenAI key for everyone at {state.company}.</p>
+        <InfoTip id="company-key" label="the company key">
+          <p>
+            Kept in this server&rsquo;s memory until it restarts, and never shown again. With it,{" "}
+            {MODEL_WORDED} in Ask IRIS are worded by a language model from the figures
+            Observer&rsquo;s read models compute; every figure it writes in digits is checked
+            against them before it is shown.
+          </p>
+        </InfoTip>
+      </div>
 
       {spendable ? null : (
         <p className="os-note">

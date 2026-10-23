@@ -12,7 +12,8 @@ import type { ConnectorKind } from "@observer/contracts";
 
 import { repository } from "@/lib/repository";
 import { requireAccount, requireViewer } from "@/lib/session";
-import { companyOf, mayConnectCrm } from "@/lib/accounts";
+import { ROLE_WORDS, companyOf, mayConnectCrm } from "@/lib/accounts";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { mapToLines } from "@/lib/connectors/configs";
 import { dynamicRoute } from "@/lib/href";
 import { controlPlane } from "@/lib/sources/control-plane";
@@ -106,7 +107,7 @@ export default async function CrmSettings({
   return (
     <SettingsFrame
       displayName={account.displayName}
-      roleWord={admin ? "Company admin" : "Member"}
+      roleWord={`${ROLE_WORDS[viewer.role]} · ${admin ? "company admin" : "member"}`}
       roleTitle={admin ? `Company admin, ${company.name}` : `Member, ${company.name}`}
       origin={origin}
       current="crm"
@@ -116,10 +117,9 @@ export default async function CrmSettings({
           <p className="ox-kicker">Account settings · {company.name}</p>
           <h1 className="ox-title">Connect your CRM</h1>
           <p className="ox-lede">
-            Your CRM says when a flat is reserved or sold. With it, Sales Flow shows which of those
-            sales the IRIS showroom showed first, how often and how long before.{" "}
+            With your CRM, Sales Flow shows which reserved and sold flats the showroom showed first.{" "}
             {admin
-              ? "As your company's admin you connect it here for each project your company develops."
+              ? "As your company's admin you connect it here, per project."
               : `${company.adminName}, your company's admin, connects it; you can see what each project reads.`}
           </p>
         </div>
@@ -240,13 +240,11 @@ function ProjectPanel({
             </p>
             {demonstration ? (
               <p className="os-note">
-                This is a demonstration project: its CRM is the demonstration CRM built into IRIS
-                Observer, so there is nothing to connect. A live project connects its own CRM on
-                this page.
+                Built into IRIS Observer for this demonstration, so there is nothing to connect.
               </p>
             ) : null}
             <p className="os-note">
-              <Link href={dynamicRoute(`${irisLed}?period=quarter_to_date`)}>
+              <Link className="os-link" href={dynamicRoute(`${irisLed}?period=quarter_to_date`)}>
                 Open IRIS-led sales for {project.name}
               </Link>
             </p>
@@ -260,6 +258,8 @@ function ProjectPanel({
         state={connector("realpad")}
         deals={row.deals.get("realpad") ?? null}
         zone={zone}
+        id={`${headingId}-realpad`}
+        line="Reads every flat's availability on save and daily; deal stages once mapped with MADSPACE."
         supports="Reads the price list over REALPAD's API: every flat's availability, once when you save here, and once a day at 06:00 UTC where this server's scheduled sync is switched on. A flat that moves from available to reserved or sold between two reads is dated by the read that saw it, so the first read dates nothing. Deals, with the date of each stage, come from REALPAD's business-case export once its column ids are mapped with MADSPACE; a Data Takeout pair stored for them is kept when you replace the price-list pair here."
       >
         {!acts ? null : !sealable ? (
@@ -314,6 +314,8 @@ function ProjectPanel({
         state={connector("monday")}
         deals={row.deals.get("monday") ?? null}
         zone={zone}
+        id={`${headingId}-monday`}
+        line="Reads a board of flats on save and daily; deals once mapped with MADSPACE."
         supports="Reads a board with one item per flat and a status column for its availability, once when you save here, and once a day at 06:00 UTC where this server's scheduled sync is switched on. Deals come from a second board once its columns and stage words are mapped with MADSPACE."
       >
         {!acts ? null : !sealable ? (
@@ -356,6 +358,8 @@ function ProjectPanel({
         name="Google Sheets"
         state={null}
         deals={null}
+        id={`${headingId}-sheets`}
+        line="Not read directly: download the sheet as CSV and upload it below."
         supports="Not read directly: IRIS Observer has no Google connector and does not read a live sheet. Download the sheet as CSV (File, Download, Comma-separated values) and upload it under CSV upload. Each upload is compared with the last, so a flat whose status changed is dated by the upload that first saw it."
       />
 
@@ -365,6 +369,8 @@ function ProjectPanel({
         state={connector("csv")}
         deals={row.deals.get("csv") ?? null}
         zone={zone}
+        id={`${headingId}-csv`}
+        line="A flats sheet and, if you keep one, a deals sheet."
         supports="A flats sheet (a code column and a status column) and, if you keep one, a deals sheet (deal id, stage, flat code, and the date each stage was entered). A stage date needs a time and a zone, as in 2026-08-12T14:00+02:00: a date alone cannot be placed against a showing, and such a deal is counted as undated."
       >
         {acts ? (
@@ -423,6 +429,8 @@ function ProjectPanel({
         name="Other real-estate CRM"
         state={null}
         deals={null}
+        id={`${headingId}-other`}
+        line="Upload its exports as CSV; MADSPACE builds any other link."
         supports="Export its price list, and its deals if it keeps them, as CSV and upload them under CSV upload. Lomnio connects through MADSPACE with its API token and signed webhooks. There is no general webhook receiver: another CRM that pushes changes needs an adapter, which MADSPACE builds."
       />
 
@@ -444,6 +452,8 @@ function Provider({
   state,
   deals,
   zone = "UTC",
+  id,
+  line,
   supports,
   children = null,
 }: {
@@ -452,6 +462,11 @@ function Provider({
   readonly deals: LastDealSync | null;
   /** The project's zone, for when it last read. */
   readonly zone?: string;
+  /** Unique on the page: the `i`'s panel. */
+  readonly id: string;
+  /** What it reads, in one line, in view. */
+  readonly line: string;
+  /** The schedule, the mapping and the format: behind the `i`. */
   readonly supports: string;
   readonly children?: ReactNode;
 }) {
@@ -473,7 +488,12 @@ function Provider({
           </span>
         )}
       </div>
-      <p className="os-note">{supports}</p>
+      <div className="os-info-row">
+        <p className="os-note">{line}</p>
+        <InfoTip id={id} label={`what ${name} reads`}>
+          <p>{supports}</p>
+        </InfoTip>
+      </div>
       {state?.lastSync == null ? null : (
         <p className="os-note">
           Flats last read <time dateTime={state.lastSync.at}>{when(state.lastSync.at, zone)}</time>:{" "}

@@ -535,6 +535,16 @@
 }
 
 /*
+ * A line in view and the `i` that holds the rest of what it used to say: the
+ * schedule, the storage, the format. The `i` sits on the line's first baseline.
+ */
+.os-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+
+/*
  * Underlined, not merely coloured. Colour alone is not a link affordance, and
  * these sit inside running prose where there is no other cue.
  */
