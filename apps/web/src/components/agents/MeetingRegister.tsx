@@ -158,8 +158,15 @@ export function MeetingRegister({
   const data: readonly DataRow[] = rows.map((row) => ({
     key: row.meetingId,
     cells: {
+      /*
+       * No viewport prefetch on a row (ADR-0061): eight rows are eight meeting
+       * replays, each rendered in full on the server the moment the register
+       * scrolls into view. A click still goes straight there.
+       */
       meeting: canOpen ? (
-        <Link href={dynamicRoute(withPeriod(row.href, period))}>{row.label}</Link>
+        <Link prefetch={false} href={dynamicRoute(withPeriod(row.href, period))}>
+          {row.label}
+        </Link>
       ) : (
         row.label
       ),

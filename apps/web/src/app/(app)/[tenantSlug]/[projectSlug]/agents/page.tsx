@@ -487,7 +487,10 @@ function Coaching({
             alt=""
           />
           <span>
-            <Link href={dynamicRoute(detailHref(p.id))}>{p.label}</Link> · {counted(p.meetings)}
+            <Link prefetch={false} href={dynamicRoute(detailHref(p.id))}>
+              {p.label}
+            </Link>{" "}
+            · {counted(p.meetings)}
           </span>
         </li>
       ))}

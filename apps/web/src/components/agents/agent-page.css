@@ -129,6 +129,18 @@
   .ag-detail .ag-pair > .ag-frame {
     min-height: min(calc(var(--screen-h) - 4rem), 40rem);
   }
+
+  /*
+   * Under the floor a half holds a sentence, not a drawing (the shape's note,
+   * "No trend"): it is as tall as the sentence, in the middle of the screen,
+   * not a screen-tall frame of black around it.
+   */
+  .ag-detail
+    .ag-pair
+    > :is(.ox-result, .ag-frame:has(> .ox-chart-plot > .ox-chart-note:only-child)) {
+    align-self: center;
+    min-height: 0;
+  }
 }
 
 /*
