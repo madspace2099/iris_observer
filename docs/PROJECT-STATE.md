@@ -7204,3 +7204,31 @@ visible words in its accessible name. A stalled row reads "Open deal on S-503". 
 report's recent meetings link only for a role the replay admits. Features' limits are four lines.
 Full suite: 5428 passed, `no-secret-recipes` red (needs a web build). **For SYN:** flag a stalled
 deal whose flat is sold or reserved (or do not rank it), so its row can say it is another buyer's.
+
+## 2026-10-23 — Ready to record: the integrated demo
+
+Integrated on `feature/observer-shark-demo` by cherry-pick, in order: round r5 (plan, room types,
+agents, attention/briefing, shell, mobile — ADR-0055…0058), the Sales Flow screens and KPI screen
+(ADR-0059, ADR-0060), round r7 (Sales Agents screens, portraits everywhere in plain circles,
+scroll-triggered chart motion, fewer prefetches — ADR-0061, ADR-0054 amended, ADR-0062), the r8
+sweep of every page (four reviewers on the running demo, four fixers, four checkers) and its r9
+closing round (read models, shared parts, pages) with the Project page as screens (ADR-0063).
+The five owner-supplied portraits were set through the product as Clara (they live on the demo's
+local plane, `.observer-local/demo`). Shark's catalogue now takes a flat's status from the CRM alone
+(60 flats, 19 sold, 13 reserved, 28 available on every page).
+
+**Verified at `ec754495`.** Typecheck clean; lint 0 errors; vitest 299 files, 5472 passed, 1 skipped
+(one vitest worker RPC timeout under load, no test failed). On the demo build, motion allowed, at
+1440 × 900: one wheel turn is one screen on Sales Flow (15 screens), Project (8) and Sales Agents (3);
+every page loads in 0.2–0.7 s once warmed. The full e2e suite last ran at `7f46ddeb` (green after
+four spec fixes); the screen pages have unit tests (flow-, agents-, project-screens) but their e2e
+specs have not run on this build.
+
+**Before recording.** Windows animation effects on (with them off the browser reports reduced motion:
+no screen-at-a-time wheel, no draw-in). Warm every page once after a restart. A developer (Clara)
+does not open meeting replays by rule; show a replay as Daniel Hart. The MADSPACE pages list a
+leftover local registration ("client-657 / Valami") from earlier testing; it is demo data and was
+left in place.
+
+**Next recommended action.** Máté records. Afterwards: run the full e2e suite on the final build,
+and decide whether the leftover MADSPACE registration should be removed.
