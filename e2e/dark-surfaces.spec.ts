@@ -74,7 +74,8 @@ test.describe("dark on screen", () => {
   test("the root 404 stands on a dark ground", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "a ground does not vary with width");
     await page.goto("/no-such-page-anywhere");
-    const grounds = await groundsOf(page, ".mp-empty");
+    /* The shell's chrome and the project 404's empty state since review round 8. */
+    const grounds = await groundsOf(page, ".ox-empty");
     expect(grounds.length).toBe(1);
     expect(grounds[0], "the 404 panel's ground").toBeLessThan(DARK);
   });

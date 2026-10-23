@@ -1,8 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 
-import "@/portal/portal.css";
-
 export const metadata: Metadata = { title: "Page not found" };
 
 /**
@@ -26,34 +24,34 @@ export const metadata: Metadata = { title: "Page not found" };
  * asking. A 404 handler that could itself throw would be the one page in the
  * product with no floor beneath it.
  *
- * `mp-` because a reader with nowhere more specific to land is, by
- * definition, not inside a project — the portal is the correct register.
+ * ## The product's chrome, and one line (review round 8)
+ *
+ * It wore the light portal's "MADSPACE | IRIS Observer" bar over a card of
+ * three lines. It wears the shell's header now, as `/projects` does — the
+ * wordmark, nothing that needs a session — and the project 404's empty state
+ * (`.ox-empty`), with one line and the way back.
  */
 export default function NotFound() {
   return (
-    <div className="mp">
-      <a className="mp-skip" href="#main">
-        Skip to content
-      </a>
-
-      <header className="mp-bar">
-        <div className="mp-bar-inner">
-          <span className="mp-bar-brand">MADSPACE</span>
-          <span className="mp-bar-product">IRIS Observer</span>
-        </div>
+    <div className="irs-shell ox-root ox-graphite" data-surface="account">
+      <header className="irs-header">
+        <Link className="irs-brand" href="/" aria-label="IRIS by MADSPACE — IRIS Observer">
+          <img className="irs-brand-mark" src="/brand/iris-wordmark.svg" alt="IRIS" />
+          <span className="irs-brand-sub">by MADSPACE</span>
+        </Link>
       </header>
 
-      <main className="mp-main" id="main" tabIndex={-1}>
-        <div className="mp-empty">
-          <strong>This page does not exist</strong>
-          <p>
-            The address may be mistyped, or it may point at something that was moved or removed.
-            Nothing was loaded — this is not an empty result, it is a page this application does not
-            serve.
-          </p>
-          <Link className="mp-btn" href="/">
-            Go to IRIS Observer
-          </Link>
+      <main className="irs-main" id="main" tabIndex={-1}>
+        <div className="ox-page">
+          <div className="ox-body">
+            <div className="ox-empty">
+              <p className="ox-empty-title">This page does not exist</p>
+              <p className="ox-empty-note">The address may be mistyped.</p>
+              <Link className="ox-btn" data-weight="primary" href="/">
+                Go to IRIS Observer
+              </Link>
+            </div>
+          </div>
         </div>
       </main>
     </div>
