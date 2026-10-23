@@ -18,13 +18,20 @@ import "./rooms.css";
  * Each type keeps one hue on its row and its line: the kit's agent set,
  * ordered so the first four drawn are as far apart as the set allows (blue,
  * magenta, aqua, sky). Cyan and aqua side by side read as one line, and the
- * set's green is last, because on this card green means sold.
+ * set's green is last, because on this card green means sold. Sky still read
+ * as the first type's blue where their lines crossed (2026-10-23), so from the
+ * fourth type on a line is dashed, and its key with it (`rooms.css`).
  */
 
 const HUES = [2, 4, 5, 6, 3, 1] as const;
 
 export function hueOf(index: number): string {
   return `var(--d-series-${HUES[index % HUES.length] ?? 2})`;
+}
+
+/** `data-dash` for the fourth type on: its line and its key are dashed. */
+function dashOf(index: number): { readonly "data-dash"?: "true" } {
+  return index >= 3 ? { "data-dash": "true" } : {};
 }
 
 /** One flat per block while the blocks stay readable; one span per status past that. */
@@ -120,6 +127,7 @@ export function RoomTypes({
                   key={t.id}
                   data-type={t.id}
                   data-on={focus === t.id ? "true" : undefined}
+                  {...dashOf(i)}
                   style={{ "--pr-hue": hueOf(i) } as CSSProperties}
                   onPointerEnter={() => setFocus(t.id)}
                   onPointerLeave={() => setFocus(null)}
@@ -287,6 +295,7 @@ function Lines({
               key={s.id}
               className="pr-line"
               data-on={focus === s.id ? "true" : undefined}
+              {...dashOf(index < 0 ? k : index)}
               style={{ "--pr-hue": hueOf(index < 0 ? k : index) } as CSSProperties}
             >
               {runs.map((run) =>

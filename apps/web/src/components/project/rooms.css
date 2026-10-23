@@ -853,6 +853,38 @@
   }
 }
 
+/*
+ * A title's `i` never stands on a line of its own (Máté's video review,
+ * 2026-10-23). At 360 "How far 150 presentations got" and at 390 "What the
+ * neighbourhood is doing" fitted their line and the `i` broke after them. The
+ * row may not break between the title and its `i`, only inside the title, so
+ * the last word goes down with it. On this page only (`.pr-page`).
+ */
+.pr-page .iris-titled {
+  white-space: nowrap;
+}
+
+.pr-page .iris-titled > .iris-kicker {
+  white-space: normal;
+}
+
+/*
+ * The fourth room type's line is dashed, and its key with it: the kit's sky
+ * and blue sat side by side and read as one where One-room and Four-room
+ * crossed (2026-10-23). Green means sold on this card and aqua beside cyan is
+ * one line, so the set has no fourth hue to give; a dash tells them apart.
+ */
+.pr-line[data-dash] polyline {
+  stroke-dasharray: 5 4;
+}
+
+.pr-rows li[data-dash] .pr-type b::before {
+  width: 14px;
+  height: 3px;
+  border-radius: 0;
+  background: repeating-linear-gradient(90deg, var(--pr-hue) 0 5px, transparent 5px 8px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pr-rows li,
   .pr-bar i,

@@ -119,7 +119,8 @@ export default async function ProjectPage({
   }
 
   return (
-    <div className="iris-one">
+    /* `pr-page`: this page's own rules in `rooms.css` (a title's `i` keeps its line). */
+    <div className="iris-one pr-page">
       <section className="iris-plane iris-stack">
         <p className="iris-kicker iris-kicker-measured">Project · {view.context.period.label}</p>
         <SpokenVerdict
@@ -323,8 +324,8 @@ export default async function ProjectPage({
             <h2 className="iris-kicker iris-kicker-measured">The places buyers stopped on</h2>
             <InfoTip id="places" label="the places buyers stopped on">
               Ordered by total time, in minutes. Amenities inside the building are recorded today;
-              points of interest in the neighbourhood need a UE5 v2 event and are shown here as a
-              demonstration.
+              places in the neighbourhood are shown as a demonstration until the showroom records
+              them.
             </InfoTip>
           </header>
           <div className="iris-places">
@@ -385,9 +386,10 @@ export default async function ProjectPage({
           ))}
         </div>
 
+        {/* Said plainly, without the build's vocabulary, for the screen (2026-10-23). */}
         <Gaps
           gaps={[
-            "Filter state and individual points of interest are not emitted by the current showroom build. Both are shown as a demonstration of what the UE5 v2 event would answer.",
+            "Search filters and named places in the neighbourhood are demonstration values until the showroom records them.",
             "Time spent on a kind of place is a behaviour, not a fact about anyone's household.",
           ]}
         />
