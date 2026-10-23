@@ -45,8 +45,11 @@ export interface ComposerNotices {
  * A demonstration key, the company's (ADR-0043) before the owner's (ADR-0040),
  * is named only where the stream route would spend it: the language model on
  * and the request addressed to the loopback. An account's own connection is
- * named by the answer it writes. Where no model answers, a company without a
- * key, or with a key this request cannot spend, says so in one line.
+ * named by the answer it writes. Where no model answers, a company with a key
+ * this request cannot spend says so in one line, and a company without one
+ * says so to its admin, the one reader who can add it. A member was told
+ * another person had not added a key (review round 8): a line about someone
+ * else, with nothing for the reader to do.
  */
 export function composerNotices(input: {
   readonly aiEnabled: boolean;
@@ -77,7 +80,7 @@ export function composerNotices(input: {
         ? `The OpenAI key for ${company.company} is used only on requests to localhost while this server's language model is on; answers here come from the read models.`
         : company.role === "admin"
           ? `You have not added an OpenAI key for ${company.company} yet; answers come from the read models. Add it in Settings.`
-          : `${company.adminName} has not added an OpenAI key for ${company.company} yet; answers come from the read models.`;
+          : null;
 
   return { model, modelNotice, keyNote };
 }

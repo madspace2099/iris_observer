@@ -136,7 +136,7 @@ const renderFrame = (modelNotice: string | null, keyNote: string | null) =>
   );
 
 describe("the composer's notices", () => {
-  const NOTE = "Clara Weiss has not added an OpenAI key for Shark Developments yet";
+  const NOTE = "You have not added an OpenAI key for Shark Developments yet";
 
   it("says a company has no key outside the AI notice, in the model picker", () => {
     const html = renderFrame(null, `${NOTE}; answers come from the read models.`);
@@ -225,12 +225,11 @@ describe("composerNotices", () => {
     expect(notes.keyNote).toContain("only on requests to localhost");
   });
 
-  it("says the company has no key only where no model answers", () => {
-    expect(composerNotices({ ...base, company: SHARK }).keyNote).toBe(
-      "Clara Weiss has not added an OpenAI key for Shark Developments yet; answers come from the read models.",
-    );
-    expect(composerNotices({ ...base, company: { ...SHARK, role: "admin" } }).keyNote).toContain(
-      "You have not added",
+  it("says the company has no key only where no model answers, and only to its admin", () => {
+    /* Review round 8: a member was told another person had not added a key. */
+    expect(composerNotices({ ...base, company: SHARK }).keyNote).toBeNull();
+    expect(composerNotices({ ...base, company: { ...SHARK, role: "admin" } }).keyNote).toBe(
+      "You have not added an OpenAI key for Shark Developments yet; answers come from the read models. Add it in Settings.",
     );
     /* The account's own connection answers: a Gate 1 notice, and no key note beside it. */
     const own = composerNotices({ ...base, connected: true, company: SHARK });
