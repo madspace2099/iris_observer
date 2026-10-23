@@ -76,6 +76,8 @@ const PNG = new Uint8Array([
   ...chunk("IDAT", [1, 2, 3]),
   ...chunk("IEND", []),
 ]);
+/* Another picture: the same header, other pixels. */
+const PNG_OTHER = PNG.map((byte, i) => (i === PNG.length - 15 ? 9 : byte));
 
 const SHARK = "tnt_sharkdev001";
 const ORIGIN = "http://localhost:3400";
@@ -83,11 +85,17 @@ const ORIGIN = "http://localhost:3400";
 function call(
   method: "GET" | "PUT" | "DELETE",
   where: { tenantSlug: string; projectSlug: string; agentId: string },
-  options: { body?: Uint8Array; origin?: string | null; length?: boolean } = {},
+  options: {
+    body?: Uint8Array;
+    origin?: string | null;
+    length?: boolean;
+    ifNoneMatch?: string;
+  } = {},
 ): Promise<Response> {
   const headers = new Headers({ host: "localhost:3400" });
   const origin = options.origin === undefined ? ORIGIN : options.origin;
   if (origin !== null) headers.set("origin", origin);
+  if (options.ifNoneMatch !== undefined) headers.set("if-none-match", options.ifNoneMatch);
   if (options.body !== undefined && options.length !== false) {
     headers.set("content-length", String(options.body.length));
   }
@@ -239,10 +247,27 @@ describe("what is kept, and how it is served", () => {
     const served = await call("GET", lena);
     expect(served.status).toBe(200);
     expect(served.headers.get("content-type")).toBe("image/png");
-    // Its address carries its version, so this browser alone keeps it an hour (ADR-0054, 2026-10-23).
-    expect(served.headers.get("cache-control")).toBe("private, max-age=3600, immutable");
+    // Kept by this browser alone, and never used without asking again (ADR-0054, 2026-10-23).
+    expect(served.headers.get("cache-control")).toBe("private, no-cache");
     expect(served.headers.get("x-content-type-options")).toBe("nosniff");
     expect(Buffer.from(await served.arrayBuffer()).equals(kept)).toBe(true);
+  });
+
+  it("answers a copy still good with a bodiless 304, and only after the checks", async () => {
+    expect((await call("PUT", lena, { body: PNG })).status).toBe(200);
+    const tag = (await call("GET", lena)).headers.get("etag") ?? "";
+    expect(tag).toMatch(/^"[A-Za-z0-9_-]+"$/);
+
+    const again = await call("GET", lena, { ifNoneMatch: `W/${tag}` });
+    expect(again.status).toBe(304);
+    expect(again.headers.get("cache-control")).toBe("private, no-cache");
+    expect(await again.text()).toBe("");
+
+    // Replaced, the old copy is not good; signed out, there is no copy to confirm.
+    expect((await call("PUT", lena, { body: PNG_OTHER })).status).toBe(200);
+    expect((await call("GET", lena, { ifNoneMatch: tag })).status).toBe(200);
+    state.accountId = null;
+    expect((await call("GET", lena, { ifNoneMatch: tag })).status).toBe(401);
   });
 
   it("answers 404 where there is no portrait, and keeps no refusal", async () => {

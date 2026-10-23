@@ -36,11 +36,11 @@ test("the company admin adds, replaces and removes a presenter's portrait", asyn
   await expect(control.getByRole("status")).toContainText("Saved.");
   await expect(page.locator("h1 img.ag-portrait")).toBeVisible();
 
-  // Served privately, as an image, under its own type; kept an hour by this browser alone.
+  // Served privately, as an image, under its own type; kept by this browser, asked again before use.
   const src = await page.locator("h1 img.ag-portrait").getAttribute("src");
   const served = await page.request.get(src ?? "");
   expect(served.headers()["content-type"]).toBe("image/png");
-  expect(served.headers()["cache-control"]).toBe("private, max-age=3600, immutable");
+  expect(served.headers()["cache-control"]).toBe("private, no-cache");
 
   // Shown on Sales Flow beside her name.
   await page.goto(`${ROOT}/flow`);

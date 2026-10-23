@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import { portraitRight } from "@/lib/portraits/access";
 import { PORTRAIT_MAX_BYTES, TOO_LARGE, admitPortrait, sniffPortrait } from "@/lib/portraits/image";
 import { actorFor, resolvePortraitScope } from "@/lib/portraits/server";
@@ -73,7 +75,7 @@ async function readCapped(request: Request, limit: number): Promise<Uint8Array |
   return out;
 }
 
-export async function GET(_request: Request, context: Context): Promise<Response> {
+export async function GET(request: Request, context: Context): Promise<Response> {
   const { tenantSlug, projectSlug, agentId } = await context.params;
   const scope = await resolvePortraitScope(tenantSlug, projectSlug, agentId);
   if (!scope.ok) return said(scope.status, scope.status === 401 ? SIGNED_OUT : NOT_FOUND);
@@ -84,17 +86,27 @@ export async function GET(_request: Request, context: Context): Promise<Response
   const type = bytes === null ? null : sniffPortrait(bytes);
   if (bytes === null || type === null) return said(404, "This agent has no portrait.");
 
+  /*
+   * Kept by this reader's browser, never used unasked (ADR-0054, 2026-10-23,
+   * review round 1): `no-cache` sends every later use back through the checks
+   * above, and a copy still good costs a bodiless 304. So a page's first load
+   * fetches a face once (no-store fetched it twice: the preload and the <img>),
+   * and a reader signed out, refused or shown a removed face gets no cached one.
+   */
+  const tag = `"${createHash("sha256").update(bytes).digest("base64url")}"`;
+  const kept = {
+    ...PRIVATE,
+    "Cache-Control": "private, no-cache",
+    ETag: tag,
+  };
+  const asked = request.headers.get("if-none-match") ?? "";
+  if (asked.split(",").some((t) => t.trim().replace(/^W\//, "") === tag)) {
+    return new Response(null, { status: 304, headers: kept });
+  }
+
   return new Response(bytes as BodyInit, {
     headers: {
-      ...PRIVATE,
-      /*
-       * Kept by this reader's browser for an hour (ADR-0054, 2026-10-23): a
-       * page names the same five presenters in many rows, and without a cache
-       * Chrome fetched one face twice on a page's first load. The address
-       * carries the portrait's version, so a replaced face is a new address;
-       * private, so no shared cache keeps it. Every refusal stays no-store.
-       */
-      "Cache-Control": "private, max-age=3600, immutable",
+      ...kept,
       "Content-Type": type,
       "Content-Length": String(bytes.length),
       "Content-Security-Policy": "default-src 'none'; sandbox",
