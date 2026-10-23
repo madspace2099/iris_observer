@@ -578,7 +578,13 @@ export const LADDER_NOTE_WORDS: Readonly<Record<Language, LadderNoteWords>> = {
   en: {
     notConnected: NOT_CONNECTED_NOTE,
     rung: "A rung counts the deals at that stage or further along; this is where each deal stands, not the path it took.",
-    lost: (n) => `${String(n)} lost, counted beside the ladder.`,
+    /*
+     * No rung draws them: they are in the total, and on no rung. The Slovak and
+     * Hungarian below are P2-17's approved wording of the old sentence ("counted
+     * beside the ladder") and wait for the next translation sheet.
+     */
+    lost: (n) =>
+      `${String(n)} lost ${n === 1 ? "deal is" : "deals are"} in the total but on no rung.`,
   },
   sk: {
     notConnected:
@@ -663,7 +669,25 @@ export function buildDealLadder(
   const undated = open.filter(
     (d) => daysBetween(d.stageEnteredAt, deals.fetchedAt) === null,
   ).length;
+  /*
+   * A flat another deal has already reserved or bought is not waiting on this
+   * one. Ranked by the flat alone, "S-503, Meeting since 30 Jan" stood a frame
+   * above "S-503 · Purchase 18 Aug" (review, 2026-10-23). Such a deal is still
+   * open and still counted; it is said beside the list, not ranked in it.
+   */
+  const taken = new Set(
+    deals.deals.flatMap((d) =>
+      d.unitCode !== null && d.stage !== null && SALE_STAGES.has(d.stage) ? [d.unitCode] : [],
+    ),
+  );
+  const onTakenFlat = open.filter(
+    (d) =>
+      d.unitCode !== null &&
+      taken.has(d.unitCode) &&
+      !(d.stage !== null && SALE_STAGES.has(d.stage)),
+  );
   const stalled: StalledDeal[] = open
+    .filter((d) => !onTakenFlat.includes(d))
     .flatMap((d) => {
       const n = daysBetween(d.stageEnteredAt, deals.fetchedAt);
       if (n === null || d.stage === null || d.stageEnteredAt === null) return [];
@@ -687,6 +711,9 @@ export function buildDealLadder(
       ? "No deal is open on any rung, so nothing is stuck."
       : [
           `${String(stalled.length)} of ${String(open.length)} open deals, longest on their rung first, by the stage date the CRM stated.`,
+          onTakenFlat.length === 0
+            ? null
+            : `${String(onTakenFlat.length)} ${onTakenFlat.length === 1 ? "is" : "are"} on a flat another deal has already reserved or bought, and not ranked.`,
           undated === 0
             ? null
             : sentence(language, DEAL_UNDATED_SENTENCE, { count: undated, deals: String(undated) }),
@@ -916,12 +943,17 @@ export function buildAssistedSales(
   const observedCount = sales.filter((s) => s.dateBasis === "first_observed").length;
   const enough = datedSales >= policy.minimumSales;
 
+  /*
+   * "So far": every dated sale, whatever the period, so it cannot be read
+   * against IRIS-led's figures for this period's sales (ADR-0039 §8).
+   */
+  const salesSoFar = datedSales === 1 ? "sale so far" : "sales so far";
   const headline =
     datedSales === 0
       ? "The CRM dates no reservation or purchase yet, so there is no sale to place against a showing."
       : enough
-        ? `${String(assisted)} of ${String(datedSales)} dated sales (${percent(assisted / datedSales, locale)}) followed an IRIS showing of the unit within ${window}.`
-        : `${String(assisted)} of ${String(datedSales)} dated sales followed an IRIS showing of the unit within ${window}. ${sentence(language, DEAL_SALES_NEEDED_SENTENCE, { count: policy.minimumSales - datedSales, sales: String(policy.minimumSales - datedSales) })}`;
+        ? `${String(assisted)} of ${String(datedSales)} ${salesSoFar} (${percent(assisted / datedSales, locale)}) followed an IRIS showing of the unit within ${window}.`
+        : `${String(assisted)} of ${String(datedSales)} ${salesSoFar} followed an IRIS showing of the unit within ${window}. ${sentence(language, DEAL_SALES_NEEDED_SENTENCE, { count: policy.minimumSales - datedSales, sales: String(policy.minimumSales - datedSales) })}`;
 
   const unplacedNote =
     unplaced === 0
@@ -930,9 +962,13 @@ export function buildAssistedSales(
 
   /* A duration is read by its median, never its mean. */
   const earlierMedian = median(earlier.map((s) => (s.lagHours ?? 0) / 24));
+  /*
+   * Behind the `i`, so short: the rule, what it does not say, then only the
+   * counts that qualify it. The sales it cannot place are already in view under
+   * the rows, so they are not said again here.
+   */
   const note = [
-    `A sale counts when a meeting that opened the unit started no more than ${window} before the date ${CONNECTOR_WORDS[deals.connector]} states for its reservation or purchase.`,
-    "It says the showing came first and by how long. The buyer of a deal is not linked to the visitor in the room, so it does not say the buyer saw the unit, and it does not say the showing produced the sale.",
+    `A sale counts when a meeting opened the unit within ${window} before the reservation or purchase date ${CONNECTOR_WORDS[deals.connector]} states, over every sale so far. It says the showing came first, not that the buyer saw it or that it produced the sale.`,
     earlier.length === 0 || earlierMedian === null
       ? null
       : sentence(language, DEAL_SHOWN_EARLIER_SENTENCE, {
@@ -947,7 +983,6 @@ export function buildAssistedSales(
     observedCount === 0
       ? null
       : `${String(observedCount)} of these carry no date in the CRM and are placed by the sync that first saw the change, up to one sync after it happened, so their lag reads longer than it was and never shorter.`,
-    unplacedNote,
   ]
     .filter((w): w is string => w !== null)
     .join(" ");

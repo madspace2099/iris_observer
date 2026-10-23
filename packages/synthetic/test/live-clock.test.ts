@@ -160,9 +160,9 @@ describe("a project a real source delivers for runs on the real clock", () => {
     expect(session.suggestions[3]).toBe("Which sales followed a showing in IRIS?");
     const assisted = session.answers.find((x) => x.question === session.suggestions[3]);
     expect(assisted?.answer).toMatch(
-      /dated sales .* followed an IRIS showing of the unit within 72 hours/,
+      /sales so far .* followed an IRIS showing of the unit within 72 hours/,
     );
-    expect(assisted?.caveat).toContain("does not say the showing produced the sale");
+    expect(assisted?.caveat).toContain("not that the buyer saw it or that it produced the sale");
   });
 
   it("leaves a synthetic project on the synthetic day", async () => {

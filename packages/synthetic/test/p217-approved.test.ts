@@ -91,6 +91,7 @@ describe("the singular forms of items 8, 9 and 11 (sheet 2, question 6)", () => 
     );
   });
 
+  /* Approved for the old English ("counted beside the ladder"); kept until the next sheet re-words it. */
   it("writes item 8's lost deals in Slovak at 1, 3 and 5", () => {
     expect([1, 3, 5].map(LADDER_NOTE_WORDS.sk.lost)).toEqual([
       "1 stratený obchod sa počíta osobitne vedľa rebríka.",

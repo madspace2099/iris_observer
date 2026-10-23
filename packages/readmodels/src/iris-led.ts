@@ -108,7 +108,7 @@ export interface IrisLedSalesView {
   readonly headline: string;
   /** The meetings the headline was read from: every showing counted before a sale. */
   readonly verdictMeetings: number;
-  /** The rule, on screen. */
+  /** The rule. Behind the info control with `caveat`; the headline says it in a line. */
   readonly definition: string;
   /** Sequence, not cause; no buyer link; whose dates. Behind the info control. */
   readonly caveat: string;
@@ -119,12 +119,17 @@ export interface IrisLedSalesView {
   readonly tableCaption: string;
   /** In the period and never shown before the change: listed, not dropped. */
   readonly neverShown: readonly IrisLedSale[];
+  /** Never-shown sales in a sentence, and the one place the demonstration CRM's "by construction" is said. */
   readonly neverShownNote: string;
-  /** What could not be placed, and why. Null when everything could be. Printed beside the figures. */
+  /**
+   * What could not be placed, and why. Null when everything could be. The
+   * figures' own `i` holds it, one press from the figures it qualifies; with no
+   * figure it is the card's first line.
+   */
   readonly unplacedNote: string | null;
   /**
    * Why Sales Flow's IRIS-assisted card, which links here, can count the same
-   * 72-hour rule differently: it reads every dated deal, this page the
+   * 72-hour rule differently: it reads every sale so far, this page the
    * period's. Null where there is no card or nothing to count.
    */
   readonly frameNote: string | null;

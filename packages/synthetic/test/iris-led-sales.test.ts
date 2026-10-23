@@ -237,21 +237,24 @@ describe("which of the period's sales the showroom showed first", () => {
     expect(view.counts.withinWindow).toBe(2);
     expect(view.counts.notShown).toBe(2);
     expect(view.headline).toBe(
-      "3 of 5 sales in this period were shown in IRIS before their status changed (60%).",
+      "3 of 5 sales in this period were shown in IRIS at some point before their status changed (60%).",
     );
     const figure = (id: string) => view.figures.find((f) => f.id === id);
     expect(figure("led")).toMatchObject({
       value: "3 of 5",
       of: "60% of the period's sales with a date and a flat",
     });
-    expect(figure("window")).toMatchObject({ value: "2 of 5", of: "40%, the IRIS-assisted rule" });
+    expect(figure("window")).toMatchObject({
+      value: "2 of 5",
+      of: "40% of the period's sales, the IRIS-assisted rule",
+    });
     /* Showings 3, 1, 1: median 1. Days to the change 1, 20, 0: median 1. */
     expect(figure("showings")).toMatchObject({ value: "1", of: "across 3 IRIS-led sales" });
     expect(figure("gap")).toMatchObject({ value: "1 day", of: "across 3 IRIS-led sales" });
     /* m1, m2, m3 for A-1; m2 again for B-2; m6 for F-6. */
     expect(view.verdictMeetings).toBe(4);
     expect(view.frameNote).toBe(
-      "The IRIS-assisted card on Sales Flow applies the same 72-hour rule to every dated deal the CRM states, whatever the period. These figures count this period's sales only, so the two can differ.",
+      "The IRIS-assisted card on Sales Flow takes the same 72-hour rule over every sale so far; these figures count this period's sales only.",
     );
   });
 
@@ -323,7 +326,7 @@ describe("below the sample floor, and with nothing connected", () => {
     );
     expect(view.counts.sales).toBe(2);
     expect(view.headline).toBe(
-      "1 of 2 sales in this period was shown in IRIS before its status changed. A share is stated from 5 sales.",
+      "1 of 2 sales in this period was shown in IRIS at some point before its status changed. A share is stated from 5 sales.",
     );
     expect(view.figures.find((f) => f.id === "led")).toMatchObject({
       value: "1 of 2",
@@ -434,12 +437,13 @@ describe("on Shark Residence, through the repository", () => {
     }
   });
 
-  it("discloses that the demonstration CRM makes every sale it states from a meeting", async () => {
+  it("discloses once that the demonstration CRM makes every sale it states from a meeting", async () => {
     const view = await new SyntheticObserverRepository().getIrisLedSales(query);
     const said =
       "The demonstration CRM makes each of its deals from a meeting that opened the flat, so every sale it states was shown in IRIS by construction; a real CRM lists sales the showroom never showed.";
     expect(view.neverShownNote).toContain(said);
-    expect(view.source?.note).toContain(said);
+    /* The same card prints both notes; the reading note no longer says it a second time. */
+    expect(view.source?.note).not.toContain("by construction");
   });
 
   it("refuses a reader who does not hold the project", async () => {

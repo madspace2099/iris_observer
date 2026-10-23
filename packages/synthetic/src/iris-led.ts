@@ -416,10 +416,11 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
             id: "window",
             label: `Shown within ${window} of the change`,
             value: `${String(withinWindow)} of ${String(total)}`,
+            /* Of this period's sales: Sales Flow's card takes the same rule over every sale so far. */
             of:
               share(withinWindow) === null
                 ? `the IRIS-assisted rule; ${floorWords}`
-                : `${share(withinWindow) ?? ""}, the IRIS-assisted rule`,
+                : `${share(withinWindow) ?? ""} of the period's sales, the IRIS-assisted rule`,
           },
           {
             id: "showings",
@@ -439,7 +440,8 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
           },
         ];
 
-  const said = `${String(shownBefore)} of ${String(total)} ${total === 1 ? "sale" : "sales"} in this period ${shownBefore === 1 ? "was" : "were"} shown in IRIS before ${shownBefore === 1 ? "its" : "their"} status changed`;
+  /* "At some point": any showing before the change, against the 72 hours the IRIS-assisted figures count. */
+  const said = `${String(shownBefore)} of ${String(total)} ${total === 1 ? "sale" : "sales"} in this period ${shownBefore === 1 ? "was" : "were"} shown in IRIS at some point before ${shownBefore === 1 ? "its" : "their"} status changed`;
   const headline =
     total === 0
       ? "No sale the CRM states is dated in this period, so there is nothing to place against a showing."
@@ -495,13 +497,17 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
     name,
     readAtDisplay,
     reads,
-    note: `Read from ${name}${readAtDisplay === null ? "" : `, last read ${readAtDisplay}`}: ${reads.join("; ")}. Showings are read from every IRIS meeting on this project, whatever the period.${byConstruction}`,
+    /*
+     * Where it was read, and no more: the demonstration CRM's "by construction"
+     * is said once, in `neverShownNote`, which the same card prints.
+     */
+    note: `Read from ${name}${readAtDisplay === null ? "" : `, last read ${readAtDisplay}`}: ${reads.join("; ")}. Showings are read from every IRIS meeting on this project, whatever the period.`,
   };
   /* The Sales Flow card this page sits beneath reads the same rule over a different frame (ADR-0039 §8). */
   const frameNote =
     deals === null || total === 0
       ? null
-      : `The IRIS-assisted card on Sales Flow applies the same ${String(policy.windowHours)}-hour rule to every dated deal the CRM states, whatever the period. These figures count this period's sales only, so the two can differ.`;
+      : `The IRIS-assisted card on Sales Flow takes the same ${String(policy.windowHours)}-hour rule over every sale so far; these figures count this period's sales only.`;
 
   const windowStart = position(policy.windowHours / 24);
   return {

@@ -128,12 +128,15 @@ describe("which sales followed a showing", () => {
     expect([...bySale.keys()].sort()).toEqual(["R-1", "R-2", "R-3", "R-4", "R-5"]);
   });
 
-  /* Sales Flow prints this beside the rows while the note stands behind an `i` (ADR-0039 §6). */
-  it("states the sales it cannot place on their own, as the note's own sentence", () => {
+  /*
+   * Sales Flow prints this beside the rows while the note stands behind an `i`
+   * (ADR-0039 §6), so the note does not say it a second time.
+   */
+  it("states the sales it cannot place on their own, and only there", () => {
     expect(view.unplacedNote).toBe(
       "2 sales carry no stage date Observer could use or name no unit, and cannot be placed.",
     );
-    expect(view.note.endsWith(view.unplacedNote ?? "")).toBe(true);
+    expect(view.note).not.toContain("cannot be placed");
   });
 
   it("measures from the LAST showing before the date, not the first", () => {
@@ -181,15 +184,15 @@ describe("which sales followed a showing", () => {
     expect(view.notShown).toBe(1);
     expect(view.shareDisplay).toBe("40%");
     expect(view.headline).toBe(
-      "2 of 5 dated sales (40%) followed an IRIS showing of the unit within 72 hours.",
+      "2 of 5 sales so far (40%) followed an IRIS showing of the unit within 72 hours.",
     );
   });
 
-  it("reads the early showings by their median and says what could not be placed", () => {
+  it("reads the early showings by their median, over every sale so far", () => {
     /* The two early lags are 40 days and 3 days and a minute: median 21.5, printed as 22 days. */
     expect(view.note).toContain("2 more were shown earlier than that, a median of 22 days before");
     expect(view.note).toContain("1 was not opened in IRIS before the date at all.");
-    expect(view.note).toContain("2 sales carry no stage date Observer could use or name no unit");
+    expect(view.note).toContain("over every sale so far");
     expect(view.note).toContain("REALPAD");
   });
 
@@ -277,7 +280,7 @@ describe("what it refuses to say on too little", () => {
     if (view.source !== "crm") throw new Error("expected a connected view");
     expect(view.shareDisplay).toBeNull();
     expect(view.headline).toBe(
-      "1 of 1 dated sales followed an IRIS showing of the unit within 72 hours. 4 more dated sales are needed before a share is stated.",
+      "1 of 1 sale so far followed an IRIS showing of the unit within 72 hours. 4 more dated sales are needed before a share is stated.",
     );
     expect(view.sales[0]?.lagDisplay).toBe("24 hours before");
   });

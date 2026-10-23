@@ -26,7 +26,7 @@ test("Sales Flow's IRIS-assisted card opens IRIS-led sales, period kept", async 
   await page.getByRole("link", { name: "Open IRIS-led sales" }).click();
   await expect(page).toHaveURL(/\/flow\/iris-led\?period=year_to_date$/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(
-    /\d+ of \d+ sales in this period (was|were) shown in IRIS before/,
+    /\d+ of \d+ sales in this period (was|were) shown in IRIS at some point before/,
   );
 });
 
@@ -43,8 +43,11 @@ test("the page states a rule about order, with denominators, and no cause", asyn
     await expect(main).toContainText(label);
   }
   await expect(main.getByText(/^\d+ of \d+$/).first()).toBeVisible();
-  /* Beside the figures: the card above counts another frame, and the demonstration CRM's 100% is made. */
-  await expect(main).toContainText("applies the same 72-hour rule to every dated deal");
+  /*
+   * Behind the figures' `i` (read through textContent): the card above counts
+   * another frame. The demonstration CRM's 100% is made, said once on the page.
+   */
+  await expect(main).toContainText("takes the same 72-hour rule over every sale so far");
   await expect(main).toContainText("was shown in IRIS by construction");
 
   const info = page.locator("details.ir-led-info");
