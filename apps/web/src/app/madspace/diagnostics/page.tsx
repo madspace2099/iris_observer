@@ -3,7 +3,6 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Kicker } from "@observer/ui";
-import type { DiagnosisWindow } from "@observer/readmodels";
 import { requireViewer } from "@/lib/session";
 import { dynamicRoute } from "@/lib/href";
 import { controlPlane, HEALTH_LABEL, HEALTH_TONE } from "@/lib/sources/control-plane";
@@ -247,11 +246,17 @@ export default async function MadspaceDiagnosticsPage({
           </div>
 
           <Attention estate={estate} filter={filter} now={now} />
-          <Heartbeats estate={estate} now={now} />
-          <Verifications estate={estate} now={now} />
-          <Queues estate={estate} />
-          <Quarantine estate={estate} />
-          <ErrorCodes estate={estate} />
+          {nothingReported(estate) ? (
+            <NothingReported estate={estate} />
+          ) : (
+            <>
+              <Heartbeats estate={estate} now={now} />
+              <Verifications estate={estate} now={now} />
+              <Queues estate={estate} />
+              <Quarantine estate={estate} />
+              <ErrorCodes estate={estate} />
+            </>
+          )}
         </>
       )}
     </>
@@ -286,9 +291,11 @@ function ClientProjects({ projects }: { projects: Portfolio }) {
               last 28 days.
             </p>
             <p>
-              Outcome recorded: of the quarter&rsquo;s meetings, how many carry an outcome from the
-              CRM. Without a CRM none can.
+              Meetings: held in the last 28 days, with the quarter to date beneath. Outcome
+              recorded: of the quarter&rsquo;s meetings, how many carry an outcome from the CRM.
+              Without a CRM none can.
             </p>
+            <p>The last meeting and the CRM&rsquo;s deals are on each project&rsquo;s page.</p>
           </InfoNote>
         </div>
       </div>
@@ -299,18 +306,21 @@ function ClientProjects({ projects }: { projects: Portfolio }) {
         </div>
       ) : (
         <TableWrap labelledBy="clients-heading">
-          <table className="mad-table">
+          {/*
+           * Four figures a row, not seven: the last meeting and the CRM's deals
+           * are on each project's drill-down, and nine columns ran 1,901px
+           * inside a 1,366px frame. Below 64rem the table stacks into records
+           * (`data-stack`), each cell naming its own column.
+           */}
+          <table className="mad-table" data-stack="">
             <thead>
               <tr>
                 <th scope="col">Project</th>
                 <th scope="col">Status</th>
-                <th scope="col">Presenters, last 28 days</th>
-                <th scope="col">Meetings, last 28 days</th>
-                <th scope="col">Meetings, quarter to date</th>
-                <th scope="col">Outcome recorded, quarter to date</th>
-                <th scope="col">Last meeting</th>
+                <th scope="col">Presenters, 28 days</th>
+                <th scope="col">Meetings, 28 days</th>
+                <th scope="col">Outcome recorded, quarter</th>
                 <th scope="col">Stale feeds</th>
-                <th scope="col">CRM deals</th>
               </tr>
             </thead>
             <tbody>
@@ -328,26 +338,27 @@ function ClientProjects({ projects }: { projects: Portfolio }) {
 function ClientRow({ company, project }: { company: string; project: PortfolioProject }) {
   const d = project.diagnostics;
   const address = project.address;
-  const link =
-    address === null ? null : (
-      <Link
-        href={dynamicRoute(`/madspace/diagnostics/${address.tenantSlug}/${address.projectSlug}`)}
-      >
-        {project.name}
-      </Link>
-    );
+  const head = (
+    <th scope="row" className="mad-td-source">
+      {address === null ? null : (
+        <Link
+          href={dynamicRoute(`/madspace/diagnostics/${address.tenantSlug}/${address.projectSlug}`)}
+        >
+          {project.name}
+        </Link>
+      )}
+      <span className="mad-td-sub">{company}</span>
+    </th>
+  );
 
   if (d === null) {
     return (
       <tr>
-        <th scope="row" className="mad-td-source">
-          {link}
-          <span className="mad-td-sub">{company}</span>
-        </th>
-        <td>
+        {head}
+        <td data-label="Status">
           <StatusChip tone={project.status.tone}>{project.status.word}</StatusChip>
         </td>
-        <td colSpan={7} data-missing="true">
+        <td colSpan={4} data-missing="true">
           Its diagnosis could not be read.
         </td>
       </tr>
@@ -356,64 +367,54 @@ function ClientRow({ company, project }: { company: string; project: PortfolioPr
 
   const [recent, quarter] = d.windows;
   const feeds = staleFeeds(d);
-  const last = instant(d.lastMeetingAt, "No meeting recorded");
   return (
     <tr>
-      <th scope="row" className="mad-td-source">
-        {link}
-        <span className="mad-td-sub">{company}</span>
-      </th>
-      <td>
+      {head}
+      <td data-label="Status">
         <StatusChip tone={project.status.tone}>{project.status.word}</StatusChip>
         <span className="mad-td-sub">Counted to {day(d.asOf)}</span>
       </td>
-      <td>
-        {recent === undefined || recent.meetings === null
-          ? NO_MEETING_FEED
-          : d.roster === null || recent.rosterPresenting === null
-            ? `${figure(recent.presenters)} presented, no roster kept`
-            : `${figure(recent.rosterPresenting)} of ${figure(d.roster)}`}
-      </td>
-      <MeetingsCell window={recent} />
-      <MeetingsCell window={quarter} />
-      <td>
-        {quarter === undefined || quarter.meetings === null
-          ? NO_MEETING_FEED
-          : quarter.outcomeRecorded === null
-            ? "No CRM connected"
-            : quarter.meetings === 0
-              ? "No meeting to record"
-              : `${figure(quarter.outcomeRecorded)} of ${figure(quarter.meetings)}`}
-      </td>
-      <td data-missing={last.missing}>{last.text}</td>
-      <td data-tone={feeds.stale > 0 ? "weak" : undefined}>
+      {recent === undefined || recent.meetings === null ? (
+        /* One cell for the three columns a project without a meeting feed cannot fill. */
+        <td colSpan={3} data-label="Meetings" data-missing="true">
+          {NO_MEETING_FEED}
+        </td>
+      ) : (
+        <>
+          <td data-label="Presenters, 28 days">
+            {d.roster === null || recent.rosterPresenting === null
+              ? `${figure(recent.presenters)} presented, no roster kept`
+              : `${figure(recent.rosterPresenting)} of ${figure(d.roster)}`}
+          </td>
+          <td data-label="Meetings, 28 days" className="mad-td-figure">
+            {figure(recent.meetings)}
+            {quarter === undefined || quarter.meetings === null ? null : (
+              <span className="mad-td-sub">{figure(quarter.meetings)} this quarter</span>
+            )}
+          </td>
+          <td data-label="Outcome recorded, quarter">
+            {quarter === undefined || quarter.meetings === null
+              ? NO_MEETING_FEED
+              : quarter.outcomeRecorded === null
+                ? "No CRM connected"
+                : quarter.meetings === 0
+                  ? "No meeting to record"
+                  : `${figure(quarter.outcomeRecorded)} of ${figure(quarter.meetings)}`}
+          </td>
+        </>
+      )}
+      <td data-label="Stale feeds" data-tone={feeds.stale > 0 ? "weak" : undefined}>
         {feeds.connected > 0
           ? `${figure(feeds.stale)} of ${figure(feeds.connected)}`
           : d.sources.some((s) => s.connected)
             ? "Age not tracked"
             : "No feed connected"}
       </td>
-      <td>
-        {d.crm.deals !== null
-          ? figure(d.crm.deals)
-          : d.crm.connected
-            ? "None delivered"
-            : "No CRM connected"}
-      </td>
     </tr>
   );
 }
 
 const NO_MEETING_FEED = "No showroom or WEB IRIS connected";
-
-function MeetingsCell({ window }: { window: DiagnosisWindow | undefined }) {
-  if (window === undefined) return <td />;
-  return window.meetings === null ? (
-    <td data-missing="true">{NO_MEETING_FEED}</td>
-  ) : (
-    <td className="mad-td-figure">{figure(window.meetings)}</td>
-  );
-}
 
 /* --- the answer, before any table ---------------------------------------------------- */
 
@@ -496,10 +497,20 @@ function Tallies({ estate }: { estate: DiagnosticsEstate }) {
            * zero under a filter says nothing about the estate, and a green mark
            * there is the quiet lie this screen is built to refuse.
            */}
+          {/*
+           * Nor is "nothing heard yet": green beside "Heartbeat fresh 0 of 1"
+           * read as a contradiction.
+           */}
           {shown === 0 ? (
             <StatusChip tone="none">Nothing in view</StatusChip>
           ) : attention > 0 ? (
             <StatusChip tone="wrong">Needs an operator</StatusChip>
+          ) : fresh === 0 ? (
+            <StatusChip tone="await">
+              {estate.shown.every((source) => source.row.last_heartbeat_at === null)
+                ? "Waiting for first heartbeat"
+                : "No fresh heartbeat"}
+            </StatusChip>
           ) : (
             <StatusChip tone="good">No operator needed</StatusChip>
           )}
@@ -788,6 +799,55 @@ function SourceCell({ source }: { source: DiagnosticSource }) {
         {source.projectName ?? "Project not named"} · {environmentWord(source.row.environment)}
       </span>
     </th>
+  );
+}
+
+/** No source in view has reported anything the five tables below would list. */
+function nothingReported(estate: DiagnosticsEstate): boolean {
+  return (
+    recentHeartbeats(estate).length === 0 &&
+    recentVerifications(estate).length === 0 &&
+    queuePressure(estate).length === 0 &&
+    quarantineActivity(estate).length === 0 &&
+    recentErrorCodes(estate).length === 0
+  );
+}
+
+/**
+ * The five corroborating tables, when none has a row: one ruled band.
+ *
+ * Five bands each saying "nothing reported" filled a viewport and a half on an
+ * estate whose installations have not yet been activated. The one sentence
+ * says the same of all five, and its count says how many are waiting.
+ */
+function NothingReported({ estate }: { estate: DiagnosticsEstate }) {
+  const silent = estate.shown.filter((source) => source.row.last_heartbeat_at === null).length;
+  return (
+    <section className="mad-plane" aria-labelledby="telemetry-heading">
+      <div className="mad-section-head">
+        <h2 id="telemetry-heading">Installation telemetry</h2>
+      </div>
+      <Empty
+        title="No heartbeat, verification, queue, quarantine or error code reported yet"
+        detail={
+          silent === 0
+            ? undefined
+            : `${figure(silent)} of ${figure(estate.shown.length)} ${plural(estate.shown.length, "source", "sources")} waiting for a first heartbeat.`
+        }
+        info={
+          <InfoNote label="what this section lists once a source reports">
+            <p>
+              Recent heartbeats, ingestion verifications, queue pressure, quarantine activity and
+              safe error codes, each as its own table once one source in view reports it.
+            </p>
+            <p>
+              A source sits here between being registered and being activated on the machine it runs
+              on. An unreported counter is not a zero, so nothing is shown as one.
+            </p>
+          </InfoNote>
+        }
+      />
+    </section>
   );
 }
 

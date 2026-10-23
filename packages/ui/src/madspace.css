@@ -2263,6 +2263,73 @@ button.mad-quiet {
   color: var(--verdict-weak);
 }
 
+/*
+ * A table that becomes a stack of records below 64rem (Diagnostics' client
+ * projects). Each cell promotes its own column name from `data-label`, as
+ * `.ox-table` does on a phone; the head stays for a screen reader only.
+ * Above it the column heads may wrap, so six columns fit from 64rem up.
+ */
+.mad-table[data-stack] thead th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+@media (max-width: 64rem) {
+  .mad-table[data-stack] thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .mad-table[data-stack],
+  .mad-table[data-stack] tbody,
+  .mad-table[data-stack] tr,
+  .mad-table[data-stack] tbody th {
+    display: block;
+    width: auto;
+  }
+
+  .mad-table[data-stack] tr {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--line-subtle);
+  }
+
+  .mad-table[data-stack] tbody th,
+  .mad-table[data-stack] tbody td {
+    padding: var(--space-1) 0;
+    border-bottom: 0;
+  }
+
+  .mad-table[data-stack] tbody td {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--space-3);
+    align-items: baseline;
+    text-align: right;
+    white-space: normal;
+  }
+
+  .mad-table[data-stack] tbody td > * {
+    grid-column: 2;
+    justify-self: end;
+  }
+
+  .mad-table[data-stack] tbody td[data-label]::before {
+    content: attr(data-label);
+    grid-row: 1 / span 2;
+    text-align: left;
+    font-size: var(--text-kicker);
+    line-height: var(--text-kicker-lh);
+    letter-spacing: var(--text-kicker-ls);
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    font-weight: var(--weight-semibold);
+  }
+}
+
 /* A verdict inside a cell. The word is the status; the colour only agrees. */
 .mad-word {
   font-weight: var(--weight-semibold);
