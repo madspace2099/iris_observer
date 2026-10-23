@@ -114,9 +114,10 @@
    * How each agent's meetings end: every count once, and every count linked.
    * The team's row names each outcome with its count, so the key above it,
    * which said the same, steps aside; a bar's parts drop the counts the line
-   * under them carries. A presenter's line of counts is one row that scrolls
-   * (the fade at its edge says so), not a column of pills, which made the
-   * section three screens tall. The team's own line wraps: it is the key.
+   * under them carries. Every row's counts wrap, the presenters' as the
+   * team's: a presenter's line that scrolled sideways cut its counts mid-word
+   * under the fade ("Interes…", "Follow-up neede…"; review, 2026-10-23), and
+   * the counts are short, so a wrapped row is two lines, not a column of pills.
    */
   .iris-salesflow .iris-orows:has(.iris-orow[data-lead] .iris-orow-open) .iris-orows-key {
     display: none;
@@ -126,68 +127,21 @@
     display: none;
   }
 
-  .iris-salesflow .iris-orow:not([data-lead]) .iris-orow-open {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    /* Room for a focused count's ring, which the scroller would otherwise clip. */
-    margin: -3px;
-    padding: 3px 1.5rem 3px 3px;
-    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
-  }
-
-  .iris-salesflow .iris-orow:not([data-lead]) .iris-orow-open::-webkit-scrollbar {
-    display: none;
-  }
-
   .iris-salesflow .iris-orow-count {
     flex: none;
     min-height: 1.75rem;
-  }
-
-  /*
-   * A count reached by Tab is never left under the fade: a browser does not
-   * scroll a link that already shows 32px, and 'Interested 5' stood 39px in,
-   * its ring out of sight. While it holds keyboard focus the row wraps.
-   */
-  .iris-salesflow .iris-orow:not([data-lead]) .iris-orow-open:has(:focus-visible) {
-    flex-wrap: wrap;
-    overflow: visible;
-    mask-image: none;
   }
 }
 
 /*
  * The bubble lens in a phone's card. Its keys were nine chips, one a line,
- * over a plot a fifth of their height: each group is now one row that scrolls
- * sideways, with a fade where it continues. The count under the rail lines up
- * with the step buttons once the rail wraps.
+ * over a plot a fifth of their height; then one row each that scrolled
+ * sideways, which cut a presenter's chip to its dot under the fade (review,
+ * 2026-10-23). The chips are smaller here, so each group wraps to two or three
+ * to a line, every name whole. The count under the rail lines up with the step
+ * buttons once the rail wraps.
  */
 @container (width < 34rem) {
-  .iris-salesflow .dld-lens-keys ul {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    scrollbar-width: none;
-    margin: -3px;
-    padding: 3px 1.5rem 3px 3px;
-    mask-image: linear-gradient(to right, #000 calc(100% - 1.5rem), transparent);
-  }
-
-  .iris-salesflow .dld-lens-keys ul::-webkit-scrollbar {
-    display: none;
-  }
-
-  .iris-salesflow .dld-lens-keys li {
-    flex: none;
-  }
-
-  /* A key reached by Tab wraps its row, as a presenter's counts do. */
-  .iris-salesflow .dld-lens-keys ul:has(:focus-visible) {
-    flex-wrap: wrap;
-    overflow: visible;
-    mask-image: none;
-  }
-
   .iris-salesflow .dld-lens-key {
     gap: 6px;
     padding: 3px 10px 3px 6px;

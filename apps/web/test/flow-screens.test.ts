@@ -164,6 +164,29 @@ describe("the screens' stylesheet", () => {
     ).toContain("display: none;");
   });
 
+  /*
+   * Review, 2026-10-23: forced to the viewport where the wheel does not step,
+   * a phone's screens ended in 160–280px of black.
+   */
+  it("lets a screen be as tall as what it holds wherever the wheel does not step", () => {
+    const at = SHEET.indexOf("@media (width < 64rem), (height < 40rem) {");
+    expect(at).toBeGreaterThan(-1);
+    expect(SHEET.slice(at, SHEET.indexOf("}", at))).toMatch(
+      /\.iris-salesflow \.flow-screen \{\s*min-height: 0;/,
+    );
+    expect(RAIL).toContain('matchMedia("(width >= 64rem) and (height >= 40rem)")');
+  });
+
+  /* Review, 2026-10-23: a short drawing left a band of black under it at 1440 × 900. */
+  it("spreads a ranked list's rows down its screen and stands the rest in the middle", () => {
+    expect(SHEET).toMatch(
+      /:is\(#flow-stalled, #flow-presentations, #flow-assisted\) \.dld-draw-body > ol \{\s*flex: 1 0 auto;\s*grid-auto-rows: 1fr;/,
+    );
+    expect(
+      rule(".iris-salesflow :is(#flow-changes > .iris-ckpis, #flow-not-interested > .iris-cohort)"),
+    ).toContain("margin-block: auto;");
+  });
+
   /* Review round 1: the ladder's draw-in wrappers stopped its rungs taking the screen. */
   it("carries the screen's height through the ladder's wrappers to its rungs", () => {
     expect(SHEET).toMatch(

@@ -82,9 +82,14 @@ export function AssistedSales({
           {assisted.unplacedNote}
         </p>
       )}
-      <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
-      {irisLedHref === undefined ? null : (
-        <p style={{ marginTop: ".875rem" }}>
+      {/*
+       * The source and the way on share the card's last line where it holds
+       * both (`flow-screens.css`): stacked, a 591px screen cut the link off at
+       * its foot (review, 2026-10-23). The source reads first, as it is painted.
+       */}
+      <div className="flow-assisted-foot">
+        <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
+        {irisLedHref === undefined ? null : (
           <Link
             prefetch={false}
             className="iris-action"
@@ -92,8 +97,8 @@ export function AssistedSales({
           >
             Open IRIS-led sales
           </Link>
-        </p>
-      )}
+        )}
+      </div>
     </div>
   );
 }

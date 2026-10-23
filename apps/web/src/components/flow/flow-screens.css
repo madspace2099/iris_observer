@@ -42,8 +42,11 @@ html:has(.iris-salesflow) {
 /*
  * Under reduced motion the page does not snap: Chrome animates every snap, so
  * after each turn of the wheel the page glided on by itself (review round 1).
- * The screens still fill the viewport, and Page Down and the rail still go from
- * one to the next.
+ * The screens still fill the viewport and the rail still goes from one to the
+ * next; the wheel and Page Down scroll by their own distance, so they land
+ * between screens (review, 2026-10-23: the shared `ScreenRail` steps the wheel
+ * only with motion allowed). Record the video with the system's animation
+ * effects on.
  */
 @media (prefers-reduced-motion: reduce) {
   html:has(.iris-salesflow) {
@@ -61,6 +64,18 @@ html:has(.iris-salesflow) {
 .iris-salesflow .flow-screen {
   min-height: var(--flow-h);
   scroll-snap-align: start;
+}
+
+/*
+ * Where the wheel does not step a screen at a time (`ScreenRail`: under 64rem
+ * wide or 40rem tall), a screen is as tall as what it holds: forced to the
+ * viewport, a phone's stalled deals, clock face and lens ended in 160–280px of
+ * black (review, 2026-10-23). The page reads as one continuous page there.
+ */
+@media (width < 64rem), (height < 40rem) {
+  .iris-salesflow .flow-screen {
+    min-height: 0;
+  }
 }
 
 .iris-salesflow .flow-screen:not(.iris-band) {
@@ -148,8 +163,17 @@ html:has(.iris-salesflow) {
     line-height: 1.05;
   }
 
+  /*
+   * A value that is a sentence ("7 of 7 sales measured", "No sale") is read as
+   * words, in the text face at a reading size: in the figures' mono at 34px it
+   * wrapped to two lines and read as the figure (review, 2026-10-23).
+   */
   .iris-salesflow #flow-summary .iris-kpi-value[data-statement="true"] {
-    font-size: clamp(1.5rem, 0.9rem + 1.2vw, 2.125rem);
+    font-family: var(--sans, inherit);
+    font-size: 1.25rem;
+    font-weight: 500;
+    line-height: 1.75rem;
+    letter-spacing: 0;
   }
 
   /* The sparkline beside its words where the cell holds both, under them where it does not. */
@@ -169,6 +193,21 @@ html:has(.iris-salesflow) {
   .iris-salesflow #flow-summary .iris-kpi-foot .iris-spark {
     width: 8rem;
     height: auto;
+  }
+}
+
+/*
+ * A short window (1280 × 720 leaves a 591px screen): the figures a size
+ * smaller and the tiles tighter, so the summary's last row is not cut at the
+ * screen's foot where Page Down jumps past it (review, 2026-10-23).
+ */
+@media (width >= 40rem) and (height < 50rem) {
+  .iris-salesflow #flow-summary .iris-kpi {
+    padding: 0.75rem 1.25rem 0.875rem;
+  }
+
+  .iris-salesflow #flow-summary .iris-kpi-value {
+    font-size: clamp(2rem, 1rem + 1.6vw, 2.5rem);
   }
 }
 
@@ -328,6 +367,11 @@ html:has(.iris-salesflow) {
   .iris-salesflow :is(#flow-stalled, #flow-assisted) .iris-ranked li {
     grid-template-columns: 1.5rem minmax(0, 16rem) minmax(0, 1fr) 6rem;
   }
+
+  /* "under an hour" on one line in the figures' face takes 7.5rem (review, 2026-10-23). */
+  .iris-salesflow #flow-assisted .iris-ranked li {
+    grid-template-columns: 1.5rem minmax(0, 16rem) minmax(0, 1fr) 7.5rem;
+  }
 }
 
 /*
@@ -361,6 +405,44 @@ html:has(.iris-salesflow) {
 
   .iris-salesflow .flow-screen .iris-ranked-value {
     font-size: 0.9375rem;
+  }
+}
+
+/*
+ * A SCREEN'S FREE HEIGHT (review, 2026-10-23). A screen whose drawing is
+ * shorter than the viewport ended in a band of black: the presentations pair
+ * a third empty at 1440, the weekly line 239px over nothing. A ranked list
+ * spreads its rows down the screen (the ladder's way, above), the weekly line
+ * and the month rows stand in the middle of their halves, and the figures of
+ * "What changed" and the not-interested group stand in the middle of what the
+ * title and the source line leave, the source at the screen's foot.
+ */
+.iris-salesflow :is(#flow-stalled, #flow-presentations > div, #flow-assisted > .d-card) > .dld-draw,
+.iris-salesflow :is(#flow-stalled, #flow-presentations, #flow-assisted) .dld-draw-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 0 auto;
+}
+
+.iris-salesflow :is(#flow-stalled, #flow-presentations, #flow-assisted) .dld-draw-body > ol {
+  flex: 1 0 auto;
+  grid-auto-rows: 1fr;
+}
+
+.iris-salesflow :is(#flow-presentations > div, #flow-assisted > .d-card) {
+  display: flex;
+  flex-direction: column;
+}
+
+.iris-salesflow :is(#flow-changes > .iris-ckpis, #flow-not-interested > .iris-cohort) {
+  margin-block: auto;
+}
+
+@media (width > 75rem) {
+  .iris-salesflow #flow-trend > div {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
   }
 }
 
@@ -410,6 +492,71 @@ html:has(.iris-salesflow) {
 .iris-salesflow .flow-aside {
   margin-top: auto;
   padding-top: 1.25rem;
+}
+
+/* --- small things the camera reads (review, 2026-10-23) --------------------- */
+
+/*
+ * A title that wraps keeps its `i` beside its last words: unbalanced, the `i`
+ * fell to a line of its own ("Screenshots per meeting" at 1280, "What changed
+ * since 7 days ago" at 390).
+ */
+.iris-salesflow :is(.iris-titled, .iris-ckpi-head) {
+  text-wrap: balance;
+}
+
+/* A finding's sample is the page rule's own figure: the 12px floor, not 11. */
+.iris-salesflow .iris-finding-foot {
+  font-size: 0.75rem;
+}
+
+/*
+ * IRIS-assisted sales: the source and "Open IRIS-led sales" on one line, the
+ * link at the right, and the note on what cannot be placed one line wide, so
+ * the screen fits 1280 × 720 with its way on in view (review, 2026-10-23).
+ */
+.iris-salesflow .flow-assisted-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-top: 0.875rem;
+}
+
+.iris-salesflow .flow-assisted-foot > .iris-srcs {
+  margin-top: 0;
+}
+
+.iris-salesflow #flow-assisted .iris-meta {
+  max-width: none;
+}
+
+/* "under an hour" is one value, on one line like every other row's (its column, above). */
+.iris-salesflow #flow-assisted .iris-ranked-value {
+  white-space: nowrap;
+}
+
+/*
+ * An explanation never stands over the sticky chrome: opened above a low `i`,
+ * a long one ran up to the window's top edge, over the header. Its room is
+ * the side of the `i` it opens on, less the chrome, less its own padding and
+ * border, which a content-box panel adds outside its height.
+ */
+@supports (position-area: block-end) {
+  @media (width >= 40rem) {
+    .iris-salesflow .iris-info-panel {
+      max-height: calc(100% - var(--flow-top) - 2.75rem);
+    }
+  }
+}
+
+/* A figure's definition (`Measure`) scrolls inside its panel rather than past the screen's foot. */
+@media (width >= 40rem) {
+  .iris-salesflow .iris-measure-panel {
+    max-height: calc(var(--flow-h) - 10rem);
+    overflow-y: auto;
+  }
 }
 
 /* --- the rail: where you are -----------------------------------------------

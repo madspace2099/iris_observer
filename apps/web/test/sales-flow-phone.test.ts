@@ -94,17 +94,14 @@ describe("the page's phone sheet", () => {
   });
 
   /*
-   * Review round 1: a browser does not scroll a focused link that already
-   * shows 32px, so a count Tab reached could sit under the fade, ring and all.
+   * Review, 2026-10-23: a presenter's counts and the lens's keys scrolled
+   * sideways under a fade, and the camera read them cut mid-word ("Interes…",
+   * a chip down to its dot). They wrap, as the team's row always did.
    */
-  it("wraps a scrolling row while it holds keyboard focus", () => {
-    for (const row of [".iris-orow:not([data-lead]) .iris-orow-open", ".dld-lens-keys ul"]) {
-      const at = rules.indexOf(`.iris-salesflow ${row}:has(:focus-visible) {`);
-      expect(at, row).toBeGreaterThan(-1);
-      expect(rules.slice(at, rules.indexOf("}", at)), row).toMatch(
-        /flex-wrap: wrap;[\s\S]*mask-image: none;/,
-      );
-    }
+  it("never scrolls a row of counts or keys sideways under a fade", () => {
+    expect(rules).not.toMatch(/\.iris-orow-open[^{]*\{[^}]*(flex-wrap: nowrap|overflow-x)/);
+    expect(rules).not.toMatch(/\.dld-lens-keys ul[^{]*\{[^}]*(flex-wrap: nowrap|overflow-x)/);
+    expect(rules).not.toContain("mask-image");
   });
 
   it("folds the summary's window under one line on a phone and draws it nowhere else", () => {

@@ -8,8 +8,10 @@ import { signInAs } from "./sign-in";
  * as the viewport under the sticky chrome, the document snaps from one to the
  * next, Page Down moves a screen, and a screen taller than the viewport (a
  * phone's, nearly all of them) is read through to its end, never held at its
- * top. Under reduced motion, which the suite runs in, the page does not snap:
- * Chrome animates every snap. One measured assertion per test.
+ * top. Where the wheel does not step a screen at a time (a phone, a tablet), a
+ * screen is as tall as what it holds (review, 2026-10-23). Under reduced
+ * motion, which the suite runs in, the page does not snap: Chrome animates
+ * every snap. One measured assertion per test.
  */
 
 const FLOW = "/shark/shark-residence/flow";
@@ -44,6 +46,18 @@ test("every screen fills the viewport under the header, so the next one starts b
   }, top);
   expect(top, "the scroller's padding is the sticky chrome").toBeGreaterThan(100);
   expect(short, "a screen shorter than the room under the header").toEqual([]);
+});
+
+/* Review, 2026-10-23: forced to the viewport, a phone's stalled deals ended in 276px of black. */
+test("on a phone a screen is as tall as what it holds", async ({ page }, info) => {
+  test.skip(info.project.name !== "mobile", "the wheel steps screens only on a desktop");
+  await open(page);
+  const forced = await page.evaluate(() =>
+    [...document.querySelectorAll<HTMLElement>(".flow-screen")]
+      .filter((s) => parseFloat(getComputedStyle(s).minHeight) > 0)
+      .map((s) => s.id),
+  );
+  expect(forced, "a screen held to the viewport's height").toEqual([]);
 });
 
 test("under reduced motion the page does not snap", async ({ page }, info) => {
