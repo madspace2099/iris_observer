@@ -239,13 +239,16 @@ describe("what is kept, and how it is served", () => {
     const served = await call("GET", lena);
     expect(served.status).toBe(200);
     expect(served.headers.get("content-type")).toBe("image/png");
-    expect(served.headers.get("cache-control")).toBe("private, no-store");
+    // Its address carries its version, so this browser alone keeps it an hour (ADR-0054, 2026-10-23).
+    expect(served.headers.get("cache-control")).toBe("private, max-age=3600, immutable");
     expect(served.headers.get("x-content-type-options")).toBe("nosniff");
     expect(Buffer.from(await served.arrayBuffer()).equals(kept)).toBe(true);
   });
 
-  it("answers 404 where there is no portrait", async () => {
-    expect((await call("GET", lena)).status).toBe(404);
+  it("answers 404 where there is no portrait, and keeps no refusal", async () => {
+    const refused = await call("GET", lena);
+    expect(refused.status).toBe(404);
+    expect(refused.headers.get("cache-control")).toBe("private, no-store");
   });
 
   it("refuses more than 2 MB, declared or streamed, and keeps nothing", async () => {

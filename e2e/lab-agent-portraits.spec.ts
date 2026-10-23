@@ -36,15 +36,15 @@ test("the company admin adds, replaces and removes a presenter's portrait", asyn
   await expect(control.getByRole("status")).toContainText("Saved.");
   await expect(page.locator("h1 img.ag-portrait")).toBeVisible();
 
-  // Served privately, as an image, under its own type.
+  // Served privately, as an image, under its own type; kept an hour by this browser alone.
   const src = await page.locator("h1 img.ag-portrait").getAttribute("src");
   const served = await page.request.get(src ?? "");
   expect(served.headers()["content-type"]).toBe("image/png");
-  expect(served.headers()["cache-control"]).toBe("private, no-store");
+  expect(served.headers()["cache-control"]).toBe("private, max-age=3600, immutable");
 
   // Shown on Sales Flow beside her name.
   await page.goto(`${ROOT}/flow`);
-  const given = page.locator(".d-card").filter({ hasText: "Presentations given" });
+  const given = page.locator(".iris-band-side").filter({ hasText: "Presentations given" });
   await expect(given.locator("img.ag-portrait")).toHaveCount(1);
 
   // Removed after one confirmation.
@@ -53,7 +53,7 @@ test("the company admin adds, replaces and removes a presenter's portrait", asyn
   await expect(control.getByRole("button", { name: "Remove portrait" })).toBeFocused();
   await control.getByRole("button", { name: "Remove portrait" }).click();
   await expect(control.getByRole("status")).toContainText("Removed.");
-  await expect(page.locator("h1 .ag-portrait")).toHaveText("IH");
+  await expect(page.locator("h1 .ag-portrait")).toHaveAttribute("data-initials", "IH");
 });
 
 test("refuses what is not an image by its bytes, and what is too large before sending", async ({

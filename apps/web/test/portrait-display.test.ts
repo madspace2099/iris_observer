@@ -1,10 +1,12 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined }) }));
 
-const { AgentPortrait } = await import("../src/components/agents/Portrait");
+const { AgentName, AgentPortrait } = await import("../src/components/agents/Portrait");
 const { PortraitEditor } = await import("../src/components/agents/PortraitEditor");
 
 /**
@@ -30,12 +32,35 @@ const editor = (props: Partial<Parameters<typeof PortraitEditor>[0]>) =>
   );
 
 describe("the portrait", () => {
-  it("draws initials, silent beside a printed name", () => {
+  it("draws initials, silent beside a printed name, and no part of its text", () => {
     const html = renderToStaticMarkup(
       createElement(AgentPortrait, { name: "Zsófia Bárány", src: null, size: "row", alt: "" }),
     );
-    expect(html).toContain(">ZB<");
+    expect(html).toContain('data-initials="ZB"');
     expect(html).toContain('aria-hidden="true"');
+    expect(html).not.toContain(">ZB<");
+  });
+
+  it("puts the face before the name, which is printed once", () => {
+    const html = renderToStaticMarkup(
+      createElement(AgentName, { name: "Lena Fischer", src: "/p/lena?v=1" }),
+    );
+    expect(html).toMatch(/<span class="ag-named" data-size="inline"><img[^>]+alt=""/);
+    expect(html.match(/Lena Fischer/g)).toHaveLength(1);
+  });
+
+  it("is a plain circle: no ring, no stroke, and no face in print", () => {
+    const css = readFileSync(
+      fileURLToPath(new URL("../src/components/agents/portrait.css", import.meta.url)),
+      "utf8",
+    );
+    const disc = /\.ag-portrait \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(disc).toContain("border-radius: 50%");
+    expect(disc).toContain("border: 0;");
+    expect(css).not.toMatch(
+      /\.ag-portrait[^{]*\{[^}]*(outline|box-shadow|border-width|border:\s*[1-9])/,
+    );
+    expect(css).toMatch(/@media print \{\s*\.ag-portrait \{\s*display: none/);
   });
 
   it("names the initials where they stand alone, and the picture by its alt", () => {

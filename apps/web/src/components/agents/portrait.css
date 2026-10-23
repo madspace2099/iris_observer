@@ -1,25 +1,36 @@
 /*
  * AN AGENT'S PORTRAIT, AND THE CONTROL THAT CHANGES IT (ADR-0054).
  *
- * The disc is ringed in the agent's seat colour (`--ag-seat`, set inline from
- * the read model's seat order); without a portrait it carries the initials on a
- * dark tint of that colour. Four sizes, one per place: a list row, a ring card,
- * the agent page's heading, and the editor's preview.
+ * A plain circle, nothing round it (the owner, 2026-10-23): the photograph
+ * cropped to the disc, or the initials on a quiet fill that the agent's seat
+ * colour (`--ag-seat`, set inline from the read model's seat order) may tint.
+ * Six sizes, one per kind of place: inside a pill, in a line of text or a
+ * table cell, a list row of two lines, a card, a page's heading, and the
+ * editor's preview.
  */
 
 .ag-portrait {
   --ag-size: 2rem;
-  --ag-seat-ring: var(--ag-seat, var(--ox-line-hover));
   box-sizing: border-box;
   flex: none;
   display: inline-grid;
   place-items: center;
   inline-size: var(--ag-size);
   block-size: var(--ag-size);
+  border: 0;
   border-radius: 50%;
-  border: 1.5px solid var(--ag-seat-ring);
   object-fit: cover;
-  background: #0b0d10;
+  /* The disc while a photograph arrives: the same quiet ground as the initials. */
+  background: #15191f;
+  vertical-align: middle;
+}
+
+.ag-portrait[data-size="chip"] {
+  --ag-size: 1.25rem;
+}
+
+.ag-portrait[data-size="inline"] {
+  --ag-size: 1.5rem;
 }
 
 .ag-portrait[data-size="card"] {
@@ -28,26 +39,77 @@
 
 .ag-portrait[data-size="head"] {
   --ag-size: clamp(3rem, 2.4rem + 2vw, 4rem);
-  border-width: 2px;
 }
 
 .ag-portrait[data-size="editor"] {
   --ag-size: 5.5rem;
-  border-width: 2px;
 }
 
 .ag-portrait-initials {
-  background: color-mix(in oklab, var(--ag-seat-ring) 20%, #0b0d10);
-  color: var(--ox-ink, #f4f7fc);
+  background: color-mix(in oklab, var(--ag-seat, #8f9bb0) 18%, #15191f);
+  color: var(--ox-ink-2, rgb(244 247 252 / 74%));
   font-weight: 600;
-  /* Never under the 12px floor: the row's 32px disc would set them at 11.5. */
+  /* Never under the 12px floor: a row's 32px disc would set them at 11.5. */
   font-size: max(12px, calc(var(--ag-size) * 0.36));
   letter-spacing: 0.02em;
   line-height: 1;
   user-select: none;
 }
 
+/* Drawn, not written: the initials are no part of the name printed beside them. */
+.ag-portrait-initials::before {
+  content: attr(data-initials);
+}
+
+/* A face is for the screen; the printed report names people in words alone. */
+@media print {
+  .ag-portrait {
+    display: none !important;
+  }
+}
+
 /* --- where a portrait stands beside a name -------------------------------- */
+
+/* A name with the face before it (`AgentName`): one line, the name free to wrap. */
+.ag-named {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  max-width: 100%;
+  min-width: 0;
+  vertical-align: middle;
+}
+
+.ag-named[data-size="row"],
+.ag-named[data-size="card"] {
+  gap: 0.75rem;
+}
+
+.ag-named-text {
+  min-width: 0;
+}
+
+/* The outcome rows' name and count (Sales Flow): the disc beside both lines. */
+.iris-orow-who[data-marked] {
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.625rem;
+  align-items: center;
+}
+
+.iris-orow-who[data-marked] > .ag-portrait {
+  grid-row: span 2;
+}
+
+/* Where the name and its count share a line above the bar, the disc keeps to that line. */
+@container (width < 56rem) {
+  .iris-orow-who[data-marked] {
+    align-items: center;
+  }
+
+  .iris-orow-who[data-marked] > .ag-portrait {
+    --ag-size: 1.5rem;
+  }
+}
 
 /* A ranked row: the disc to the left of the name and its line, both rows. */
 .iris-ranked-name[data-marked] {

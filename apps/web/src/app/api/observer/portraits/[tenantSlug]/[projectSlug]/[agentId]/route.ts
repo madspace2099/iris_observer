@@ -87,6 +87,14 @@ export async function GET(_request: Request, context: Context): Promise<Response
   return new Response(bytes as BodyInit, {
     headers: {
       ...PRIVATE,
+      /*
+       * Kept by this reader's browser for an hour (ADR-0054, 2026-10-23): a
+       * page names the same five presenters in many rows, and without a cache
+       * Chrome fetched one face twice on a page's first load. The address
+       * carries the portrait's version, so a replaced face is a new address;
+       * private, so no shared cache keeps it. Every refusal stays no-store.
+       */
+      "Cache-Control": "private, max-age=3600, immutable",
       "Content-Type": type,
       "Content-Length": String(bytes.length),
       "Content-Security-Policy": "default-src 'none'; sandbox",

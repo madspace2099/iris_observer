@@ -18,7 +18,8 @@ const HOSTED =
 test("every presenter on Presentations given wears initials, not a picture", async ({ page }) => {
   await signIn(page, "Clara Weiss");
   await page.goto("/shark/shark-residence/flow");
-  const card = page.locator(".d-card").filter({ hasText: "Presentations given" });
+  // Its half of the screen: the longest presentations beside it wear faces too.
+  const card = page.locator(".iris-band-side").filter({ hasText: "Presentations given" });
   await expect(card.locator(".ag-portrait")).toHaveCount(5);
   await expect(card.locator("img.ag-portrait")).toHaveCount(0);
   // The name stands beside each mark, so the mark is not announced.
@@ -38,7 +39,8 @@ test("the tenant's company admin is told portraits are kept only on a local serv
 test("the agency's manager sees the initials and no control", async ({ page }) => {
   await signIn(page, "Daniel Hart");
   await page.goto(LENA);
-  await expect(page.locator("h1 .ag-portrait")).toHaveText("LF");
+  // Drawn from the attribute, so the heading's text is the name alone.
+  await expect(page.locator("h1 .ag-portrait")).toHaveAttribute("data-initials", "LF");
   await expect(page.locator(".ag-editor")).toHaveCount(0);
 });
 
