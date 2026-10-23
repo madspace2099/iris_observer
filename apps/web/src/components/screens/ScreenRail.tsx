@@ -101,6 +101,18 @@ export function ScreenRail({
     let lastAt = 0;
     const onWheel = (event: WheelEvent) => {
       if (!fits.matches || still.matches || event.ctrlKey || event.deltaY === 0) return;
+      /*
+       * An open modal holds the page (`Dialog` takes the body's overflow, which
+       * stops the wheel but not a script's scroll), and a popover or a dialog
+       * under the pointer is not the page: the page behind stays where it is
+       * (ADR-0061, review round).
+       */
+      if (
+        document.body.style.overflow === "hidden" ||
+        (event.target instanceof Element &&
+          event.target.closest("[popover], [role='dialog'], dialog") !== null)
+      )
+        return;
       const direction = event.deltaY > 0 ? 1 : -1;
       if (scrollsItself(event.target, direction)) return;
       const elements = ids

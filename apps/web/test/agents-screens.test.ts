@@ -148,6 +148,15 @@ describe("the shared screens' stylesheet", () => {
         );
   });
 
+  it("leaves the wheel to an open modal or a popover under the pointer (review round)", () => {
+    const rail = source("src/components/screens/ScreenRail.tsx");
+    const wheel = rail.slice(rail.indexOf("const onWheel"));
+    const guard = wheel.indexOf('document.body.style.overflow === "hidden"');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(wheel.indexOf("event.preventDefault()"));
+    expect(wheel).toContain(`closest("[popover], [role='dialog'], dialog")`);
+  });
+
   it("names the rail by its page and marks the first screen before script runs", () => {
     const html = renderToStaticMarkup(
       createElement(ScreenRail, {
