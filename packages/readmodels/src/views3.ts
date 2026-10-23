@@ -616,6 +616,8 @@ export interface AudienceCriteria {
 export interface AudienceMatch {
   readonly meetingId: string;
   readonly startedDisplay: string;
+  /** Who presented it: the key a page finds their face by (ADR-0054). */
+  readonly agentId: string;
   readonly agentName: string;
   readonly outcomeLabel: string;
   /** Why this meeting matched, in words. */

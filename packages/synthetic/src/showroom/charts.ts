@@ -1304,6 +1304,7 @@ export function buildLongestMeetings(
       value: s.durationSeconds,
       display: duration(s.durationSeconds, language),
       href: replayHref(at, s.meetingId),
+      agentId: s.agentId,
     }));
 }
 
@@ -2009,6 +2010,7 @@ export function buildMeetingLens(
             ? "none shortlisted"
             : `${shortlisted[0] ?? ""}${shortlisted.length > 1 ? ` +${n(shortlisted.length - 1)}` : ""}`,
         href: replayHref(at, s.meetingId),
+        agentId: s.agentId,
       };
     });
 

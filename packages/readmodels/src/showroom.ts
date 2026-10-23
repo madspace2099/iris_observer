@@ -388,6 +388,8 @@ export interface MeetingReplay {
   readonly headline: string;
   /** Joined here, never in a component. See {@link UnitsViewedSummary}. */
   readonly unitsViewed: UnitsViewedSummary;
+  /** Who presented it, as the session names them: the key a page finds their face by (ADR-0054). */
+  readonly agentId: string;
   readonly agentName: string;
   /**
    * Where this agent's own detail screen is, or `null` when the session's
@@ -691,6 +693,8 @@ export interface CohortDefinition {
 export interface MeetingSummary {
   readonly meetingId: string;
   readonly label: string;
+  /** Who presented it: the key a page finds their face by (ADR-0054). Never the face itself. */
+  readonly agentId: string;
   readonly agentName: string;
   readonly startedDisplay: string;
   readonly durationDisplay: string;

@@ -397,6 +397,12 @@ export interface RankedRow {
   readonly value: number;
   readonly display: string;
   readonly href: string | null;
+  /**
+   * The one presenter a row about a meeting names (the longest presentations),
+   * so the page can put their face beside it (ADR-0054). Absent on a row that
+   * is itself an agent, whose `id` is theirs, and on every other list.
+   */
+  readonly agentId?: string;
 }
 
 /* --- sold against the plan (ADR-0055) -------------------------------------------- */
@@ -586,6 +592,8 @@ export interface TextRow {
   readonly label: string;
   readonly value: string;
   readonly href: string | null;
+  /** The presenter the row names, where it names one: the key a page finds their face by (ADR-0054). */
+  readonly agentId?: string;
 }
 
 /** One meeting the bubble rule sizes, as compact as the lens draws it. */

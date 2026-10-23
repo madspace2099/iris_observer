@@ -1900,6 +1900,7 @@ export function buildMeetingReplay(context: ViewContext, session: ShowroomSessio
      */
     headline: `${duration(session.durationSeconds, language)}, ${session.steps.length} ${plural(language, session.steps.length, words.steps)}.`,
     unitsViewed: unitsViewedOf(session.units, catalogue, language, locale),
+    agentId: session.agentId,
     agentName: agent?.name ?? presenterName(session.projectId, session.agentId, language),
     /* Everybody who presented has a page: `buildAgentDetail` finds them by their meetings, roster or not. */
     agentHref: agentDetailHref(addressOf(context), session.agentId),
@@ -1955,6 +1956,7 @@ export function buildMeetingList(
     .map((s) => ({
       meetingId: s.meetingId,
       label: `${dayLabel(s.startedAt, locale, timeZone)} · ${clockLabel(s.startedAt, locale, timeZone)}`,
+      agentId: s.agentId,
       agentName: presenterName(s.projectId, s.agentId, context.language),
       startedDisplay: dayLabel(s.startedAt, locale, timeZone),
       durationDisplay: duration(s.durationSeconds, context.language),

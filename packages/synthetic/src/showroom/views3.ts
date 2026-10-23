@@ -2209,6 +2209,7 @@ export function buildAudience(
       return {
         meetingId: s.meetingId,
         startedDisplay: dayLabel(s.startedAt, locale, timeZone),
+        agentId: s.agentId,
         agentName: agent?.name ?? presenterName(s.projectId, s.agentId, context.language),
         outcomeLabel: OUTCOME_LABELS[s.outcome],
         because:
