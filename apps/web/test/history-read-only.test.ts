@@ -66,19 +66,25 @@ describe("the conversation register draws no control it cannot honour", () => {
     expect(found).toEqual([]);
   });
 
+  /*
+   * Once, behind the head's `i` since the owner's review of 2026-10-23: four
+   * blocks of explanation stood before the list. Still one statement, never a
+   * row's.
+   */
   it("states the refusal once for the region, not once per row", () => {
-    const mentions = HISTORY_PAGE.match(/<Unavailable/g) ?? [];
+    const mentions = HISTORY_PAGE.match(/writes to the conversation store/g) ?? [];
     expect(mentions).toHaveLength(1);
+    expect(HISTORY_PAGE).not.toMatch(/<Unavailable/);
   });
 
   it("names what is unavailable rather than leaving the reader to infer it", () => {
     /*
-     * The words are not pinned — rewording should not be a failure — but the
-     * component must be told what and why, because an `Unavailable` with
-     * neither is a shrug with a border around it.
+     * What is not offered, and why, in one sentence behind the `i`: a refusal
+     * with neither is a shrug.
      */
-    const block = HISTORY_PAGE.slice(HISTORY_PAGE.indexOf("<Unavailable"));
-    expect(block).toMatch(/what=/);
-    expect(block).toMatch(/why=/);
+    const tip = HISTORY_PAGE.slice(HISTORY_PAGE.indexOf('<InfoTip id="ask-history"'));
+    const sentence = tip.slice(0, tip.indexOf("</InfoTip>"));
+    expect(sentence).toMatch(/Pinning, renaming and deleting a conversation are not offered/);
+    expect(sentence).toMatch(/nothing on\s+this\s+deployment writes to the conversation store/);
   });
 });

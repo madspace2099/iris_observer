@@ -115,12 +115,15 @@ test("R03-3 · each row's title is the question asked, not a written summary", a
 });
 
 test("R03-4 · pin, rename and delete are not offered where nothing writes them", async ({ page }) => {
-  const text = await mainText(page, "Tomáš Varga", `${ROOT}/ask/history`);
+  await mainText(page, "Tomáš Varga", `${ROOT}/ask/history`);
   const main = page.locator("main");
   for (const name of [/^Pin/i, /^Rename/i, /^Delete/i]) {
     await expect(main.getByRole("button", { name })).toHaveCount(0);
   }
-  expect(text).toContain("nothing on this deployment writes to the conversation store");
+  /* Said once, behind the head's `i` (the owner's review, 2026-10-23). */
+  await expect(page.locator("#info-ask-history")).toContainText(
+    "nothing on this deployment writes to the conversation store",
+  );
 });
 
 test("R04-2 · lateness is Not evaluated without a task, a deadline and a completion", async ({

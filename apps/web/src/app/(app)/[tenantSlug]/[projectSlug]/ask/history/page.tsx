@@ -6,7 +6,8 @@ import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
-import { Empty, FilterBar, PageHead, Synthetic, Unavailable } from "@/components/product";
+import { Empty, FilterBar, PageHead, Synthetic } from "@/components/product";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { ThreadList } from "@/components/ask/ThreadList";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
@@ -25,10 +26,12 @@ export const metadata: Metadata = { title: "Earlier questions" };
  * `getAskHistory` returns threads stamped `demonstration` — a single-member
  * union, chosen so that no component can compare its way into presenting one as
  * somebody's own past question — together with a `demonstrationNotice` written
- * by the read model. The notice is rendered at the top of the register rather
- * than in a footnote, because a list of plausible questions somebody could
- * mistake for their own history is exactly the failure this product exists to
- * argue against.
+ * by the read model. The head's one line says "demonstration conversations"
+ * beside the Demo data mark, because a list of plausible questions somebody
+ * could mistake for their own history is exactly the failure this product
+ * exists to argue against; the read model's full notice is the mark's `i`
+ * (the owner's review, 2026-10-23: four blocks of explanation stood before
+ * the list).
  *
  * What is NOT invented is the content. Every figure inside every one of these
  * threads is computed from this project's session slice at read time, so a
@@ -46,8 +49,7 @@ export const metadata: Metadata = { title: "Earlier questions" };
  * and break its purpose: `docs/12-visual-autopsy.md` §9 records four panels in
  * one viewport each repeating the same absence, and five rows of pin, rename
  * and delete is fifteen versions of the same defect. So the absence is stated
- * ONCE for the region, in the shape the sheet reserves for exactly that, and no
- * dead control is drawn.
+ * ONCE, behind the head's `i`, and no dead control is drawn.
  *
  * `pinned` itself is still shown, because it is a real field the read model
  * sets and two of these threads carry it. A state that exists is drawn; only
@@ -121,17 +123,30 @@ export default async function AskHistoryPage({
               {history.context.period.label.toLowerCase()}.
             </>
           ) : (
+            /* One line that says what they are; the rest is the `i`'s (the owner's review, 2026-10-23). */
             <>
-              {history.threads.length} conversations are kept for {project.name} over{" "}
-              {history.context.period.label.toLowerCase()}, each at its own address so an answer can
-              be sent to a colleague rather than asked again.
+              {history.threads.length} demonstration conversations ·{" "}
+              {history.context.period.label.toLowerCase()}
             </>
           )
         }
-        lede={history.demonstrationNotice}
         aside={
           <>
-            <Synthetic language={history.context.language} />
+            <div style={{ display: "flex", alignItems: "center", gap: "0.25rem" }}>
+              <Synthetic language={history.context.language} />
+              <InfoTip id="ask-history" label="these conversations">
+                <p>{history.demonstrationNotice}</p>
+                <p>
+                  Each conversation keeps its own address, so an answer can be sent to a colleague
+                  rather than asked again.
+                </p>
+                <p>
+                  Pinning, renaming and deleting a conversation are not offered: nothing on this
+                  deployment writes to the conversation store, so those controls would look ready
+                  and do nothing.
+                </p>
+              </InfoTip>
+            </div>
             <Link
               className="ox-btn"
               data-weight="primary"
@@ -167,17 +182,6 @@ export default async function AskHistoryPage({
               </>
             }
           />
-
-          {/*
-           * Stated once for the whole register, with no action, because there
-           * is genuinely nowhere to send a reader: the writing is not built,
-           * not merely out of this account's reach.
-           */}
-          <Unavailable
-            what="Pinning, renaming and deleting a conversation"
-            why="nothing on this deployment writes to the conversation store, so those controls would look ready and do nothing"
-            period={period}
-          />
         </div>
 
         {history.threads.length === 0 ? (
@@ -194,10 +198,6 @@ export default async function AskHistoryPage({
                     {pinned.length} pinned of {history.threads.length}
                   </span>
                 </div>
-                <p className="ox-section-note">
-                  Kept at the top because somebody marked them. They appear again below, in date
-                  order, so the register stays a complete list rather than two partial ones.
-                </p>
                 {/*
                  * A register of records goes on the paper ground (ADR-0034):
                  * titles, stamps, the project and period each answer was
