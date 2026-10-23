@@ -264,10 +264,6 @@
   color: var(--d-ink, #fff);
 }
 
-.iris-plan > .iris-srcs {
-  margin-top: 24px;
-}
-
 /* --- the company admin's two dates ---------------------------------------------------- */
 
 .iris-plan-edit {

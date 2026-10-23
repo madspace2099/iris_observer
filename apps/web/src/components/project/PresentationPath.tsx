@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import type { JourneyFunnel } from "@observer/readmodels";
 import { InfoTip } from "@/components/iris/InfoTip";
 import { DrawIn } from "@/showroom/DrawIn";
@@ -18,13 +17,10 @@ import "./rooms.css";
 export function PresentationPath({
   funnel,
   note,
-  children,
 }: {
   readonly funnel: JourneyFunnel;
   /** The journey's own reading note, for the `i`. */
   readonly note: string;
-  /** The source line, under the path. */
-  readonly children?: ReactNode;
 }) {
   return (
     <div className="d-card pr-path-card">
@@ -55,7 +51,6 @@ export function PresentationPath({
         </DrawIn>
       )}
       {funnel.merged === null ? null : <p className="pr-note">{funnel.merged}</p>}
-      {children}
     </div>
   );
 }

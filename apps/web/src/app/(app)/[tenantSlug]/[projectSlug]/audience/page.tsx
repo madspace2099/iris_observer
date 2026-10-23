@@ -8,7 +8,7 @@ import { requireSurface } from "@/lib/authz";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { maySeeSurface } from "@/lib/routes";
-import { AVAILABILITY_WORDS, Gaps, SourceChips } from "@/showroom/parts";
+import { AVAILABILITY_WORDS, Gaps } from "@/showroom/parts";
 import { AgentName } from "@/components/agents/Portrait";
 import { portraitSources } from "@/lib/portraits/server";
 import "./audience.css";
@@ -199,8 +199,6 @@ export default async function AudiencePage({
           </div>
         </div>
 
-        <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
-
         <hr className="iris-rule" />
 
         {view.unavailable !== null ? (
@@ -232,10 +230,9 @@ export default async function AudiencePage({
                       {m.because}
                     </span>
                     {/*
-                     * The source line above the list names where every row comes
-                     * from; a row says only a place that today's showroom does
-                     * not record whole. "Recorded today" on every row beside a
-                     * date read as the day of the meeting.
+                     * A row says only a place that today's showroom does not
+                     * record whole. "Recorded today" on every row beside a date
+                     * read as the day of the meeting.
                      */}
                     {m.availability === "legacy_available" ? null : (
                       <span className="iris-audience-basis" data-availability={m.availability}>

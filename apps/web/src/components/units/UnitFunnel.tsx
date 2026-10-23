@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { Language, FunnelVerification, UnitFunnelStage } from "@observer/readmodels";
 
-import { Figure, Sources, Tier } from "@/components/product";
+import { Figure, Tier } from "@/components/product";
 
 /**
  * ONE UNIT'S FUNNEL, AND THE ONE THING IT IS FORBIDDEN TO SAY.
@@ -93,19 +93,6 @@ export function UnitFunnel({
    * width from two integers so the six bars share one scale.
    */
   const first = stages[0]?.step.toCount ?? null;
-  /*
-   * The stages' sources, said once under the funnel rather than on every row
-   * (Máté's video review, 2026-10-23): each row's sentence and its word on the
-   * right already say which source stands behind it. Only the stages IRIS
-   * answers: a catalogue-stated stage names the catalogue in its own figure,
-   * and the showroom under the funnel read as the source of "Sold" (review,
-   * round 9; the product's source classes have no catalogue to name here).
-   */
-  const sources = [
-    ...new Set(
-      stages.filter((stage) => stage.verification !== "verified").flatMap((stage) => stage.sources),
-    ),
-  ];
 
   return (
     <>
@@ -149,7 +136,7 @@ export function UnitFunnel({
                  */}
                 <p className="ox-time-detail">{stage.basis}</p>
                 {/*
-                 * Tier and source, and no evidence line.
+                 * A tier, and no evidence line.
                  *
                  * `UnitFunnelStage.step.metric` carries no `EvidenceRef` on any
                  * of the six stages, and `Evidence` says "No evidence" in words
@@ -187,11 +174,6 @@ export function UnitFunnel({
           );
         })}
       </div>
-      {sources.length === 0 ? null : (
-        <div className="ox-time-foot">
-          <Sources language={language} sources={sources} />
-        </div>
-      )}
     </>
   );
 }

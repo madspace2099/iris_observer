@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { MeetingReplay, ReplayStep } from "@observer/readmodels";
-import { Coverage, EvidencePill, Gaps, SourceChips } from "./parts";
+import { Coverage, EvidencePill, Gaps } from "./parts";
 
 /**
  * Meeting Replay.
@@ -85,7 +85,6 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
 
               {open === step.ordinal ? (
                 <div className="iris-replay-detail">
-                  <SourceChips sources={step.sources} />
                   {step.unitCode === null ? null : <span>Unit {step.unitCode}</span>}
                   {step.sectionId === null ? null : <span>Section {step.sectionId}</span>}
                   {step.atDisplay === null ? (
@@ -116,7 +115,6 @@ export function Replay({ replay }: { replay: MeetingReplay }) {
           <p className="iris-section" style={{ margin: ".25rem 0 .5rem" }}>
             {replay.outcomeLabel}
           </p>
-          <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} />
           <p className="iris-meta" style={{ marginTop: ".5rem" }}>
             Recorded by the agent at the end of the meeting. It labels this presentation for
             comparison; it is not what Observer reports on.

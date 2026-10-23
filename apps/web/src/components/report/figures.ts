@@ -30,7 +30,7 @@ import {
   REPORT_LEFT_OUT_SECTIONS,
   REPORT_MEETINGS_NEEDED,
   REPORT_WORDS,
-  SOURCE_LINE_WORDS,
+  INSIGHT_SOURCE_WORDS,
 } from "./words";
 
 /**
@@ -184,7 +184,7 @@ function framed(
         value,
         denominator: denominator ?? "",
         sources: (sources ?? section.sources)
-          .map((source) => SOURCE_LINE_WORDS[language].words[source])
+          .map((source) => INSIGHT_SOURCE_WORDS[language][source])
           .join(" · "),
       });
       const body = bodies[section.id];

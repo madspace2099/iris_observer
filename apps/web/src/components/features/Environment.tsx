@@ -1,6 +1,6 @@
-import type { Language, EnvironmentUsage, PeriodPreset } from "@observer/readmodels";
+import type { EnvironmentUsage, PeriodPreset } from "@observer/readmodels";
 
-import { ChartFrame, DataTable, Sources, type DataRow } from "@/components/product";
+import { ChartFrame, DataTable, type DataRow } from "@/components/product";
 import { RankedBars } from "@/showroom/charts2";
 import { Count } from "./Reading";
 
@@ -138,14 +138,12 @@ export function Environment({
   period,
   periodLabel,
   ranked,
-  language,
 }: {
   readonly environment: EnvironmentUsage;
   readonly period: PeriodPreset;
   readonly periodLabel: string;
   /** Whether the sample supports an ordered reading. Decided by the screen. */
   readonly ranked: boolean;
-  readonly language: Language;
 }) {
   const duringRows: readonly DataRow[] = environment.duringSections.map((during) => ({
     key: during.sectionId,
@@ -217,10 +215,6 @@ export function Environment({
           note: "The showroom recorded no feature on screen at the moment a preset was changed in this period.",
         }}
       />
-
-      <div className="ox-finding-foot">
-        <Sources language={language} sources={["IRIS_SHOWROOM_OBSERVED"]} />
-      </div>
     </>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { RoomType, RoomTypeTrend, RoomTypesView } from "@observer/readmodels";
 import { InfoTip } from "@/components/iris/InfoTip";
 import "./rooms.css";
@@ -69,14 +69,7 @@ function Flats({ type, max }: { readonly type: RoomType; readonly max: number })
   );
 }
 
-export function RoomTypes({
-  view,
-  children,
-}: {
-  readonly view: RoomTypesView;
-  /** The source line, at the card's foot. */
-  readonly children?: ReactNode;
-}) {
+export function RoomTypes({ view }: { readonly view: RoomTypesView }) {
   const [windowId, setWindowId] = useState(view.defaultWindow);
   const [focus, setFocus] = useState<string | null>(null);
   const current = view.windows.find((w) => w.id === windowId) ?? view.windows[0];
@@ -189,7 +182,6 @@ export function RoomTypes({
           <p className="pr-note">{current.trend.caption}</p>
         </div>
       </div>
-      {children}
     </div>
   );
 }

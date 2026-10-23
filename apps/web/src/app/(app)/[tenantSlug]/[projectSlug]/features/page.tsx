@@ -18,7 +18,6 @@ import {
   FindingList,
   PageHead,
   Sample,
-  Sources,
   Tabs,
   Tally,
   TallyItem,
@@ -473,11 +472,6 @@ export default async function FeaturesPage({
            * ("what this register does not cover"), where it no longer opens the
            * page on an apology (2026-10-23, round 9).
            */}
-
-          <Sources
-            language={view.context.language}
-            sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]}
-          />
         </section>
 
         {/* --- what the read model concluded from it ------------------------ */}
@@ -560,10 +554,6 @@ export default async function FeaturesPage({
             />
 
             <div className="ox-finding-foot">
-              <Sources
-                language={view.context.language}
-                sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]}
-              />
               <Evidence language={view.context.language} evidence={view.evidence} period={period} />
             </div>
           </section>
@@ -602,7 +592,6 @@ export default async function FeaturesPage({
                 </div>
 
                 <Environment
-                  language={view.context.language}
                   environment={view.environment}
                   period={period}
                   periodLabel={view.context.period.label}

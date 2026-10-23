@@ -40,15 +40,14 @@ describe("a raised state", () => {
     createElement(StateList, { states: view.states, period: "quarter_to_date", language: "en" }),
   );
 
-  it("keeps its title, its sentence, its action and its source line in view", () => {
+  it("keeps its title, its sentence and its action in view, and no source line anywhere", () => {
     const state = view.states[0];
     expect(state, "Shark raises a state this quarter").toBeDefined();
     expect(inView(html)).toContain(state?.alert.title);
     expect(inView(html)).toContain(state?.alert.detail.replace(/&/g, "&amp;"));
     expect(inView(html)).toContain(state?.alert.actionLabel ?? "");
-    /* Which system it reads is never behind an `i` (ADR-0052, showroom.source_visible). */
-    expect(inView(html)).toContain('class="iris-srcs"');
-    expect(panels(html)).not.toContain("Source:");
+    /* The owner took the source line off every screen (2026-10-23, ADR-0052). */
+    expect(html).not.toContain("Source:");
   });
 
   it("puts its tier, evidence, sample and rank behind the i beside its title", () => {
@@ -150,13 +149,9 @@ describe("the Briefing", () => {
     expect(page).toMatch(/<InfoTip id="figures"[\s\S]*\{home\.because\}[\s\S]*<\/InfoTip>/);
   });
 
-  it("says its sources in view, under the figures, and nowhere behind an i", () => {
-    expect(page).toContain(
-      '<div className="ox-finding-foot"> <Sources language={home.context.language} sources={home.sources} />',
-    );
-    for (const tip of page.match(/<InfoTip[\s\S]*?<\/InfoTip>/g) ?? []) {
-      expect(tip).not.toContain("<Sources");
-    }
+  it("keeps the figures' evidence under them, and no source line (the owner, 2026-10-23)", () => {
+    expect(page).toContain('<div className="ox-finding-foot"> <Evidence');
+    expect(page).not.toContain("<Sources");
   });
 
   it("says the sold count is to date in view, and why behind the building's i", () => {

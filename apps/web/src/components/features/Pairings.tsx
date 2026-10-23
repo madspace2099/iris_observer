@@ -4,7 +4,7 @@ import { sectionLabel } from "@observer/contracts";
 import type { Language, FeaturePairing, PeriodPreset } from "@observer/readmodels";
 
 import { withMeetingFilters } from "@/components/meetings/filters";
-import { DataTable, Sources, Tier, type DataRow } from "@/components/product";
+import { DataTable, Tier, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { Count } from "./Reading";
@@ -146,7 +146,6 @@ export function Pairings({
 
       <div className="ox-finding-foot">
         <Tier language={language} tier="statistical_association" />
-        <Sources language={language} sources={["IRIS_SHOWROOM_DERIVED"]} />
       </div>
     </>
   );

@@ -113,7 +113,7 @@ done.
 | --- | --- | --- | --- |
 | IRIS Observer must explain what happened inside the IRIS presentation, not restate what the CRM already concluded. | showroom | _ShowroomOverview_<br>_PresentationIntelligence_<br>_MeetingReplay_<br>_UnitAttentionView_<br>_StorytellingIntelligence_<br>ADR-0023<br>InsightSource | ✅ contract |
 | Every primary insight must be rooted in at least one observed IRIS Showroom fact. | showroom | _ShowroomFinding_<br>ADR-0023<br>isShowroomRooted | ✅ contract |
-| Source type must be visible to the reader and machine-readable, not merely a visual label. | showroom | _ShowroomFinding_<br>_ReplayStep_<br>InsightSource<br>SOURCE_LINE_WORDS<br>SourceChips | ✅ contract |
+| Source type must be visible to the reader and machine-readable, not merely a visual label. | showroom | _ShowroomFinding_<br>_ReplayStep_<br>InsightSource<br>INSIGHT_SOURCE_WORDS<br>ADR-0052 | ✅ contract |
 | The order in which IRIS sections are presented, their dwell, repeats, skips and transitions, must be visible and comparable. | showroom | `people.presentation_coverage`<br>_PresentationLane_<br>_PresentationTransition_ | ✅ metric |
 | Two sales agents must be comparable interactively, on how they use IRIS rather than on their results. | showroom | _PresentationComparison_<br>_PresentationDifference_<br>docs/17-showroom-intelligence.md §2 | ✅ contract |
 | Higher-outcome and lower-outcome meeting cohorts must be comparable without causal wording, with sample sizes always shown. | showroom | _PresentationComparison_<br>PROGRESSED_OUTCOMES<br>ADR-0010 | ✅ contract |

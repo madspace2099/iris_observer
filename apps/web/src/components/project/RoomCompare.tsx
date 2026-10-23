@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import Link from "next/link";
 import type { RoomTypesView } from "@observer/readmodels";
 import { InfoTip } from "@/components/iris/InfoTip";
@@ -20,13 +20,10 @@ import "./rooms.css";
 export function RoomCompare({
   view,
   hrefFor,
-  children,
 }: {
   readonly view: RoomTypesView;
   /** The page's period, laid on a read model's link. */
   readonly hrefFor: (href: string) => string;
-  /** The source line, at the card's foot. */
-  readonly children?: ReactNode;
 }) {
   return (
     <div
@@ -94,7 +91,6 @@ export function RoomCompare({
           ))}
         </div>
       </div>
-      {children}
     </div>
   );
 }

@@ -1,11 +1,9 @@
 import Link from "next/link";
 import type { Language, AskAnswer, AskFigure, PeriodPreset } from "@observer/readmodels";
-import type { InsightSource } from "@observer/contracts";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { Evidence, Tier } from "@/components/product";
-import { SourceChips } from "@/showroom/sources";
 import { isAnswerable } from "./questions";
 
 /**
@@ -47,24 +45,6 @@ import { isAnswerable } from "./questions";
  * tier to draw — `causal_claim` is a tier the product refuses to produce, so
  * `Tier` renders nothing for it rather than inventing a chip.
  */
-
-/**
- * What an Ask IRIS answer rests on.
- *
- * Two sources, and the omission is as deliberate as the inclusion. The figures
- * are counts and durations the showroom recorded ("recorded in the showroom by
- * the IRIS app") turned into shares, medians and rankings by the read models
- * ("calculated by Observer from showroom recordings"). Said as the one source
- * line every showroom block prints (`SourceChips`, ADR-0052), in the answer's
- * language, rather than as two chips a reader had to decode. Where an
- * answer touches a CRM outcome the read model says so in its own prose and in
- * its caveat, which is the honest place for a fact that is true of one answer
- * and not of the six.
- */
-const ANSWER_SOURCES: readonly InsightSource[] = [
-  "IRIS_SHOWROOM_OBSERVED",
-  "IRIS_SHOWROOM_DERIVED",
-];
 
 /**
  * The sentinel a read model uses for a figure it cannot supply.
@@ -227,7 +207,6 @@ export function AnswerSheet({
 
       <div className="ox-finding-foot">
         {answer.evidence === null ? null : <Tier language={language} tier={answer.evidence.tier} />}
-        <SourceChips language={language} sources={ANSWER_SOURCES} />
         <Evidence language={language} evidence={answer.evidence} period={period} />
 
         {/*

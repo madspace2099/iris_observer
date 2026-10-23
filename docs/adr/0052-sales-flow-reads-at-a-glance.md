@@ -1,6 +1,7 @@
 # ADR-0052 — Sales Flow reads at a glance
 
-**Status:** accepted · **Date:** 2026-10-22
+**Status:** accepted · **Date:** 2026-10-22 · **Amended:** 2026-10-23, the source line is off every
+screen and Sales Flow's findings are short (the last section)
 **Decided by:** the product owner, while recording the Shark Residence demo
 **Extends:** ADR-0023 (provenance is visible), ADR-0041 (every product chart in the Hyper kit's
 hand)
@@ -194,3 +195,55 @@ Six findings, each confirmed in the code and fixed:
 
 Northgate's audience was looked at again as a static render at 1440 and 390: one line above the
 list, rows one line high at 1440.
+
+## The owner's decision, 2026-10-23: no source line, and findings short and large
+
+Before screen-recording the Shark Residence demo the owner decided two things, and the first one
+overrides this ADR's §8, its second round, ADR-0058 §4 ("its source line stays in view") and the
+"with its source line in sight" of ADR-0059 and ADR-0063.
+
+1. **The source line is off every screen.** "Source: recorded in the showroom by the IRIS app ·
+   calculated by Observer from showroom recordings" stood under the charts, findings and panels of
+   Sales Flow, Project, Sales Agents, an agent's page, the report (on screen and on paper), units,
+   meetings, attention, the Briefing, Features, the audience, the measurement panels and both Ask
+   answer surfaces. It is removed at its source of truth, not screen by screen: `SourceChips`
+   (`showroom/sources.tsx`) and `Sources` (`components/product/Provenance.tsx`) are deleted with
+   every call site, the `children` slots that only carried the line, the finding's and the report
+   section's source `i`, and the `.iris-srcs`/`.iris-src`/`.ox-finding-sources`/`.ox-report-sources`
+   rules. `apps/web/test/source-line.test.ts` now fails if a component, a class or a rule that draws
+   the line comes back. The MADSPACE administration and diagnostics tables keep their "Source"
+   column: that is a datum, not this line.
+
+   **What still carries provenance.** Every read model keeps `sources: InsightSource[]`, so the
+   contract (ADR-0023), its guards and Ask's refusal of CRM-only or interpretation-only evidence are
+   unchanged. The report's CSV keeps its source column, in the report's language
+   (`INSIGHT_SOURCE_WORDS`, which was `SOURCE_LINE_WORDS` without the "Source" lead nothing prints
+   now). The tier chip, the evidence links ("12 records · Observed") and the sample stay wherever
+   they stood, except on the findings below. The observer answer panel keeps its evidence references
+   and its tools · provider · model line, so which part a model wrote is still said. Coverage
+   (`showroom.source_visible`) names `InsightSource`, `INSIGHT_SOURCE_WORDS` and this ADR.
+
+2. **A finding on Sales Flow is one short sentence, large.** The last screen printed, per finding, a
+   statement, an "against" line, a two-sentence "so what" and a citation ("22 records · statistical
+   association · n = 22 meetings"), and two findings filled it. Now:
+   - The read model's words are short (`packages/synthetic/src/showroom/views3.ts`, EN, SK, HU): the
+     flag is its count and denominator and nothing after them ("Oliver Grant: 8 of 22 recorded
+     meetings ended not interested."), "so what" is ten words at most ("Rates that use an outcome
+     leave these out."). Every surface that reads them gets the short text: the report and its CSV,
+     Ask's tools (`lib/ai/tools.ts`), and the flag on Sales Flow's and Sales Agents' outcome rows.
+   - The shared `Finding` (`showroom/parts.tsx`) prints the statement and one line: what it is
+     compared with when there is a comparison ("against 36% for the team"), otherwise why it
+     matters; a caveat still stands. The statement is a step larger everywhere (18px) and on Sales
+     Flow's last screen 22–32px at 600.
+   - On Sales Flow and Sales Agents (`measured`) the citation line is gone: the count is in the
+     sentence. `apps/web/test/flow-findings.test.ts` holds every finding those two routes draw, in
+     five projects and four periods, to its own sample size in the words on screen, and Sales Flow's
+     to fourteen words a sentence and ten a line. Project and Presentation keep their citation,
+     because their statements do not carry their sample.
+   - "How to read this" is two short notes: a flag is a prompt, not a ranking; which screens read
+     their own window, the CRM as it stands, or the period. The note that meetings with no outcome
+     leave every rate is the unrecorded finding's own line now.
+
+Not looked at: no server or browser was run for this change (memory was tight while a demo ran on
+:3400), so the screens have not been screenshotted, and the e2e specs that read the changed text were
+updated without being run.

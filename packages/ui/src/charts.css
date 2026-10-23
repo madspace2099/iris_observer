@@ -1509,11 +1509,6 @@ a.iris-orow-part:hover {
   border: 1px solid var(--rule);
 }
 
-/* Under a bordered strip of changes, the chips keep a gap rather than touch it. */
-.iris-changes + .iris-srcs {
-  margin-top: 0.75rem;
-}
-
 /*
  * A column, its action on the floor (the owner, 2026-10-22, ADR-0052): cells
  * in one strip are one height, and a cell with a flag or a longer detail used

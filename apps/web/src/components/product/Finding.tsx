@@ -7,11 +7,9 @@ import {
   type ShowroomFinding,
 } from "@observer/readmodels";
 
-import { InfoTip } from "@/components/iris/InfoTip";
-import { SOURCE_LINE_WORDS } from "@/components/report/words";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
-import { Evidence, Sample, Sources } from "./Provenance";
+import { Evidence, Sample } from "./Provenance";
 
 /**
  * FINDINGS — one stated thing, with everything needed to argue with it.
@@ -28,7 +26,8 @@ import { Evidence, Sample, Sources } from "./Provenance";
  *               read model's and a test scans it for the banned verbs.
  *   caveat      what would make it wrong. Rendered on its own rail so it is
  *               visibly not part of the claim.
- *   the foot    sources, evidence, sample size, and where to look next.
+ *   the foot    evidence, sample size, and where to look next. No source line
+ *               (the owner, 2026-10-23, ADR-0052).
  *
  * **This component is how the product satisfies "no verdict without a sample
  * size".** `Sample` is not conditional and has no prop that would suppress it.
@@ -125,25 +124,6 @@ export function FindingList({
           {finding.caveat === null ? null : <p className="ox-finding-caveat">{finding.caveat}</p>}
 
           <div className="ox-finding-foot">
-            {/*
-             * The source line said the same sentence under every finding, down
-             * the report (review round 8). On screen it is an `i` where the line
-             * stood, first in the foot; paper, which has no `i`, prints the line
-             * (`observer-product.css`).
-             */}
-            <span className="ox-finding-sources">
-              <Sources sources={finding.sources} language={language} />
-            </span>
-            {finding.sources.length === 0 ? null : (
-              <InfoTip
-                id={`finding-src-${finding.id.replace(/[^\w-]/g, "-")}`}
-                label={SOURCE_LINE_WORDS[language].lead}
-              >
-                <p>
-                  <Sources sources={finding.sources} language={language} />
-                </p>
-              </InfoTip>
-            )}
             <Evidence evidence={finding.evidence} period={period} language={language} />
             <Sample n={finding.sampleSize} noun={noun(finding.sampleSize)} />
             {finding.nextStep === null ? null : (

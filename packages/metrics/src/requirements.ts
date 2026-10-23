@@ -99,7 +99,8 @@ export const REQUIREMENTS: readonly SourceRequirement[] = [
     family: "showroom",
     requirement:
       "Source type must be visible to the reader and machine-readable, not merely a visual label.",
-    contracts: ["InsightSource", "SOURCE_LINE_WORDS", "SourceChips"],
+    /* No screen prints it since the owner's decision of 2026-10-23 (ADR-0052); the CSV does. */
+    contracts: ["InsightSource", "INSIGHT_SOURCE_WORDS", "ADR-0052"],
     readModels: ["ShowroomFinding", "ReplayStep"],
   },
   {

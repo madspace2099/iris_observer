@@ -7,7 +7,6 @@ import {
   Evidence,
   PageHead,
   Sample,
-  Sources,
   StackPlan,
   StackPlanKey,
   Synthetic,
@@ -266,13 +265,7 @@ export default async function BriefingPage({
               </dl>
             </DrawIn>
 
-            {/*
-             * Which system each figure comes from stays in view (ADR-0052's
-             * one source line; showroom.source_visible): "Progressing" reads
-             * the CRM's deal stages, and nothing else on the plate says so.
-             */}
             <div className="ox-finding-foot">
-              <Sources language={home.context.language} sources={home.sources} />
               <Evidence language={home.context.language} evidence={home.evidence} period={period} />
             </div>
           </div>

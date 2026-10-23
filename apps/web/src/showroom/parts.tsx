@@ -10,7 +10,6 @@ import type { CSSProperties, ReactNode } from "react";
 import type { MeasurementAvailability } from "@observer/contracts";
 import { DATA_SOURCE_MARKER_WORDS, defineMeasurement, type Language } from "@observer/readmodels";
 import { Measure } from "./Measure";
-import { SourceChips } from "./sources";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import Link from "next/link";
@@ -18,15 +17,12 @@ import Link from "next/link";
 /**
  * The pieces every Showroom Intelligence surface is built from.
  *
- * Server components with no state. They exist so that provenance, sample size
- * and honest gaps are rendered the same way everywhere — a source chip that
- * looks different on two screens is a source chip nobody reads.
+ * Server components with no state. They exist so that sample size and honest
+ * gaps are rendered the same way everywhere. No screen prints a source line
+ * (the owner, 2026-10-23, ADR-0052): the read models keep `sources`.
  */
 
-/* --- provenance ------------------------------------------------------------ */
-
-/* One quiet source line, in its own file so the client components share it (ADR-0052). */
-export { SourceChips };
+/* --- availability ---------------------------------------------------------- */
 
 /**
  * `MeasurementAvailability`, in the reader's words.
@@ -143,55 +139,65 @@ export function Finding({
   /**
    * Opt-in only, and only ever read by CSS scoped to `[data-plane="true"]`.
    *
-   * `Finding` renders on five routes (Project, Flow, Agents, Presentation,
-   * Audience) sharing this one component. Measured on Project: a 2px
-   * `border-left` — the doctrine's own named anti-pattern, "a colored
-   * border-left above 1px on a callout" — was the ONLY thing distinguishing
-   * the lead finding from the rest, and `.iris-finding-foot`'s mono font
-   * leaked into the CTA link, rendering "Open Two-room" in the evidence
-   * typeface instead of the Manrope every other `.iris-action` on the page
-   * uses. Both are real defects, and both are scoped to this flag rather
-   * than fixed on the shared rule, because the other four routes are out of
-   * scope for this change and must render exactly as before it.
+   * Measured on Project: a 2px `border-left` — the doctrine's own named
+   * anti-pattern, "a colored border-left above 1px on a callout" — was the
+   * ONLY thing distinguishing the lead finding from the rest. Scoped to this
+   * flag because the routes without it keep their rail.
    */
   plane?: boolean;
-  /** Opt-in: raises the 11px evidence citation, and its `SourceChips`, to the 12px floor. Sales Flow only — see `showroom.css`. */
+  /**
+   * Sales Flow and Sales Agents (the owner, 2026-10-23, ADR-0052): the finding
+   * is its sentence, and the sentence carries its count ("8 of 22 recorded
+   * meetings"), so no citation line ("22 records · statistical association ·
+   * n = 22 meetings") stands under it. `flow-findings.test.ts` holds every
+   * finding these two routes draw to its own sample size.
+   */
   measured?: boolean;
 }) {
+  /*
+   * ONE SUB-LINE AT MOST (the owner, 2026-10-23): what it is compared with
+   * when there is a comparison, otherwise why it matters. The report and Ask
+   * print every slot of the read model; a screen prints the essence.
+   */
+  const sub = finding.baseline === null ? finding.soWhat : `against ${finding.baseline}`;
   return (
     <article
       className="iris-finding"
       data-lead={lead ? "true" : undefined}
       data-plane={plane ? "true" : undefined}
-      data-measured={measured ? "true" : undefined}
     >
       <p className="iris-finding-statement">{finding.statement}</p>
-      {finding.baseline === null ? null : (
-        <p className="iris-code" style={{ margin: 0 }}>
-          against {finding.baseline}
-        </p>
-      )}
-      <p className="iris-finding-so-what">{finding.soWhat}</p>
+      <p className="iris-finding-so-what">{sub}</p>
       {finding.caveat === null ? null : <p className="iris-finding-caveat">{finding.caveat}</p>}
-      <div className="iris-finding-foot">
-        <SourceChips sources={finding.sources} measured={measured} />
-        <EvidencePill
-          href={finding.evidence.href.length === 0 ? "" : withPeriod(finding.evidence.href, period)}
-        >
-          <i />
-          {finding.evidence.observationCount} records · {finding.evidence.tier.replace(/_/g, " ")}
-        </EvidencePill>
-        <span>n = {finding.sampleSize} meetings</span>
-        {finding.nextStep === null ? null : (
-          <Link
-            prefetch={false}
-            className="iris-action"
-            href={dynamicRoute(withPeriod(finding.nextStep.href, period))}
-          >
-            {finding.nextStep.label}
-          </Link>
-        )}
-      </div>
+      {measured && finding.nextStep === null ? null : (
+        <div className="iris-finding-foot">
+          {measured ? null : (
+            <>
+              <EvidencePill
+                href={
+                  finding.evidence.href.length === 0
+                    ? ""
+                    : withPeriod(finding.evidence.href, period)
+                }
+              >
+                <i />
+                {finding.evidence.observationCount} records ·{" "}
+                {finding.evidence.tier.replace(/_/g, " ")}
+              </EvidencePill>
+              <span>n = {finding.sampleSize} meetings</span>
+            </>
+          )}
+          {finding.nextStep === null ? null : (
+            <Link
+              prefetch={false}
+              className="iris-action"
+              href={dynamicRoute(withPeriod(finding.nextStep.href, period))}
+            >
+              {finding.nextStep.label}
+            </Link>
+          )}
+        </div>
+      )}
     </article>
   );
 }

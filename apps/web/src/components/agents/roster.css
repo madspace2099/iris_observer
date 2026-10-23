@@ -176,16 +176,6 @@
   padding-block: 0.1875rem;
 }
 
-/* --- the finding under the roster: its foot at the 12px floor, its citation a 24px target --- */
-
-.ag-page .iris-finding-foot {
-  font-size: 0.75rem;
-}
-
-.ag-page .iris-finding-foot .iris-evidence {
-  min-height: 1.5rem;
-}
-
 /* --- "Was it the buyer's first meeting?" ----------------------------------- */
 
 .ag-repeats-of {
@@ -757,7 +747,7 @@
 /*
  * Coaching on one screen: the question, its answer and the key down the left,
  * the chart the screen's height beside them. The key stays the chart's
- * control; who is under the floor and the source close the card under both
+ * control; who is under the floor closes the card under both
  * columns, so nothing is read after the chart and painted above its end.
  */
 @media (width >= 75rem) {

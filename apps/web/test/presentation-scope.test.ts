@@ -51,10 +51,9 @@ describe("the Presentation DNA page", () => {
 const ROSTER = markup("src/app/(app)/[tenantSlug]/[projectSlug]/agents/page.tsx");
 
 describe("the Sales Agents roster", () => {
-  it("names the showroom as its source, and never the CRM", () => {
+  /* No source line on any screen since the owner's decision of 2026-10-23 (ADR-0052). */
+  it("names no source, and never the CRM", () => {
     expect(ROSTER).not.toContain("CRM_OUTCOME_CONTEXT");
-    expect(ROSTER).toContain(
-      '<SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />',
-    );
+    expect(ROSTER).not.toContain("SourceChips");
   });
 });

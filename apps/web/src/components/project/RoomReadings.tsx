@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import type { RoomTypesView } from "@observer/readmodels";
 import { InfoTip } from "@/components/iris/InfoTip";
 import "./rooms.css";
@@ -23,14 +23,7 @@ import "./rooms.css";
 /** The parity scale runs from nought to twice the type's share; past that the mark stops at the end. */
 const PARITY_SPAN = 2;
 
-export function RoomReadings({
-  view,
-  children,
-}: {
-  readonly view: RoomTypesView;
-  /** The source line, at the card's foot. */
-  readonly children?: ReactNode;
-}) {
+export function RoomReadings({ view }: { readonly view: RoomTypesView }) {
   return (
     <div className="d-card pr-readings">
       <header className="iris-titled">
@@ -46,7 +39,6 @@ export function RoomReadings({
       ) : (
         <p className="pr-sub">No reading for any type. {view.soldUnavailable}</p>
       )}
-      {children}
     </div>
   );
 }

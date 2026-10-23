@@ -6,7 +6,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
-import { Finding, Gaps, SourceChips } from "@/showroom/parts";
+import { Finding, Gaps } from "@/showroom/parts";
 import { DrawIn } from "@/showroom/DrawIn";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { InfoTip } from "@/components/iris/InfoTip";
@@ -72,7 +72,6 @@ export default async function ProjectPage({
   ]);
   const reportHref = withPeriod(`/${tenantSlug}/${projectSlug}/report`, query.period);
 
-  const crm = view.context.project.connectedSources.includes("crm");
   const unmet = view.demand.filter((d) => d.matches === 0);
   /*
    * The search register's two count heads, each built once: the column head
@@ -213,7 +212,6 @@ export default async function ProjectPage({
               tenant={view.context.tenant}
               tenantSlug={tenantSlug}
               projectSlug={projectSlug}
-              crmConnected={view.context.project.connectedSources.includes("crm")}
             />
           </DrawIn>
 
@@ -237,37 +235,19 @@ export default async function ProjectPage({
           <>
             <div className="screen" id="project-types">
               <DrawIn kind="fill">
-                <RoomTypes view={roomTypes}>
-                  <SourceChips
-                    sources={
-                      crm
-                        ? ["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]
-                        : ["IRIS_SHOWROOM_OBSERVED"]
-                    }
-                  />
-                </RoomTypes>
+                <RoomTypes view={roomTypes} />
               </DrawIn>
             </div>
 
             <div className="screen" id="project-readings">
               <DrawIn kind="fill">
-                <RoomReadings view={roomTypes}>
-                  <SourceChips
-                    sources={
-                      crm
-                        ? ["IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
-                        : ["IRIS_SHOWROOM_DERIVED"]
-                    }
-                  />
-                </RoomReadings>
+                <RoomReadings view={roomTypes} />
               </DrawIn>
             </div>
 
             <div className="screen" id="project-compare">
               <DrawIn kind="fill">
-                <RoomCompare view={roomTypes} hrefFor={(href) => withPeriod(href, query.period)}>
-                  <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
-                </RoomCompare>
+                <RoomCompare view={roomTypes} hrefFor={(href) => withPeriod(href, query.period)} />
               </DrawIn>
             </div>
           </>
@@ -389,7 +369,6 @@ export default async function ProjectPage({
                 </span>
               ))}
             </div>
-            <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
           </div>
         </div>
 
@@ -403,16 +382,7 @@ export default async function ProjectPage({
             key={`journey-${query.period}`}
             funnel={charts.journey.funnel}
             note={charts.journey.note}
-          >
-            {/* "Progressed" is drawn only from outcomes a CRM recorded. */}
-            <SourceChips
-              sources={
-                crm
-                  ? ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
-                  : ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]
-              }
-            />
-          </PresentationPath>
+          />
         </div>
 
         <div className="screen" id="project-findings">

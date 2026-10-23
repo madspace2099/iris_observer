@@ -106,7 +106,6 @@ function toTimelineStep(step: ReplayStep): TimelineStep {
     when: step.atDisplay,
     label,
     detail: parts.length === 0 ? null : parts.join(" · "),
-    sources: step.sources,
   };
 }
 

@@ -8,7 +8,7 @@ import type {
 } from "@observer/readmodels";
 
 import { InfoTip } from "@/components/iris/InfoTip";
-import { Sources, evidenceText, tierSentence } from "@/components/product";
+import { evidenceText, tierSentence } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 
@@ -213,26 +213,21 @@ export function StateList({
               </div>
             )}
 
-            {/*
-             * Which system the state reads stays in view, as ADR-0052's one
-             * source line does on every surface (showroom.source_visible).
-             */}
-            <div className="ox-alert-foot">
-              <Sources language={language} sources={state.sources} />
-              {state.belowMinimum ? (
-                /*
-                 * The raw figure and how far short it falls, and no rank beside
-                 * it. A state worth naming from eleven observations is still
-                 * worth naming; calling it the second most important thing on
-                 * the project is the part that is not supported. A refusal, so
-                 * it stays in view rather than behind the `i`.
-                 */
+            {state.belowMinimum ? (
+              /*
+               * The raw figure and how far short it falls, and no rank beside
+               * it. A state worth naming from eleven observations is still
+               * worth naming; calling it the second most important thing on
+               * the project is the part that is not supported. A refusal, so
+               * it stays in view rather than behind the `i`.
+               */
+              <div className="ox-alert-foot">
                 <span className="ox-shortfall">
                   {state.sampleSize} of {state.minimumSampleSize} {SAMPLE_NOUNS[state.kind]} —
                   stated, not ranked
                 </span>
-              ) : null}
-            </div>
+              </div>
+            ) : null}
           </div>
 
           {/*

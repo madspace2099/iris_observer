@@ -222,7 +222,7 @@ describe("saving the window", () => {
 });
 
 describe("the block", () => {
-  async function block(accountId: string, tenantSlug: string, projectSlug: string, crm = true) {
+  async function block(accountId: string, tenantSlug: string, projectSlug: string) {
     state.accountId = accountId;
     const account = accounts.accountById(accountId);
     if (account === null) throw new Error(accountId);
@@ -234,7 +234,6 @@ describe("the block", () => {
       tenant,
       tenantSlug,
       projectSlug,
-      crmConnected: crm,
     });
     return renderToStaticMarkup(element as ReactElement);
   }
@@ -285,7 +284,7 @@ describe("the block", () => {
   });
 
   it("puts the i beside the title, and never a zero for a split the CRM cannot give", async () => {
-    const riverside = await block("acct_petra", "alpha", "riverside", false);
+    const riverside = await block("acct_petra", "alpha", "riverside");
     expect(riverside).toContain('aria-label="About sold against the plan"');
     expect(riverside).toContain("Unavailable: the CRM is not connected");
     expect(riverside).toContain("<dt>Flats</dt><dd>36</dd>");

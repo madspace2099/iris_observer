@@ -5,7 +5,6 @@ import { InfoTip } from "@/components/iris/InfoTip";
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
-import { SourceChips } from "@/showroom/parts";
 import { RankedBars } from "@/showroom/charts2";
 
 /**
@@ -82,14 +81,8 @@ export function AssistedSales({
           {assisted.unplacedNote}
         </p>
       )}
-      {/*
-       * The source and the way on share the card's last line where it holds
-       * both (`flow-screens.css`): stacked, a 591px screen cut the link off at
-       * its foot (review, 2026-10-23). The source reads first, as it is painted.
-       */}
-      <div className="flow-foot">
-        <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
-        {irisLedHref === undefined ? null : (
+      {irisLedHref === undefined ? null : (
+        <div className="flow-foot">
           <Link
             prefetch={false}
             className="iris-action"
@@ -97,8 +90,8 @@ export function AssistedSales({
           >
             Open IRIS-led sales
           </Link>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

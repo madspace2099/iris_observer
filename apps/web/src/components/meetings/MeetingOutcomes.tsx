@@ -1,7 +1,7 @@
 import type { MeetingReplay, PeriodPreset } from "@observer/readmodels";
 
 import { InfoTip } from "@/components/iris/InfoTip";
-import { Sources, Unavailable } from "@/components/product";
+import { Unavailable } from "@/components/product";
 import "@/components/sheet/sheet.css";
 import "@/components/units/titled.css";
 
@@ -129,10 +129,6 @@ export function MeetingOutcomes({
          * pill saying the same word — would be decoration.
          */}
         <p className="ox-finding-statement">{replay.outcomeLabel}</p>
-
-        <div className="ox-finding-foot">
-          <Sources language={replay.context.language} sources={["IRIS_SHOWROOM_OBSERVED"]} />
-        </div>
       </article>
 
       <article className="ox-finding">

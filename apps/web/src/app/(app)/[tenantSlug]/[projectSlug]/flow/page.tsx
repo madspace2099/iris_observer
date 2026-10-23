@@ -17,7 +17,7 @@ import { AssistedSales, FlowLadder } from "@/components/flow";
 import { ChangeKpis } from "@/components/flow/ChangeKpis";
 import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
-import { Finding, Gaps, SourceChips } from "@/showroom/parts";
+import { Finding, Gaps } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
 import { PresenterBars, seatTones } from "@/components/agents/PresenterBars";
 import { AgentName, AgentPortrait } from "@/components/agents/Portrait";
@@ -82,7 +82,8 @@ function windowFrom(value: string | undefined): KpiWindowId {
  * screen (`.flow-screen`) as tall as the viewport under the sticky header, and
  * the page's scroller snaps from one to the next (`flow-screens.css`), so the
  * next chart is never visible under the one being read. Each screen keeps its
- * title, its drawing, the figure it stands on and its source; definitions and
+ * title, its drawing and the figure it stands on (no source line, the owner,
+ * 2026-10-23); definitions and
  * method notes stand behind its `i`. Two pairs share a screen: the meetings and
  * every outcome, and the longest presentations and who gave them.
  */
@@ -397,7 +398,6 @@ export default async function FlowPage({
               {view.ladder.unmapped === 0 ? null : ` · ${view.ladder.unmapped} not mapped`}
               {view.ladder.lost === 0 ? null : ` · ${view.ladder.lost} lost`}
             </p>
-            <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
           </div>
         ) : null}
 
@@ -467,7 +467,6 @@ export default async function FlowPage({
                     ? null
                     : ` · ${String(view.ladder.undated)} with no stage date`}
                 </p>
-                <SourceChips sources={["CRM_OUTCOME_CONTEXT"]} measured />
               </>
             )}
           </div>
@@ -578,8 +577,6 @@ export default async function FlowPage({
            * earlier. A screen without arrows says why once, in the read model's words.
            */}
           <ChangeKpis kpis={summary.kpis} period={query.period} />
-
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
         {/* --- when meetings actually happen ------------------------------ */}
@@ -649,7 +646,6 @@ export default async function FlowPage({
               >
                 Open the meetings
               </Link>
-              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
             </div>
           </div>
         </div>
@@ -681,7 +677,6 @@ export default async function FlowPage({
               ? ""
               : ` Quietest weekday: ${charts.activity.quietest.weekday}, ${charts.activity.quietest.meetings}.`}
           </p>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
         </div>
 
         {/*
@@ -775,7 +770,6 @@ export default async function FlowPage({
               </ol>
             </div>
           )}
-          {/* The way on and the source on one line, so the screen fits 1280 × 720 (review, round 9). */}
           <div className="flow-foot">
             <Link
               prefetch={false}
@@ -789,7 +783,6 @@ export default async function FlowPage({
             >
               Every reservation in the register
             </Link>
-            <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
           </div>
         </div>
 
@@ -960,14 +953,6 @@ export default async function FlowPage({
               )}
             </ul>
           ) : null}
-          {/*
-            Named where it contributed, and the CRM contributes nothing here,
-            connected or not: the rows, the rates and the flags are the outcomes
-            agents recorded in the room (as on the Sales Agents roster). Said in
-            words since ADR-0052, "deal stages from your CRM" under them was a
-            plain false sentence.
-          */}
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
         </div>
 
         {/* --- what the quietest meetings had in common ------------------- */}
@@ -985,16 +970,12 @@ export default async function FlowPage({
           {charts.funnel.empty !== null ? (
             <p className="iris-meta iris-meta-measured">{charts.funnel.empty}</p>
           ) : (
-            <>
-              <Funnel
-                data={charts.funnel}
-                period={query.period}
-                canOpen={maySeeSurface(viewer.role, "meetings")}
-                marks={faces(charts.funnel.byAgent)}
-              />
-              {/* The outcome is the one recorded in the room; the medians and rates are derived from it. */}
-              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
-            </>
+            <Funnel
+              data={charts.funnel}
+              period={query.period}
+              canOpen={maySeeSurface(viewer.role, "meetings")}
+              marks={faces(charts.funnel.byAgent)}
+            />
           )}
         </div>
 
@@ -1053,7 +1034,11 @@ export default async function FlowPage({
           </div>
         </div>
 
-        {/* The findings, and how to read the page, are the last screen. */}
+        {/*
+         * The findings, and how to read the page, are the last screen: each
+         * finding one large sentence with its count in it, one short line and
+         * its way on; two short notes under them (the owner, 2026-10-23).
+         */}
         <div className="flow-screen flow-findings" id="flow-findings">
           {view.findings.map((finding, index) => (
             <Finding
@@ -1067,20 +1052,14 @@ export default async function FlowPage({
 
           <Gaps
             gaps={[
-              "An outcome is what the agent recorded at the end of the meeting. Meetings with none are excluded from every rate here rather than counted as a failure.",
-              "A flag is a prompt to look at how a meeting is run. It is not a ranking.",
+              "A flag is a prompt to look at the meetings, not a ranking.",
               /*
                * Measured on 2026-09-25, rendering the page under four periods: the
                * three deal blocks were byte-identical under all four, and every
-               * section listed as reading the period moved with it. "Everything
-               * below them reads the period" was false for three blocks, and since
-               * R05-a those three stand right under the cards. The list of every
-               * screen that reads the period was a 75-word line on the video's last
-               * screen (review, 2026-10-23); the screens from the meetings on are
-               * the ones that do, so the line names where they start. A new screen
+               * screen from the meetings on moved with the period. A new screen
                * that does not read the period goes above the meetings, or is named here.
                */
-              "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales read the deals the CRM states, whatever the period. Every screen from the meetings on reads the period in the bar at the top.",
+              "Summary cards read their own window; deal screens, the CRM as it stands; the rest, the period.",
             ]}
             title="How to read this"
           />

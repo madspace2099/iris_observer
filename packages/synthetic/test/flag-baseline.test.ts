@@ -81,7 +81,8 @@ describe("the flagged agent's finding", () => {
       ...times(10, "agent_a", "purchase"),
       ...times(20, "agent_b", "purchase"),
     ]);
-    expect(finding?.statement).toMatch(/10 of 20 recorded meetings ended "not interested"/);
+    /* The count and its denominator, and nothing after them (the owner, 2026-10-23). */
+    expect(finding?.statement).toMatch(/: 10 of 20 recorded meetings ended not interested\.$/);
     expect(finding?.baseline).toBe("25% for the team");
   });
 

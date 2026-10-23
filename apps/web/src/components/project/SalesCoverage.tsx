@@ -181,9 +181,9 @@ function lastHeard(source: ProjectSource, format: Intl.DateTimeFormat): string {
  * ("Main Showroom PC") and not what kind of thing it is. Reported as a gap,
  * beside the two others of exactly this shape on this screen.
  *
- * These are NOT the source line's words, and the difference matters enough to
+ * These are NOT the sources' words, and the difference matters enough to
  * write down: an `InsightSource` says what kind of FACT a claim rests on and is
- * rendered by `Sources` from `SOURCE_LINE_WORDS` (ADR-0052). A `SourceKind`
+ * worded by `INSIGHT_SOURCE_WORDS` in the report's CSV (ADR-0052). A `SourceKind`
  * says which SYSTEM is wired up. The two are neighbours in the product and
  * merging them would put "calculated by Observer" in a list of things that
  * can be offline.

@@ -10,7 +10,7 @@
  *   PageHead     the conclusion belongs above the seam, on graphite.
  *   Figure       an absent value is never a zero, and there are four absences.
  *   Tally        figures sit on one plane divided by hairlines, not on cards.
- *   Tier/Sources provenance is two axes and they never merge.
+ *   Tier         how strong a claim is; its source is the read model's, not drawn.
  *   Evidence     a claim says what it rests on, or says it rests on nothing.
  *   Sample       no verdict without a sample size.
  *   FindingList  a finding carries its baseline, its caveat and its sample.
@@ -40,15 +40,7 @@
 
 export { PageHead, type Crumb } from "./PageHead";
 export { Figure, Tally, TallyItem } from "./Metric";
-export {
-  Tier,
-  Sources,
-  Evidence,
-  Sample,
-  TIER_LABELS,
-  evidenceText,
-  tierSentence,
-} from "./Provenance";
+export { Tier, Evidence, Sample, TIER_LABELS, evidenceText, tierSentence } from "./Provenance";
 export { FindingList } from "./Finding";
 export { AttentionList } from "./Attention";
 export { Empty, Unavailable, Failure, Synthetic } from "./Absence";

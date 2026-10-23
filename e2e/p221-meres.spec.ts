@@ -93,13 +93,9 @@ test("R05-1 · Sales Flow names the blocks that read the period and the ones tha
   page,
 }) => {
   const text = await mainText(page, "Tomáš Varga", `${ROOT}/flow`);
-  expect(text).toContain("The summary cards read the whole dataset over the window you pick.");
+  /* One short note since the owner's word on the last screen (2026-10-23). */
   expect(text).toContain(
-    "The deal ladder, stalled deals and IRIS-assisted sales read the deals the CRM states, whatever the period.",
-  );
-  /* The screen-by-screen list was a 75-word line on the last screen (review, 2026-10-23). */
-  expect(text).toContain(
-    "Every screen from the meetings on reads the period in the bar at the top.",
+    "Summary cards read their own window; deal screens, the CRM as it stands; the rest, the period.",
   );
 });
 

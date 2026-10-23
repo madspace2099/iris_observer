@@ -2357,7 +2357,6 @@
 }
 
 [data-charts="d"] .d-card .iris-code,
-[data-charts="d"] .d-card .iris-src,
 [data-charts="d"] .d-card .iris-dna-name span,
 [data-charts="d"] .d-card .iris-dna-step,
 [data-charts="d"] .d-card .iris-dna-step[data-return="true"]::after,

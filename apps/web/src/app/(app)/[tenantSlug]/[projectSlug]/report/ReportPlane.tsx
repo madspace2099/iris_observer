@@ -6,10 +6,9 @@ import {
   type ReportSection,
   type ReportSectionAvailability,
 } from "@observer/readmodels";
-import { InfoTip } from "@/components/iris/InfoTip";
-import { Evidence, Sample, Sources } from "@/components/product";
+import { Evidence, Sample } from "@/components/product";
 import { sectionNumber } from "@/components/report/ReportDocument";
-import { REPORT_WORDS, SOURCE_LINE_WORDS } from "@/components/report/words";
+import { REPORT_WORDS } from "@/components/report/words";
 
 /**
  * ONE SECTION OF A PRINTED REPORT: THE MANIFEST'S FRAME AROUND THE PAGE'S BODY.
@@ -17,7 +16,7 @@ import { REPORT_WORDS, SOURCE_LINE_WORDS } from "@/components/report/words";
  * `ReportSection` is a manifest — label, state, summary, reason, sources,
  * sample, evidence — and this plane draws the part of it that belongs beside
  * the figures: the numbered heading with its state, and one line of
- * provenance (sources, sample, evidence). The body is the page's own: figures
+ * provenance (sample, evidence). The body is the page's own: figures
  * drawn from the read model that owns them, with the components the screens
  * use, never composed from the section's fields.
  *
@@ -83,29 +82,12 @@ export function ReportPlane({
         <p className="ox-section-note">{section.reason}</p>
       ) : null}
       {children}
-      {/*
-       * The sample and the evidence stay in view. The source line repeated the
-       * same sentence under every section, so on screen it stands behind the
-       * `i` at the end of this row; on paper, which has no `i`, it prints.
-       */}
+      {/* The sample and the evidence; no source line, on screen or paper (the owner, 2026-10-23). */}
       <div className="ox-alert-foot ox-report-foot">
-        <span className="ox-report-sources">
-          <Sources sources={section.sources} language={language} />
-        </span>
         {section.sampleSize === null ? null : (
           <Sample n={section.sampleSize} noun={section.sampleNoun} />
         )}
         <Evidence evidence={section.evidence} period={period} language={language} />
-        {section.sources.length === 0 ? null : (
-          <InfoTip
-            id={`sources-${section.id}`}
-            label={`${section.label}: ${SOURCE_LINE_WORDS[language].lead}`}
-          >
-            <p>
-              <Sources sources={section.sources} language={language} />
-            </p>
-          </InfoTip>
-        )}
       </div>
     </section>
   );

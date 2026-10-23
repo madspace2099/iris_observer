@@ -1294,14 +1294,13 @@
  * things that a single badge would collapse:
  *
  *   TIER    how strong the claim is.  Observed · Attributed · Pattern.
- *   SOURCE  what kind of fact it rests on, said as one quiet line: "Source:
- *           recorded in the showroom by the IRIS app · deal stages from your
- *           CRM" (`.iris-srcs` in `showroom.css`, ADR-0052). It was a row of
- *           chips here — "IRIS observed", "IRIS calculated", "CRM outcome" —
- *           that the owner could not read; one source has one name on every
- *           screen now, so the source has no rule in this sheet.
+ *   SOURCE  what kind of fact it rests on. Chips first, then a line in words
+ *           ("Source: recorded in the showroom by the IRIS app · …", ADR-0052);
+ *           the owner took the line off every screen and the printed report
+ *           on 2026-10-23. The read models keep the source, the CSV prints it,
+ *           and no rule in this sheet draws it.
  *
- * A screen may show one, the other, or both, but it may never merge them: a UE
+ * A screen may show the tier, but it may never merge it with a source: a UE
  * event proving a legal purchase is exactly the confusion the separation
  * exists to prevent. Observer produces no causal claim, so there is no fourth
  * tier to style.
@@ -1432,26 +1431,6 @@
   flex-wrap: wrap;
   gap: var(--ox-tight) var(--ox-inner);
   align-items: center;
-}
-
-/* On screen a finding's source is its foot's `i` (`FindingList`); paper prints the line. */
-.ox-finding-foot > .ox-finding-sources {
-  display: none;
-}
-
-/* First in the foot, its 16px mark on the text's left edge rather than 8px in. */
-.ox-finding-foot > .iris-info {
-  margin-inline-start: -0.25rem;
-}
-
-@media print {
-  .ox-finding-foot > .ox-finding-sources {
-    display: inline;
-  }
-
-  .ox-finding-foot > .iris-info {
-    display: none;
-  }
 }
 
 /* ============================================================================
@@ -3183,11 +3162,7 @@
   gap: var(--ox-tight);
 }
 
-/*
- * On screen a section's source line is its foot's `i`, and the contents'
- * statement is the head's `i` (`ReportAbout`); paper prints both (below).
- */
-.ox-report-foot > .ox-report-sources,
+/* On screen the contents' statement is the head's `i` (`ReportAbout`); paper prints it (below). */
 .ox-report-toc > .ox-report-statement {
   display: none;
 }
@@ -3726,11 +3701,7 @@
     gap: var(--ox-tight) var(--ox-inner);
   }
 
-  /* Paper has no `i`: the source line and the statement print, and every `i` leaves. */
-  .ox-report-foot > .ox-report-sources {
-    display: inline;
-  }
-
+  /* Paper has no `i`: the statement prints, and every `i` leaves. */
   .ox-report-toc > .ox-report-statement {
     display: block;
   }

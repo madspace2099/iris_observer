@@ -12,42 +12,11 @@
  * None of them is a card, and none of them is a chart library's default.
  */
 
-/* --- provenance, made visible ---------------------------------------------- */
-
 /*
- * The source line (ADR-0052).
- *
- * ADR-0023 lives or dies on the reader being able to see which class of fact a
- * block rests on. That was three chips in the evidence typeface — "IRIS
- * observed", "IRIS calculated", "CRM outcome" — and the owner could not tell
- * what they meant. It is one quiet line in words now ("Source: recorded in the
- * showroom by the IRIS app · deal stages from your CRM"), so the class is told
- * rather than colour-coded. A model-worded source keeps the watch colour: it is
- * the one a reader must not miss. 12px everywhere, the product floor.
+ * No source line (the owner, 2026-10-23, ADR-0052): "Source: recorded in the
+ * showroom by the IRIS app · …" stood under every chart and finding and is off
+ * every screen. The read models keep `sources`; the evidence links stay.
  */
-.iris-srcs {
-  display: block;
-  margin: 0;
-  /* Words, not an evidence id: Manrope even in a finding's monospace foot. */
-  font-family: var(--sans);
-  font-size: 0.75rem;
-  line-height: 1.125rem;
-  color: var(--ink-3);
-}
-
-.iris-srcs > b {
-  font-weight: 600;
-  color: var(--ink-2);
-}
-
-/* On a chart card the line stands off the drawing, sentence or action above it. */
-.d-card .iris-srcs {
-  margin-top: 0.75rem;
-}
-
-.iris-src[data-src="AI_INTERPRETATION"] {
-  color: var(--watch);
-}
 
 /* The synthetic-data banner. Never subtle: the reader must not mistake it. */
 .iris-synthetic {
@@ -86,10 +55,11 @@
   border-top: 1px solid var(--rule);
 }
 
+/* One sentence with its count in it, a step above Body (the owner, 2026-10-23). */
 .iris-finding-statement {
   margin: 0;
-  font-size: 1rem;
-  line-height: 1.4rem;
+  font-size: 1.125rem;
+  line-height: 1.55rem;
   font-weight: 500;
 }
 
@@ -141,28 +111,13 @@
 /*
  * The CTA is not a citation.
  *
- * `.iris-finding-foot`'s mono is right for the source chips, the evidence
- * citation and "n = N meetings" — wrong for `.iris-action`, which renders in
- * Manrope everywhere else this class appears on the same page ("Presentation
- * DNA →", "Build an audience from this"). Measured: inside this foot it
- * inherited mono instead, the one place on Project where the same control
- * class carries two typefaces.
+ * `.iris-finding-foot`'s mono is right for the evidence citation and "n = N
+ * meetings" — wrong for `.iris-action`, which renders in Manrope everywhere
+ * else this class appears ("Presentation DNA →", "Build an audience"). Inside
+ * this foot it inherited mono, on every route that draws a finding.
  */
-.iris-finding[data-plane="true"] .iris-finding-foot .iris-action {
+.iris-finding-foot .iris-action {
   font-family: var(--sans, inherit);
-}
-
-/*
- * Sales Flow opt-in: `Finding` renders on five routes, sharing this one
- * component (see the docblock on `plane` above for the full list). Its
- * evidence citation ("N records · statistical association", `.iris-evidence`
- * in `iris.css`) is 11px, one step below the base scale's 12px floor;
- * forwarded to the finding's own `SourceChips` too via the same prop, so the
- * whole foot reads at one consistent size. Scoped to this flag rather than
- * the shared rule so the other four routes render exactly as before it.
- */
-.iris-finding[data-measured="true"] .iris-evidence {
-  font-size: 0.75rem;
 }
 
 /* On a phone the foot, which carries the sample size the page rules keep on screen, is at the 12px floor. */
@@ -1265,15 +1220,6 @@
   font-size: 0.8125rem;
   line-height: 1.15rem;
   color: var(--ink-2);
-}
-
-/* The source line is one line here too: the panel's `> span` grid broke it at each source. */
-.iris-measure-panel > .iris-srcs {
-  display: block;
-  margin-top: 0;
-  font-size: 0.75rem;
-  line-height: 1.125rem;
-  color: var(--ink-3);
 }
 
 .iris-measure-panel em {

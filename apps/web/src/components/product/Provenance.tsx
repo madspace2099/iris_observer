@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   isProducibleTier,
   type EvidenceTier,
-  type InsightSource,
   type ProducibleEvidenceTier,
 } from "@observer/contracts";
 import {
@@ -15,30 +14,25 @@ import {
 
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
-import { SourceChips } from "@/showroom/sources";
 
 /**
- * PROVENANCE — the two axes, rendered separately because they are separate.
+ * PROVENANCE — the two axes, kept separate because they are separate.
  *
  * `docs/04-journey.md` and `packages/contracts/src/provenance.ts` keep apart two
  * facts about a claim that a single badge would silently merge:
  *
  *   TIER    how strong the claim is.  Observed · Attributed · Pattern.
- *   SOURCE  what kind of fact it rests on, said as one line: "Source: recorded
- *           in the showroom by the IRIS app · deal stages from your CRM".
+ *   SOURCE  what kind of fact it rests on.
  *
- * A surface may show one, the other or both. It may never show a single mark
- * that means both, because the confusion that produces is exactly the one the
- * separation exists to prevent: a showroom event proving a legal purchase.
+ * Only the tier is drawn. The source line ("Source: recorded in the showroom by
+ * the IRIS app · …") stood under every chart and finding until the owner took it
+ * off every screen (2026-10-23, ADR-0052). The read models keep `sources`, the
+ * report's CSV keeps its source column (`INSIGHT_SOURCE_WORDS`), and the evidence links
+ * below still open the records a claim rests on.
  *
- * Neither label is written here as a string literal. The source words are the
- * one vocabulary every surface prints (`SOURCE_LINE_WORDS` in
- * `components/report/words.ts`, drawn by `showroom/sources.tsx`): they were
- * chips reading "IRIS observed", "IRIS calculated", "CRM outcome", which the
- * owner could not read, and since ADR-0052 no screen prints the contract's
- * short `INSIGHT_SOURCE_LABELS`. The tier words come from {@link TIER_LABELS}
- * below, which is the map this layer owns because the contracts package
- * deliberately carries no display strings for tiers.
+ * The tier words come from {@link TIER_LABELS} below, which is the map this
+ * layer owns because the contracts package deliberately carries no display
+ * strings for tiers.
  *
  * ## There is no causal tier and this file cannot draw one
  *
@@ -157,24 +151,6 @@ export function Tier({
       {TIER_WORDS[language][tier]}
     </span>
   );
-}
-
-/**
- * What kind of fact the claim rests on: the showroom blocks' one quiet line,
- * in the page's language, each source in the order the read model gave them.
- *
- * The order is the read model's on purpose. A finding that is observed first and
- * CRM-flavoured second is a different claim from one built the other way round,
- * and re-sorting these alphabetically would erase that.
- */
-export function Sources({
-  sources,
-  language,
-}: {
-  readonly sources: readonly InsightSource[];
-  readonly language: Language;
-}) {
-  return <SourceChips sources={sources} language={language} />;
 }
 
 /**

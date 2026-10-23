@@ -34,7 +34,6 @@ import {
   PageHead,
   PersonCard,
   Sample,
-  Sources,
   Synthetic,
   Tally,
   TallyItem,
@@ -204,7 +203,6 @@ export default async function UnitPage({
           ? `${entry.channelLabel} · ${entry.agentName}`
           : `${what} · ${entry.channelLabel} · ${entry.agentName}`,
       channel: entry.channel,
-      sources: entry.sources,
     };
   });
 
@@ -366,7 +364,6 @@ export default async function UnitPage({
                * gap, and answered here with the view's own reference.
                */}
               <span className="ox-row-states">
-                <Sources language={context.language} sources={detail.attention.sources} />
                 <Evidence language={context.language} evidence={detail.evidence} period={period} />
               </span>
             </div>

@@ -647,12 +647,13 @@ function outcomeFlag(
     const unrecorded = sessions.length - decided.length;
     return {
       severity: "watch",
+      /* The count and its denominator, and nothing after them (the owner, 2026-10-23). */
       text:
         language === "sk"
-          ? `${unrecorded} ${slovakZForm(sessions.length)} ${sessions.length} stretnutí sa ${ended(unrecorded)} bez zaznamenaného výsledku, takže väčšinu z nich nemožno vôbec vyhodnotiť.`
+          ? `${unrecorded} ${slovakZForm(sessions.length)} ${sessions.length} stretnutí sa ${ended(unrecorded)} bez zaznamenaného výsledku.`
           : language === "hu"
-            ? `${sessions.length} találkozóból ${unrecorded} eredmény rögzítése nélkül zárult, így ezek többsége egyáltalán nem értékelhető.`
-            : `${unrecorded} of ${sessions.length} meetings ended with no outcome recorded, so most of these cannot be read at all.`,
+            ? `${sessions.length} találkozóból ${unrecorded} eredmény rögzítése nélkül zárult.`
+            : `${unrecorded} of ${sessions.length} meetings ended with no outcome recorded.`,
       sampleSize: sessions.length,
       measure: "unrecorded",
     };
@@ -672,10 +673,10 @@ function outcomeFlag(
       severity: "concern",
       text:
         language === "sk"
-          ? `${notInterested} ${slovakZForm(decided.length)} ${decided.length} zaznamenaných stretnutí sa ${ended(notInterested)} výsledkom „bez záujmu“ — oplatí sa sledovať samotnú prezentáciu, nielen obchodný lievik.`
+          ? `${notInterested} ${slovakZForm(decided.length)} ${decided.length} zaznamenaných stretnutí sa ${ended(notInterested)} výsledkom „bez záujmu“.`
           : language === "hu"
-            ? `${decided.length} rögzített találkozóból ${notInterested} „nem érdeklődik” eredménnyel zárult — érdemes magát a bemutatót is figyelni, nem csak az értékesítési folyamatot.`
-            : `${notInterested} of ${decided.length} recorded meetings ended "not interested" — worth watching the presentation itself, not only the pipeline.`,
+            ? `${decided.length} rögzített találkozóból ${notInterested} „nem érdeklődik” eredménnyel zárult.`
+            : `${notInterested} of ${decided.length} recorded meetings ended not interested.`,
       sampleSize: decided.length,
       measure: "not_interested",
     };
@@ -848,28 +849,29 @@ interface FlowWords {
   readonly seeMeetings: string;
 }
 
+/*
+ * SHORT, AND THE ESSENCE ONLY (the owner, 2026-10-23). A finding is its
+ * sentence and one line of ten words at most; the sentence carries its count.
+ */
 const FLOW_WORDS: Readonly<Record<Language, FlowWords>> = {
   en: {
     teamBaseline: (share) => `${share} for the team`,
-    flagSoWhat:
-      "A pattern in how meetings end is a prompt to look at how they are run — the presentation, the pacing, what gets shown. It is not a judgement on the person.",
-    unrecordedSoWhat: "Every comparison that uses an outcome leaves these meetings out.",
+    flagSoWhat: "A prompt to look at the meetings, not a verdict.",
+    unrecordedSoWhat: "Rates that use an outcome leave these out.",
     open: (firstName) => `Open ${firstName}`,
     seeMeetings: "See the meetings",
   },
   sk: {
     teamBaseline: (share) => `${share} v tíme`,
-    flagSoWhat:
-      "Ak sa ukáže vzorec v tom, ako sa stretnutia končia, je to dôvod pozrieť sa na ich priebeh: na prezentáciu, tempo aj to, čo sa ukazuje. Nie je to hodnotenie človeka.",
-    unrecordedSoWhat: "Každé porovnanie, ktoré pracuje s výsledkom, tieto stretnutia vynecháva.",
+    flagSoWhat: "Podnet pozrieť sa na stretnutia, nie hodnotenie.",
+    unrecordedSoWhat: "Miery založené na výsledku ich vynechávajú.",
     open: (firstName) => `Otvoriť: ${firstName}`,
     seeMeetings: "Zobraziť stretnutia",
   },
   hu: {
     teamBaseline: (share) => `a csapatban ${share}`,
-    flagSoWhat:
-      "Ha kirajzolódik egy minta abban, hogyan végződnek a találkozók, érdemes megnézni a menetüket: a bemutatót, a tempót és azt, mit mutatnak meg. Ez nem az értékesítő személyének megítélése.",
-    unrecordedSoWhat: "Minden eredményalapú összevetés kihagyja ezeket a találkozókat.",
+    flagSoWhat: "Jelzés, hogy érdemes megnézni a találkozókat, nem ítélet.",
+    unrecordedSoWhat: "Az eredményalapú arányok kihagyják ezeket.",
     open: (firstName) => `${firstName} megnyitása`,
     seeMeetings: "A találkozók megtekintése",
   },

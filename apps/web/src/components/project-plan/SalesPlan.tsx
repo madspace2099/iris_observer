@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
-import type { InsightSource } from "@observer/contracts";
 import type { SalesPlan as SalesPlanModel } from "@observer/readmodels";
 
 import { InfoTip } from "@/components/iris/InfoTip";
-import { SourceChips } from "@/showroom/sources";
 
 import "./plan.css";
 
@@ -30,11 +28,9 @@ import "./plan.css";
  */
 export function SalesPlan({
   plan,
-  sources,
   editor,
 }: {
   readonly plan: SalesPlanModel;
-  readonly sources: readonly InsightSource[];
   /** The company admin's control for the two dates, or a line saying who sets them; null for nothing. */
   readonly editor: ReactNode;
 }) {
@@ -135,8 +131,6 @@ export function SalesPlan({
           {editor}
         </div>
       </div>
-
-      <SourceChips sources={sources} measured />
     </section>
   );
 }

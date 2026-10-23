@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SourceChips } from "./sources";
 import { defineMeasurement, type MeasurementIcon } from "@observer/readmodels";
 
 /**
@@ -128,7 +127,6 @@ export function Measure({
             <em>What it does not say</em>
             {definition.limitation}
           </span>
-          <SourceChips sources={definition.sources} />
         </span>
       ) : null}
     </span>

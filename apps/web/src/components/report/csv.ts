@@ -35,7 +35,7 @@ export interface FigureRow {
   readonly value: string;
   /** The figure's own denominator, the section's sample, or empty for a sentence. */
   readonly denominator: string;
-  /** The source line's words (`SOURCE_LINE_WORDS`), in the read model's order. */
+  /** The sources' words (`INSIGHT_SOURCE_WORDS`), in the read model's order. */
   readonly sources: string;
 }
 

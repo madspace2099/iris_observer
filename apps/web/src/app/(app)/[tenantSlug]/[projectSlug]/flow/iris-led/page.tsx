@@ -14,7 +14,6 @@ import { portraitSources } from "@/lib/portraits/server";
 import { IrisLedLegend, IrisLedTimeline } from "@/components/flow/IrisLedTimeline";
 import { DataTable } from "@/components/product/DataTable";
 import { Empty } from "@/components/product/Absence";
-import { SourceChips } from "@/showroom/parts";
 import { KpiCard } from "@/showroom/charts2";
 import "@/components/flow/iris-led.css";
 
@@ -320,7 +319,6 @@ export default async function IrisLedPage({
                   ))}
                 </ul>
               )}
-              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
               <p style={{ marginTop: ".75rem" }}>
                 <Link
                   className="ox-btn"

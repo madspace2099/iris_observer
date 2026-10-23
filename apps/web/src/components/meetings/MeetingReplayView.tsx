@@ -8,7 +8,7 @@ import type {
 import { ExportReport } from "@/components/report";
 
 import { AgentName } from "@/components/agents/Portrait";
-import { Evidence, PageHead, Sources, Synthetic } from "@/components/product";
+import { Evidence, PageHead, Synthetic } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { withMeetingFilters } from "./filters";
@@ -175,13 +175,12 @@ export function MeetingReplayView({
            * catalogue laid beside the session inside `buildMeetingReplay`; this
            * component draws the two sentences it was handed and computes nothing.
            * They are derived exactly as the headline is, and the one title and
-           * one source chip below cover all three.
+           * evidence link below cover all three.
            */}
           <p className="ox-lede">{replay.unitsViewed.sentence}</p>
           <p className="ox-lede">{replay.unitsViewed.interest.sentence}</p>
 
           <div className="ox-finding-foot">
-            <Sources language={replay.context.language} sources={["IRIS_SHOWROOM_DERIVED"]} />
             <Evidence
               language={replay.context.language}
               evidence={replay.evidence}

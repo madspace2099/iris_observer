@@ -32,7 +32,6 @@ import {
   FindingList,
   PageHead,
   Sample,
-  Sources,
   Synthetic,
   Tally,
   TallyItem,
@@ -230,12 +229,7 @@ export async function AgentReport({
               key={outcome.outcome}
               label={outcome.label}
               value={<Figure value={outcome.metric} language={language} />}
-              evidence={
-                <>
-                  <Tier tier={outcome.tier} language={language} />
-                  <Sources sources={outcome.sources} language={language} />
-                </>
-              }
+              evidence={<Tier tier={outcome.tier} language={language} />}
             />
           ))}
         </Tally>

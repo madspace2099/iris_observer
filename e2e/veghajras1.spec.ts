@@ -167,10 +167,8 @@ async function standsOnRecordedPlace(page: Page): Promise<number> {
     .evaluateAll((els) => els.map((e) => e.getAttribute("title") ?? ""));
   expect(why).toHaveLength(n);
   for (const w of why) expect(w, "a row stands on units alone").toMatch(/ · .+ \d+s$/);
-  /* The source is said once, above the list; a row speaks only of a place the showroom does not record whole. */
-  await expect(
-    page.locator("main .iris-srcs", { hasText: "Source: recorded in the showroom by the IRIS app" }),
-  ).toHaveCount(1);
+  /* No source line since the owner's decision (2026-10-23); a row speaks only of a place the showroom does not record whole. */
+  await expect(page.locator("main", { hasText: "Source:" })).toHaveCount(0);
   await expect(page.locator(".iris-audience-basis")).toHaveCount(0);
   await expect(page.locator('.iris-matrix[data-columns="audience"] a.iris-matrix-row[href*="/meetings/"]')).toHaveCount(n);
   return n;

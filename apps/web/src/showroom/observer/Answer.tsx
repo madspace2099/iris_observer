@@ -1,6 +1,5 @@
 "use client";
 
-import { SourceChips } from "../sources";
 import { SETTINGS_PATH } from "@/lib/credentials/failure";
 
 /**
@@ -255,8 +254,6 @@ export function ObserverAnswerPanel({
                 ))}
               </ul>
             )}
-
-            <SourceChips sources={outcome.sources} />
 
             <div className="obs-answer-refs">
               {answer.evidence.map((bundle) => {

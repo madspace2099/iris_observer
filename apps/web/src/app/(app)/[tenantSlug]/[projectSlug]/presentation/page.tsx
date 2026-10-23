@@ -7,7 +7,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
-import { DnaLane, Finding, Gaps, SourceChips, shortCode } from "@/showroom/parts";
+import { DnaLane, Finding, Gaps, shortCode } from "@/showroom/parts";
 import { DrawIn } from "@/showroom/DrawIn";
 import { InfoTip } from "@/components/iris/InfoTip";
 import { AgentPortrait, type PortraitSize } from "@/components/agents/Portrait";
@@ -319,9 +319,6 @@ export default async function PresentationPage({
                     : ` Refused: ${view.context.attribution.comparisonRefusal}`
                   : ""}
               </p>
-              <div style={{ marginTop: ".5rem" }}>
-                <SourceChips sources={comparison.differences[0]?.sources ?? []} />
-              </div>
             </div>
 
             {/* An association, never a cause: one line in sight, no box round it. */}

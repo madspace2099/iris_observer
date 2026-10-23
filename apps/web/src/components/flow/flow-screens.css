@@ -623,7 +623,7 @@ html:has(.iris-salesflow) {
  * spreads its rows down the screen (the ladder's way, above), the weekly line
  * and the month rows stand in the middle of their halves, and the figures of
  * "What changed" and the not-interested group stand in the middle of what the
- * title and the source line leave, the source at the screen's foot.
+ * title leaves.
  */
 .iris-salesflow :is(#flow-stalled, #flow-presentations > div, #flow-assisted > .d-card) > .dld-draw,
 .iris-salesflow :is(#flow-stalled, #flow-presentations, #flow-assisted) .dld-draw-body {
@@ -838,6 +838,23 @@ html:has(.iris-salesflow) {
   justify-content: center;
 }
 
+/*
+ * A finding is one large sentence, its count inside it, and one short line
+ * (the owner, 2026-10-23): at Body size and three lines each, two filled the
+ * screen; at this size, four fit it.
+ */
+.iris-salesflow .flow-findings .iris-finding-statement {
+  max-width: 40ch;
+  font-size: clamp(1.375rem, 0.95rem + 1.1vw, 2rem);
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.iris-salesflow .flow-findings .iris-finding-so-what {
+  font-size: 1.125rem;
+  line-height: 1.6rem;
+}
+
 /* The page's stack gap parts the screens; a screen fills the viewport, so it is never seen beside the next. */
 .iris-salesflow .iris-stack > .flow-screen + .flow-screen {
   margin-top: 1.5rem;
@@ -892,16 +909,11 @@ html:has(.iris-salesflow) {
   text-wrap: balance;
 }
 
-/* A finding's sample is the page rule's own figure: the 12px floor, not 11. */
-.iris-salesflow .iris-finding-foot {
-  font-size: 0.75rem;
-}
-
 /*
- * IRIS-assisted sales and the lens: the source and the way on on one line,
- * and on IRIS-assisted sales the note on what cannot be placed one line wide,
- * so the screen fits 1280 × 720 with its way on in view (review, 2026-10-23
- * and round 9).
+ * IRIS-assisted sales and the lens: the way on closes the card, and on
+ * IRIS-assisted sales the note on what cannot be placed is one line wide, so
+ * the screen fits 1280 × 720 with its way on in view (review, 2026-10-23 and
+ * round 9).
  */
 .iris-salesflow .flow-foot {
   display: flex;
@@ -910,10 +922,6 @@ html:has(.iris-salesflow) {
   justify-content: space-between;
   gap: 0.75rem 1.5rem;
   margin-top: 0.875rem;
-}
-
-.iris-salesflow .flow-foot > .iris-srcs {
-  margin-top: 0;
 }
 
 .iris-salesflow #flow-assisted .iris-meta {

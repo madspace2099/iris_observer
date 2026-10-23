@@ -20,14 +20,12 @@ export async function SalesPlanBlock({
   tenant,
   tenantSlug,
   projectSlug,
-  crmConnected,
 }: {
   readonly plan: SalesPlanModel;
   readonly role: Viewer["role"];
   readonly tenant: { readonly name: string };
   readonly tenantSlug: string;
   readonly projectSlug: string;
-  readonly crmConnected: boolean;
 }) {
   const account = await currentAccount();
   const admin = account !== null && maySetSalesWindow(role, companyOf(account), tenant);
@@ -43,7 +41,5 @@ export async function SalesPlanBlock({
     <p className="iris-plan-note">The admin of {tenant.name} sets the sell-out date.</p>
   ) : null;
 
-  return (
-    <SalesPlan plan={plan} sources={crmConnected ? ["CRM_OUTCOME_CONTEXT"] : []} editor={editor} />
-  );
+  return <SalesPlan plan={plan} editor={editor} />;
 }

@@ -399,13 +399,10 @@ describe("the Hybrid Executive token system", () => {
     expect(CODE).toContain('.ox-tier[data-tier="attributed_conversion"]');
     expect(CODE).toContain('.ox-tier[data-tier="statistical_association"]');
     /*
-     * The source is no chip here since ADR-0052's second round: every screen
-     * prints the showroom's one source line, whose sheet keeps the one source
-     * a reader must not miss — a model's wording — in its own colour.
+     * The source is drawn by no rule: a chip until ADR-0052, a line in words
+     * after it, and off every screen since the owner's decision of 2026-10-23.
      */
-    expect(readFileSync(join(UI, "showroom.css"), "utf8")).toContain(
-      '.iris-src[data-src="AI_INTERPRETATION"]',
-    );
+    expect(readFileSync(join(UI, "showroom.css"), "utf8")).not.toContain(".iris-src");
 
     /*
      * Observer produces no causal claim — StatementSchema refuses one and

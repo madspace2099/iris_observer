@@ -319,11 +319,6 @@
   }
 }
 
-/* The named places' source a step under the places, as every other source line stands. */
-.pr-page #project-search .iris-places + .iris-srcs {
-  margin-top: 0.75rem;
-}
-
 /*
  * The findings close the page, the lead one's sentence a step above Body, as
  * on the agents' workload screen (ADR-0061). Their own padding and hairline
@@ -345,7 +340,7 @@
 
 /*
  * A short desktop window: the cards' padding, the rows and the gaps closer,
- * so each screen fits the view with its source line in sight. Every row,
+ * so each screen fits the view with its last line in sight. Every row,
  * figure and sentence stays. The searches with the places and the findings
  * do not grow with the screen (Shark's 690px and 675px, Riverside's searches
  * 756px at 1280 wide), so this holds until a window leaves them that much

@@ -23,7 +23,6 @@ import {
   FindingList,
   PageHead,
   Sample,
-  Sources,
   Synthetic,
   Tally,
   TallyItem,
@@ -541,7 +540,6 @@ export default async function AgentPage({
                     evidence={
                       <>
                         <Tier language={view.context.language} tier={outcome.tier} />
-                        <Sources language={view.context.language} sources={outcome.sources} />
                         {outcome.metric.evidence === null ? null : (
                           <Evidence
                             language={view.context.language}

@@ -1,7 +1,6 @@
 import type { Language, EvidenceRef, PeriodPreset, SourceKind } from "@observer/readmodels";
-import type { InsightSource } from "@observer/contracts";
 
-import { Evidence, Sources } from "./Provenance";
+import { Evidence } from "./Provenance";
 
 export interface TimelineStep {
   readonly id: string;
@@ -24,7 +23,6 @@ export interface TimelineStep {
    */
   readonly channel?: SourceKind | null;
   readonly evidence?: EvidenceRef | null;
-  readonly sources?: readonly InsightSource[];
 }
 
 /**
@@ -72,21 +70,10 @@ export function Timeline({
 }) {
   if (steps.length === 0) return null;
 
-  /*
-   * A source every step shares is said once, under the list, not fifteen times
-   * down it: the source line is a sentence now (ADR-0052), and repeating one
-   * sentence down a region is the failure `docs/12` §9 records for an
-   * unavailable source. Steps from two feeds keep a line each.
-   */
-  const first = (steps[0]?.sources ?? []).join();
-  const shared = steps.every((step) => (step.sources ?? []).join() === first)
-    ? (steps[0]?.sources ?? [])
-    : null;
-
-  const list = (
+  /* No source line, on a step or under the list (the owner, 2026-10-23, ADR-0052). */
+  return (
     <ol className="ox-time" aria-label={label}>
       {steps.map((step) => {
-        const sources = shared === null ? (step.sources ?? []) : [];
         const evidence = step.evidence ?? null;
         const detail = step.detail ?? null;
         const channel = step.channel ?? null;
@@ -106,12 +93,9 @@ export function Timeline({
             <div className="ox-time-body">
               <p className="ox-time-label">{step.label}</p>
               {detail === null ? null : <p className="ox-time-detail">{detail}</p>}
-              {sources.length === 0 && evidence === null ? null : (
+              {evidence === null ? null : (
                 <div className="ox-time-foot">
-                  <Sources language={language} sources={sources} />
-                  {evidence === null ? null : (
-                    <Evidence language={language} evidence={evidence} period={period} />
-                  )}
+                  <Evidence language={language} evidence={evidence} period={period} />
                 </div>
               )}
             </div>
@@ -119,14 +103,5 @@ export function Timeline({
         );
       })}
     </ol>
-  );
-  if (shared === null || shared.length === 0) return list;
-  return (
-    <>
-      {list}
-      <div className="ox-time-foot">
-        <Sources language={language} sources={shared} />
-      </div>
-    </>
   );
 }

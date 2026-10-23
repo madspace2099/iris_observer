@@ -10,7 +10,7 @@ import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { AgentPortrait } from "@/components/agents/Portrait";
 import { PresenterBars, seatTones } from "@/components/agents/PresenterBars";
 import { portraitSources } from "@/lib/portraits/server";
-import { Finding, SourceChips } from "@/showroom/parts";
+import { Finding } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { CoachingChart } from "@/showroom/CoachingChart";
 import { DrawIn } from "@/showroom/DrawIn";
@@ -390,14 +390,6 @@ export default async function AgentsPage({
                 </div>
               </div>
 
-              {/*
-            Named where it contributed, and the CRM contributes nothing here. The
-            rings, the flags and the findings are the outcomes agents recorded in
-            the room, the showroom's own record (docs/06; the sweep that took the
-            same chip off the agent's page, 83d3e72). A CRM chip on a connected
-            project credited it with figures it never touched.
-          */}
-              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
               {view.findings.map((finding, index) => (
                 <Finding
                   key={finding.id}
@@ -529,8 +521,6 @@ function Coaching({
             {faces(undrawn)}
           </div>
         )}
-
-        <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
       </section>
     </div>
   );

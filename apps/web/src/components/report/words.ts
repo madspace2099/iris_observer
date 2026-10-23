@@ -330,49 +330,35 @@ export const REPORT_DOCUMENT_WORDS: Readonly<Record<Language, ReportDocumentWord
 /**
  * WHERE A FIGURE COMES FROM, IN A SALES DIRECTOR'S WORDS (ADR-0052).
  *
- * One vocabulary for every surface that names a source: the showroom blocks'
- * line (`showroom/sources.tsx`), the `Sources` of every other screen and of the
- * printed report (`components/product/Provenance.tsx`), and the CSV's source
- * column. Here, with the report's other words, because the report prints them
- * in its own language. The contract's `INSIGHT_SOURCE_LABELS` is frozen and
- * keeps its short names; no screen prints them. A source's words stand alone,
- * since a line may name any one of them.
+ * The CSV's source column, in the report's language. Every screen and the
+ * printed report also said these words as a "Source: …" line until the owner
+ * took the line off them (2026-10-23); the export keeps the column, because a
+ * file someone filters is where the source is a datum rather than a footnote.
+ * The contract's `INSIGHT_SOURCE_LABELS` is frozen and keeps its short names.
  */
-export const SOURCE_LINE_WORDS: Readonly<
-  Record<
-    Language,
-    { readonly lead: string; readonly words: Readonly<Record<InsightSource, string>> }
-  >
+export const INSIGHT_SOURCE_WORDS: Readonly<
+  Record<Language, Readonly<Record<InsightSource, string>>>
 > = {
   en: {
-    lead: "Source",
-    words: {
-      IRIS_SHOWROOM_OBSERVED: "recorded in the showroom by the IRIS app",
-      IRIS_SHOWROOM_DERIVED: "calculated by Observer from showroom recordings",
-      CRM_OUTCOME_CONTEXT: "deal stages from your CRM",
-      WEBIRIS_CONTEXT: "website visits from WEBIRIS",
-      AI_INTERPRETATION: "worded by an AI model",
-    },
+    IRIS_SHOWROOM_OBSERVED: "recorded in the showroom by the IRIS app",
+    IRIS_SHOWROOM_DERIVED: "calculated by Observer from showroom recordings",
+    CRM_OUTCOME_CONTEXT: "deal stages from your CRM",
+    WEBIRIS_CONTEXT: "website visits from WEBIRIS",
+    AI_INTERPRETATION: "worded by an AI model",
   },
   sk: {
-    lead: "Zdroj",
-    words: {
-      IRIS_SHOWROOM_OBSERVED: "zaznamenané v showroome aplikáciou IRIS",
-      IRIS_SHOWROOM_DERIVED: "vypočítané Observerom zo záznamov zo showroomu",
-      CRM_OUTCOME_CONTEXT: "fázy obchodov z vášho CRM",
-      WEBIRIS_CONTEXT: "návštevy webu z WEBIRIS",
-      AI_INTERPRETATION: "sformuloval model AI",
-    },
+    IRIS_SHOWROOM_OBSERVED: "zaznamenané v showroome aplikáciou IRIS",
+    IRIS_SHOWROOM_DERIVED: "vypočítané Observerom zo záznamov zo showroomu",
+    CRM_OUTCOME_CONTEXT: "fázy obchodov z vášho CRM",
+    WEBIRIS_CONTEXT: "návštevy webu z WEBIRIS",
+    AI_INTERPRETATION: "sformuloval model AI",
   },
   hu: {
-    lead: "Forrás",
-    words: {
-      IRIS_SHOWROOM_OBSERVED: "a showroomban rögzítette az IRIS alkalmazás",
-      IRIS_SHOWROOM_DERIVED: "az Observer számolta a showroom-rögzítésekből",
-      CRM_OUTCOME_CONTEXT: "üzleti szakaszok a CRM-ből",
-      WEBIRIS_CONTEXT: "weboldal-látogatások a WEBIRIS-ből",
-      AI_INTERPRETATION: "MI-modell fogalmazta",
-    },
+    IRIS_SHOWROOM_OBSERVED: "a showroomban rögzítette az IRIS alkalmazás",
+    IRIS_SHOWROOM_DERIVED: "az Observer számolta a showroom-rögzítésekből",
+    CRM_OUTCOME_CONTEXT: "üzleti szakaszok a CRM-ből",
+    WEBIRIS_CONTEXT: "weboldal-látogatások a WEBIRIS-ből",
+    AI_INTERPRETATION: "MI-modell fogalmazta",
   },
 };
 

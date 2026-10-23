@@ -25,16 +25,13 @@ function block(title: string): string {
 describe("Sales Flow's agents block", () => {
   /*
    * The rows, the rates and the flags read the outcome the agent recorded in
-   * the room. With the sources said in words, the CRM's place under them read
-   * "deal stages from your CRM" on every CRM-connected project — a false
-   * sentence, which the Sales Agents roster had already been cleared of.
+   * the room; the CRM was once named under them, a false sentence. Since the
+   * owner took the source line off every screen (2026-10-23) no block names one.
    */
-  it("names the showroom as its source, and never the CRM", () => {
+  it("names no source, and never the CRM", () => {
     const agents = block("How each agent&rsquo;s meetings end");
     expect(agents).not.toContain("CRM_OUTCOME_CONTEXT");
-    expect(agents).toMatch(
-      /<SourceChips\s+sources=\{\["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"\]\}/,
-    );
+    expect(agents).not.toContain("SourceChips");
   });
 });
 
