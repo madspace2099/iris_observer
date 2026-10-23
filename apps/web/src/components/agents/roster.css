@@ -310,6 +310,17 @@
   color: var(--d-ink-3, var(--ink-2));
 }
 
+/* The agent's dot before their name, as the rows draw it: the key's colour (ADR-0061, review round). */
+.ag-coach-dot {
+  display: inline-block;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-right: 0.4375rem;
+  border-radius: 50%;
+  background: var(--tone);
+  vertical-align: -0.0625rem;
+}
+
 .ag-coach-key li[data-lifted="true"] b {
   text-decoration: underline;
   text-underline-offset: 3px;

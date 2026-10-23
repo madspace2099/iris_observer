@@ -17,7 +17,7 @@ import { DrawIn } from "./DrawIn";
  * show. One chart now: a row per part of the showroom, a dot per agent at the
  * share of their own meetings that used it, the rows from the widest gap to
  * the narrowest. The three widest name who sits at each end, face and figure,
- * under the row they belong to. Every figure arrives from the read model
+ * under the row they belong to, each name after its dot. Every figure arrives from the read model
  * (`PresenterComparison`); nothing here counts.
  *
  * The key is the interaction. Pressing a name (a tap, a click, Space or
@@ -38,6 +38,16 @@ export interface CoachingPerson {
   readonly href: string;
   /** From `portraitSources`; null draws the initials. */
   readonly portrait: string | null;
+}
+
+/**
+ * The agent's dot as the rows draw it: the key's colour. The portrait is a plain
+ * circle (ADR-0054, 2026-10-23), so a face no longer says which dot is whose.
+ */
+function Dot({ tone }: { readonly tone: string }) {
+  return (
+    <i className="ag-coach-dot" style={{ "--tone": tone } as CSSProperties} aria-hidden="true" />
+  );
 }
 
 /** A tone faded back, for every agent but the one being pointed at. */
@@ -79,6 +89,10 @@ function End({
         );
       })}
       <span>
+        {end.agentIds.map((id) => {
+          const person = people.get(id);
+          return person === undefined ? null : <Dot key={id} tone={person.tone} />;
+        })}
         <b>{end.names}</b> {end.share} <em>{end.of}</em>
       </span>
     </span>
@@ -120,7 +134,10 @@ export function CoachingChart({
             >
               <AgentPortrait name={p.name} src={p.portrait} tone={p.tone} size="row" alt="" />
               <span>
-                <b>{p.name}</b>
+                <b>
+                  <Dot tone={p.tone} />
+                  {p.name}
+                </b>
                 <em>{p.meetings}</em>
               </span>
             </button>

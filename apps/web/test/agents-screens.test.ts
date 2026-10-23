@@ -46,6 +46,14 @@ describe("the roster and Coaching", () => {
     for (const id of drawn) expect(ROSTER).toMatch(new RegExp(`"screen [^"]*"\\s+id="${id}"`));
   });
 
+  it("gives every name in Coaching's key and ends the dot the rows draw for it (review round)", () => {
+    const chart = source("src/showroom/CoachingChart.tsx");
+    expect(chart).toMatch(/<b>\s*<Dot tone=\{p\.tone\} \/>\s*\{p\.name\}/);
+    expect(chart).toMatch(
+      /<Dot key=\{id\} tone=\{person\.tone\} \/>[\s\S]*?<b>\{end\.names\}<\/b>/,
+    );
+  });
+
   it("opens on the verdict and the two tabs, nothing else", () => {
     const at = ROSTER.indexOf('id="agents-verdict"');
     const verdict = ROSTER.slice(at, ROSTER.indexOf('className="screen', at));
