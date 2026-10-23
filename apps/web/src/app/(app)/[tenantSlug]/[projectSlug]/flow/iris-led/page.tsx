@@ -8,6 +8,7 @@ import { requireSurface } from "@/lib/authz";
 import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { portraitSources } from "@/lib/portraits/server";
 import { IrisLedLegend, IrisLedTimeline } from "@/components/flow/IrisLedTimeline";
@@ -79,14 +80,19 @@ export default async function IrisLedPage({
           replay={period}
         />
 
+        {/*
+         * The headline says the rule in a line; how it is counted and what it
+         * does not say stand behind the one control (review, 2026-10-23: the
+         * definition was a six-line paragraph under the headline, eight on a phone).
+         */}
         <div className="ir-led-define">
-          <p className="iris-lede">{view.definition}</p>
           <details className="ir-led-info">
             <summary>
               <b aria-hidden="true">i</b>
-              What this does not say
+              How it is counted, and what it does not say
             </summary>
             <div className="ir-led-info-panel">
+              <p>{view.definition}</p>
               <p>{view.caveat}</p>
             </div>
           </details>
@@ -117,12 +123,23 @@ export default async function IrisLedPage({
               )
             ) : (
               <div className="d-card">
-                <h2
-                  className="iris-kicker iris-kicker-measured"
-                  style={{ marginBottom: ".875rem" }}
-                >
-                  {view.context.period.label}: the sales against their showings
-                </h2>
+                {/*
+                 * What the figures leave out and the Sales Flow card's other
+                 * frame stand behind the title's `i`, one press from the figures
+                 * they qualify; each figure's own denominator stays under it.
+                 */}
+                <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+                  <h2 className="iris-kicker iris-kicker-measured">
+                    {view.context.period.label}: the sales against their showings
+                  </h2>
+                  {view.unplacedNote === null && view.frameNote === null ? null : (
+                    <InfoTip id="led-figures" label="these figures">
+                      {[view.unplacedNote, view.frameNote].map((note) =>
+                        note === null ? null : <p key={note}>{note}</p>,
+                      )}
+                    </InfoTip>
+                  )}
+                </header>
                 <div className="iris-kpis ir-led-figures">
                   {view.figures.map((figure) => (
                     <KpiCard
@@ -135,18 +152,6 @@ export default async function IrisLedPage({
                     />
                   ))}
                 </div>
-                {/* Beside the figures, never under the last card: what they leave out, and the card's other frame. */}
-                {[view.unplacedNote, view.frameNote].map((note) =>
-                  note === null ? null : (
-                    <p
-                      key={note}
-                      className="iris-meta iris-meta-measured"
-                      style={{ marginTop: ".75rem" }}
-                    >
-                      {note}
-                    </p>
-                  ),
-                )}
               </div>
             )}
 
@@ -183,7 +188,6 @@ export default async function IrisLedPage({
                     { key: "last", label: "Last shown" },
                     { key: "gap", label: "Last showing to change" },
                     { key: "agents", label: "Shown by" },
-                    { key: "meetings", label: "Meetings" },
                     { key: "rule", label: `Within ${String(view.counts.windowHours)} h` },
                   ]}
                   rows={view.sales.map((sale) => ({
@@ -197,36 +201,36 @@ export default async function IrisLedPage({
                             {sale.unitCode}
                           </Link>
                         ),
+                      /*
+                       * The caption says each date is the CRM's where it states
+                       * one, so only a date a sync first saw is marked: "the
+                       * CRM's date" under all nineteen rows said the caption
+                       * nineteen times (review, 2026-10-23).
+                       */
                       change: (
                         <>
-                          {sale.changeLabel} · {sale.changeDisplay}
-                          <br />
-                          <span className="iris-code">{sale.dateWhose}</span>
+                          <span className="ir-led-nowrap">
+                            {sale.changeLabel} · {sale.changeDisplay}
+                          </span>
+                          {sale.source === "crm_deal" && sale.dateBasis === "crm_stated" ? null : (
+                            <>
+                              <br />
+                              <span className="iris-code">{sale.dateWhose}</span>
+                            </>
+                          )}
                         </>
                       ),
-                      showings: sale.showingsDisplay,
-                      first: sale.firstShownDisplay,
-                      last: sale.lastShownDisplay,
-                      gap: sale.gapDisplay,
-                      agents: (
-                        <span className="ir-led-agents">
-                          {sale.agents.map((agent) =>
-                            agent.href === null ? (
-                              <span key={agent.id}>{agent.name}</span>
-                            ) : (
-                              <Link key={agent.id} href={link(agent.href)}>
-                                {agent.name}
-                              </Link>
-                            ),
-                          )}
-                        </span>
-                      ),
-                      meetings: (
+                      /*
+                       * The count in the row, and how it splits about the period
+                       * with the meetings themselves one press away: the split
+                       * ("15: 6 in the period, 9 before it") made every row three
+                       * to five lines, and a second column counted the same
+                       * meetings again (review, 2026-10-23).
+                       */
+                      showings: (
                         <details className="ir-led-meetings">
-                          <summary>
-                            {sale.showings.length}{" "}
-                            {sale.showings.length === 1 ? "meeting" : "meetings"}
-                          </summary>
+                          <summary title={sale.showingsDisplay}>{sale.showings.length}</summary>
+                          <p>{sale.showingsDisplay}</p>
                           <ul>
                             {sale.showings.map((showing) => (
                               <li key={showing.meetingId}>
@@ -243,6 +247,22 @@ export default async function IrisLedPage({
                           </ul>
                         </details>
                       ),
+                      first: sale.firstShownDisplay,
+                      last: sale.lastShownDisplay,
+                      gap: sale.gapDisplay,
+                      agents: (
+                        <span className="ir-led-agents">
+                          {sale.agents.map((agent) =>
+                            agent.href === null ? (
+                              <span key={agent.id}>{agent.name}</span>
+                            ) : (
+                              <Link key={agent.id} href={link(agent.href)}>
+                                {agent.name}
+                              </Link>
+                            ),
+                          )}
+                        </span>
+                      ),
                       rule: sale.verdictLabel,
                     },
                   }))}
@@ -250,45 +270,49 @@ export default async function IrisLedPage({
               </div>
             )}
 
-            {view.counts.sales === 0 ? null : (
-              <div className="d-card">
-                <h2
-                  className="iris-kicker iris-kicker-measured"
-                  style={{ marginBottom: ".875rem" }}
-                >
-                  Sales the showroom never showed
-                </h2>
-                <p className="iris-meta iris-meta-measured" style={{ marginBottom: ".75rem" }}>
-                  {view.neverShownNote}
-                </p>
-                {view.neverShown.length === 0 ? null : (
-                  <ul className="ir-led-never">
-                    {view.neverShown.map((sale) => (
-                      <li key={sale.id}>
-                        <span className="ir-led-unit">
-                          {sale.unitHref === null ? (
-                            sale.unitCode
-                          ) : (
-                            <Link prefetch={false} href={link(sale.unitHref)}>
-                              {sale.unitCode}
-                            </Link>
-                          )}
-                        </span>
-                        <span>
-                          {sale.changeLabel} · {sale.changeDisplay}. {sale.statement}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-
+            {/*
+             * The sales the showroom never showed, and where every sale here was
+             * read, are one card (review, 2026-10-23): two cards closed the page
+             * with the same thirty-word sentence on the demonstration CRM. With
+             * sales, the never-shown note says it and the reading note stands
+             * behind the title's `i`; with none, the reading note is the card.
+             */}
             <div className="d-card">
-              <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
-                Where these sales were read
-              </h2>
-              <p className="iris-meta iris-meta-measured">{view.source.note}</p>
+              <header className="iris-titled" style={{ marginBottom: ".875rem" }}>
+                <h2 className="iris-kicker iris-kicker-measured">
+                  {view.counts.sales === 0
+                    ? "Where these sales were read"
+                    : "Sales the showroom never showed"}
+                </h2>
+                {view.counts.sales === 0 ? null : (
+                  <InfoTip id="led-read" label="where these sales were read">
+                    {view.source.note}
+                  </InfoTip>
+                )}
+              </header>
+              <p className="iris-meta iris-meta-measured" style={{ marginBottom: ".75rem" }}>
+                {view.counts.sales === 0 ? view.source.note : view.neverShownNote}
+              </p>
+              {view.neverShown.length === 0 ? null : (
+                <ul className="ir-led-never">
+                  {view.neverShown.map((sale) => (
+                    <li key={sale.id}>
+                      <span className="ir-led-unit">
+                        {sale.unitHref === null ? (
+                          sale.unitCode
+                        ) : (
+                          <Link prefetch={false} href={link(sale.unitHref)}>
+                            {sale.unitCode}
+                          </Link>
+                        )}
+                      </span>
+                      <span>
+                        {sale.changeLabel} · {sale.changeDisplay}. {sale.statement}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
               <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
               <p style={{ marginTop: ".75rem" }}>
                 <Link

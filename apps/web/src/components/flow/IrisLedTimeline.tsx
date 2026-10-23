@@ -141,9 +141,11 @@ function Timeline({
                 <span className="ir-led-change">
                   {sale.changeLabel} · {sale.changeDisplay}
                 </span>
+                {/* The rule's verdict on a line of its own: run on, "earlier" wrapped alone (review, 2026-10-23). */}
                 <span className="ir-led-meta">
-                  {sale.showings.length} shown · last {sale.gapDisplay} before · {sale.verdictLabel}
+                  {sale.showings.length} shown · last {sale.gapDisplay} before
                 </span>
+                <span className="ir-led-meta">{sale.verdictLabel}</span>
               </div>
               <div className="ir-led-track">
                 <i

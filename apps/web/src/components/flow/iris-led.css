@@ -406,6 +406,27 @@ a.ir-led-dot:focus-visible {
   gap: 0.25rem 0.75rem;
 }
 
+/* A status change stays on one line: "Purchase · 22 / Aug" broke the date itself. */
+.ir-led-nowrap {
+  white-space: nowrap;
+}
+
+.ir-led-meetings > p {
+  margin: 0.375rem 0 0;
+  color: var(--ox-ink-3);
+}
+
+/*
+ * On a phone's stacked table the presenters always stand under their label,
+ * read from the left: beside it when they fitted and under it when they did
+ * not, the same column was aligned two ways (review, 2026-10-23).
+ */
+@media screen and (width <= 48rem) {
+  .ox-table td > .ir-led-agents {
+    flex: 1 0 100%;
+  }
+}
+
 .ir-led-agents a,
 .ir-led-meetings a {
   color: inherit;
