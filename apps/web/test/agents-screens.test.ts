@@ -34,13 +34,7 @@ describe("the roster and Coaching", () => {
   it("draws every screen the rail lists, and lists every screen it draws", () => {
     const { listed, drawn } = screens(ROSTER, "agents");
     expect(new Set(listed)).toEqual(
-      new Set([
-        "agents-verdict",
-        "agents-cards",
-        "agents-workload",
-        "agents-findings",
-        "agents-coaching",
-      ]),
+      new Set(["agents-verdict", "agents-cards", "agents-workload", "agents-coaching"]),
     );
     expect(new Set(drawn)).toEqual(new Set(listed));
     for (const id of drawn) expect(ROSTER).toMatch(new RegExp(`"screen [^"]*"\\s+id="${id}"`));

@@ -10,7 +10,7 @@ import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { AgentPortrait } from "@/components/agents/Portrait";
 import { PresenterBars, seatTones } from "@/components/agents/PresenterBars";
 import { portraitSources } from "@/lib/portraits/server";
-import { Finding, Gaps, SourceChips } from "@/showroom/parts";
+import { Finding, SourceChips } from "@/showroom/parts";
 import { OutcomeKey, OutcomeRing } from "@/showroom/charts";
 import { CoachingChart } from "@/showroom/CoachingChart";
 import { DrawIn } from "@/showroom/DrawIn";
@@ -119,11 +119,11 @@ export default async function AgentsPage({
   /*
    * ONE SCREEN AT A TIME (the owner, 2026-10-23, ADR-0061): Sales Flow's
    * screens (ADR-0059) on this page too. The verdict and the tabs; the
-   * presenters' cards; presentations given beside the first meetings; the
-   * findings. Coaching is the verdict and its one question. Without a finding
-   * the reading note closes the workload screen rather than standing alone.
+   * presenters' cards; presentations given beside the first meetings, closed
+   * by the findings and the one-line reading note. Coaching is the verdict
+   * and its one question. A screen of its own held one finding in a frame
+   * 771px tall, mostly black on camera (the owner's review, 2026-10-23).
    */
-  const findingsScreen = view.findings.length > 0;
   const screens: readonly Screen[] = coaching
     ? [
         { id: "agents-verdict", label: "The verdict" },
@@ -133,21 +133,17 @@ export default async function AgentsPage({
         { id: "agents-verdict", label: "The verdict" },
         { id: "agents-cards", label: "The presenters" },
         { id: "agents-workload", label: "Presentations given" },
-        ...(findingsScreen ? [{ id: "agents-findings", label: "Findings" }] : []),
       ];
 
+  /* One line, not a boxed list under a title. */
   const reading = (
-    <Gaps
-      gaps={[
-        "These are differences in how people present, at the stated sample sizes. They are not a ranking.",
-        ...(view.showRatings
-          ? [
-              "The IRIS rating is the agent's own score for the software at the end of a session. It is visible to MADSPACE only.",
-            ]
-          : []),
-      ]}
-      title="How to read this"
-    />
+    <p className="iris-meta ag-reading">
+      These are differences in how people present, at the stated sample sizes. They are not a
+      ranking.
+      {view.showRatings
+        ? " The IRIS rating is the agent's own score for the software at the end of a session. It is visible to MADSPACE only."
+        : ""}
+    </p>
   );
 
   return (
@@ -402,24 +398,18 @@ export default async function AgentsPage({
             project credited it with figures it never touched.
           */}
               <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} />
-              {findingsScreen ? null : reading}
+              {view.findings.map((finding, index) => (
+                <Finding
+                  key={finding.id}
+                  finding={finding}
+                  period={period}
+                  lead={index === 0}
+                  plane
+                  measured
+                />
+              ))}
+              {reading}
             </div>
-
-            {findingsScreen ? (
-              <div className="screen ag-findings" id="agents-findings">
-                {view.findings.map((finding, index) => (
-                  <Finding
-                    key={finding.id}
-                    finding={finding}
-                    period={period}
-                    lead={index === 0}
-                    plane
-                    measured
-                  />
-                ))}
-                {reading}
-              </div>
-            ) : null}
           </>
         )}
       </section>
