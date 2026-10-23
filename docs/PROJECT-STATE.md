@@ -6700,3 +6700,6 @@ each chart plays once as it arrives, nothing waits empty, reduced motion shows e
 Count `_rsc` requests on Units, the Briefing and the meetings register (as Daniel) against
 ADR-0062's table. Run `a11y-contract`, `layout-integrity`, `iris-led`, `tally-shortfall` and
 `showroom`.
+
+Full unit suite (after `pnpm release:wrappers`, on the committed tree): 294 files, 5398 passed, 1
+skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
