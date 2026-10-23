@@ -156,3 +156,52 @@ twice. Each was confirmed in the code before it was changed; none was rejected.
 | Removing her own portrait unmounted the editor: the status vanished and the focus fell to the page           | Confirmed: `portraitRight(..., false)` is null for the agent, so the page swapped elements. Her own page now always renders the same `PortraitEditor`, the focus moves to its heading, and the lab spec asserts both.                    |
 | The roster cards' names lost the kit's card title                                                            | Confirmed: `.d-card > h3:first-child` no longer matched. `portrait.css` restates it; measured equal in Chromium.                                                                                                                         |
 | The agent's own note always said "Your company's admin added this"                                           | Confirmed. The note is now true whoever put the picture there (§8).                                                                                                                                                                      |
+
+## 2026-10-23: a plain circle, beside every presenter's name
+
+The owner uploaded the five Shark presenters' portraits through the product and asked, recording
+the demo: _"Egy minimalisztikus körben legyenek a képek, color stroke nélkül"_ — the pictures in a
+minimalist circle, without a colour stroke — and the profile photos shown "on every possible page".
+A decision the owner has just made outranks every other rule; the honesty rules hold.
+
+1. **No ring (amends §7).** `AgentPortrait` is the photograph cropped to a disc (`object-fit:
+cover`) and nothing round it: no border, outline or shadow. Without a portrait the initials stand
+   on a quiet fill, which the seat colour may tint (18% into the ground) and never outline. The
+   initials are drawn from `data-initials` by the stylesheet, so they are no part of the name's text
+   beside them ("Lena Fischer", not "LFLena Fischer", to a copy, a search and a test). Sizes: `chip`
+   20px inside a pill or a short line, `inline` 24px in a table cell or a sentence, `row` 32px beside
+   a name and its count line, `card` 40px, `head` 48–64px, `editor` 88px. `AgentName` is a name with
+   the face before it. **No face in print**: the printed report names people in words alone.
+2. **Where a face now stands** (§7's list, extended), always with an empty text alternative because
+   the name is printed beside it: Sales Flow — how each agent's meetings end (rows and cards), whose
+   the not-interested meetings were, the bubble lens's agent key and its tip, the nearest meetings,
+   the longest presentations, presentations given; the meeting register's agent column; a replay's
+   "Presented by"; a unit's related meetings and "Who showed it"; Presentation's agent chips and
+   every presenter's DNA lane (the team's, a cohort's and a period's lane wear none); the report on
+   screen (agent table, meeting summary, a meeting's "Presented by", an agent summary's heading);
+   Audience's agent column. The Sales Agents pages already had them.
+3. **Ids, never faces, in the read models (keeps §4).** A page finds a face by the presenter's id,
+   so `MeetingSummary` (every register row), `MeetingReplay` and `AudienceMatch` carry `agentId`,
+   and `RankedRow` and `TextRow` may, where a row about a meeting names one presenter (the longest
+   presentations, the lens's nearest). No read model carries a picture or its address;
+   `packages/synthetic/test/presenter-ids.test.ts` holds each id to the name in its row. Each page
+   reads `portraitSources` once for the presenters it names and reuses one address per agent.
+4. **Cached by the reader's browser (amends §6).** GET serves a portrait with `Cache-Control:
+private, max-age=3600, immutable`; every refusal stays `private, no-store`. On the demo's build one of
+   two first loads of Sales Agents measured fetched each of the five faces twice, and every load
+   fetched all five again: React preloads an image it renders on the server, and a no-store
+   response cannot be kept to serve the `<img>` that follows it, nor the next load. The
+   address carries the portrait's version, so a replaced face is a new address and an hour's cache
+   never shows an old one; `private` keeps it out of every shared cache. Measured on a loopback
+   server with the static renders: one request per face per load, none on a reload.
+
+**Not done here.** Ask's answers: an answer is `ObserverAnswer` (`packages/contracts`, frozen) and
+carries no presenter id to find a face by. The IRIS-led sales page's legend and table: stream MOTION
+reworks that page in the same round, and a face there waits for its change to land. A unit's
+timeline names the presenter inside a line of text, which stays text. Briefing and Attention name no
+presenter.
+
+**Consequence.** A browser keeps a face it was shown for up to an hour, including after its reader
+signs out on a shared machine; removing a portrait stops it being drawn at once (no page asks for
+its address any more), and the hosted store (§4) should keep the same header, with a shorter age if
+a tenant asks.
