@@ -7032,3 +7032,55 @@ failed — `no-secret-recipes` again, and `collisions` (`.irs-main.os-chooser`),
 
 **Next recommended action.** Cherry-pick with SYN and PAGES; record at 1440×900 with reduced motion
 either way; route the lists above.
+
+## 2026-10-23 — R9 SYN: the read models say it right (before the marketing video)
+
+The R8 page fixers routed what they could not fix because its cause was in the read models,
+synthetic data, metrics wording or the Ask tools. Stream SYN owned `packages/synthetic/**`,
+`packages/readmodels/**`, `packages/metrics/**` and `apps/web/src/lib/ai/**`. Branch `r9-syn` from
+`acce16ba`, not pushed.
+
+**Fixed.** Sales Flow: the weekday grid names every tie ("Thu at 13:00 and Sun at 15:00"); the
+weekly change is signed ("+7", never "±7"); Progressing's change is in points; no colour verdict
+under five meetings or with no earlier window; "Too few sales" with "7 measured, 10 needed";
+Conversion reads "Not measured yet." with the why behind its `i`; the not-interested group says its
+shortfall once (the lead), without the middle half; the findings are sourced to the showroom, with no
+baseline that repeats the statement; "Last week, first day". The `i` texts (not-interested, lens,
+IRIS-assisted, What changed, sale cycle, typical stay) are cut to about 40 words. IRIS-led and
+IRIS-assisted say which sales each counts ("of 32 sales so far" against "in this period … at some
+point before" and "42% of the period's sales"); the demonstration CRM's caveat is said once. Lost
+deals are "in the total but on no rung"; stalled deals rank no open deal on a flat another deal has
+reserved or bought. Project's matching units are counted against the stock now (≤ 28). Shark
+Residence's building (`statusFromCrm`) is lit by its meetings (legend: 29 on S-503, the register's
+first) and its sales in the period are the CRM's purchases (13 of 19). Plain words: meetings named
+"3 Jul · 16:06 · Oliver Grant", report 07 "Recent meetings", no ADR number, "UE5 v2 event" or
+"showroom build" in read-model text, the Briefing's Project door gives both shares and its alert its
+own action, "Ask IRIS" in the history notice. An agent's "where else" counts the same slice as its
+activity (26, not 25). Ask: Iva (19 of 20 recorded) is not ranked; lengths say "4m 42s"; the units
+answer is about 60 words; tie order, presenters and outcomes agree with the units answer.
+
+**By design, left.** The YTD verdict reads month on month (ADR-0048); a developer opens no replay
+(R08-6); client-657/Valami is local control-plane data; slow first loads were QA load. The Slovak
+and Hungarian "lost deals" keep P2-17's approved wording until the next sheet. The Briefing's
+"Figures behind it" source line still names the CRM (held by `crm-named-only-when-read`, ADR-0052),
+though its three figures are showroom outcomes — the owner's call.
+
+**Left for the other streams** (cause in their files): PAGES — the What-changed `i` should drop
+`basis` when an arrow is withheld; jargon still in page text (`presentation/page.tsx`,
+`units/[unitCode]/page.tsx`, `project/page.tsx` "needs a UE5 v2 event", `features/**`); the check
+register's clear rows; the report's headline tile; Briefing window labels. SHARED — the stacking-plan
+legend could say "meetings" (its figure is now the register's); `showroom/parts.tsx` and
+`Replay.tsx` "UE5 v2 event"; portraits beside Ask's presenters (needs an `agentId` on the figure);
+ScreenRail under reduced motion, RankedBars "Show all", sub-12px header and `i` glyph. FROZEN — a
+catalogue source chip on a unit's Reserved/Sold rows needs a `CATALOGUE` source in
+`packages/contracts`.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; the synthetic,
+readmodels and metrics suites (94 files) and `ask`, `ai-intelligence`, `flow-claims` green, with
+`read-models-say-it.test.ts` holding each fix (hand-worked fixtures for ties and the signed change).
+Static renders (react-dom/server in the real Shell, product sheets, headless Chromium) of Sales Flow
+(QTD, YTD), the Briefing, What needs attention, Units, Project and IRIS-led at 1440×900, 1280×720,
+390×844 and 360×780: no sideways scroll. Full unit suite (after `pnpm release:wrappers`, on the committed tree before the last test commit): 298 files, 5445 passed, 1 skipped, 2 failed — `no-secret-recipes` (needs a web build, environmental) and `apps/web/test/views3.test.ts`, whose label rule did not allow "first day", fixed in `c0cc2ee3` and re-run green. E2E edited, not run: `iris-led.spec.ts`.
+
+**Next.** Cherry-pick with R9 PAGES and SHARED, build, warm every URL, and look at Sales Flow, the
+Briefing, Units and IRIS-led at 1440×900 on the running build before recording.
