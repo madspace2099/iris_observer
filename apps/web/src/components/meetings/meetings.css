@@ -112,4 +112,30 @@
   .ox-meetings .ox-table :is(th, td) {
     padding-inline: 0.4375rem;
   }
+
+  /*
+   * Rows that read level (Máté's video review, 2026-10-23). At 1280 a length
+   * broke "18m / 44s" and a visitor stood on three lines ("Not linked / to a /
+   * contact") while the units column kept 10.5rem for codes that wrap anyway.
+   * The units give two codes' width a line back to the visitor, and a heading
+   * may wrap, so the table still fits its plate.
+   */
+  .ox-meetings .ox-table thead th {
+    white-space: normal;
+  }
+
+  .ox-meetings .ox-table .ox-col-units {
+    min-width: 8.25rem;
+  }
+
+  .ox-meetings .ox-table td[data-col="visitor"] {
+    min-width: 7rem;
+  }
+}
+
+/* A time and a length are one token each: never broken across lines on a desk. */
+@media screen and (width > 48rem) {
+  .ox-meetings .ox-table td:is([data-col="when"], [data-col="duration"]) {
+    white-space: nowrap;
+  }
 }

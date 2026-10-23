@@ -1,6 +1,6 @@
 import type { MeetingReplay, PeriodPreset, ReplayStep } from "@observer/readmodels";
 
-import { Tally, TallyItem, Timeline, type TimelineStep } from "@/components/product";
+import { Evidence, Tally, TallyItem, Timeline, type TimelineStep } from "@/components/product";
 import { DrawIn } from "@/showroom/DrawIn";
 import { STEP_EVENTS, STEP_LABEL_NAMES_ENTITY } from "./vocabulary";
 
@@ -96,12 +96,16 @@ function toTimelineStep(step: ReplayStep): TimelineStep {
     dwell,
   ].filter((part): part is string => part !== null && part.length > 0);
 
+  /*
+   * No evidence line per step: every step's is "1 record · Observed", printed
+   * under each of sixteen rows (Máté's video review, 2026-10-23). The
+   * meeting's own reference is stated once, under the journey.
+   */
   return {
     id: `${step.ordinal}`,
     when: step.atDisplay,
     label,
     detail: parts.length === 0 ? null : parts.join(" · "),
-    evidence: step.evidence,
     sources: step.sources,
   };
 }
@@ -185,6 +189,10 @@ export function MeetingJourney({
         period={period}
         label="Meeting journey"
       />
+
+      <div className="ox-time-foot">
+        <Evidence language={replay.context.language} evidence={replay.evidence} period={period} />
+      </div>
     </>
   );
 }

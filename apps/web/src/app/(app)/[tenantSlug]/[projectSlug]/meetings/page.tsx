@@ -7,6 +7,7 @@ import { maySeeSurface } from "@/lib/routes";
 import { presetFrom } from "@/lib/period";
 import { portraitSources } from "@/lib/portraits/server";
 import { FilterBar, FindingList, PageHead, Synthetic } from "@/components/product";
+import { InfoTip } from "@/components/iris/InfoTip";
 import {
   MeetingRegister,
   meetingFilterFields,
@@ -14,6 +15,9 @@ import {
   withMeetingFilters,
   type MeetingSearch,
 } from "@/components/meetings";
+/* `.sheet-titled`: a title and the `i` after its last word, as the answer sheets draw it. */
+import "@/components/sheet/sheet.css";
+import "@/components/units/titled.css";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Meetings" };
@@ -112,7 +116,7 @@ export default async function MeetingsPage({
                   `One presentation was recorded on ${context.project.name} in ${periodLabel}.`
                 : `${view.periodTotal} presentations were recorded on ${context.project.name} in ${periodLabel}.`
         }
-        lede="One row is one presentation. A visitor is named by their history with this project and never by a contact detail. The outcome column is what the agent selected in the room at the end of the meeting — it labels the presentation, and it is not a verified sale."
+        lede="One row is one presentation."
         crumbs={[{ label: "Project", href: `${base}/project` }, { label: "Meetings" }]}
         aside={<Synthetic language={context.language} />}
         period={period}
@@ -127,13 +131,31 @@ export default async function MeetingsPage({
          */}
         {view.periodTotal === 0 ? null : (
           <section className="ox-plane">
+            {/*
+             * How the register names a visitor, what its outcome is and is not,
+             * and what an option's count is, behind the title's `i` (Máté's
+             * video review, 2026-10-23). The column head still says "Recorded
+             * outcome", so the qualification survives in view.
+             */}
             <div className="ox-section-head">
-              <h2 className="ox-section-title">Narrow the register</h2>
-              <p className="ox-section-note">
-                Each option carries how many meetings it would keep, counted over the whole period
-                rather than over what is already on screen. The dates come from the period in the
-                bar above.
-              </p>
+              <div className="sheet-titled">
+                <h2 className="ox-section-title">Narrow the register</h2>
+                <InfoTip id="register" label="the meeting register">
+                  <p>
+                    A visitor is named by their history with this project and never by a contact
+                    detail.
+                  </p>
+                  <p>
+                    The recorded outcome is what the agent selected in the room at the end of the
+                    meeting. It labels the presentation; it is not a verified sale.
+                  </p>
+                  <p>
+                    An option&rsquo;s count is how many meetings of the period it would keep. While
+                    another filter is applied the options carry no count. The dates come from the
+                    period in the bar above.
+                  </p>
+                </InfoTip>
+              </div>
             </div>
 
             <FilterBar

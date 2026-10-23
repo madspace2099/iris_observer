@@ -143,19 +143,27 @@ export function withMeetingFilters(href: string, filters: MeetingFilters): strin
  * an empty list under a control claiming to be clear. The applied value is
  * therefore re-added, labelled with what the URL actually said, so the control
  * and the register cannot disagree.
+ *
+ * A count is printed only where it is what the option would keep: while no
+ * OTHER filter is applied. With an agent chosen, "Purchase (11)" stood beside
+ * "7 of 150 meetings" — eleven over the period, seven of them Lena's (Máté's
+ * video review, 2026-10-23). The read model counts each axis over the period
+ * alone, and a component recounting the rows would be a second answer, so the
+ * other axes' options carry their names alone until the narrowing is cleared.
  */
 function optionsWith(
   options: readonly { readonly id: string; readonly label: string; readonly count: number }[],
   applied: string | null,
   anyLabel: string,
+  counted: boolean,
 ): readonly FilterOption[] {
   const listed: FilterOption[] = options.map((option) => ({
     value: option.id,
-    label: `${option.label} (${option.count})`,
+    label: counted ? `${option.label} (${option.count})` : option.label,
   }));
 
   if (applied !== null && !options.some((option) => option.id === applied)) {
-    listed.push({ value: applied, label: `${applied} (0)` });
+    listed.push({ value: applied, label: counted ? `${applied} (0)` : applied });
   }
 
   return [{ value: ANY, label: anyLabel }, ...listed];
@@ -166,34 +174,44 @@ function optionsWith(
  *
  * Who presented, then where the presentation ran, then how it ended — widest
  * cut first. The counts are printed in the option labels rather than beside the
- * control, so choosing between two agents does not require submitting twice.
+ * control, so choosing between two agents does not require submitting twice —
+ * and only on an axis no other filter narrows (`optionsWith`).
  */
 export function meetingFilterFields(
   options: MeetingFilterOptions,
   applied: MeetingFilters,
 ): readonly FilterField[] {
   const features = applied.features?.join(",") ?? null;
+  const axes = {
+    agent: applied.agentId,
+    channel: applied.channel,
+    outcome: applied.outcome,
+    features,
+  } as const;
+  /* True when no axis but `own` is applied: its period counts are then what each option keeps. */
+  const countedFor = (own: keyof typeof axes): boolean =>
+    Object.entries(axes).every(([axis, value]) => axis === own || value === null);
   return [
     {
       kind: "select",
       name: AGENT_PARAM,
       label: "Agent",
       value: applied.agentId ?? ANY,
-      options: optionsWith(options.agents, applied.agentId, "Any agent"),
+      options: optionsWith(options.agents, applied.agentId, "Any agent", countedFor("agent")),
     },
     {
       kind: "select",
       name: CHANNEL_PARAM,
       label: "Channel",
       value: applied.channel ?? ANY,
-      options: optionsWith(options.channels, applied.channel, "Any channel"),
+      options: optionsWith(options.channels, applied.channel, "Any channel", countedFor("channel")),
     },
     {
       kind: "select",
       name: OUTCOME_PARAM,
       label: "Recorded outcome",
       value: applied.outcome ?? ANY,
-      options: optionsWith(options.outcomes, applied.outcome, "Any outcome"),
+      options: optionsWith(options.outcomes, applied.outcome, "Any outcome", countedFor("outcome")),
     },
     /* Offered only while applied: a pair's link carries it, and this clears it. */
     ...(features === null
@@ -204,7 +222,12 @@ export function meetingFilterFields(
             name: FEATURES_PARAM,
             label: "Features reached",
             value: features,
-            options: optionsWith(options.features, features, "Any features"),
+            options: optionsWith(
+              options.features,
+              features,
+              "Any features",
+              countedFor("features"),
+            ),
           },
         ]),
   ];

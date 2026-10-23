@@ -169,7 +169,7 @@ const COLUMNS: readonly DataColumn[] = [
  * same refusal two different ways.
  */
 export const MEETINGS_NOT_OPENABLE =
-  "A meeting replay is not part of this account’s access, so the rows below are listed rather than linked.";
+  "Replays open for agents and managers, so these rows are listed rather than linked.";
 
 export function MeetingRegister({
   rows,

@@ -1,6 +1,9 @@
 import type { MeetingReplay, PeriodPreset } from "@observer/readmodels";
 
+import { InfoTip } from "@/components/iris/InfoTip";
 import { Sources, Unavailable } from "@/components/product";
+import "@/components/sheet/sheet.css";
+import "@/components/units/titled.css";
 
 /**
  * HOW THE MEETING ENDED — two facts, side by side, that may never become one.
@@ -95,8 +98,26 @@ export function MeetingOutcomes({
      * and then what has confirmed it.
      */
     <div className="ox-findings">
+      {/*
+       * What each half is and is not, behind the subhead's `i` (Máté's video
+       * review, 2026-10-23): the outcome itself, the absence beside it and
+       * both sources stay in view.
+       */}
       <article className="ox-finding">
-        <p className="ox-subhead">What the agent recorded</p>
+        <div className="sheet-titled">
+          <h3 className="ox-subhead">What the agent recorded</h3>
+          <InfoTip id="recorded-outcome" label="what the agent recorded">
+            <p>
+              Selected on the showroom&rsquo;s outcome widget in the last minute of the
+              presentation. It labels this meeting so that it can be set beside others, and it is
+              what separates a meeting still in play from one the buyer decided against.
+            </p>
+            <p>
+              A recorded outcome of Reservation or Purchase is what the agent entered — it is not a
+              reservation and not a sale.
+            </p>
+          </InfoTip>
+        </div>
 
         {/*
          * The word at full size, and no chip beside it.
@@ -109,38 +130,36 @@ export function MeetingOutcomes({
          */}
         <p className="ox-finding-statement">{replay.outcomeLabel}</p>
 
-        <p className="ox-finding-so-what">
-          Selected on the showroom&rsquo;s outcome widget in the last minute of the presentation. It
-          labels this meeting so that it can be set beside others, and it is what separates a
-          meeting still in play from one the buyer decided against. A recorded outcome of
-          Reservation or Purchase is what the agent entered — it is not a reservation and not a
-          sale.
-        </p>
-
         <div className="ox-finding-foot">
           <Sources language={replay.context.language} sources={["IRIS_SHOWROOM_OBSERVED"]} />
         </div>
       </article>
 
       <article className="ox-finding">
-        <p className="ox-subhead">What the system of record verifies</p>
+        <div className="sheet-titled">
+          <h3 className="ox-subhead">What the system of record verifies</h3>
+          <InfoTip id="verified-outcome" label="what the system of record verifies">
+            {crmConnected ? (
+              <p>Observer does not yet read a deal stage against a single meeting.</p>
+            ) : null}
+            <p>
+              A deal stage held in the system of record is authoritative; what an agent recorded in
+              the room is a signal. The two are kept apart on this screen so that neither is read as
+              the other, and this half stays visible while it is empty for the same reason.
+            </p>
+          </InfoTip>
+        </div>
 
         <Unavailable
           what="A verified outcome for this meeting"
           why={
             crmConnected
-              ? "Observer does not yet read a deal stage against a single meeting, so nothing here has been confirmed outside the showroom"
+              ? "not yet confirmed in the CRM"
               : "no CRM is connected to this project, so no meeting on it has an outcome outside the showroom"
           }
           action={null}
           period={period}
         />
-
-        <p className="ox-finding-caveat">
-          A deal stage held in the system of record is authoritative; what an agent recorded in the
-          room is a signal. The two are kept apart on this screen so that neither is read as the
-          other, and this half stays visible while it is empty for the same reason.
-        </p>
       </article>
     </div>
   );
