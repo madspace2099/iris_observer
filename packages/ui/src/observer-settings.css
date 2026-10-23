@@ -56,7 +56,7 @@
  * the top of an empty one read as a page that did not load (review round 8).
  * A longer list starts at the top as before.
  */
-.irs-main.os-chooser {
+.os-chooser {
   display: grid;
   align-content: center;
 }
