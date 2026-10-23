@@ -87,6 +87,8 @@
   font-size: clamp(1.625rem, 1rem + 1.4vw, 2.5rem);
   line-height: 1.1;
   letter-spacing: -0.03em;
+  /* "15m 06s" is one figure: in a 1280 window it broke over two lines. */
+  white-space: nowrap;
 }
 
 /*
@@ -198,7 +200,8 @@
 }
 
 /* The key at Body size beside a ring drawn this large. */
-.ag-detail .ag-ring .iris-ring-key li {
+.ag-detail .ag-ring .iris-ring-key li,
+.ag-detail .ag-ring .iris-ring-key b {
   font-size: 0.9375rem;
   line-height: 1.5rem;
 }
