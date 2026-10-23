@@ -1,0 +1,36 @@
+/*
+ * FEATURES, BEFORE THE VIDEO (Máté's review, 2026-10-23). Scoped to this page.
+ *
+ * "Where each feature falls in a presentation": every row's denominator line,
+ * "reached in 144 of 150 presentations", was cut to "…presentati…" in its
+ * 12rem name column at 1440, 1280 and on a phone, and it stood at 11px. Here
+ * it wraps under the name at the 12px floor Sales Flow's lists already read at
+ * (`.iris-ranked-measured`), so the count and what it is out of are on screen.
+ */
+.ox-features-page .iris-ranked-name em {
+  font-size: 0.75rem;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+/* On a desk the name column takes the line's 14rem, so it reads on one line under the name. */
+@media (width >= 64rem) {
+  .ox-features-page .iris-ranked li {
+    grid-template-columns: 1.5rem minmax(0, 14rem) minmax(0, 1fr) 5rem;
+  }
+}
+
+/*
+ * The limits behind "What this register does not cover": one column in the
+ * panel's measure, a subhead over its sentence, the panel's own rhythm.
+ */
+.ox-features-page .iris-info-panel .ox-cols {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.ox-features-page .iris-info-panel .ox-subhead {
+  margin-bottom: 0.125rem;
+}

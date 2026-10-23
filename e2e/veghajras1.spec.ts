@@ -21,14 +21,17 @@ test.beforeEach(({ isMobile }, testInfo) => {
 test("R10-1 · Features keeps reach, opens and stay apart, states clicks as unavailable, and prints the screenshot total", async ({
   page,
 }) => {
-  const text = await open(page, "Tomáš Varga", "/alpha/northgate/features");
+  await open(page, "Tomáš Varga", "/alpha/northgate/features");
   const main = page.locator("main");
 
-  expect(text).toContain("Opened in counts the presentations that reached a feature at all.");
-  expect(text).toContain("Opens counts entries into it, returns included");
-  expect(text).toContain("Median stay is the middle stop, not the average one.");
+  /* The definitions stand behind the register title's `i` since 2026-10-23; the panel is in the page. */
+  const definitions = main.locator("#info-feature-register");
+  await expect(definitions).toContainText("Opened in counts the presentations that reached a feature at all.");
+  await expect(definitions).toContainText("Opens counts entries into it, returns included");
+  await expect(definitions).toContainText("Median stay is the middle stop, not the average one.");
 
-  const clicks = main.locator(".ox-unavailable", { hasText: "Clicks inside a feature" });
+  /* And clicks behind the `i` of "What this register does not cover". */
+  const clicks = main.locator("#info-limits .ox-unavailable", { hasText: "Clicks inside a feature" });
   await expect(clicks, "the click count is stated as unavailable, once").toHaveCount(1);
   await expect(clicks).toContainText("holds no click count");
   await expect(clicks, "and kept apart from opens").toContainText("Opens counts entries into a feature, not clicks");

@@ -8,6 +8,11 @@ import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { presetFrom } from "@/lib/period";
 import { DrawIn } from "@/showroom/DrawIn";
+import { InfoTip } from "@/components/iris/InfoTip";
+/* `.sheet-titled`: a title and the `i` after its last word, as the answer sheets draw it. */
+import "@/components/sheet/sheet.css";
+import "@/components/units/titled.css";
+import "./features.css";
 import {
   Evidence,
   FindingList,
@@ -333,14 +338,32 @@ export default async function FeaturesPage({
         ? `${recordedWords} in this period and the showroom reported no feature vocabulary for ${meetingsTotal === 1 ? "it" : "them"}.`
         : `${leader.label} was opened in ${leader.meetings} of the ${meetingsTotal} presentations recorded in this period, and nothing else was reached more often.`;
 
+  /*
+   * THE PAGE AT A GLANCE (Máté's video review, 2026-10-23).
+   *
+   * Some 280 words of caveats closed the page and eleven blocks carried 34 to
+   * 77 words of definition each. The answer, the figures, the charts and their
+   * denominators stay in view; what a column measures, what reached means and
+   * what the instrument cannot record stand behind the `i` beside the title
+   * they explain. A definition may stand behind one; a figure may not.
+   */
+  const clicksUnavailable = (
+    <Unavailable
+      what="Clicks inside a feature"
+      why="the presentation record this product keeps holds no click count, so none is shown for any feature; Opens counts entries into a feature, not clicks"
+      action={null}
+      period={period}
+    />
+  );
+
   return (
-    <div className="ox-page">
+    <div className="ox-page ox-features-page">
       <PageHead
         language={view.context.language}
         kicker={`${view.context.project.name} · Project · ${view.context.period.label}`}
         title="Features"
         answer={answer}
-        lede="A feature is a named section of the IRIS presentation. Reached is not the same as presented: a section opened on the way somewhere else and left under the showroom's meaningful-dwell threshold counts here as an open and as a glance, and never as engagement."
+        lede="A feature is a named section of the IRIS presentation."
         crumbs={[
           { label: view.context.project.name, href: `${root}/project` },
           { label: "Features" },
@@ -437,14 +460,10 @@ export default async function FeaturesPage({
           {/*
            * R10-1: reach, opens, clicks and time spent are four definitions, and
            * the third has no data. Said once, in the region's own form, so an
-           * open is never read as a click.
+           * open is never read as a click — behind the `i` of "What this register
+           * does not cover" since 2026-10-23, where it no longer opens the page
+           * on an apology.
            */}
-          <Unavailable
-            what="Clicks inside a feature"
-            why="the presentation record this product keeps holds no click count, so none is shown for any feature; Opens counts entries into a feature, not clicks"
-            action={null}
-            period={period}
-          />
 
           <Sources
             language={view.context.language}
@@ -477,18 +496,31 @@ export default async function FeaturesPage({
         <div className="ox-plate ox-paper" hidden={!recorded}>
           <section className="ox-plate-inner">
             <div className="ox-section-head">
-              <h2 className="ox-section-title">The feature register</h2>
+              <div className="sheet-titled">
+                <h2 className="ox-section-title">The feature register</h2>
+                <InfoTip id="feature-register" label="the feature register">
+                  <p>
+                    Reached is not the same as presented: a section opened on the way somewhere else
+                    and left under the showroom&rsquo;s meaningful-dwell threshold counts here as an
+                    open and as a glance, and never as engagement.
+                  </p>
+                  <p>
+                    Opened in counts the presentations that reached a feature at all. Opens counts
+                    entries into it, returns included, so one presentation that came back to
+                    Residences four times is one presentation and four opens. Median stay is the
+                    middle stop, not the average one. Opened, left is the share of the timed opens
+                    that ended under the showroom&rsquo;s meaningful-dwell threshold. Came back is
+                    the share of the presentations that reached a feature and returned to it later.
+                  </p>
+                  <p>
+                    A cell reading Not reached is a feature no presentation opened in this period; a
+                    cell reading Not timed is a feature the build did not record a stay in. Neither
+                    is a zero, and neither is ordered as one.
+                  </p>
+                </InfoTip>
+              </div>
               <Sample n={meetingsTotal} noun="presentations" />
             </div>
-
-            <p className="ox-section-note">
-              Opened in counts the presentations that reached a feature at all. Opens counts entries
-              into it, returns included, so one presentation that came back to Residences four times
-              is one presentation and four opens. Median stay is the middle stop, not the average
-              one. Opened, left is the share of the timed opens that ended under the
-              showroom&rsquo;s meaningful-dwell threshold. Came back is the share of the
-              presentations that reached a feature and returned to it later.
-            </p>
 
             {recorded && ranked ? (
               <RunningOrder
@@ -517,12 +549,6 @@ export default async function FeaturesPage({
               sort={ranked ? { order: chosenOrder, direction, hrefs: sortHrefs } : null}
               empty={CUT_EMPTY[cut]}
             />
-
-            <p className="ox-section-note">
-              A cell reading Not reached is a feature no presentation opened in this period; a cell
-              reading Not timed is a feature the build did not record a stay in. Neither is a zero,
-              and neither is ordered as one.
-            </p>
 
             <div className="ox-finding-foot">
               <Sources
@@ -580,18 +606,24 @@ export default async function FeaturesPage({
 
         {/* --- the limits of the instrument, back on graphite --------------- */}
 
+        {/*
+         * Stated once, for the whole screen, where a reader who has just read
+         * the register will look for it: the title in view, the limits behind
+         * its `i`.
+         */}
         <section className="ox-plane">
           <div className="ox-section-head">
-            <h2 className="ox-section-title">What this register does not cover</h2>
-            <p className="ox-section-note">
-              Stated once, for the whole screen, where a reader who has just read the register will
-              look for it.
-            </p>
+            <div className="sheet-titled">
+              <h2 className="ox-section-title">What this register does not cover</h2>
+              <InfoTip id="limits" label="what this register does not cover">
+                {clicksUnavailable}
+                <Limits
+                  untimedFeatures={untimed.map((section) => section.label)}
+                  baselineNote={baselineNote}
+                />
+              </InfoTip>
+            </div>
           </div>
-          <Limits
-            untimedFeatures={untimed.map((section) => section.label)}
-            baselineNote={baselineNote}
-          />
         </section>
       </div>
     </div>
