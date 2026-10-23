@@ -6653,4 +6653,6 @@ drill-down reference" is back in sight, one line under the activity title and on
 funnel. Partly rejected: the agent page's five shared-component prefetching links are MOTION's to
 fix and are fixed there (rendered with its two files: 2 of 14 left, the crumbs); the "after" RSC
 count still waits for a running build, which this round may not make. Commits `789ef812`,
-`2334a622`, `288b9d27`.
+`2334a622`, `288b9d27`. Full unit suite (one run, committed tree): 294 files, 5395 passed, 1
+skipped, 1 failed — `no-secret-recipes`, which needs a web build (the auditor itself reports the
+tree, the staged diff and the history clean, the bundle not scanned).
