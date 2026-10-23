@@ -123,9 +123,9 @@ describe("the lead finding names nobody under the floor", () => {
   it("names the set the share stands on, not the meetings held", () => {
     /* Every constructed meeting is timed end to end, so the two counts agree here; the form is the claim. */
     expect(
-      String(view.findings.find((f) => f.id === "agents-signature")?.baseline),
+      String(view.findings.find((f) => f.id === "agents-signature")?.statement),
       "the finding cites the meetings held where the share stands on the timed ones",
-    ).toMatch(/^25 of 25 meetings the source could time end to end/);
+    ).toMatch(/, over 25 timed meetings\.$/);
   });
 });
 
@@ -143,6 +143,6 @@ describe("where nobody clears the floor", () => {
     expect(
       String(view.findings.find((f) => f.id === "agents-signature-withheld")?.statement),
       "the signature finding went silent without a stated reason",
-    ).toContain(`10 short of the ${AGENT_MIN_SAMPLE} needed for a verdict`);
+    ).toContain(`nobody has ${AGENT_MIN_SAMPLE} timed meetings; the most is 10.`);
   });
 });

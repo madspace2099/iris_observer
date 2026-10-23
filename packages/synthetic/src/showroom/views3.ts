@@ -1699,7 +1699,7 @@ export function buildProjectView(
   if (lead !== undefined) {
     findings.push({
       id: "project-segment",
-      statement: `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of looking time on the unsold stock, and ${percent(lead.favouriteShare, locale)} of every shortlisting in the period.`,
+      statement: `${lead.label} units draw ${attentionIndexDisplay(lead.index)} their share of looking time, and ${percent(lead.favouriteShare, locale)} of shortlistings.`,
       baseline: `${percent(lead.stockShare, locale)} of the unsold stock`,
       soWhat: lead.soWhat,
       /*
@@ -1730,9 +1730,9 @@ export function buildProjectView(
     findings.push({
       id: "project-zero-result",
       statement: `Buyers asked for ${z.label.toLowerCase()} ${z.value} ${count(z.applications, locale)} times, and no available unit matched.`,
-      baseline: "zero of the available stock",
-      soWhat:
-        "A search with no answer is the clearest demand signal a project gets, and the only one that names something the building does not have.",
+      /* "Zero of the available stock" said the statement again; nothing is compared. */
+      baseline: null,
+      soWhat: "The clearest demand signal: it names what the building lacks.",
       nextStep: null,
       evidence: evidenceRef(
         `demand-${z.field}`,
@@ -1750,10 +1750,10 @@ export function buildProjectView(
   if (topCategory !== undefined) {
     findings.push({
       id: "project-places",
-      statement: `${topCategory.label} places take ${percent(topCategory.share, locale)} of all the time spent on the neighbourhood and the building.`,
-      baseline: `${count(topCategory.meetings, locale)} meetings reached them`,
-      soWhat:
-        "What buyers linger on is the argument they are buying. It is also the sharpest way to pick who to contact when something in that category changes.",
+      /* The meetings that reached them are a count, not a comparison: in the sentence, not under it. */
+      statement: `${topCategory.label} places take ${percent(topCategory.share, locale)} of neighbourhood and building time; ${count(topCategory.meetings, locale)} meetings reached them.`,
+      baseline: null,
+      soWhat: "What buyers linger on is the argument they are buying.",
       /* Only where a recorded place of this kind stands behind the list (R06-5). */
       nextStep: sessions.some((s) =>
         s.places.some((p) => p.category === topCategory.category && recordedPlace(p)),
@@ -2046,11 +2046,14 @@ export function buildAgentsView(
   if (distinct?.signature != null && agents.length > 1) {
     findings.push({
       id: "agents-signature",
-      statement: `${distinct.name} spends ${distinct.signature.overIndex.toFixed(1)}× the team's share of presentation time in ${distinct.signature.label}.`,
-      /* The set the share stands on, not the meetings held: the two differ by the meetings the source could not time. */
-      baseline: `${count(distinct.timedMeetings, locale)} of ${count(distinct.meetings, locale)} meetings the source could time end to end`,
-      soWhat:
-        "A presenter's habit is visible long before its result is. Whether it is worth copying or worth changing is a coaching conversation this figure can start.",
+      /*
+       * The count is the set the share stands on, not the meetings held: the
+       * two differ by the meetings the source could not time. The team's share
+       * is the comparison, and it is in the sentence, so no baseline line.
+       */
+      statement: `${distinct.name}: ${distinct.signature.overIndex.toFixed(1)}× the team's time share in ${distinct.signature.label}, over ${count(distinct.timedMeetings, locale)} timed meetings.`,
+      baseline: null,
+      soWhat: "A habit to talk through in coaching, not a verdict.",
       nextStep: { label: `Open ${distinct.name.split(" ")[0]}`, href: distinct.href },
       evidence: evidenceRef(
         `agent-signature-${distinct.agentId}`,
@@ -2069,10 +2072,10 @@ export function buildAgentsView(
   ) {
     findings.push({
       id: "agents-signature-withheld",
-      statement: `No presenter's habit is read as a finding: the most anyone presented that the source could time end to end was ${meetings(largest.timedMeetings, locale, context.language)} of ${count(largest.meetings, locale)} held, ${count(AGENT_MIN_SAMPLE - largest.timedMeetings, locale)} short of the ${String(AGENT_MIN_SAMPLE)} needed for a verdict. Figures are shown; no rank or trend is drawn.`,
-      baseline: `${count(agents.length, locale)} agents`,
-      soWhat:
-        "A habit read from fewer meetings than the floor would be a verdict about a person drawn from a handful. The cards above carry every figure with its count.",
+      /* The timed set, not the meetings held: each card's own note carries both. */
+      statement: `No presenter's habit is read: nobody has ${String(AGENT_MIN_SAMPLE)} timed meetings; the most is ${count(largest.timedMeetings, locale)}.`,
+      baseline: null,
+      soWhat: "Every figure is on the cards; no rank is drawn.",
       nextStep: null,
       evidence: evidenceRef(
         "agents-signature-withheld",
@@ -2091,10 +2094,9 @@ export function buildAgentsView(
   if (first !== undefined && first.share > 0.7) {
     findings.push({
       id: "agents-repeats",
-      statement: `${percent(first.share, locale)} of meetings were a buyer's first.`,
-      baseline: `${count(sessions.length, locale)} meetings`,
-      soWhat:
-        "A project whose meetings are almost all first meetings is filling the top of the pipeline and not yet working it.",
+      statement: `${percent(first.share, locale)} of ${count(sessions.length, locale)} meetings were a buyer's first.`,
+      baseline: null,
+      soWhat: "The pipeline is filling, and not yet being worked.",
       nextStep: { label: "See the meetings", href: `${base}/meetings` },
       evidence: evidenceRef(
         "agents-repeats",

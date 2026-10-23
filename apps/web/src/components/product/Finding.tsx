@@ -21,7 +21,8 @@ import { Evidence, Sample } from "./Provenance";
  * rests on:
  *
  *   statement   what happened, with its number inside the sentence.
- *   baseline    compared with what. Null only when nothing comparable exists.
+ *   baseline    compared with what. Null when nothing comparable exists or the
+ *               statement already holds it; never a bare count.
  *   soWhat      why it might matter. Never a causal claim — the wording is the
  *               read model's and a test scans it for the banned verbs.
  *   caveat      what would make it wrong. Rendered on its own rail so it is

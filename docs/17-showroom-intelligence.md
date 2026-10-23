@@ -88,7 +88,8 @@ every string any projection emits for causal wording (`because`, `caused`, `driv
 A chronological rail, not an event table. Sections are the beats; everything else —
 units opened, shortlists, plans, balcony views, floor cuts, screenshots, shares,
 comparisons, environment changes — hangs off the section it happened inside. Any step
-opens to show its provenance and its evidence.
+opens to show its evidence. _(2026-10-23: the step's source line is off the screen by the
+owner's decision; the read model keeps `ReplayStep.sources`. ADR-0052, amended.)_
 
 **The honest part.** Only section entries carry a time. Interactions inside a section
 are recorded as having happened during it, not at what moment. That is stated once, in
@@ -139,7 +140,8 @@ questions:
 
 - **what it measures** — in a sentence a salesperson would use
 - **how it is computed** — the rule, including any threshold
-- **where it comes from** — the provenance class
+- **where it comes from** — the provenance class _(2026-10-23: no longer printed in the
+  panel, by the owner's decision; the glossary keeps it. ADR-0052, amended.)_
 - **what it does not say** — the limit, stated rather than implied
 
 The explanation opens in place rather than on hover: a tooltip cannot be read twice,

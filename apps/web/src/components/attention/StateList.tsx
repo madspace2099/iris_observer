@@ -148,8 +148,8 @@ export function StateList({
              * provenance (the owner, 2026-10-22, ADR-0058): the tier and what
              * it claims, the evidence, the sample and the rank. The detail
              * sentence carries the state's own figure and its denominator in
-             * view; the source line and a state too thin to rank stay in
-             * view, below.
+             * view; a state too thin to rank says so in view, below. No
+             * source line (the owner, 2026-10-23, ADR-0052).
              */}
             <div className="sheet-titled">
               <h3 className="ox-alert-title">

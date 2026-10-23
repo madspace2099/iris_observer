@@ -33,7 +33,11 @@ export interface ShowroomFinding {
   readonly id: string;
   /** What happened. One sentence, its number inside it. */
   readonly statement: string;
-  /** Compared with what. Null only when nothing comparable exists. */
+  /**
+   * Compared with what. Null when nothing comparable exists or the statement
+   * already holds the comparison. Never a bare count: a screen prints it after
+   * "against", so a denominator belongs in the statement (2026-10-23).
+   */
   readonly baseline: string | null;
   /** Why it might matter. Never a causal claim. */
   readonly soWhat: string;

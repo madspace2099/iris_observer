@@ -221,7 +221,14 @@ overrides this ADR's §8, its second round, ADR-0058 §4 ("its source line stays
    now). The tier chip, the evidence links ("12 records · Observed") and the sample stay wherever
    they stood, except on the findings below. The observer answer panel keeps its evidence references
    and its tools · provider · model line, so which part a model wrote is still said. Coverage
-   (`showroom.source_visible`) names `InsightSource`, `INSIGHT_SOURCE_WORDS` and this ADR.
+   (`showroom.source_visible`) names `InsightSource`, `INSIGHT_SOURCE_WORDS` and this ADR, and says
+   in the generated report that the CSV is now the only place a reader sees the source type.
+
+   **What is no longer said anywhere on screen.** The Briefing's "Progressing this month" reads the
+   CRM's deal stages on a CRM-connected project (its read model's `sources` are `WITH_OUTCOME`), and
+   the source line was the only thing on that plate that said so. Nothing replaces it. If the
+   Briefing should say it again, the figure's own label is the place ("Progressing in the CRM"), not
+   a line under it.
 
 2. **A finding on Sales Flow is one short sentence, large.** The last screen printed, per finding, a
    statement, an "against" line, a two-sentence "so what" and a citation ("22 records · statistical
@@ -240,6 +247,13 @@ overrides this ADR's §8, its second round, ADR-0058 §4 ("its source line stays
      five projects and four periods, to its own sample size in the words on screen, and Sales Flow's
      to fourteen words a sentence and ten a line. Project and Presentation keep their citation,
      because their statements do not carry their sample.
+   - A baseline is a comparison, never a bare count (review of this change): "against 59 meetings
+     reached them" and "against 4 agents" had replaced why a finding matters on Project, Sales Agents
+     and Presentation. Those counts moved into the statement or out (Presentation's two sides are on
+     its table's row), the baseline is null there, and the "so what" is ten words at most, its hedge
+     kept ("A question for coaching, not a conclusion from this data."). Sales Agents' withheld
+     finding went from 44 words to 14. `flow-findings.test.ts` holds every finding all four routes
+     draw to fourteen words, its line to ten, and no line to a bare count.
    - "How to read this" is two short notes: a flag is a prompt, not a ranking; which screens read
      their own window, the CRM as it stands, or the period. The note that meetings with no outcome
      leave every rate is the unrecorded finding's own line now.

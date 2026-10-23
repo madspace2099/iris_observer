@@ -40,13 +40,15 @@ const CELLS = [
   ...at(VIEWERS.agencyManager, "beta", "kingsford"),
 ];
 
+/** The one line `Finding` prints under the sentence. */
+const subLine = (f: ShowroomFinding) => (f.baseline === null ? f.soWhat : `against ${f.baseline}`);
 /** What `Finding` prints: the sentence and its one line. */
-const onScreen = (f: ShowroomFinding) =>
-  `${f.statement} ${f.baseline === null ? f.soWhat : `against ${f.baseline}`}`;
+const onScreen = (f: ShowroomFinding) => `${f.statement} ${subLine(f)}`;
 /** A count as written, thousands separators and all. */
 const carries = (text: string, n: number) =>
   new RegExp(`(^|\\D)${String(n)}(\\D|$)`).test(text.replace(/(\d)[\s,.](?=\d{3})/g, "$1"));
-const words = (text: string) => text.split(/\s+/).filter(Boolean).length;
+/** Words, not tokens: the "&" in "Time & weather" is not one. */
+const words = (text: string) => text.split(/\s+/).filter((w) => /[\p{L}\p{N}]/u.test(w)).length;
 
 describe("a finding on Sales Flow and Sales Agents", () => {
   it("prints its own sample size in the sentence or its one line", async () => {
@@ -85,5 +87,37 @@ describe("a finding on Sales Flow and Sales Agents", () => {
     expect(html).not.toMatch(/records ·|n = \d|iris-evidence/);
     expect(html).toContain(`>${finding.nextStep?.label ?? ""}</a>`);
     expect(html.match(/<p /g)).toHaveLength(finding.caveat === null ? 2 : 3);
+  });
+});
+
+describe("a finding wherever the shared Finding draws it", () => {
+  /*
+   * Sales Agents, Project and Presentation print the same sentence and one
+   * line. A baseline that was a count read "against 59 meetings reached them"
+   * there, and replaced why the finding matters (review, 2026-10-23).
+   */
+  it("is short, and its line is a comparison or why it matters, never a bare count", async () => {
+    let seen = 0;
+    for (const query of CELLS) {
+      const findings = [
+        ...(await repo.getSalesFlow(query)).findings,
+        ...(await repo.getAgentsView(query)).findings,
+        ...(await repo.getProjectView(query, null)).findings,
+        ...(
+          await repo.getPresentationIntelligence(query, {
+            mode: "cohorts",
+            left: null,
+            right: null,
+          })
+        ).findings,
+      ];
+      for (const finding of findings) {
+        seen += 1;
+        expect(words(finding.statement), finding.statement).toBeLessThanOrEqual(14);
+        expect(words(subLine(finding)), subLine(finding)).toBeLessThanOrEqual(10);
+        expect(subLine(finding)).not.toMatch(/^against [\d\s,.]+(and [\d\s,.]+)?(meetings|agents)/);
+      }
+    }
+    expect(seen, "the cells draw findings at all").toBeGreaterThan(10);
   });
 });

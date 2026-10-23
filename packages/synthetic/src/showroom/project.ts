@@ -1235,9 +1235,12 @@ export function buildPresentationIntelligence(
     findings.push({
       id: `difference-${top.id}`,
       statement: `${top.behaviour}: ${comparison.left.label} ${top.leftDisplay}, ${comparison.right.label} ${top.rightDisplay}.`,
-      baseline: `${count(top.sampleLeft, locale)} and ${count(top.sampleRight, locale)} meetings`,
-      soWhat:
-        "The largest observed difference in how the two present. Whether it is worth changing is a coaching conversation, not a conclusion from this data.",
+      /*
+       * The two sides' counts are a denominator, not a comparison: the table
+       * above prints them on the row, and the finding's foot prints their sum.
+       */
+      baseline: null,
+      soWhat: "A question for coaching, not a conclusion from this data.",
       nextStep: { label: "Open a meeting", href: `${base}/meetings` },
       evidence: comparison.evidence,
       sampleSize: top.sampleLeft + top.sampleRight,

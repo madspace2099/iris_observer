@@ -45,11 +45,10 @@ import { MeetingOutcomes } from "./MeetingOutcomes";
  * `MeetingReplay.headline` is not an observation. It is a sentence assembled
  * from the session — its length, its step count, how many units were opened —
  * and it is the closest thing this screen has to an answer. Because it is
- * derived it is labelled on both axes at once: the word "Derived" in the
- * section title, and "calculated by Observer from showroom recordings" on the
- * source line beneath it, the words every screen gives `IRIS_SHOWROOM_DERIVED`
- * (ADR-0052). Nothing on this screen
- * asks the reader to guess which sentences Observer worked out.
+ * derived it says so in the section title, "Derived summary". The source line
+ * that said it a second time is off every screen since 2026-10-23 (ADR-0052,
+ * amended). Nothing on this screen asks the reader to guess which sentences
+ * Observer worked out.
  *
  * The summary the brief asks for — three two-room flats opened, two
  * shortlisted, the strongest interest in the south-facing units — needs the
@@ -61,7 +60,7 @@ import { MeetingOutcomes } from "./MeetingOutcomes";
  * where the catalogue and the session are both already in hand, and arrives
  * here as `MeetingReplay.unitsViewed` — one sentence for the rooms and the
  * shortlist, one for where the looking time leaned. Both are derived, so both
- * sit under the same title and the same source chip as the headline.
+ * sit under the same title as the headline.
  *
  * ## ADR-0018 is a property of the route, not of this file
  *

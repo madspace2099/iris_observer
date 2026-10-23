@@ -153,6 +153,6 @@ describe("where everyone clears twenty held and nobody twenty timed", () => {
     expect(
       String(view.findings.find((f) => f.id === "agents-signature-withheld")?.statement),
       "the case fell through both branches with nothing said",
-    ).toContain("was 15 meetings of 25 held, 5 short of the 20");
+    ).toContain("nobody has 20 timed meetings; the most is 15.");
   });
 });

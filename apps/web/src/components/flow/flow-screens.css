@@ -840,8 +840,10 @@ html:has(.iris-salesflow) {
 
 /*
  * A finding is one large sentence, its count inside it, and one short line
- * (the owner, 2026-10-23): at Body size and three lines each, two filled the
- * screen; at this size, four fit it.
+ * (the owner, 2026-10-23). The read model draws two at most (the first flag
+ * and the unrecorded meetings), about 190px each at this size with a two-line
+ * sentence: both fit the 591px screen at 1280 x 720 with "How to read this".
+ * Four would not, so a third finding is a layout change, not a free addition.
  */
 .iris-salesflow .flow-findings .iris-finding-statement {
   max-width: 40ch;
