@@ -51,6 +51,8 @@ export interface ReportWords {
   readonly ladderIntro: string;
   readonly channelSplit: readonly [string, string, string, string, string];
   readonly meetingsCaption: string;
+  /** Said only to a reader the replay admits: a developer's rows are text (ADR-0018). */
+  readonly meetingsOpen: string;
   readonly meetingsColumns: readonly [string, string, string, string];
   readonly appendixCaption: string;
   readonly appendixColumns: readonly [string, string, string, string];
@@ -110,8 +112,8 @@ export const REPORT_WORDS: Readonly<Record<Language, ReportWords>> = {
       "WEB IRIS meetings",
       ", each with its own total.",
     ],
-    meetingsCaption:
-      "The most recent meetings in the period. Each opens as a replay, or as a brief if it has not run.",
+    meetingsCaption: "The most recent meetings in the period.",
+    meetingsOpen: "Each opens as a replay, or as a brief if it has not run.",
     meetingsColumns: ["Meeting", "Agent", "Started", "Outcome"],
     appendixCaption: "Every section of this report with the evidence reference it rests on.",
     appendixColumns: ["Section", "State", "Sample", "Evidence"],
@@ -170,8 +172,8 @@ export const REPORT_WORDS: Readonly<Record<Language, ReportWords>> = {
       "stretnutia vo WEB IRIS",
       ", každé s vlastným súčtom.",
     ],
-    meetingsCaption:
-      "Najnovšie stretnutia v tomto období. Každé sa otvorí ako záznam, alebo ako podklad, ak ešte neprebehlo.",
+    meetingsCaption: "Najnovšie stretnutia v tomto období.",
+    meetingsOpen: "Každé sa otvorí ako záznam, alebo ako podklad, ak ešte neprebehlo.",
     meetingsColumns: ["Stretnutie", "Maklér", "Začiatok", "Výsledok"],
     appendixCaption: "Každá sekcia tejto správy s odkazom na podklady, na ktorých stojí.",
     appendixColumns: ["Sekcia", "Stav", "Vzorka", "Podklady"],
@@ -230,8 +232,9 @@ export const REPORT_WORDS: Readonly<Record<Language, ReportWords>> = {
       "WEB IRIS-találkozók",
       ", mindkettő a saját összesítésével.",
     ],
-    meetingsCaption:
-      "Az időszak legutóbbi találkozói. Mindegyik visszajátszásként nyílik meg, vagy felkészítő anyagként, ha még nem zajlott le.",
+    meetingsCaption: "Az időszak legutóbbi találkozói.",
+    meetingsOpen:
+      "Mindegyik visszajátszásként nyílik meg, vagy felkészítő anyagként, ha még nem zajlott le.",
     meetingsColumns: ["Találkozó", "Értékesítő", "Kezdés", "Eredmény"],
     appendixCaption: "A jelentés minden szakasza az alátámasztó hivatkozással, amelyen alapul.",
     appendixColumns: ["Szakasz", "Állapot", "Minta", "Alátámasztás"],

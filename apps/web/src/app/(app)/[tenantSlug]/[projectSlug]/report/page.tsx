@@ -14,6 +14,7 @@ import {
   replayHref,
 } from "@observer/readmodels";
 import { requireSurface } from "@/lib/authz";
+import { maySeeSurface } from "@/lib/routes";
 import { dynamicRoute } from "@/lib/href";
 import { reportLanguage } from "@/lib/language";
 import { presetFrom, withPeriod } from "@/lib/period";
@@ -187,6 +188,16 @@ async function ProjectReport({
   const pct = (share: number) => percent.format(share);
   const link = (href: string) => dynamicRoute(withPeriod(href, period));
   const words = REPORT_WORDS[language];
+  /*
+   * A meeting row opens the replay only for a role the replay admits: a
+   * developer's click on one was sent to Ask IRIS without a word, under a
+   * caption that said each opens (review, round 9). `AgentReport` gates the
+   * same rows the same way.
+   */
+  const canOpen = maySeeSurface(query.viewer.role, "[meetingId]");
+  const meetingsCaption = canOpen
+    ? `${words.meetingsCaption} ${words.meetingsOpen}`
+    : words.meetingsCaption;
   const coverageCaption = sentence(language, REPORT_COVERAGE_CAPTION, {
     timed: String(agents.timedMeetingCount),
     total: String(agents.meetingCount),
@@ -420,7 +431,7 @@ async function ProjectReport({
       meetings.rows.length === 0 ? null : (
         <DataTable
           captionHidden
-          caption={words.meetingsCaption}
+          caption={meetingsCaption}
           columns={[
             { key: "meeting", label: words.meetingsColumns[0] },
             { key: "agent", label: words.meetingsColumns[1] },
@@ -430,10 +441,12 @@ async function ProjectReport({
           rows={meetings.rows.slice(0, 5).map((row) => ({
             key: row.meetingId,
             cells: {
-              meeting: (
+              meeting: canOpen ? (
                 <Link prefetch={false} href={link(row.href)}>
                   {row.label}
                 </Link>
+              ) : (
+                row.label
               ),
               agent: <AgentName name={row.agentName} src={portraits[row.agentId] ?? null} />,
               started: row.startedDisplay,
@@ -478,7 +491,7 @@ async function ProjectReport({
       ...(flow.ladder.source === "crm" ? [words.ladderIntro] : []),
       flow.ladder.note,
     ],
-    "meeting-summary": meetings.rows.length === 0 ? [] : [words.meetingsCaption],
+    "meeting-summary": meetings.rows.length === 0 ? [] : [meetingsCaption],
     "evidence-appendix": [words.appendixCaption],
   };
 
