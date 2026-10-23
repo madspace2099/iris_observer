@@ -273,12 +273,13 @@ describe("the pace and the verdict", () => {
 
 describe("Shark Residence, on the demonstration's own day", () => {
   /*
-   * 24 Aug 2026. 60 flats. The demonstration CRM has a purchase on 19 of them
-   * and a reservation (and no purchase) on 13, so 28 are available and 41 not
-   * yet sold. 14 of the 19 were first purchased since 26 May: 14 / 90 × 30.4375
-   * = 4.735 → "4.7". 41 unsold over the 310 days to 30 Jun 2027 (10.185
-   * months) = 4.026 → "4.0". At the current pace 41 × 90 / 14 = 263.6 → 264
-   * days → 15 May 2027. 224 of 534 days gone.
+   * 24 Aug 2026. 60 flats. The demonstration CRM has a purchase on 29 of them
+   * (ten of them reservations signed three weeks on) and a reservation (and no
+   * purchase) on 3, so 28 are available and 31 not yet sold. 19 of the 29 were
+   * first purchased since 26 May: 19 / 90 × 30.4375 = 6.426 → "6.4". 31 unsold
+   * over the 310 days to 30 Jun 2027 (10.185 months) = 3.044 → "3.0". At the
+   * current pace 31 × 90 / 19 = 146.8 → 147 days → 18 Jan 2027. 224 of 534
+   * days gone.
    */
   it("reads the configured window and the demonstration CRM", async () => {
     const charts = await new SyntheticObserverRepository().getProjectCharts({
@@ -290,7 +291,7 @@ describe("Shark Residence, on the demonstration's own day", () => {
     });
     const p = charts.plan;
     expect(p.total).toBe(60);
-    expect(p.parts.map((x) => x.count)).toEqual([19, 13, 28]);
+    expect(p.parts.map((x) => x.count)).toEqual([29, 3, 28]);
     /* The demonstration CRM's one reservation whose buyer's every flat was taken. */
     expect(p.stockNote).toBe(
       "1 reservation or purchase in the CRM names no flat in the catalogue, not counted.",
@@ -302,12 +303,12 @@ describe("Shark Residence, on the demonstration's own day", () => {
     });
     expect(p.window?.elapsed).toBeCloseTo(224 / 534, 6);
     expect(p.pace).toMatchObject({
-      sales: 14,
+      sales: 19,
       days: 90,
-      sellingDisplay: "4.7",
-      neededDisplay: "4.0",
-      sellsOutDisplay: "May 2027",
-      basis: "14 sales dated in the last 90 days",
+      sellingDisplay: "6.4",
+      neededDisplay: "3.0",
+      sellsOutDisplay: "Jan 2027",
+      basis: "19 sales dated in the last 90 days",
     });
     expect(p.verdictText).toBe("On pace");
   });
@@ -339,8 +340,8 @@ describe("Shark Residence, on the demonstration's own day", () => {
       period: "quarter_to_date",
       language: DEFAULT_LANGUAGE,
     });
-    // 129 days = 4.238 months: 41 / 4.238 = 9.674 → "9.7".
-    expect(charts.plan.pace?.neededDisplay).toBe("9.7");
+    // 129 days = 4.238 months: 31 / 4.238 = 7.314 → "7.3", above the 6.4 selling.
+    expect(charts.plan.pace?.neededDisplay).toBe("7.3");
     expect(charts.plan.verdictText).toBe("Behind");
   });
 

@@ -466,9 +466,9 @@ describe("on Shark Residence, quarter to date", () => {
     expect(view.conversion[0]).toBe(
       `4 of the 5 are reserved or sold now, against ${pct(held.length)} of the catalogue.`,
     );
-    /* H-401 (26 Mar) and S-501 (10 Feb) were sold or reserved before the quarter's meetings. */
+    /* S-501 (reserved 10 Feb, signed 3 Mar) and H-401 (26 Mar) were sold before the quarter's meetings. */
     expect(view.conversion).toContain(
-      "S-501's reservation (10 Feb) and H-401's purchase (26 Mar) predate the period.",
+      "S-501's purchase (3 Mar) and H-401's purchase (26 Mar) predate the period.",
     );
     /* The demonstration CRM's deals are made from meetings, and the reader is told. */
     expect(view.salesNote).toMatch(/demonstration CRM makes each of its deals/);

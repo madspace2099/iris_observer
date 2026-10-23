@@ -74,6 +74,15 @@ These drive the developer-facing screens rather than the identity logic.
 | **Agency across developers**      | one agency working for both demo tenants                                                           | strict isolation: the agency sees each project separately and never the two together                                                |
 | **Presentation patterns**         | Shark Residence: five presenters with distinct habits, behaviour weighed more in its outcome model | what goes with a meeting that progressed, in Presentation DNA's cohorts, the agent rings and Sales Flow — with exceptions both ways |
 
+**Shark Residence's demonstration CRM signs its reservations** (extended 2026-10-23). A reservation
+is a three-week hold: 21 days after it, the deal enters the Sold stage on the same flat
+(`RESERVATION_SIGNED_AFTER_DAYS` in `packages/synthetic/src/deals.ts`). Before, every reservation
+stayed open for ever, one since January, and Sales Flow's sales cycle over the last 30 days had 7
+sales against the registry's floor of 10, so it printed "Too few sales". No meeting changed. On the
+pinned day the CRM holds 29 purchases and 3 reservations of the 60 flats (was 19 and 13; 28 stay
+available), and the last 30 days hold 10 sales, every one measured: median 170 days. Northgate keeps
+its reservations open.
+
 ---
 
 ## 4. Rules the seeds must obey

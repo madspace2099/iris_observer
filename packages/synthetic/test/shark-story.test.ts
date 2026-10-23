@@ -106,6 +106,15 @@ describe("Shark Residence's demonstration CRM", () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
+  it("signs every reservation three weeks on, so none has stood longer", () => {
+    const reservations = holds.filter((d) => d.stage === "reservation");
+    expect(reservations.length).toBeGreaterThan(0);
+    for (const d of reservations)
+      expect(Date.parse(TODAY) - Date.parse(d.stageEnteredAt ?? ""), d.externalId).toBeLessThan(
+        21 * 86_400_000,
+      );
+  });
+
   it("agrees with the catalogue about every flat it sold", () => {
     const status = new Map(catalogueFor("prj_sharkres001").map((u) => [u.code, u.status]));
     const purchased = holds.filter((d) => d.stage === "purchase" && d.unitCode !== null);

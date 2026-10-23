@@ -433,6 +433,24 @@ const STAGE_LAG_DAYS: Readonly<Partial<Record<DealStage, number>>> = {
 };
 
 /**
+ * A RESERVATION THAT ENDS IN A CONTRACT, BY SCENARIO (Máté 2026-10-23).
+ *
+ * Shark Developments' reservation is a three-week hold, the same three weeks a
+ * buyer who decided in the room takes to sign: 21 days after the reservation
+ * the deal enters the Sold stage on the same flat, and until then it stays a
+ * reservation. Before this, every Shark reservation stayed open for ever, one of
+ * them since January, and Sales Flow's sales cycle over the last 30 days had 7
+ * sales against the registry's floor of 10. With it the CRM holds 29 purchases
+ * and 3 reservations of the 60 flats (was 19 and 13; 28 stay available), and
+ * the last 30 days hold 10 sales, every one measured. The meetings are what
+ * they were: no outcome, date or unit moved. Northgate's scenario keeps its
+ * reservations open, so its ladder and figures are unchanged.
+ */
+const RESERVATION_SIGNED_AFTER_DAYS: Readonly<Partial<Record<string, number>>> = {
+  prj_sharkres001: 21,
+};
+
+/**
  * The scenarios the demonstration CRM covers, by slug: the healthy project
  * with a CRM (`docs/08-scenarios.md` §3). Riverside declares none, Kingsford
  * is three weeks old, and ISTER TOWER is the control plane's twin whose deals
@@ -476,11 +494,17 @@ export function syntheticDeals(
     holder.set(session.meetingId, free?.unitCode ?? null);
   }
   for (const session of sessions) {
-    const stage = OUTCOME_STAGE[session.outcome];
-    if (stage === undefined) continue;
-    const lag = STAGE_LAG_DAYS[stage] ?? 0;
-    const entered = new Date(Date.parse(session.startedAt) + lag * DAY_MS);
-    if (entered.getTime() > Date.parse(fetchedAt)) continue;
+    const outcome = OUTCOME_STAGE[session.outcome];
+    if (outcome === undefined) continue;
+    const lag = STAGE_LAG_DAYS[outcome] ?? 0;
+    const reached = Date.parse(session.startedAt) + lag * DAY_MS;
+    if (reached > Date.parse(fetchedAt)) continue;
+    /* A reservation the scenario signs is a purchase from the day it is signed. */
+    const hold =
+      outcome === "reservation" ? RESERVATION_SIGNED_AFTER_DAYS[session.projectId] : undefined;
+    const signed = hold === undefined ? Infinity : reached + hold * DAY_MS;
+    const stage: DealStage = signed <= Date.parse(fetchedAt) ? "purchase" : outcome;
+    const entered = new Date(stage === outcome ? reached : signed);
     const top = [...session.units].sort((a, b) => b.dwellSeconds - a.dwellSeconds)[0];
     deals.push({
       externalId: `D-${session.meetingId}`,

@@ -173,10 +173,19 @@ describe("the summary figures", () => {
   });
 
   it("says a sales cycle with no median is too few sales, with the counts beside it", async () => {
-    const { kpis } = await repo.getFlowCharts(SHARK, "month");
+    const { kpis } = await repo.getFlowCharts(SHARK, "week");
     expect(kpis.figures.find((f) => f.id === "sale_cycle")).toMatchObject({
       value: "Too few sales",
-      qualifier: "7 measured, 10 needed · last 30 days",
+      qualifier: "6 measured, 10 needed · last 7 days",
+    });
+  });
+
+  it("reads a median over the last 30 days, from the 10 sales the floor asks for", async () => {
+    /* Shark's reservations are signed three weeks on (deals.ts), which is what puts 10 sales here. */
+    const { kpis } = await repo.getFlowCharts(SHARK, "month");
+    expect(kpis.figures.find((f) => f.id === "sale_cycle")).toMatchObject({
+      value: "170 days",
+      qualifier: "median · 80% within 196 days · 10 of 10 sales measured",
     });
   });
 });
@@ -275,7 +284,7 @@ describe("names a reader can read", () => {
   it("gives the Briefing's Project door both shares, and its alert its own action", async () => {
     const home = await repo.getHome(SHARK);
     expect(home.doors.find((d) => d.id === "project")?.headline).toBe(
-      "Four-room units · 12% of unsold stock, 6% of looking time",
+      "Two-room units · 26% of unsold stock, 46% of looking time",
     );
     expect(home.alert?.actionLabel).toBe("See the meetings");
   });

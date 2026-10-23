@@ -151,11 +151,11 @@ describe("saving the window", () => {
     expect(existsSync(fileOf(SHARK))).toBe(true);
     expect(state.revalidated).toEqual(["/shark/shark-residence/project"]);
 
-    // 36 unsold over the 129 days to 31 Dec (4.238 months) = 8.494 → "8.5".
+    // 31 unsold over the 129 days to 31 Dec (4.238 months) = 7.314 → "7.3".
     const after = await plan("acct_clara");
     expect(after.window?.sellOutByDisplay).toBe("31 Dec 2026");
     expect(after.verdictText).toBe("Behind");
-    expect([after.pace?.neededDisplay, after.pace?.sellingDisplay]).toEqual(["9.7", "4.7"]);
+    expect([after.pace?.neededDisplay, after.pace?.sellingDisplay]).toEqual(["7.3", "6.4"]);
     // Everyone holding the project reads the same plan.
     expect((await plan("acct_daniel")).verdictText).toBe(after.verdictText);
   });
@@ -243,10 +243,10 @@ describe("the block", () => {
     const clara = await block("acct_clara", "shark", "shark-residence");
     expect(clara).toContain("Change the dates");
     expect(clara).toContain("On pace");
-    expect(clara).toContain("<dt>Selling a month</dt><dd>4.7</dd>");
-    expect(clara).toContain("<dt>Needed a month</dt><dd>4.0</dd>");
-    expect(clara).toContain("14 sales dated in the last 90 days");
-    expect(clara).toContain("At this pace, sold out in <b>May 2027</b>");
+    expect(clara).toContain("<dt>Selling a month</dt><dd>6.4</dd>");
+    expect(clara).toContain("<dt>Needed a month</dt><dd>3.0</dd>");
+    expect(clara).toContain("19 sales dated in the last 90 days");
+    expect(clara).toContain("At this pace, sold out in <b>Jan 2027</b>");
     /* Said once: the sell-out date as the figure, the start alone under the track. */
     expect(clara.split("30 Jun 2027")).toHaveLength(2);
     expect(clara).toContain("From 12 Jan 2026");

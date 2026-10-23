@@ -545,16 +545,16 @@ describe("the tools state each figure's own denominator", () => {
     const value = (label: string) => result.facts.find((f) => f.label === label)?.value;
     expect([value("Flats"), value("Sold"), value("Reserved"), value("Available")]).toEqual([
       "60",
-      "19",
-      "13",
+      "29",
+      "3",
       "28",
     ]);
     expect([value("Selling a month"), value("Needed a month"), value("Verdict")]).toEqual([
-      "4.7",
-      "4.0",
+      "6.4",
+      "3.0",
       "On pace",
     ]);
-    expect(result.sampleSize).toBe(14);
+    expect(result.sampleSize).toBe(19);
     expect(result.sources).toEqual(["CRM_OUTCOME_CONTEXT"]);
     const shown = [
       ...result.facts.map((f) => `${f.label} ${f.value} ${f.note ?? ""}`),
