@@ -6,13 +6,14 @@ import { slovakZForm, type Language } from "@observer/readmodels";
  * a report can be printed in; the noun is the caller's in English. Drafts for
  * review in Slovak and Hungarian (P2-17).
  */
-export const SHORTFALL: Readonly<Record<Language, (n: number, minimum: number, noun: string) => string>> =
-  {
-    en: (n, minimum, noun) => `${String(n)} of ${String(minimum)} ${noun} needed`,
-    sk: (n, minimum) =>
-      `${String(n)} ${slovakZForm(minimum)} ${String(minimum)} potrebných stretnutí`,
-    hu: (n, minimum) => `${String(minimum)} szükséges találkozóból ${String(n)}`,
-  };
+export const SHORTFALL: Readonly<
+  Record<Language, (n: number, minimum: number, noun: string) => string>
+> = {
+  en: (n, minimum, noun) => `${String(n)} of ${String(minimum)} ${noun} needed`,
+  sk: (n, minimum) =>
+    `${String(n)} ${slovakZForm(minimum)} ${String(minimum)} potrebných stretnutí`,
+  hu: (n, minimum) => `${String(minimum)} szükséges találkozóból ${String(n)}`,
+};
 
 /**
  * THE THREE THINGS THE AGENT SURFACES HAVE TO DRAW THAT `Figure` CANNOT.
