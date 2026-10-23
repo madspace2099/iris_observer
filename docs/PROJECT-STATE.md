@@ -6909,3 +6909,75 @@ within one viewport at 1280×720 and 1440×900. e2e edited, not run: `agent-port
 build, and on the demo at 1440×900 and 390×844 read Sales Agents, Lena's page (as Clara and as
 Lena), Presentation in its three modes and two Ask answers; run `agent-portraits`, `p221-render`,
 `p221-meres`, `register-gate`, `a11y-contract` and `layout-integrity`.
+
+## 2026-10-23 — R8 REST: bugs, overlaps and text before the video (branch `r8-rest`)
+
+Máté, before recording the marketing video: a bug and overlap check on every page, simpler text
+where there is a lot of it, and responsiveness. This stream owns What needs attention, the
+Briefing, the report (screen, print, export dialog), settings, /projects, sign-in, the welcome,
+MADSPACE and the shell. Branch `r8-rest` from `42bb68bd`, not pushed. Each of the reviewer's 30
+findings was checked in the code and the reviewer's screenshots, and reproduced on a static render
+(or, for the print frame, in the PDF) where a render could show it, before it was fixed.
+
+- **Diagnostics.** Client projects is six columns (was nine, 1,901px in a 1,366px frame, cut on
+  camera); last meeting and CRM deals are on each project's drill-down. Heads wrap from 64rem,
+  and below it the table stacks into labelled records (`.mad-table[data-stack]`). Five empty
+  telemetry planes are one band with the count waiting for a first heartbeat; "No operator
+  needed" no longer stands green beside "Heartbeat fresh 0 of 1".
+- **Shell.** No "All 1 projects" footer; /projects and settings (`data-surface="account"`) lift
+  the 104px name cap; one role line ("Developer"; settings add "· company admin", `ROLE_WORDS`
+  now exported from `lib/accounts`); role line and Demo-data pill 12px; from 1200px the page's
+  own Demo-data chip steps aside on the sheets and the report (the header pill says it).
+- **Settings.** `/settings` redirects to `/settings/ai` (was a 404; declared in
+  `reference-parity`). AI and usage and Connect your CRM keep one line per block in view; storage,
+  schedules, mappings and CSV format moved behind `i`s; the IRIS-led link is styled as a link.
+- **What needs attention / Briefing.** A check that could not be asked keeps "Not evaluated" in
+  view and its reason behind an `i` (ADR-0058's in-row reason superseded by the owner's
+  request); the register's title is "Every check". The building line reads "19 sold to date"
+  with the period caveat behind its `i` (`answer-sheets` guard updated); "Where to look next"
+  names its window.
+- **Report.** The head keeps title and verdict; lede and statement behind one `i` beside Print
+  (`ReportAbout`, all three scopes); the cover's four figures are drawn under the head on screen;
+  "Ready" only where a section is not; source lines behind each section foot's `i` (printed on
+  paper); 06 draws the channel split with its denominator. Print: `color-scheme: light` on the
+  report's root removes the near-black frame Chrome painted round pages 2+ (an 18,18,18 full-page
+  fill in every sheet of the PDF, now none); contents summaries clamp to two lines.
+- **Export dialog.** Scope and Audience only (Period repeated the scope), the intro behind the
+  scope's `i`, rows without summary or source line, one-line format notes: five sections in view
+  at 390 (was one).
+- **Sign-in, wizard, welcome.** The phone hero band is 224px so the line sits under the
+  founders' faces; the wizard's Back and Next stack below 30rem; the welcome's instrument
+  contracts and stays (72%) until Ask IRIS paints, so the 0.9s hand-over is no longer a black
+  frame; Esc cap 12px.
+
+**Not fixed here, for the integrator** (cause outside this stream's files): meeting ids as
+attention subjects (`packages/synthetic/src/showroom/attention.ts:519`, `label: s.meetingId`);
+report 07 titled "A single meeting" over a five-row table (`packages/synthetic/src/reports.ts:114`);
+"27 lost, counted beside the ladder" with no lost row (`packages/synthetic/src/deals.ts:581`,
+`components/flow/FlowLadder.tsx`); "0.46× their share of attention" and "Look at it"
+(`packages/synthetic/src/showroom/views3.ts:2647, :2612`); the Units page's own "not observed
+yet" line (`units/page.tsx:198`); the 10px `i` glyph (`showroom.css:1203`); another person's
+name in Ask's OpenAI-key note (`components/ask-iris/live-questions.ts:80`); the root 404's
+three-line copy (`app/not-found.tsx`). Rejected: client-657 / Valami is a control-plane
+registration (the owner's data call: remove it or record with the plane off); /projects is
+mostly empty for a one-project account, which never lands there (record from the project);
+the 7px "by MADSPACE" is the logo lockup.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; the touched unit
+suites green (answer-sheets, report-document, report-print, export-dialog, phone-shell,
+reference-parity, madspace-design-system and others). Static renders (react-dom/server in the
+real Shell and MADSPACE layout, product stylesheets, headless Chromium) of Diagnostics, /projects,
+both settings pages (the local recording's company-key state too), What needs attention, the Briefing, the report, sign-in, the export dialog
+(live, opened) and the welcome (frames over time) at 1440×900, 1280×720, 390×844 and 360×780:
+no sideways scroll on any. The report printed to PDF and its fills read. e2e not run;
+`a11y-contract` gains the report's `i` as a listed pop-up. **Not looked at on the running demo
+after the change.**
+
+Full unit suite (after `pnpm release:wrappers`, on the committed tree before the last commit): 296 files, 5420 passed, 1 skipped, 3 failed: `no-secret-recipes` (needs a web build, environmental), and two of this round's slips, fixed in `576bc939` (`/settings` undeclared in SURFACES; the shell's stylesheet scoped into `.ox-report`); `surfaces`, `collisions` and their neighbours re-run green.
+
+**Next recommended action.** Cherry-pick with the parallel R8 streams, build, and walk the video
+path at 1440×900 and 390×844: Diagnostics (six columns, no cut), the report's first screen and
+its print preview with background graphics on (white pages after the cover), the Briefing,
+What needs attention, settings. Route the integrator list above. Run `a11y-contract`,
+`fejezet1`, `p221-render`, `agent-report`, `paper-register`, `frame-language`, `iris-led`,
+`project-switching`.
