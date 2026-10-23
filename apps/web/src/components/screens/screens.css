@@ -1,0 +1,186 @@
+/*
+ * A PAGE READ ONE SCREEN AT A TIME (ADR-0059 for Sales Flow, ADR-0061 for the
+ * Sales Agents pages).
+ *
+ * The rail beside the screens (`ScreenRail`), for every such page, and the
+ * screens themselves for a page that opts in with `.iris-screens` on its root
+ * and `.screen` on each block. Sales Flow keeps its own sheet for its screens
+ * (`flow-screens.css`, the same rules on `.iris-salesflow` and `.flow-screen`)
+ * and places the rail itself.
+ *
+ * Every rule is scoped: the rail's class, or a page that opts in, or the
+ * document only while it holds one (`:has`), so no other surface scrolls
+ * differently.
+ */
+
+/*
+ * The height the sticky chrome takes: above 1199px the header and the context
+ * band under it (70 + 59, measured on Sales Flow); below, the one 58px bar.
+ * ponytail: the band's 59px is a measurement, not a variable — a band that
+ * wraps to a second row would cover that much more of a screen's top.
+ */
+html:has(.iris-screens) {
+  --screen-top: calc(var(--iris-header-height) + 59px);
+  --screen-h: calc(100svh - var(--screen-top));
+  scroll-padding-top: var(--screen-top);
+  /* Proximity at every size: mandatory held the demo at its first screen (ADR-0059). */
+  scroll-snap-type: y proximity;
+}
+
+@media (width <= 1199px) {
+  html:has(.iris-screens) {
+    --screen-top: var(--iris-header-height-mobile);
+  }
+}
+
+/* Chrome animates every snap, so under reduced motion the page does not snap at all. */
+@media (prefers-reduced-motion: reduce) {
+  html:has(.iris-screens) {
+    scroll-snap-type: none;
+  }
+}
+
+/* The Ask IRIS composer after the last screen: the scroller's end is a place it may rest. */
+.iris-screens ~ * {
+  scroll-snap-align: end;
+}
+
+/* --- the screens ------------------------------------------------------------ */
+
+.iris-screens .screen {
+  display: flex;
+  flex-direction: column;
+  min-height: var(--screen-h);
+  scroll-snap-align: start;
+}
+
+/* A screen the rail moves focus to is a place, not a control: no ring round the whole screen. */
+.iris-screens .screen:focus {
+  outline: none;
+}
+
+/* --- the rail: where you are ----------------------------------------------- */
+
+.screen-rail {
+  display: none;
+}
+
+/*
+ * Drawn only where its dots fit under the chrome: fifteen 26px steps need
+ * 390px, and on a landscape phone the first sat under the header and the last
+ * below the viewport, focusable and out of sight (ADR-0059, review round 1).
+ * 33rem tall leaves 399px under the desktop's chrome.
+ */
+@media (width >= 40rem) and (height >= 33rem) {
+  .iris-screens {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 2rem;
+    column-gap: 0.5rem;
+  }
+
+  .iris-screens > * {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .iris-screens > .screen-rail {
+    grid-column: 2;
+  }
+
+  /*
+   * The rail is as tall as its dots, held in the middle of the room under the
+   * chrome (`--screen-dots` is the rail's count). A rail a screen tall was
+   * dragged up by the page's end, under the context band (ADR-0059).
+   */
+  .screen-rail {
+    align-self: start;
+    position: sticky;
+    top: calc(var(--screen-top) + (var(--screen-h) - var(--screen-dots, 15) * 26px) / 2);
+    display: flex;
+    justify-content: center;
+  }
+
+  .screen-rail ol {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  /* A 24px target round an 8px dot; the current one is the accent, the rest a quiet ring. */
+  .screen-rail a {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+  }
+
+  .screen-rail a::after {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px var(--iris-text-tertiary);
+    transition:
+      background-color 160ms cubic-bezier(0.2, 0, 0, 1),
+      box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  .screen-rail a:hover::after {
+    box-shadow: inset 0 0 0 1px var(--iris-text-primary);
+  }
+
+  .screen-rail a[aria-current]::after {
+    background: var(--iris-accent, #00a3ff);
+    box-shadow: none;
+  }
+
+  .screen-rail a:focus-visible {
+    outline: 2px solid var(--iris-accent, #00a3ff);
+    outline-offset: 2px;
+  }
+
+  /* The screen's name beside its dot, while the pointer or the keyboard is on it. */
+  .screen-rail a::before {
+    content: attr(data-label);
+    position: absolute;
+    right: calc(100% + 6px);
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: var(--iris-rail, #171b21);
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+    color: var(--iris-text-primary);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .screen-rail a:is(:hover, :focus-visible)::before {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-rail a::after {
+    transition: none;
+  }
+}
+
+/* On paper a screen is as tall as what it holds, and there is no rail to scroll by. */
+@media print {
+  .iris-screens {
+    display: block;
+  }
+
+  .iris-screens .screen {
+    min-height: 0;
+  }
+
+  .screen-rail {
+    display: none;
+  }
+}

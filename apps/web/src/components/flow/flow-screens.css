@@ -412,18 +412,19 @@ html:has(.iris-salesflow) {
   padding-top: 1.25rem;
 }
 
-/* --- the rail: where you are ----------------------------------------------- */
+/* --- the rail: where you are -----------------------------------------------
+ *
+ * The rail is the shared `ScreenRail` (ADR-0061): its look, its stickiness and
+ * where it is drawn are `components/screens/screens.css`'s. Sales Flow gives it
+ * the screens' height and places it in a column beside them.
+ */
 
-.iris-salesflow .flow-rail {
-  display: none;
+html:has(.iris-salesflow) {
+  --screen-top: var(--flow-top);
+  --screen-h: var(--flow-h);
 }
 
-/*
- * Drawn only where its dots fit under the chrome: fifteen 26px steps need
- * 390px, and on a landscape phone the first sat under the header and the last
- * below the viewport, focusable and out of sight (review round 1). 33rem tall
- * leaves 399px under the desktop's chrome.
- */
+/* Drawn only where its dots fit under the chrome (`screens.css`). */
 @media (width >= 40rem) and (height >= 33rem) {
   .iris-salesflow {
     display: grid;
@@ -436,89 +437,9 @@ html:has(.iris-salesflow) {
     grid-row: 1;
   }
 
-  /*
-   * The rail is as tall as its dots, held in the middle of the room under the
-   * chrome (`--flow-dots` is the rail's count). A rail a screen tall was dragged
-   * up by the page's end, under the context band (review round 1); one this
-   * short is reached by the page's end only on a window too short to draw it.
-   */
-  .iris-salesflow .flow-rail {
+  .iris-salesflow > .screen-rail {
     grid-column: 2;
     grid-row: 1;
-    align-self: start;
-    position: sticky;
-    top: calc(var(--flow-top) + (var(--flow-h) - var(--flow-dots, 15) * 26px) / 2);
-    display: flex;
-    justify-content: center;
-  }
-
-  .iris-salesflow .flow-rail ol {
-    display: grid;
-    gap: 2px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  /* A 24px target round an 8px dot; the current one is the accent, the rest a quiet ring. */
-  .iris-salesflow .flow-rail a {
-    position: relative;
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-  }
-
-  .iris-salesflow .flow-rail a::after {
-    content: "";
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    box-shadow: inset 0 0 0 1px var(--iris-text-tertiary);
-    transition:
-      background-color 160ms cubic-bezier(0.2, 0, 0, 1),
-      box-shadow 160ms cubic-bezier(0.2, 0, 0, 1);
-  }
-
-  .iris-salesflow .flow-rail a:hover::after {
-    box-shadow: inset 0 0 0 1px var(--iris-text-primary);
-  }
-
-  .iris-salesflow .flow-rail a[aria-current]::after {
-    background: var(--iris-accent, #00a3ff);
-    box-shadow: none;
-  }
-
-  .iris-salesflow .flow-rail a:focus-visible {
-    outline: 2px solid var(--iris-accent, #00a3ff);
-    outline-offset: 2px;
-  }
-
-  /* The screen's name beside its dot, while the pointer or the keyboard is on it. */
-  .iris-salesflow .flow-rail a::before {
-    content: attr(data-label);
-    position: absolute;
-    right: calc(100% + 6px);
-    padding: 3px 8px;
-    border-radius: 6px;
-    background: var(--iris-rail, #171b21);
-    font-size: 12px;
-    line-height: 16px;
-    white-space: nowrap;
-    color: var(--iris-text-primary);
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .iris-salesflow .flow-rail a:is(:hover, :focus-visible)::before {
-    opacity: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .iris-salesflow .flow-rail a::after {
-    transition: none;
   }
 }
 
@@ -530,9 +451,5 @@ html:has(.iris-salesflow) {
 
   .iris-salesflow .flow-screen {
     min-height: 0;
-  }
-
-  .iris-salesflow .flow-rail {
-    display: none;
   }
 }

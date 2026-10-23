@@ -21,10 +21,15 @@ const SHEET = readFileSync(
   resolve(import.meta.dirname, "../src/components/flow/flow-screens.css"),
   "utf8",
 ).replace(/\/\*[\s\S]*?\*\//g, "");
+/* Sales Flow's rail is the shared `ScreenRail` (ADR-0061), with its own sheet. */
 const RAIL = readFileSync(
-  resolve(import.meta.dirname, "../src/components/flow/FlowRail.tsx"),
+  resolve(import.meta.dirname, "../src/components/screens/ScreenRail.tsx"),
   "utf8",
 );
+const RAIL_SHEET = readFileSync(
+  resolve(import.meta.dirname, "../src/components/screens/screens.css"),
+  "utf8",
+).replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** One rule's body, by its exact selector. */
 function rule(selector: string): string {
@@ -171,10 +176,15 @@ describe("the rail", () => {
   /* Review round 1: on a landscape phone its fifteen dots ran under the header and off the screen. */
   it("is drawn only where its dots fit under the chrome, and is as tall as they are", () => {
     expect(SHEET).toContain("@media (width >= 40rem) and (height >= 33rem) {");
-    const rail = rule("  .iris-salesflow .flow-rail");
+    expect(RAIL_SHEET).toContain("@media (width >= 40rem) and (height >= 33rem) {");
+    const at = RAIL_SHEET.indexOf("  .screen-rail {");
+    expect(at).toBeGreaterThan(-1);
+    const rail = RAIL_SHEET.slice(at, RAIL_SHEET.indexOf("}", at));
     expect(rail).toContain("align-self: start;");
-    expect(rail).toContain("var(--flow-dots, 15) * 26px");
+    expect(rail).toContain("var(--screen-dots, 15) * 26px");
     expect(rail).not.toContain("height:");
+    /* Sales Flow's screens' height is the rail's. */
+    expect(SHEET).toMatch(/--screen-top: var\(--flow-top\);\s*--screen-h: var\(--flow-h\);/);
   });
 
   /*
@@ -198,7 +208,7 @@ describe("the rail", () => {
       }),
     );
     expect(html).toContain(
-      '<nav class="flow-rail" aria-label="Sales Flow screens" style="--flow-dots:2">',
+      '<nav class="screen-rail" aria-label="Sales Flow screens" style="--screen-dots:2">',
     );
     expect(html).toContain('href="#flow-verdict" aria-label="The verdict"');
     expect(html).toMatch(/href="#flow-verdict"[^>]*aria-current="location"/);
