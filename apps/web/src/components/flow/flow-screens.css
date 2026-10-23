@@ -166,13 +166,14 @@ html:has(.iris-salesflow) {
   /*
    * A value that is a sentence ("7 of 7 sales measured", "No sale") is read as
    * words, in the text face at a reading size: in the figures' mono at 34px it
-   * wrapped to two lines and read as the figure (review, 2026-10-23).
+   * wrapped to two lines and read as the figure (review, 2026-10-23); at 20px
+   * it still stood over the line that says why there is no figure (round 9).
    */
   .iris-salesflow #flow-summary .iris-kpi-value[data-statement="true"] {
     font-family: var(--sans, inherit);
-    font-size: 1.25rem;
+    font-size: 1rem;
     font-weight: 500;
-    line-height: 1.75rem;
+    line-height: 1.5rem;
     letter-spacing: 0;
   }
 
@@ -347,13 +348,62 @@ html:has(.iris-salesflow) {
   row-gap: 0.5rem;
 }
 
-/* The agents’ cards five to a line from a 1086px card, not four and one under them. */
-.iris-salesflow #flow-agents .iris-changes {
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+/* Where the screens are fixed (the wheel's sizes), the rows share the screen's free height. */
+@media (width >= 64rem) and (height >= 40rem) {
+  .iris-salesflow #flow-agents > .dld-draw,
+  .iris-salesflow #flow-agents .dld-draw-body,
+  .iris-salesflow #flow-agents .iris-orows {
+    display: flex;
+    flex-direction: column;
+    flex: 1 0 auto;
+  }
+
+  .iris-salesflow #flow-agents .iris-orows-list {
+    flex: 1 0 auto;
+    align-content: space-evenly;
+  }
 }
 
-.iris-salesflow #flow-agents .iris-change {
-  padding-block: 0.75rem;
+/*
+ * A presenter's flag, one line under the rows: their face and name, the read
+ * model's sentence, and their page (review, round 9: five cards took a sixth
+ * of the screen, three of them a name and a button).
+ */
+.iris-salesflow .flow-agent-flags {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0.875rem 0 0;
+  padding: 0.75rem 0 0;
+  list-style: none;
+  border-top: 1px solid var(--d-hairline, var(--rule));
+}
+
+.iris-salesflow .flow-agent-flags li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+}
+
+.iris-salesflow .flow-agent-flags .iris-ring-flag {
+  margin: 0;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.iris-salesflow .flow-agent-open {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+  font-size: 0.8125rem;
+  color: var(--d-ink, var(--ink));
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 0.28);
+  text-underline-offset: 3px;
+}
+
+.iris-salesflow .flow-agent-open:hover {
+  text-decoration-color: currentColor;
 }
 
 /*
@@ -444,6 +494,158 @@ html:has(.iris-salesflow) {
     flex-direction: column;
     justify-content: center;
   }
+
+  /*
+   * The month rows, a line each over their bar (review, round 9): a year's
+   * eight months stacked name, bar and figure ran the screen to 954px at
+   * 1440 × 900. The months get half the card, the line keeps the 34rem its
+   * middle drawing is made for (`Sized`), and a figure reads beside its month.
+   */
+  .iris-salesflow #flow-trend.iris-band {
+    grid-template-columns: minmax(34rem, 1fr) minmax(0, 1fr);
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orows {
+    gap: 0.5rem;
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orows-key {
+    row-gap: 0.25rem;
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orows-list {
+    row-gap: 0.375rem;
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orow {
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 0.25rem 0.75rem;
+    align-items: end;
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orow-who {
+    grid-area: 1 / 1;
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orow-figure {
+    grid-area: 1 / 2;
+    font-size: 0.75rem;
+    text-align: right;
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orow-bar {
+    grid-area: 2 / 1 / 3 / 3;
+  }
+}
+
+/*
+ * A SHORT WINDOW (review, round 9). At 1280 × 720 the screen under the chrome
+ * is 591px, and at 1440 × 900 with the browser's own bars about 660: the lens,
+ * the agents, the not-interested group and a year's months ran 30–250px past
+ * it, so a turn of the wheel was not a screen. Where the wheel steps, the
+ * same drawings sit tighter: thinner bars, closer rows, a lead the card's
+ * width, and the lens's nearest meetings on one line. Nothing is hidden and
+ * nothing is set under 12px. The not-interested group's year is tall enough
+ * to need it at 1440 × 900 too; the rest would leave a band of black there.
+ */
+@media (width >= 64rem) and (height < 50rem) {
+  .iris-salesflow #flow-lens .dld-lens {
+    gap: 10px;
+  }
+
+  .iris-salesflow #flow-lens .iris-lens-nearest {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.375rem 1.5rem;
+    margin: 0.625rem 0 0;
+  }
+
+  .iris-salesflow #flow-lens .iris-lens-nearest h3 {
+    margin: 0;
+  }
+
+  .iris-salesflow #flow-lens .iris-lens-nearest ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem 1.5rem;
+  }
+
+  .iris-salesflow :is(#flow-lens, #flow-assisted) .flow-foot {
+    margin-top: 0.5rem;
+  }
+
+  .iris-salesflow #flow-trend .iris-band-side .iris-orow-bar {
+    height: 1.125rem;
+  }
+
+  .iris-salesflow #flow-agents .iris-orows-list {
+    grid-template-columns: fit-content(10rem) minmax(8rem, 1fr) fit-content(13rem);
+    row-gap: 0.25rem;
+  }
+
+  .iris-salesflow #flow-agents .iris-orow[data-lead="true"] {
+    padding-bottom: 0.375rem;
+  }
+
+  .iris-salesflow #flow-agents .iris-orow-bar {
+    height: 1rem;
+  }
+
+  .iris-salesflow #flow-agents .iris-orow-plot {
+    gap: 0.25rem;
+  }
+
+  .iris-salesflow #flow-agents .iris-orow-open {
+    gap: 0.1875rem;
+  }
+
+  .iris-salesflow #flow-agents .iris-orow-count {
+    gap: 0.3125rem;
+    padding-inline: 0.375rem;
+  }
+
+  .iris-salesflow #flow-agents .flow-agent-flags {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    gap: 0.25rem;
+  }
+}
+
+@media (width >= 64rem) and (height < 60rem) {
+  .iris-salesflow #flow-not-interested .iris-cohort {
+    gap: 0.625rem;
+  }
+
+  .iris-salesflow #flow-not-interested .iris-cohort-lead {
+    max-width: none;
+  }
+
+  .iris-salesflow #flow-not-interested .iris-kpi {
+    padding-block: 0.625rem 0.75rem;
+  }
+
+  .iris-salesflow #flow-not-interested .iris-cohort-parts {
+    row-gap: 0.75rem;
+  }
+
+  .iris-salesflow #flow-not-interested .iris-cohort-part {
+    gap: 0.375rem;
+  }
+
+  .iris-salesflow #flow-not-interested .iris-orows-list {
+    row-gap: 0.375rem;
+  }
+
+  .iris-salesflow #flow-not-interested :is(.iris-paired-head, .iris-paired-row) {
+    grid-template-columns: minmax(7rem, 14rem) minmax(5rem, 1fr) 3.75rem 3.75rem;
+    padding-block: 0.1875rem;
+  }
+
+  .iris-salesflow #flow-not-interested .iris-paired-of {
+    max-width: none;
+    padding-bottom: 0.25rem;
+  }
 }
 
 /* The findings close the page, in the middle of their screen. */
@@ -511,11 +713,12 @@ html:has(.iris-salesflow) {
 }
 
 /*
- * IRIS-assisted sales: the source and "Open IRIS-led sales" on one line, the
- * link at the right, and the note on what cannot be placed one line wide, so
- * the screen fits 1280 × 720 with its way on in view (review, 2026-10-23).
+ * IRIS-assisted sales and the lens: the source and the way on on one line,
+ * and on IRIS-assisted sales the note on what cannot be placed one line wide,
+ * so the screen fits 1280 × 720 with its way on in view (review, 2026-10-23
+ * and round 9).
  */
-.iris-salesflow .flow-assisted-foot {
+.iris-salesflow .flow-foot {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -524,7 +727,7 @@ html:has(.iris-salesflow) {
   margin-top: 0.875rem;
 }
 
-.iris-salesflow .flow-assisted-foot > .iris-srcs {
+.iris-salesflow .flow-foot > .iris-srcs {
   margin-top: 0;
 }
 
@@ -540,13 +743,27 @@ html:has(.iris-salesflow) {
 /*
  * An explanation never stands over the sticky chrome: opened above a low `i`,
  * a long one ran up to the window's top edge, over the header. Its room is
- * the side of the `i` it opens on, less the chrome, less its own padding and
- * border, which a content-box panel adds outside its height.
+ * the side of the `i` it opens on, less its own padding and border, which a
+ * content-box panel adds outside its height, and, above the `i` only, less
+ * the chrome: below it, subtracting the chrome took 129px the panel never
+ * overlapped, and a long note scrolled on camera (review, round 9).
  */
+@position-try --flow-above {
+  position-area: block-start span-inline-end;
+  margin: 0 0 0.375rem;
+  max-height: calc(100% - var(--flow-top) - 2.75rem);
+}
+
+@position-try --flow-above-start {
+  position-area: block-start span-inline-start;
+  margin: 0 0 0.375rem;
+  max-height: calc(100% - var(--flow-top) - 2.75rem);
+}
+
 @supports (position-area: block-end) {
   @media (width >= 40rem) {
     .iris-salesflow .iris-info-panel {
-      max-height: calc(100% - var(--flow-top) - 2.75rem);
+      position-try-fallbacks: flip-inline, --flow-above, --flow-above-start;
     }
   }
 }

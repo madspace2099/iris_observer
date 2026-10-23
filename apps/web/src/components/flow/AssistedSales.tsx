@@ -87,7 +87,7 @@ export function AssistedSales({
        * both (`flow-screens.css`): stacked, a 591px screen cut the link off at
        * its foot (review, 2026-10-23). The source reads first, as it is painted.
        */}
-      <div className="flow-assisted-foot">
+      <div className="flow-foot">
         <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]} measured />
         {irisLedHref === undefined ? null : (
           <Link

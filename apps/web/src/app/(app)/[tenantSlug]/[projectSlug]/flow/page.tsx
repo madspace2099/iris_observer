@@ -413,7 +413,11 @@ export default async function FlowPage({
               </h2>
               {view.ladder.stalled.length === 0 ? null : (
                 <InfoTip id="stalled-deals" label="stalled deals">
-                  {view.ladder.stalledNote}
+                  <p>{view.ladder.stalledNote}</p>
+                  <p>
+                    Each row is one buyer&rsquo;s deal. A flat can carry several, so a flat sold to
+                    one buyer can still hold another buyer&rsquo;s open deal.
+                  </p>
                 </InfoTip>
               )}
             </header>
@@ -426,11 +430,16 @@ export default async function FlowPage({
                   rows={view.ladder.stalled.map((deal) => ({
                     id: deal.externalId,
                     /*
-                     * The flat names the deal; the CRM's own key ("D-mtg_sr0004")
-                     * read as debug output beside it (review, 2026-10-23). It
-                     * stays the name only of a deal the CRM placed on no flat.
+                     * One buyer's deal, on its flat. The CRM's own key
+                     * ("D-mtg_sr0004") read as debug output (review,
+                     * 2026-10-23), and the flat alone read as the flat stuck:
+                     * one frame below, the same flat stood sold to another
+                     * buyer (review, round 9).
                      */
-                    label: deal.unitCode ?? deal.externalId,
+                    label:
+                      deal.unitCode === null
+                        ? "A deal on no flat"
+                        : `${deal.unitCode} · one buyer’s deal`,
                     sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
                     value: deal.daysInStage,
                     display: deal.daysDisplay,
@@ -534,8 +543,14 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured">{summary.kpis.title}</h2>
             <InfoTip id="what-changed" label="what changed">
               <p>{summary.kpis.about}</p>
-              {/* The arrows' basis and steps; `ChangeKpis` keeps only a withheld arrow's reason in view. */}
-              {summary.kpis.empty === null ? <p>{summary.kpis.basis}</p> : null}
+              {/*
+               * The arrows' basis and steps, only where arrows are drawn: a
+               * withheld window's reason stands in view (`ChangeKpis`), and a
+               * basis for arrows nobody sees described what is not there.
+               */}
+              {summary.kpis.empty === null && summary.kpis.withheld === null ? (
+                <p>{summary.kpis.basis}</p>
+              ) : null}
             </InfoTip>
           </header>
           {/*
@@ -741,19 +756,22 @@ export default async function FlowPage({
               </ol>
             </div>
           )}
-          <Link
-            prefetch={false}
-            className="iris-action"
-            href={dynamicRoute(
-              withPeriod(
-                `/${tenantSlug}/${projectSlug}/meetings?outcome=reservation`,
-                query.period,
-              ),
-            )}
-          >
-            Every reservation in the register
-          </Link>
-          <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
+          {/* The way on and the source on one line, so the screen fits 1280 × 720 (review, round 9). */}
+          <div className="flow-foot">
+            <Link
+              prefetch={false}
+              className="iris-action"
+              href={dynamicRoute(
+                withPeriod(
+                  `/${tenantSlug}/${projectSlug}/meetings?outcome=reservation`,
+                  query.period,
+                ),
+              )}
+            >
+              Every reservation in the register
+            </Link>
+            <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} measured />
+          </div>
         </div>
 
         {/* --- volume over time, and how it ended -------------------------- */}
@@ -888,32 +906,41 @@ export default async function FlowPage({
               }
             />
           )}
-          <div className="iris-changes" style={{ marginTop: "1rem" }}>
-            {view.rings.map((ring) => (
-              <article className="iris-change" key={ring.agentId}>
-                <p className="iris-change-label">
-                  <AgentName
-                    name={ring.name}
-                    src={portraits[ring.agentId] ?? null}
-                    tone={tones[ring.agentId]}
-                    size="chip"
-                  />
-                </p>
-                {ring.flag === null ? null : (
-                  <p className="iris-ring-flag" data-severity={ring.flag.severity}>
-                    {ring.flag.text}
-                  </p>
-                )}
-                <Link
-                  prefetch={false}
-                  className="iris-action"
-                  href={dynamicRoute(withPeriod(ring.href, query.period))}
-                >
-                  How they present
-                </Link>
-              </article>
-            ))}
-          </div>
+          {/*
+           * A flag, one line beside its presenter, and their page one press
+           * away. Five cards, three holding only a name and a button, took a
+           * sixth of the screen and pushed it past 1280 × 720 (review, round 9);
+           * every presenter's page is also a name on the presentations screen.
+           */}
+          {view.rings.some((ring) => ring.flag !== null) ? (
+            <ul className="flow-agent-flags">
+              {view.rings.flatMap((ring) =>
+                ring.flag === null
+                  ? []
+                  : [
+                      <li key={ring.agentId}>
+                        <AgentName
+                          name={ring.name}
+                          src={portraits[ring.agentId] ?? null}
+                          tone={tones[ring.agentId]}
+                          size="chip"
+                        />
+                        <span className="iris-ring-flag" data-severity={ring.flag.severity}>
+                          {ring.flag.text}
+                        </span>
+                        <Link
+                          prefetch={false}
+                          className="flow-agent-open"
+                          href={dynamicRoute(withPeriod(ring.href, query.period))}
+                          aria-label={`How ${ring.name} presents`}
+                        >
+                          How they present
+                        </Link>
+                      </li>,
+                    ],
+              )}
+            </ul>
+          ) : null}
           {/*
             Named where it contributed, and the CRM contributes nothing here,
             connected or not: the rows, the rates and the flags are the outcomes
