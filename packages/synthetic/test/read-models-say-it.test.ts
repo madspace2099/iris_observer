@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ShowroomSession } from "@observer/contracts";
 import { DEFAULT_LANGUAGE, type OverviewQuery, type Viewer } from "@observer/readmodels";
 import { SyntheticObserverRepository, VIEWERS } from "../src";
-import { buildActivity, buildTrend } from "../src/showroom/charts";
+import { buildActivity, buildKpis, buildTrend } from "../src/showroom/charts";
 import { catalogueFor } from "../src/pulse";
 import { dealsFor } from "../src/deals";
 
@@ -62,10 +62,12 @@ describe("the weekday grid names every tie", () => {
       ],
       "UTC",
     );
+    // Two meetings in EACH of the two slots: four together, never "2" read as the total.
     expect(activity.busiest).toEqual({
       weekday: "Thu at 13:00 and Sun",
       hour: "15:00",
       meetings: 2,
+      slots: 2,
     });
     // Tue, Wed, Fri and Sat hold none: four tie, more than three, so no day is named.
     expect(activity.quietest).toBeNull();
@@ -85,8 +87,13 @@ describe("the weekday grid names every tie", () => {
       ],
       "UTC",
     );
-    expect(activity.busiest).toEqual({ weekday: "Tue and Thu", hour: "14:00", meetings: 2 });
-    expect(activity.quietest).toEqual({ weekday: "Sat and Sun", meetings: 0 });
+    expect(activity.busiest).toEqual({
+      weekday: "Tue and Thu",
+      hour: "14:00",
+      meetings: 2,
+      slots: 2,
+    });
+    expect(activity.quietest).toEqual({ weekday: "Sat and Sun", meetings: 0, days: 2 });
   });
 
   it("names both of Shark Residence's busiest slots, quarter to date", async () => {
@@ -96,6 +103,7 @@ describe("the weekday grid names every tie", () => {
     expect(`${activity.busiest?.weekday} at ${activity.busiest?.hour}`).toBe(
       "Thu at 13:00 and Sun at 15:00",
     );
+    expect(activity.busiest?.slots).toBe(six.length);
   });
 });
 
@@ -133,6 +141,34 @@ describe("the summary figures", () => {
       value: "2",
       delta: "−33%",
       tone: "flat",
+    });
+  });
+
+  it("draws no colour for a change the card prints as no change", () => {
+    // The week to Sun 15 Mar 2026 (UTC): 11 of 19 progressed, 57.9%; the week
+    // before, 7 of 12, 58.3%. −0.44 points rounds to "no change", so no red.
+    const make = (n: number, progressed: number, at: string) =>
+      Array.from({ length: n }, (_, i) => ({
+        ...session(`${at}-${i}`, at),
+        outcome: i < progressed ? ("interested" as const) : ("not_interested" as const),
+      }));
+    const kpis = buildKpis(
+      [...make(19, 11, "2026-03-10T10:00:00.000Z"), ...make(12, 7, "2026-03-03T10:00:00.000Z")],
+      new Date("2026-03-15T12:00:00.000Z"),
+      "week",
+      "en-GB",
+      "UTC",
+      "en",
+    );
+    expect(kpis.figures.find((f) => f.id === "progressed")).toMatchObject({
+      value: "58%",
+      delta: "no change",
+      tone: "flat",
+    });
+    // 19 against 12 is +58%, over the floor on both sides: a verdict stands.
+    expect(kpis.figures.find((f) => f.id === "presentations")).toMatchObject({
+      delta: "+58%",
+      tone: "good",
     });
   });
 
@@ -253,6 +289,45 @@ describe("an agent's page counts one window", () => {
       const here = detail.projects.find((p) => p.isCurrent);
       expect(here?.meetings, a.name).toBe(a.ring.meetings);
     }
+  });
+
+  it("says the unrecorded meetings once, with no share of the same count beside them", async () => {
+    const agents = await repo.getAgentsView(SHARK);
+    let said = 0;
+    for (const a of agents.agents) {
+      const detail = await repo.getAgentDetail(SHARK, a.agentId);
+      const f = detail.findings.find((x) => x.id === `agent-${a.agentId}-unrecorded`);
+      if (f === undefined) continue;
+      said += 1;
+      expect(f.statement, a.name).toMatch(
+        /^\d+ of their \d+ meetings ended with no outcome recorded\.$/,
+      );
+      expect(f.baseline, a.name).toBeNull();
+    }
+    expect(said).toBeGreaterThan(0);
+  });
+});
+
+describe("IRIS-led and IRIS-assisted", () => {
+  it("give the two adjacent cards one denominator in the same words, and a short how-counted", async () => {
+    const led = await repo.getIrisLedSales(SHARK);
+    expect(led.figures.find((f) => f.id === "led")?.of).toMatch(/^\d+% of the period's sales$/);
+    expect(led.figures.find((f) => f.id === "window")?.of).toMatch(
+      /^\d+% of the period's sales, the IRIS-assisted rule$/,
+    );
+    const words = (s: string) => s.split(/\s+/).length;
+    // "How it is counted" printed 236 words; the rule and its limits fit in about a hundred.
+    expect(words(led.definition)).toBeLessThanOrEqual(50);
+    expect(words(led.caveat)).toBeLessThanOrEqual(60);
+  });
+
+  it("calls the sales it places dated, so the one it cannot place reads as beside them", async () => {
+    const { assisted } = await repo.getSalesFlow(SHARK);
+    if (assisted.source !== "crm") throw new Error("Shark Residence has a CRM");
+    expect(assisted.unplaced).toBe(1);
+    expect(assisted.headline).toMatch(
+      new RegExp(`^\\d+ of ${String(assisted.datedSales)} dated sales so far \\(\\d+%\\) `),
+    );
   });
 });
 
