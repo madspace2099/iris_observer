@@ -139,10 +139,9 @@ export function Pairings({
       />
 
       <p className="ox-section-note">
-        1.00&times; is what independent use of the two features would produce. A figure above it
-        says the two were reached together more often than that, at the sample stated in the
-        caption. It is co-occurrence inside one presentation: it carries no order between the two
-        features and no claim about what either one did to the buyer.
+        1.00&times; is chance; above it, the two were reached together more often. Co-occurrence
+        only: it carries no order between the two features and no claim about what either one did to
+        the buyer.
       </p>
 
       <div className="ox-finding-foot">

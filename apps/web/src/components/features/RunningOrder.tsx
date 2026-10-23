@@ -73,21 +73,24 @@ export function RunningOrder({
     <ChartFrame
       title="Where each feature falls in a presentation"
       period={periodLabel}
-      note="The average place each feature took across the presentations that reached it, on a scale where 0% is the first stop and 100% the last. A longer bar is a later stop. This is a summary of many presentations, not the path any one of them took, and it says nothing about what a presenter did next. Features no presentation opened are not shown here; they are in the register below, where their reach reads as zero."
+      note="Each feature's average place in the presentations that reached it: 0% is the first stop, 100% the last. A summary of many presentations, not the path any one took. A feature nobody opened is only in the register below."
       summary={`Typical running order across ${meetingsTotal} presentations, first stop to last: ${ordered
         .map((section) => `${section.label} at ${shareDisplay(section.meanPosition)}`)
         .join(", ")}.`}
     >
-      <RankedBars
-        period={period}
-        rows={ordered.map((section) => ({
-          id: section.sectionId,
-          label: section.label,
-          sub: `reached in ${section.meetings} of ${meetingsTotal} presentations`,
-          value: section.meanPosition,
-          display: shareDisplay(section.meanPosition),
-        }))}
-      />
+      {/* Its own class: the page widens this list's names only (`features.css`). */}
+      <div className="ft-running">
+        <RankedBars
+          period={period}
+          rows={ordered.map((section) => ({
+            id: section.sectionId,
+            label: section.label,
+            sub: `reached in ${section.meetings} of ${meetingsTotal} presentations`,
+            value: section.meanPosition,
+            display: shareDisplay(section.meanPosition),
+          }))}
+        />
+      </div>
     </ChartFrame>
   );
 }

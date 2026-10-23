@@ -14,9 +14,13 @@
   text-overflow: clip;
 }
 
-/* On a desk the name column takes the line's 14rem, so it reads on one line under the name. */
+/*
+ * On a desk the running order's name column takes the line's 14rem, so it
+ * reads on one line under the name. Only there: on Time of day and Weather the
+ * same column left "Golden" and "Rain" beside stubs of bars (review, round 9).
+ */
 @media (width >= 64rem) {
-  .ox-features-page .iris-ranked li {
+  .ox-features-page .ft-running .iris-ranked li {
     grid-template-columns: 1.5rem minmax(0, 14rem) minmax(0, 1fr) 5rem;
   }
 }

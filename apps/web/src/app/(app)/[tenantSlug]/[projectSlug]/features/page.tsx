@@ -381,8 +381,22 @@ export default async function FeaturesPage({
         {/* --- what the period was, before anything is read off it ---------- */}
 
         <section className="ox-plane">
+          {/*
+           * What the instrument does not record stands behind this title's
+           * `i`: the page ended on that title alone over an empty frame
+           * (review, round 9), and the limits are the instrument's.
+           */}
           <div className="ox-section-head">
-            <h2 className="ox-section-title">The period, and the instrument</h2>
+            <div className="sheet-titled">
+              <h2 className="ox-section-title">The period, and the instrument</h2>
+              <InfoTip id="limits" label="what this register does not cover">
+                {clicksUnavailable}
+                <Limits
+                  untimedFeatures={untimed.map((section) => section.label)}
+                  baselineNote={baselineNote}
+                />
+              </InfoTip>
+            </div>
             <p className="ox-section-note">
               What was recorded, and how much of IRIS there was to record it from.
             </p>
@@ -460,9 +474,9 @@ export default async function FeaturesPage({
           {/*
            * R10-1: reach, opens, clicks and time spent are four definitions, and
            * the third has no data. Said once, in the region's own form, so an
-           * open is never read as a click — behind the `i` of "What this register
-           * does not cover" since 2026-10-23, where it no longer opens the page
-           * on an apology.
+           * open is never read as a click — behind this region's title's `i`
+           * ("what this register does not cover"), where it no longer opens the
+           * page on an apology (2026-10-23, round 9).
            */}
 
           <Sources
@@ -603,28 +617,6 @@ export default async function FeaturesPage({
             ) : null}
           </section>
         </div>
-
-        {/* --- the limits of the instrument, back on graphite --------------- */}
-
-        {/*
-         * Stated once, for the whole screen, where a reader who has just read
-         * the register will look for it: the title in view, the limits behind
-         * its `i`.
-         */}
-        <section className="ox-plane">
-          <div className="ox-section-head">
-            <div className="sheet-titled">
-              <h2 className="ox-section-title">What this register does not cover</h2>
-              <InfoTip id="limits" label="what this register does not cover">
-                {clicksUnavailable}
-                <Limits
-                  untimedFeatures={untimed.map((section) => section.label)}
-                  baselineNote={baselineNote}
-                />
-              </InfoTip>
-            </div>
-          </div>
-        </section>
       </div>
     </div>
   );

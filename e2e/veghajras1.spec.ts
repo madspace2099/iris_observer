@@ -30,7 +30,7 @@ test("R10-1 · Features keeps reach, opens and stay apart, states clicks as unav
   await expect(definitions).toContainText("Opens counts entries into it, returns included");
   await expect(definitions).toContainText("Median stay is the middle stop, not the average one.");
 
-  /* And clicks behind the `i` of "What this register does not cover". */
+  /* And clicks behind "The period, and the instrument"'s `i`, named "what this register does not cover". */
   const clicks = main.locator("#info-limits .ox-unavailable", { hasText: "Clicks inside a feature" });
   await expect(clicks, "the click count is stated as unavailable, once").toHaveCount(1);
   await expect(clicks).toContainText("holds no click count");
