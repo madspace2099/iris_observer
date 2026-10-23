@@ -271,15 +271,8 @@ export function AskFrame({
   historyOpen,
   scope,
   otherProjects,
-  modelNotice = null,
   children,
 }: {
-  /**
-   * The sentence that says a language model may word a typed question, shown
-   * at the prompt box before the first question is sent (Gate 1). Null when no
-   * model can answer here.
-   */
-  readonly modelNotice?: string | null;
   readonly root: string;
   readonly periodParam: string;
   /** This project's own slug — the implicit member of every Compare set. */
@@ -554,17 +547,10 @@ export function AskFrame({
          */}
         {asked ? null : <p className="ask-hint">Enter sends · Shift + Enter for a new line</p>}
         {/*
-         * THE NOTICE GATE 1 ASKS FOR, AT THE PROMPT BOX.
-         *
-         * Only where a language model can word an answer here, and before the
-         * first question is sent — which is why it lives in the frame rather
-         * than in the answer it would otherwise arrive with.
+         * No model sentence under the prompt: the owner removed it, and the one
+         * above a model's answer, on 2026-10-23. A model-written answer names
+         * its model as its author (`AskLiveAnswer`); Gate 1 records the change.
          */}
-        {modelNotice === null ? null : (
-          <p className="ask-hint ask-hint-model" data-ai-notice="">
-            {modelNotice}
-          </p>
-        )}
         {children}
       </div>
     </div>

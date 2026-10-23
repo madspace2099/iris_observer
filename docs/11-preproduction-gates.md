@@ -97,6 +97,13 @@ placed on the Union market is not set, and two rows below turn on it.
 - If AI-written or AI-evaluated content ever appears anywhere else in the dashboard, the reader is
   told where it appears. A pop-up was proposed.
 
+**The owner's change, 2026-10-23, for the local demonstration and its recording.** The sentence under
+the prompt box ("Typed questions and the first 4 openings are worded by …, a language model …") and
+the one above a model's answer ("Worded by …, a language model …") were removed at the owner's
+request. A model-written answer now names its model as its author (`gpt-5.6-sol`), and that author
+line carries `data-ai-notice`. Whether a model's name alone is "clear and distinguishable" disclosure
+under Article 50(1) is for this gate's reviewer, before any customer-facing deployment.
+
 An engineering note on the second: on 2026-09-17 no model evaluates anything outside the prompt box.
 Every other figure is fixed arithmetic over read models, and the surfaces name their sources with
 provenance chips. So there is nothing for such a notice to attach to yet, and one must not be shown

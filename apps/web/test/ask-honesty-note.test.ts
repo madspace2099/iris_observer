@@ -5,7 +5,7 @@ import { SyntheticObserverRepository, VIEWERS } from "@observer/synthetic";
 import type { Viewer } from "@observer/readmodels";
 import { AskConversationPanel, AskFrame } from "@/components/ask-iris/AskScreen";
 import { AskLiveAnswer } from "@/components/ask-iris/AskLiveAnswer";
-import { composerNotices } from "@/components/ask-iris/live-questions";
+import { mayModelAnswer } from "@/components/ask-iris/live-questions";
 
 /**
  * THE NOTE ABOVE AN ANSWER SAYS WHAT IS TRUE OF THIS ACCOUNT (NIGHT2, P2-01).
@@ -43,13 +43,13 @@ const render = (modelConnected: boolean) =>
   );
 
 /*
- * A TYPED QUESTION GOES THROUGH THE ANALYSIS PIPELINE (ADR-0040), AND ITS NOTE
- * IS IN VIEW BEFORE THE ANSWER ARRIVES.
+ * A TYPED QUESTION GOES THROUGH THE ANALYSIS PIPELINE (ADR-0040).
  *
- * Rendered before the request: no outcome yet, so the note says what MAY word
- * the answer, and never names a model that has not written anything.
+ * Rendered before the request, with no outcome yet: a note shows only where no
+ * model is connected. Where a model may word the answer there is no note, and
+ * the author line says Observer, never a model that has not written anything.
  */
-const renderLive = (modelNotice: string | null) =>
+const renderLive = (modelMayAnswer: boolean) =>
   renderToStaticMarkup(
     createElement(AskLiveAnswer, {
       question: "Where do presentations lose buyers?",
@@ -69,31 +69,32 @@ const renderLive = (modelNotice: string | null) =>
       periodParam: "",
       viewerName: "Petra",
       periodLabel: "Quarter to date",
-      modelNotice,
+      modelMayAnswer,
       nextQuestions: [],
     }),
   );
 
 describe("the note above a live answer", () => {
   it("carries the AI notice marker before anything is answered", () => {
-    expect(renderLive(null)).toContain("data-ai-notice");
-    expect(renderLive("Typed questions are worded by gpt-5-mini.")).toContain("data-ai-notice");
+    expect(renderLive(false)).toContain("data-ai-notice");
+    expect(renderLive(true)).toContain("data-ai-notice");
   });
 
   it("says no language model is connected when none can answer", () => {
-    expect(renderLive(null)).toContain("No language model is connected here");
+    expect(renderLive(false)).toContain("No language model is connected here");
   });
 
-  it("says a model may word it, by name, only where one can", () => {
-    const html = renderLive("Typed questions are worded by gpt-5-mini, a language model.");
-    expect(html).toContain("gpt-5-mini");
+  it("says nothing above the answer where a model may word it (the owner's review, 2026-10-23)", () => {
+    const html = renderLive(true);
     expect(html).not.toContain("No language model is connected here");
+    expect(html).not.toContain("worded by");
+    expect(html).not.toContain('class="ask-note"');
   });
 
   it("names the read models, not a model, until an outcome says otherwise", () => {
-    expect(renderLive("Typed questions are worded by gpt-5-mini.")).not.toMatch(
-      /class="ask-msg-who">gpt-5-mini/,
-    );
+    const html = renderLive(true);
+    expect(html).not.toMatch(/class="ask-msg-who"[^>]*>gpt-/);
+    expect(html).toMatch(/class="ask-msg-who"[^>]*>Observer</);
   });
 });
 
@@ -110,13 +111,13 @@ describe("the honesty note above an answer", () => {
 });
 
 /*
- * THE COMPOSER'S NOTICE (ADR-0040, ADR-0043).
+ * THE COMPOSER (the owner's review, 2026-10-23).
  *
- * The Gate 1 notice names the model wherever one words an answer, live
- * openings included. The composer carries no model control and no key note:
- * both live in Settings since the owner's review of 2026-10-23.
+ * No model control, no key note and no model sentence under the prompt. The
+ * model is chosen in Settings, and a model-written answer names its model as
+ * its author; docs/11-preproduction-gates.md records the change under Gate 1.
  */
-const renderFrame = (modelNotice: string | null) =>
+const renderFrame = () =>
   renderToStaticMarkup(
     createElement(AskFrame, {
       root: "/shark/shark-residence",
@@ -127,76 +128,43 @@ const renderFrame = (modelNotice: string | null) =>
       historyOpen: false,
       scope: { kind: "current" },
       otherProjects: [],
-      modelNotice,
       children: null,
     }),
   );
 
-describe("the composer's notices", () => {
-  it("carries no AI notice and no model control where no model answers", () => {
-    const html = renderFrame(null);
-    expect(html).not.toContain("data-ai-notice");
+describe("the composer", () => {
+  it("carries no model sentence and no model control", () => {
+    const html = renderFrame();
+    expect(html).not.toContain("worded by");
     expect(html).not.toContain("ask-model-wrap");
-  });
-
-  it("does not call the live openings the read models' words where a model words them", () => {
-    const html = renderFrame("Typed questions and the first 4 openings are worded by gpt-5-mini.");
-    expect(html).toContain("data-ai-notice");
-    expect(html).not.toContain("prepared openings are the read models");
-    /* Scoped to the openings a model words; the rest need no second line under the prompt. */
-    expect(html).toContain("the first 4 openings are worded by gpt-5-mini");
   });
 });
 
 /*
- * WHICH MODEL THE COMPOSER NAMES (ADR-0040, ADR-0043).
+ * WHETHER A MODEL MAY ANSWER HERE (ADR-0040, ADR-0043).
  *
- * A demonstration key is named only where the stream route would spend it:
- * AI on and a loopback request.
+ * A demonstration key counts only where the stream route would spend it: AI on
+ * and a loopback request. An account's own connection counts with AI on.
  */
-describe("composerNotices", () => {
-  const base = {
-    aiEnabled: true,
-    local: true,
-    companyModel: null,
-    demoModel: null,
-    connected: false,
-  };
+describe("mayModelAnswer", () => {
+  const base = { aiEnabled: true, local: true, demoKey: false, connected: false };
 
-  it("names the company's model before the owner's, on a loopback request with AI on", () => {
-    const notes = composerNotices({ ...base, companyModel: "gpt-5-mini", demoModel: "gpt-5" });
-    expect(notes.modelNotice).toContain("worded by gpt-5-mini");
-    expect(notes.modelNotice).toContain("first 4 openings");
-    expect(composerNotices({ ...base, demoModel: "gpt-5" }).modelNotice).toContain(
-      "worded by gpt-5,",
+  it("is true for a demonstration key on a loopback request with AI on", () => {
+    expect(mayModelAnswer({ ...base, demoKey: true })).toBe(true);
+  });
+
+  it("is false with AI off, even with a key and a connection", () => {
+    expect(mayModelAnswer({ ...base, aiEnabled: false, demoKey: true, connected: true })).toBe(
+      false,
     );
   });
 
-  it("names no model with AI off, and says nothing a model would word", () => {
-    const notes = composerNotices({
-      ...base,
-      aiEnabled: false,
-      companyModel: "gpt-5-mini",
-      connected: true,
-    });
-    expect(notes.modelNotice).toBeNull();
+  it("is false for a demonstration key on a request addressed to a name", () => {
+    expect(mayModelAnswer({ ...base, local: false, demoKey: true })).toBe(false);
   });
 
-  it("names no demonstration model on a request addressed to a name", () => {
-    const notes = composerNotices({
-      ...base,
-      local: false,
-      companyModel: "gpt-5-mini",
-      demoModel: "gpt-5",
-    });
-    expect(notes.modelNotice).toBeNull();
-  });
-
-  it("says nothing where no model answers, and names the account's own connection", () => {
-    /* The key's state lives in Settings since the owner's review of 2026-10-23. */
-    expect(composerNotices(base).modelNotice).toBeNull();
-    expect(composerNotices({ ...base, connected: true }).modelNotice).toContain(
-      "connected to this account",
-    );
+  it("is false with nothing, and true with the account's own connection", () => {
+    expect(mayModelAnswer(base)).toBe(false);
+    expect(mayModelAnswer({ ...base, local: false, connected: true })).toBe(true);
   });
 });

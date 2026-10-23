@@ -2324,11 +2324,6 @@ a.ask-evidence-link:hover {
   color: var(--ask-accent-soft);
 }
 
-.ask-hint-model {
-  margin-top: 4px;
-  color: rgb(170 196 232 / 86%);
-}
-
 /* What Observer did, in the order it did it. */
 .ask-trace {
   display: flex;

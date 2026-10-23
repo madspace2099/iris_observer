@@ -4,7 +4,8 @@
 **Amends:** ADR-0030 (keys belong to accounts) for one more local case; ADR-0040 (the demonstration
 key) with a positive local signal
 **Keeps:** ADR-0022 (the sign-in selects a scenario, it does not authenticate), ADR-0024 and ADR-0033
-(the screen names what wrote the words), Gate 1 (the notice at the prompt box)
+(the screen names what wrote the words), Gate 1 (amended 2026-10-23: no notice at the prompt box; the answer's author line carries
+`data-ai-notice`, docs/11 Gate 1)
 
 ## Context
 
@@ -39,11 +40,12 @@ machine.
    environment key, only when the request's own `Host` header is `localhost`, `127.0.0.1` or `[::1]`
    (any port), in addition to the conditions above. The account is the gate's, from the signed
    session, never the body's. Like ADR-0040, neither key consults the account's admission or budget
-   ledger; the gate, ceilings, tool allowlist, guards and audit row are unchanged. The Ask composer
-   names the model, and gives the Gate 1 notice, only where the route would spend a key: AI on, a
-   loopback request, a key present (`composerNotices`, unit-tested). The notice covers typed
-   questions and the live openings, which go to the same route; so do the dialog and the Settings
-   panel (`MODEL_WORDED`).
+   ledger; the gate, ceilings, tool allowlist, guards and audit row are unchanged. `mayModelAnswer`
+   (unit-tested) decides whether a model may answer here: AI on, a loopback request, a key present.
+   Where one may, a model-written answer names its model as its author, and that line carries
+   `data-ai-notice` (amended 2026-10-23: the composer's notice was removed at the owner's request;
+   docs/11 Gate 1). The dialog and the Settings panel still name what a model words
+   (`MODEL_WORDED`).
 4. **The popup.** After sign-in, `/welcome` shows the company's admin a dialog over the held welcome
    sequence when the store is open, the company has no key, and this request could spend one
    (`demoKeysSpendable`: AI on, a loopback `Host`); a key asked for anywhere else would be probed,

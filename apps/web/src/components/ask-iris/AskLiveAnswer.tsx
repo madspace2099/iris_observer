@@ -30,12 +30,13 @@ import { Info, Sparkle } from "./icons";
  * Leaving the page aborts the request (`useObserver`), after a tick, so the
  * double-mount's rehearsal unmount does not abort the one request it let through.
  *
- * ## Who wrote it, said in words (ADR-0024, ADR-0033, Gate 1)
+ * ## Who wrote it (ADR-0024, ADR-0033, Gate 1)
  *
- * The note carries `data-ai-notice` from before the request is sent. The model
- * is named only when the outcome says a model wrote the words (`status.live`);
- * otherwise the answer is attributed to the read models, which is true of every
- * figure either way.
+ * The answer's author carries `data-ai-notice`: the model's name when the
+ * outcome says a model wrote the words (`status.live`), otherwise the read
+ * models, which is true of every figure either way. The sentences that said so
+ * at length, above a model's answer and under the prompt, were removed by the
+ * owner on 2026-10-23; the note now speaks only where no model wrote anything.
  */
 
 /** What each analysis is called on screen. The tool's own name is an identifier. */
@@ -75,7 +76,7 @@ export function AskLiveAnswer({
   periodParam,
   viewerName,
   periodLabel,
-  modelNotice,
+  modelMayAnswer,
   nextQuestions,
 }: {
   readonly question: string;
@@ -84,14 +85,14 @@ export function AskLiveAnswer({
   readonly periodParam: string;
   readonly viewerName: string;
   readonly periodLabel: string;
-  /** The sentence that says a language model may word the answer, or null when none can. */
-  readonly modelNotice: string | null;
+  /** Whether a language model may word this answer here. */
+  readonly modelMayAnswer: boolean;
   /** Other questions worth asking next, when the answer offers none of its own. */
   readonly nextQuestions: readonly string[];
 }) {
   const session = useObserver(context);
-  /* The notice this question was sent under (keyed by question); a model picked mid-answer answers the next one. */
-  const [requestNotice] = useState(modelNotice);
+  /* Whether a model may word this question, fixed when it was sent (keyed by question). */
+  const [mayAnswer] = useState(modelMayAnswer);
   const asked = useRef<string | null>(null);
   const { ask } = session;
 
@@ -107,6 +108,20 @@ export function AskLiveAnswer({
   /* The model is named only when it wrote the words; otherwise the read models did. */
   const author = outcome !== null && live ? outcome.status.model : "Read models";
   const settled = outcome !== null && !session.busy;
+
+  /*
+   * Said only where no model wrote the answer: a fallback, or a server with no
+   * model at all. A model's answer is named by its author line alone.
+   */
+  const note =
+    settled && answer !== null
+      ? live
+        ? null
+        : /* One line: the pill names the project, the stamp the period (the owner's review, 2026-10-23). */
+          "Composed by Observer's read models. No language model wrote any of this."
+      : mayAnswer
+        ? null
+        : "Answered by Observer's analysis tools from this project's read models. No language model is connected here, so the wording is the read models' own.";
 
   /*
    * The trace: every stage the server named and every analysis that ran, in
@@ -149,20 +164,14 @@ export function AskLiveAnswer({
 
   return (
     <>
-      <p className="ask-note" data-ai-notice="">
-        <span className="ask-note-mark" aria-hidden="true">
-          <Info />
-        </span>
-        <span>
-          {settled && answer !== null
-            ? live
-              ? `Worded by ${author}, a language model, from figures Observer's read models computed for ${context.projectLabel}, ${periodLabel.toLowerCase()}. Each figure it gives in digits was matched to one the read models returned before it was shown.`
-              : /* One line: the pill names the project, the stamp the period (the owner's review, 2026-10-23). */
-                "Composed by Observer's read models. No language model wrote any of this."
-            : (requestNotice ??
-              "Answered by Observer's analysis tools from this project's read models. No language model is connected here, so the wording is the read models' own.")}
-        </span>
-      </p>
+      {note === null ? null : (
+        <p className="ask-note">
+          <span className="ask-note-mark" aria-hidden="true">
+            <Info />
+          </span>
+          <span>{note}</span>
+        </p>
+      )}
 
       <div className="ask-panel" data-kind="chat">
         <ol
@@ -188,7 +197,9 @@ export function AskLiveAnswer({
               <Sparkle />
             </span>
             <div className="ask-msg-body">
-              <span className="ask-msg-who">{settled ? author : "Observer"}</span>
+              <span className="ask-msg-who" data-ai-notice="">
+                {settled ? author : "Observer"}
+              </span>
 
               <ol className="ask-trace" aria-label="What Observer did" data-settled={settled}>
                 {trace.map((step, index) => (

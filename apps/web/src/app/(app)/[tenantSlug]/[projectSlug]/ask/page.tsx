@@ -1,13 +1,12 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { currentAccount, requireViewer } from "@/lib/session";
-import { connectedProviders, parseOverride } from "@/lib/ai/admission";
-import { ASK_MODEL_COOKIE, demoModelNamed } from "@/lib/ai/model-choice";
+import { connectedProviders } from "@/lib/ai/admission";
 import { companyModelName } from "@/lib/credentials/company-keys";
 import { demoModelName, environment, loopbackHost } from "@/lib/env";
 import { findAnswer } from "@/components/ask/questions";
@@ -23,7 +22,7 @@ import {
   type AskScopeProject,
 } from "@/components/ask-iris/AskScreen";
 import { AskLiveAnswer } from "@/components/ask-iris/AskLiveAnswer";
-import { LIVE_QUESTIONS, composerNotices } from "@/components/ask-iris/live-questions";
+import { LIVE_QUESTIONS, mayModelAnswer } from "@/components/ask-iris/live-questions";
 import {
   NotFoundError,
   NotPermittedError,
@@ -147,23 +146,17 @@ export default async function AskPage({
   const connected = account === null ? [] : await connectedProviders(account.accountId);
 
   /*
-   * WHETHER A LANGUAGE MODEL MAY WORD A QUESTION, SAID BEFORE IT IS ASKED.
-   *
-   * Gate 1 puts the notice at the prompt box, in view before the first
-   * question. `composerNotices` names a demonstration key's model only where
-   * the stream route would spend it, with the model chosen in Settings
-   * (`ASK_MODEL_COOKIE`) over the key's own. The composer carries no model
-   * control (the owner's review, 2026-10-23).
+   * Whether a language model may word a typed question here, which decides only
+   * whether the answer says beforehand that none is connected. The composer
+   * names no model and carries no model control (the owner's review,
+   * 2026-10-23); a model-written answer names its model as its author.
    */
-  const chosen = parseOverride((await cookies()).get(ASK_MODEL_COOKIE)?.value);
-  const { modelNotice } = composerNotices({
+  const mayAnswer = mayModelAnswer({
     aiEnabled: environment().ai.enabled,
     local: loopbackHost((await headers()).get("host")),
-    companyModel: demoModelNamed(
-      account === null ? null : companyModelName(account.accountId),
-      chosen,
-    ),
-    demoModel: demoModelNamed(demoModelName(), chosen),
+    demoKey:
+      (account !== null && companyModelName(account.accountId) !== null) ||
+      demoModelName() !== null,
     connected: connected.length > 0,
   });
 
@@ -180,7 +173,6 @@ export default async function AskPage({
       historyOpen={historyOpen}
       scope={scope}
       otherProjects={otherProjects}
-      modelNotice={modelNotice}
     >
       {demo === "thinking" ? (
         <AskThinkingPanel
@@ -232,7 +224,7 @@ export default async function AskPage({
             scope={scope}
             otherProjects={otherProjects}
             modelConnected={connected.length > 0}
-            modelNotice={modelNotice}
+            modelMayAnswer={mayAnswer}
           />
         </Suspense>
       )}
@@ -283,7 +275,7 @@ async function Answer({
   scope,
   otherProjects,
   modelConnected,
-  modelNotice,
+  modelMayAnswer,
 }: Read & {
   readonly question: string;
   readonly viewerName: string;
@@ -292,7 +284,7 @@ async function Answer({
   readonly scope: AskScope;
   readonly otherProjects: readonly AskScopeProject[];
   readonly modelConnected: boolean;
-  readonly modelNotice: string | null;
+  readonly modelMayAnswer: boolean;
 }) {
   const session = await repository.getAskSession(
     { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
@@ -350,7 +342,7 @@ async function Answer({
         periodParam={periodParam}
         viewerName={viewerName}
         periodLabel={session.context.periodLabel}
-        modelNotice={modelNotice}
+        modelMayAnswer={modelMayAnswer}
         nextQuestions={LIVE_QUESTIONS}
       />
     );

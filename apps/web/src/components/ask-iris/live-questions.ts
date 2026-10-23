@@ -27,40 +27,24 @@ export const LIVE_QUESTIONS: readonly string[] = Object.freeze([
  */
 export const MODEL_WORDED = `typed questions and the first ${LIVE_QUESTIONS.length} openings`;
 
-/** The composer's line, from what this request could actually spend. */
-export interface ComposerNotices {
-  /** Gate 1, in view before the first question, wherever a model may word an answer. */
-  readonly modelNotice: string | null;
-}
-
 /**
- * WHICH MODEL THE COMPOSER NAMES.
+ * WHETHER A LANGUAGE MODEL MAY WORD A TYPED QUESTION HERE.
  *
- * A demonstration key, the company's (ADR-0043) before the owner's (ADR-0040),
- * is named only where the stream route would spend it: the language model on
- * and the request addressed to the loopback. An account's own connection is
- * named by the answer it writes. Where no model answers the composer says
- * nothing: the company key's state, and the model, live in Settings since the
- * owner's review of 2026-10-23.
+ * A demonstration key, the company's (ADR-0043) or the owner's (ADR-0040),
+ * where the stream route would spend it: the language model on and the request
+ * addressed to the loopback. Or the account's own connection. It decides only
+ * whether the pre-answer "No language model is connected here" line shows: the
+ * sentences that named the model under the prompt and above its answer were
+ * removed by the owner on 2026-10-23 (docs/11, Gate 1).
  */
-export function composerNotices(input: {
+export function mayModelAnswer(input: {
   readonly aiEnabled: boolean;
   /** Whether the request was addressed to the loopback (`loopbackHost`). */
   readonly local: boolean;
-  readonly companyModel: string | null;
-  readonly demoModel: string | null;
+  /** Whether a demonstration key exists for this account. */
+  readonly demoKey: boolean;
   /** Whether the account has a connection of its own. */
   readonly connected: boolean;
-}): ComposerNotices {
-  const model = input.aiEnabled && input.local ? (input.companyModel ?? input.demoModel) : null;
-  const asked = MODEL_WORDED.charAt(0).toUpperCase() + MODEL_WORDED.slice(1);
-  const modelNotice = !input.aiEnabled
-    ? null
-    : model !== null
-      ? `${asked} are worded by ${model}, a language model, from the figures Observer's read models compute. Every figure it writes in digits is checked against those results before it is shown.`
-      : input.connected
-        ? `${asked} may be worded by the language model connected to this account, from the figures Observer's read models compute. Every figure it writes in digits is checked against those results before it is shown.`
-        : null;
-
-  return { modelNotice };
+}): boolean {
+  return input.aiEnabled && ((input.local && input.demoKey) || input.connected);
 }

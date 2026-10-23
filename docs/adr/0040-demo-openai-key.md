@@ -36,8 +36,10 @@ reader other than the owner can reach.
    deterministic path exactly as it was: the same tools, the same figures, the read models' prose.
    The recording does not depend on the key.
 6. **The screen says what wrote the words.** The answer names the model only when the outcome says a
-   model wrote it (`status.live`); otherwise it says "Read models". When a model may answer, the Ask
-   composer says so before the first question (`data-ai-notice`, Gate 1).
+   model wrote it (`status.live`); otherwise it says "Read models". (Amended 2026-10-23: the owner
+   removed the composer's notice for the local demonstration; the answer's author line, which names
+   the model on `status.live`, now carries `data-ai-notice`. See the 2026-10-23 entry under Gate 1
+   in docs/11-preproduction-gates.md.)
 
 ## Why it cannot reach a deployment
 
