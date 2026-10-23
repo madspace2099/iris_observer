@@ -173,35 +173,53 @@ cover`) and nothing round it: no border, outline or shadow. Without a portrait t
    a name and its count line, `card` 40px, `head` 48–64px, `editor` 88px. `AgentName` is a name with
    the face before it. **No face in print**: the printed report names people in words alone.
 2. **Where a face now stands** (§7's list, extended), always with an empty text alternative because
-   the name is printed beside it: Sales Flow — how each agent's meetings end (rows and cards), whose
-   the not-interested meetings were, the bubble lens's agent key and its tip, the nearest meetings,
-   the longest presentations, presentations given; the meeting register's agent column; a replay's
+   the name is printed beside it: Sales Flow — how each agent's meetings end (rows, the 20px face
+   on the name's line so the bars keep their width, and cards), whose the not-interested meetings
+   were, the bubble lens's agent key and its tip, the nearest meetings, the longest presentations,
+   presentations given; the meeting register's agent column; a replay's
    "Presented by"; a unit's related meetings and "Who showed it"; Presentation's agent chips and
    every presenter's DNA lane (the team's, a cohort's and a period's lane wear none); the report on
    screen (agent table, meeting summary, a meeting's "Presented by", an agent summary's heading);
-   Audience's agent column. The Sales Agents pages already had them.
+   Audience's agent column; IRIS-led sales' key, after each presenter's colour. The Sales Agents
+   pages already had them.
 3. **Ids, never faces, in the read models (keeps §4).** A page finds a face by the presenter's id,
    so `MeetingSummary` (every register row), `MeetingReplay` and `AudienceMatch` carry `agentId`,
    and `RankedRow` and `TextRow` may, where a row about a meeting names one presenter (the longest
    presentations, the lens's nearest). No read model carries a picture or its address;
    `packages/synthetic/test/presenter-ids.test.ts` holds each id to the name in its row. Each page
    reads `portraitSources` once for the presenters it names and reuses one address per agent.
-4. **Cached by the reader's browser (amends §6).** GET serves a portrait with `Cache-Control:
-private, max-age=3600, immutable`; every refusal stays `private, no-store`. On the demo's build one of
-   two first loads of Sales Agents measured fetched each of the five faces twice, and every load
-   fetched all five again: React preloads an image it renders on the server, and a no-store
-   response cannot be kept to serve the `<img>` that follows it, nor the next load. The
-   address carries the portrait's version, so a replaced face is a new address and an hour's cache
-   never shows an old one; `private` keeps it out of every shared cache. Measured on a loopback
-   server with the static renders: one request per face per load, none on a reload.
+4. **Kept by the reader's browser, asked again before use (amends §6).** GET serves a portrait with
+   `Cache-Control: private, no-cache` and an `ETag` of its bytes, and answers a matching
+   `If-None-Match` with a bodiless 304 — after the session, project and agent checks, so a reader
+   signed out or refused gets 401 or 404 and no cached face. Every refusal stays
+   `private, no-store`. On the demo's build one of two first loads of Sales Agents fetched each face
+   twice under no-store (React preloads an image it renders on the server, and Chromium reloads a no-store
+   response rather than reuse it). Measured on a loopback page with a preload and nine `<img>` per
+   face: one request per face on a first load, none on a client-side navigation, one bodiless 304
+   per face on a reload. (Review round 1 replaced `private, max-age=3600, immutable`, which kept a
+   face an hour past sign-out and past its removal.)
 
 **Not done here.** Ask's answers: an answer is `ObserverAnswer` (`packages/contracts`, frozen) and
-carries no presenter id to find a face by. The IRIS-led sales page's legend and table: stream MOTION
-reworks that page in the same round, and a face there waits for its change to land. A unit's
-timeline names the presenter inside a line of text, which stays text. Briefing and Attention name no
-presenter.
+carries no presenter id to find a face by. IRIS-led sales' table keeps "Shown by" as names: up to five
+a sale, a face each doubled every row's height (46 to 92px at 1440), and the key above it pairs each
+face with its name and colour; the same holds for the showing lines inside a sale's meetings. A
+unit's timeline names the presenter inside a line of text, which stays text. Briefing and Attention
+name no presenter.
 
-**Consequence.** A browser keeps a face it was shown for up to an hour, including after its reader
-signs out on a shared machine; removing a portrait stops it being drawn at once (no page asks for
-its address any more), and the hosted store (§4) should keep the same header, with a shorter age if
-a tenant asks.
+**Consequence.** A face is never used from a browser's cache without the route's checks, so signing
+out, losing the grant or removing the portrait ends it at once; a page load costs one small request
+per face (a 304 when unchanged). The hosted store (§4) should keep the same header.
+
+### Review round 1 (2026-10-23)
+
+Two adversarial reviewers read the branch: seven findings, two of them reported twice. Each was
+confirmed in the code and, where it was about a screen, measured on the demo's build (`be3ac396`)
+with this round's stylesheet and markup applied in the reviewer's browser only.
+
+| Finding                                                                                                              | Verdict and change                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Faces on the agents' outcome rows push Sales Flow's agents screen past one panel at 1440×900 (reported twice)        | Confirmed: 771 to 798px. The 32px face beside both lines widened the shared name column by 42px; Iva Horváth's counts need 803px and the bars had 838. Those rows now wear the 20px face on the name's line, the count under the name (26px): measured 771px, every row its old height. |
+| The face widens the register's agent column at 1280×720; the Follow-up chips hide behind the scroll (reported twice) | Confirmed: 45px of overflow before the faces, 76px with them. Between a phone and 90rem the register's cells keep 7px a side (`meetings.css`): at 1280 `scrollWidth == clientWidth`, and 1366 and 1440 stay flush.                                                                      |
+| IRIS-led sales names presenters without faces                                                                        | Confirmed. The key wears them now; the table's names stay text (above).                                                                                                                                                                                                                 |
+| In print, a marked name's grid lays the name and count side by side                                                  | Confirmed, for the ranked rows too. A print rule after the marked rules restores the unmarked layout; checked under print media.                                                                                                                                                        |
+| An immutable hour in the browser outlives sign-out, a revoked grant and the portrait's removal                       | Confirmed (`store.ts` says a face is read back only through the authenticated route). Changed as in point 4.                                                                                                                                                                            |
