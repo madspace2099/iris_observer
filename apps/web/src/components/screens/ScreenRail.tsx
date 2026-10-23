@@ -56,6 +56,40 @@ export function wheelTarget(
   return next >= 0 && next < tops.length ? next : null;
 }
 
+/**
+ * Where one press of Page Down, Page Up, Space or an arrow takes the reader:
+ * the scroll position to go to, or null to leave the key to the browser. A screen that fits goes to the next or the previous; a
+ * screen taller than the view is read a view at a time and never past its own
+ * edge, so the next press starts the next screen at its top.
+ */
+export function pageTarget(
+  y: number,
+  view: number,
+  tops: readonly number[],
+  heights: readonly number[],
+  direction: 1 | -1,
+): number | null {
+  const next = wheelTarget(y, view, tops, heights, direction);
+  if (next !== null) return tops[next] ?? null;
+  let at = -1;
+  for (let i = 0; i < tops.length; i += 1) if ((tops[i] ?? Infinity) <= y + 2) at = i;
+  if (at === -1) return null;
+  const top = tops[at] ?? 0;
+  const bottom = top + (heights[at] ?? 0);
+  if (direction === 1 && y + view < bottom - 2) return Math.min(y + view, bottom - view);
+  if (direction === -1 && y > top + 2) return Math.max(y - view, top);
+  return null;
+}
+
+/** The keys that move a page, and which way. */
+const PAGE_KEYS: Readonly<Record<string, 1 | -1>> = {
+  PageDown: 1,
+  PageUp: -1,
+  ArrowDown: 1,
+  ArrowUp: -1,
+  " ": 1,
+};
+
 /** Can this element, or one it sits in, still scroll the way the wheel turns? */
 function scrollsItself(start: EventTarget | null, direction: 1 | -1): boolean {
   for (
@@ -88,10 +122,15 @@ export function ScreenRail({
    * the charts by scrolling"). CSS snapping could not do it: mandatory held the
    * page at its first screen and proximity pulled a short turn back to where it
    * started (measured on the demo build, 2026-10-23). Where the screens fit —
-   * a desktop window, motion allowed — a turn goes to the next or the previous
-   * screen; the rest of that gesture, a touchpad's momentum included, is
-   * swallowed until it pauses. Everywhere else the page scrolls as it always
-   * does, and the keyboard, the rail and Page Down are untouched.
+   * a desktop window — a turn goes to the next or the previous screen; the
+   * rest of that gesture, a touchpad's momentum included, is swallowed until it
+   * pauses. Everywhere else the page scrolls as it always does.
+   *
+   * Page Down, Page Up, Space and the arrows step the same way. Under reduced
+   * motion the page does not snap (`screens.css`) and each key landed
+   * mid-screen; with motion the snap pulled an arrow's 40px back to where it
+   * started, so the arrows did not move the page at all (review round 8,
+   * measured). Under reduced motion every step is instant.
    */
   useEffect(() => {
     const fits = matchMedia("(width >= 64rem) and (height >= 40rem)");
@@ -99,8 +138,59 @@ export function ScreenRail({
     let travel = 0;
     let quietAt = 0;
     let lastAt = 0;
+    /* Each screen's place, in the scroll coordinates `wheelTarget` reads. */
+    const measure = () => {
+      const elements = ids
+        .split(" ")
+        .map((id) => document.getElementById(id))
+        .filter((element): element is HTMLElement => element !== null);
+      const pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
+      const y = window.scrollY;
+      return {
+        y,
+        view: window.innerHeight - pad,
+        tops: elements.map((element) => element.getBoundingClientRect().top + y - pad),
+        heights: elements.map((element) => element.offsetHeight),
+      };
+    };
+    const go = (top: number) =>
+      window.scrollTo({ top, behavior: still.matches ? "instant" : "smooth" });
+    const onKey = (event: KeyboardEvent) => {
+      const direction = PAGE_KEYS[event.key];
+      if (
+        direction === undefined ||
+        !fits.matches ||
+        event.defaultPrevented ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        document.body.style.overflow === "hidden"
+      )
+        return;
+      /*
+       * Only where the key would have scrolled the page: the page itself, a
+       * link, or a screen the rail focused. A field, a button (Space presses
+       * it), a menu, a popover or a scrolling box keeps its own keys.
+       */
+      const target = event.target;
+      const step = event.key === " " && event.shiftKey ? -1 : direction;
+      if (
+        target instanceof Element &&
+        target !== document.body &&
+        target !== document.documentElement &&
+        (!target.matches("a[href]:not([role]), [tabindex='-1']") ||
+          target.closest("[popover], [role='dialog'], dialog") !== null ||
+          scrollsItself(target, step))
+      )
+        return;
+      const { y, view, tops, heights } = measure();
+      const top = pageTarget(y, view, tops, heights, step);
+      if (top === null) return;
+      event.preventDefault();
+      go(top);
+    };
     const onWheel = (event: WheelEvent) => {
-      if (!fits.matches || still.matches || event.ctrlKey || event.deltaY === 0) return;
+      if (!fits.matches || event.ctrlKey || event.deltaY === 0) return;
       /*
        * An open modal holds the page (`Dialog` takes the body's overflow, which
        * stops the wheel but not a script's scroll), and a popover or a dialog
@@ -115,15 +205,8 @@ export function ScreenRail({
         return;
       const direction = event.deltaY > 0 ? 1 : -1;
       if (scrollsItself(event.target, direction)) return;
-      const elements = ids
-        .split(" ")
-        .map((id) => document.getElementById(id))
-        .filter((element): element is HTMLElement => element !== null);
-      const pad = parseFloat(getComputedStyle(document.documentElement).scrollPaddingTop) || 0;
-      const y = window.scrollY;
-      const tops = elements.map((element) => element.getBoundingClientRect().top + y - pad);
-      const heights = elements.map((element) => element.offsetHeight);
-      const target = wheelTarget(y, window.innerHeight - pad, tops, heights, direction);
+      const { y, view, tops, heights } = measure();
+      const target = wheelTarget(y, view, tops, heights, direction);
       if (target === null) return;
       event.preventDefault();
       const now = performance.now();
@@ -139,10 +222,14 @@ export function ScreenRail({
       if (travel < 40) return;
       travel = 0;
       quietAt = now + 700;
-      window.scrollTo({ top: tops[target] ?? y, behavior: "smooth" });
+      go(tops[target] ?? y);
     };
     window.addEventListener("wheel", onWheel, { passive: false });
-    return () => window.removeEventListener("wheel", onWheel);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [ids]);
 
   useEffect(() => {

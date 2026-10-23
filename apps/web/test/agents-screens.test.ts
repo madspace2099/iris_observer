@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ScreenRail } from "@/components/screens/ScreenRail";
+import { ScreenRail, pageTarget } from "@/components/screens/ScreenRail";
 
 /**
  * THE SALES AGENTS PAGES, ONE SCREEN AT A TIME (the owner, 2026-10-23, ADR-0061).
@@ -180,5 +180,43 @@ describe("the shared screens' stylesheet", () => {
     expect(html).toContain('<nav class="screen-rail" aria-label="Sales Agents screens"');
     expect(html).toMatch(/href="#agents-verdict"[^>]*aria-current="location"/);
     expect(html).not.toMatch(/href="#agents-cards"[^>]*aria-current/);
+  });
+});
+
+/*
+ * Under reduced motion the page does not snap, so Page Down, Page Up, Space and
+ * the arrows landed mid-screen; with motion the snap pulled an arrow back to
+ * where it started (review round 8). They step a screen at a time, at once
+ * under reduced motion, and read a screen taller than the view a view at a time.
+ */
+describe("the keys", () => {
+  const tops = [0, 800, 1600];
+  const fit = [771, 771, 771];
+
+  it("go to the next or the previous screen's top, and leave the ends to the page", () => {
+    expect(pageTarget(0, 771, tops, fit, 1)).toBe(800);
+    expect(pageTarget(410, 771, tops, fit, 1)).toBe(800);
+    expect(pageTarget(800, 771, tops, fit, -1)).toBe(0);
+    expect(pageTarget(1600, 771, tops, fit, 1)).toBeNull();
+    expect(pageTarget(0, 771, tops, fit, -1)).toBeNull();
+  });
+
+  it("read a tall screen a view at a time, never past its edge", () => {
+    const tall = [0, 800, 2600];
+    const heights = [771, 1800, 771];
+    expect(pageTarget(800, 771, tall, heights, 1)).toBe(1571);
+    expect(pageTarget(1571, 771, tall, heights, 1)).toBe(1829);
+    expect(pageTarget(1829, 771, tall, heights, 1)).toBe(2600);
+    expect(pageTarget(1829, 771, tall, heights, -1)).toBe(1058);
+    expect(pageTarget(1058, 771, tall, heights, -1)).toBe(800);
+  });
+
+  it("are stepped by the shared rail, at once under reduced motion, and leave a control its keys", () => {
+    const rail = source("src/components/screens/ScreenRail.tsx");
+    const keys = rail.slice(rail.indexOf("const onKey"), rail.indexOf("const onWheel"));
+    expect(keys).toContain(`target.matches("a[href]:not([role]), [tabindex='-1']")`);
+    expect(keys).toContain("event.defaultPrevented");
+    expect(rail).toContain('behavior: still.matches ? "instant" : "smooth"');
+    expect(rail).toContain('window.addEventListener("keydown", onKey)');
   });
 });
