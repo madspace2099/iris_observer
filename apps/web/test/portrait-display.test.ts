@@ -8,6 +8,8 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => undefined
 
 const { AgentName, AgentPortrait } = await import("../src/components/agents/Portrait");
 const { PortraitEditor } = await import("../src/components/agents/PortraitEditor");
+const { OutcomeRows } = await import("../src/showroom/charts2");
+const { DnaLane } = await import("../src/showroom/parts");
 
 /**
  * WHAT A PORTRAIT AND ITS CONTROL SAY (ADR-0054): initials where there is no
@@ -47,6 +49,48 @@ describe("the portrait", () => {
     );
     expect(html).toMatch(/<span class="ag-named" data-size="inline"><img[^>]+alt=""/);
     expect(html.match(/Lena Fischer/g)).toHaveLength(1);
+  });
+
+  it("stands before a presenter's row in Sales Flow's lists, and never before the team's", () => {
+    const figure = { meetingsDisplay: "n", display: "d", belowMinimum: false };
+    const face = createElement(AgentPortrait, {
+      name: "Lena Fischer",
+      src: "/p/lena?v=1",
+      size: "row",
+      alt: "",
+    });
+    const rows = renderToStaticMarkup(
+      createElement(OutcomeRows, {
+        label: "rows",
+        lead: { label: "Team", total: 2, parts: { purchase: 2 }, figure },
+        rows: [
+          { agentId: "agt_lena", label: "Lena Fischer", total: 1, parts: { purchase: 1 }, figure },
+          { agentId: "agt_iva", label: "Iva Horváth", total: 1, parts: { purchase: 1 }, figure },
+        ],
+        keys: [{ id: "purchase", label: "Purchase" }],
+        keyCounts: { purchase: 2 },
+        marks: { agt_lena: face },
+      }),
+    );
+    expect(rows.match(/class="iris-orow-who" data-marked=""><img/g)).toHaveLength(1);
+    expect(rows.match(/class="iris-orow-who">/g)).toHaveLength(2);
+    const lane = renderToStaticMarkup(
+      createElement(DnaLane, {
+        lane: {
+          id: "agt_lena",
+          label: "Lena Fischer",
+          meetingCount: 1,
+          steps: [],
+          coverage: 1,
+          medianDurationSeconds: null,
+          outcomeMix: [],
+        },
+        mark: face,
+      }),
+    );
+    expect(lane).toMatch(
+      /<div class="iris-dna-name" data-marked=""><img[^>]+><b>Lena Fischer<\/b>/,
+    );
   });
 
   it("is a plain circle: no ring, no stroke, and no face in print", () => {

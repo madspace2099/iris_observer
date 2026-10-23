@@ -19,7 +19,9 @@ import { InfoTip } from "@/components/iris/InfoTip";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
 import { Finding, Gaps, SourceChips } from "@/showroom/parts";
 import { Measure } from "@/showroom/Measure";
-import { PresenterBars } from "@/components/agents/PresenterBars";
+import { PresenterBars, seatTones } from "@/components/agents/PresenterBars";
+import { AgentName, AgentPortrait, type PortraitSize } from "@/components/agents/Portrait";
+import { portraitSources } from "@/lib/portraits/server";
 import {
   OUTCOME_KEYS,
   OutcomeKey,
@@ -126,6 +128,34 @@ export default async function FlowPage({
     repository.getFlowCharts(query, kpiWindow),
     repository.getShowroomOverview(query),
   ]);
+
+  /*
+   * A face beside every presenter the page names (ADR-0054): one address per
+   * agent, read once here and reused by every row that names them, so the
+   * browser fetches each face once. The seat colour tints initials, nothing else.
+   */
+  const portraits = await portraitSources(view.context.tenant, projectSlug, [
+    ...new Set([
+      ...charts.lens.agents.map((agent) => agent.id),
+      ...view.rings.map((ring) => ring.agentId),
+      ...charts.funnel.byAgent.map((agent) => agent.agentId),
+      ...charts.longestMeetings.flatMap((row) => (row.agentId === undefined ? [] : [row.agentId])),
+    ]),
+  ]);
+  const tones = seatTones(charts.lens.agents.map((agent) => agent.id));
+  const face = (agentId: string, name: string, size: PortraitSize = "row") => (
+    <AgentPortrait
+      key={agentId}
+      name={name}
+      src={portraits[agentId] ?? null}
+      tone={tones[agentId]}
+      size={size}
+      alt=""
+    />
+  );
+  const faces = (people: readonly { readonly agentId: string; readonly name: string }[]) =>
+    Object.fromEntries(people.map((p) => [p.agentId, face(p.agentId, p.name)]));
+  const nameOf = new Map(charts.lens.agents.map((agent) => [agent.id, agent.label]));
 
   // The team's own counts: its row, and both outcome keys. The key never sums
   // the rows, because the team row is an aggregate of the presenters beside it.
@@ -662,6 +692,7 @@ export default async function FlowPage({
                         canOpenMeeting && m.href !== null ? withPeriod(m.href, query.period) : null,
                     })),
                   }}
+                  portraits={portraits}
                 />
               </DrawIn>
             </>
@@ -671,9 +702,9 @@ export default async function FlowPage({
             <div className="iris-lens-nearest">
               <h3>The nearest, latest first</h3>
               <ol>
-                {charts.lens.nearest.map((row) => (
-                  <li key={row.id}>
-                    {canOpenMeeting && row.href !== null ? (
+                {charts.lens.nearest.map((row) => {
+                  const label =
+                    canOpenMeeting && row.href !== null ? (
                       <Link
                         prefetch={false}
                         href={dynamicRoute(withPeriod(row.href, query.period))}
@@ -682,10 +713,25 @@ export default async function FlowPage({
                       </Link>
                     ) : (
                       <span>{row.label}</span>
-                    )}
-                    <em>{row.value}</em>
-                  </li>
-                ))}
+                    );
+                  return (
+                    <li key={row.id}>
+                      {row.agentId === undefined ? (
+                        label
+                      ) : (
+                        <AgentName
+                          name={nameOf.get(row.agentId) ?? ""}
+                          src={portraits[row.agentId] ?? null}
+                          tone={tones[row.agentId]}
+                          size="chip"
+                        >
+                          {label}
+                        </AgentName>
+                      )}
+                      <em>{row.value}</em>
+                    </li>
+                  );
+                })}
               </ol>
             </div>
           )}
@@ -826,6 +872,7 @@ export default async function FlowPage({
               }))}
               keys={OUTCOME_KEYS}
               keyCounts={teamParts}
+              marks={faces(view.rings)}
               // Each part opens its meetings in the register (ADR-0053), for a reader it admits.
               open={
                 maySeeSurface(viewer.role, "meetings")
@@ -837,7 +884,14 @@ export default async function FlowPage({
           <div className="iris-changes" style={{ marginTop: "1rem" }}>
             {view.rings.map((ring) => (
               <article className="iris-change" key={ring.agentId}>
-                <p className="iris-change-label">{ring.name}</p>
+                <p className="iris-change-label">
+                  <AgentName
+                    name={ring.name}
+                    src={portraits[ring.agentId] ?? null}
+                    tone={tones[ring.agentId]}
+                    size="chip"
+                  />
+                </p>
                 {ring.flag === null ? null : (
                   <p className="iris-ring-flag" data-severity={ring.flag.severity}>
                     {ring.flag.text}
@@ -883,6 +937,7 @@ export default async function FlowPage({
                 data={charts.funnel}
                 period={query.period}
                 canOpen={maySeeSurface(viewer.role, "meetings")}
+                marks={faces(charts.funnel.byAgent)}
               />
               {/* The outcome is the one recorded in the room; the medians and rates are derived from it. */}
               <SourceChips sources={["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"]} measured />
@@ -914,6 +969,14 @@ export default async function FlowPage({
               }
               measured
               collapseAfter={5}
+              // Each meeting wears the face of who gave it, the name its line opens with (ADR-0054).
+              marks={Object.fromEntries(
+                charts.longestMeetings.flatMap((row) =>
+                  row.agentId === undefined
+                    ? []
+                    : [[row.id, face(row.agentId, nameOf.get(row.agentId) ?? "")]],
+                ),
+              )}
             />
           </div>
           <div className="iris-band-side">

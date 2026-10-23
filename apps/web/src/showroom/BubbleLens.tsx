@@ -13,6 +13,7 @@ import {
 } from "react";
 import { seatSeries, type LensMeeting, type MeetingLens } from "@observer/readmodels";
 
+import { AgentPortrait } from "@/components/agents/Portrait";
 import { dynamicRoute } from "@/lib/href";
 import { D_TINT_RADIUS } from "./forms";
 
@@ -203,10 +204,21 @@ function AgentSphere({ a, r }: { readonly a: number; readonly r: number }) {
 export function BubbleLens({
   data,
   initialSpan = "week",
+  portraits,
 }: {
   readonly data: LensData;
   readonly initialSpan?: Span;
+  /**
+   * Each agent's portrait address, from the page's `portraitSources` (ADR-0054):
+   * given, every agent in the key and the tip wears their face or initials
+   * beside the sphere of their colour. Absent, the key is the spheres alone.
+   */
+  readonly portraits?: Readonly<Record<string, string>>;
 }) {
+  const face = (agent: LensData["agents"][number] | undefined) =>
+    portraits === undefined || agent === undefined ? null : (
+      <AgentPortrait name={agent.label} src={portraits[agent.id] ?? null} size="chip" alt="" />
+    );
   const last = data.days.length - 1;
   const lastMonth = data.months.length - 1;
   const [span, setSpan] = useState<Span>(initialSpan);
@@ -658,6 +670,7 @@ export function BubbleLens({
           onBlur={() => setLifted(null)}
         >
           {swatch(<AgentSphere a={a} r={7} />, 14)}
+          {face(agent)}
           <span>{agent.label}</span>
           <b>{agentCount(a)}</b>
         </button>
@@ -776,7 +789,10 @@ export function BubbleLens({
             {tipWords.outcome}
           </p>
           <p>{tipWords.when}</p>
-          <p>{tipWords.agent}</p>
+          <p className="dld-lens-tip-who">
+            {face(data.agents[tipMeeting.a])}
+            {tipWords.agent}
+          </p>
           <p>{tipWords.units}</p>
           {tip.held && tipMeeting.href !== null ? (
             <Link prefetch={false} href={dynamicRoute(tipMeeting.href)}>

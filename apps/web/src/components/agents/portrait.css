@@ -85,8 +85,22 @@
   gap: 0.75rem;
 }
 
+.ag-named[data-size="head"] {
+  gap: 0.875rem;
+}
+
 .ag-named-text {
   min-width: 0;
+}
+
+/* In a one-line label that cuts a long name short, the name is cut and the face kept. */
+.iris-bar-label > .ag-named {
+  display: flex;
+}
+
+.iris-bar-label .ag-named-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* The outcome rows' name and count (Sales Flow): the disc beside both lines. */
@@ -98,6 +112,45 @@
 
 .iris-orow-who[data-marked] > .ag-portrait {
   grid-row: span 2;
+}
+
+/* A presenter's DNA lane (Presentation): the disc beside the name and its count line. */
+.iris-dna-name[data-marked] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 0.625rem;
+  align-items: center;
+}
+
+.iris-dna-name[data-marked] > .ag-portrait {
+  grid-row: span 2;
+  font-family: inherit;
+  color: var(--ox-ink-2, rgb(244 247 252 / 74%));
+}
+
+/* A face inside a pill hugs its rounded end. */
+.iris-chip > .ag-portrait:first-child {
+  margin-inline-start: -0.4375rem;
+}
+
+/* A line that opens with a face: its other words stand level with the face, not at its top. */
+.iris-lens-nearest li:has(> .ag-named) {
+  align-items: center;
+}
+
+/* The bubble lens's key: the face beside the sphere of that agent's colour, never struck through. */
+.dld-lens-key > .dld-lens-swatch + .ag-portrait {
+  margin-inline-start: -0.25rem;
+}
+
+.dld-lens-key[aria-pressed] .ag-portrait {
+  text-decoration: none;
+}
+
+.dld-lens-tip-who {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
 }
 
 /* Where the name and its count share a line above the bar, the disc keeps to that line. */

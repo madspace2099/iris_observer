@@ -252,16 +252,20 @@ export function DnaLane({
   lane,
   highlight,
   compact = false,
+  mark,
 }: {
   lane: PresentationLane;
   highlight?: string;
   compact?: boolean;
+  /** Before a presenter's lane name: their portrait (ADR-0054). The team's lane has none. */
+  mark?: ReactNode;
 }) {
   const peakDwell = Math.max(1, ...lane.steps.map((s) => s.medianDwellSeconds ?? 0));
 
   return (
     <div className="iris-dna-lane" data-compact={compact ? "true" : undefined}>
-      <div className="iris-dna-name">
+      <div className="iris-dna-name" data-marked={mark === undefined ? undefined : ""}>
+        {mark}
         <b>{lane.label}</b>
         <span>
           {lane.meetingCount} meetings · {Math.round(lane.coverage * 100)}% core

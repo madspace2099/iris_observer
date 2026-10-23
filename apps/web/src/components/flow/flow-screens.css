@@ -333,11 +333,12 @@ html:has(.iris-salesflow) {
 /*
  * The longest presentations and who gave them, each half its own columns
  * (review round 1): a date over its presenter, steps and outcome stays whole
- * at 12px; a count of a few figures needs no 5rem, so the bars take the room.
+ * at 12px, beside the presenter's face (ADR-0054, 2026-10-23: 15rem and the
+ * face's 2.6rem); a count of a few figures needs no 5rem, so the bars take the room.
  */
 @media (width > 60rem) {
   .iris-salesflow #flow-presentations > div:first-child .iris-ranked li {
-    grid-template-columns: 1.5rem minmax(0, 15rem) minmax(0, 1fr) 5rem;
+    grid-template-columns: 1.5rem minmax(0, 17.75rem) minmax(0, 1fr) 5rem;
   }
 
   .iris-salesflow #flow-presentations .iris-band-side .iris-ranked li {

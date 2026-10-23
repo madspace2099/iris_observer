@@ -414,6 +414,22 @@ export function StackedBars({
 
 /* --- an outcome mix per group, as rows --------------------------------------- */
 
+/** A row's name and count, with a presenter's face before both where there is one. */
+function OrowWho({
+  mark,
+  children,
+}: {
+  readonly mark: React.ReactNode | undefined;
+  readonly children: React.ReactNode;
+}) {
+  return (
+    <span className="iris-orow-who" data-marked={mark === undefined ? undefined : ""}>
+      {mark}
+      {children}
+    </span>
+  );
+}
+
 /**
  * One row per group, each its own whole, so a share in one row compares with
  * the same share in any other (ADR-0041, outcome-rows amendment).
@@ -448,6 +464,7 @@ export function OutcomeRows({
   keys,
   keyCounts,
   open,
+  marks,
 }: {
   /** The list's accessible name. */
   readonly label: string;
@@ -463,6 +480,8 @@ export function OutcomeRows({
    * date range to narrow to.
    */
   readonly open?: { readonly register: string; readonly period: PeriodPreset };
+  /** A mark before a presenter's name, keyed by `agentId`: their portrait (ADR-0054). */
+  readonly marks?: Readonly<Record<string, React.ReactNode>>;
 }) {
   const all = lead === undefined ? rows : [lead, ...rows];
   /* Only an outcome the register's own vocabulary holds: anything else would open it unfiltered. */
@@ -566,10 +585,10 @@ export function OutcomeRows({
                 aria-label={`${row.label}: ${row.figure.meetingsDisplay}, ${row.figure.display}`}
                 style={{ "--i": index } as React.CSSProperties}
               >
-                <span className="iris-orow-who">
+                <OrowWho mark={row.agentId === undefined ? undefined : marks?.[row.agentId]}>
                   <span className="iris-orow-name">{row.label}</span>
                   <span className="iris-orow-total">{row.figure.meetingsDisplay}</span>
-                </span>
+                </OrowWho>
                 {linked.length === 0 ? (
                   bar
                 ) : (
@@ -799,12 +818,15 @@ export function Funnel({
   data,
   period,
   canOpen,
+  marks,
 }: {
   readonly data: BehaviourFunnel;
   /** The reader's period, carried by every link. */
   readonly period: PeriodPreset;
   /** Whether this reader may open the register; never a link that leads to a refusal. */
   readonly canOpen: boolean;
+  /** A mark before each presenter's name, keyed by `agentId`: their portrait (ADR-0054). */
+  readonly marks?: Readonly<Record<string, React.ReactNode>>;
 }) {
   return (
     <div className="iris-cohort">
@@ -835,7 +857,7 @@ export function Funnel({
                   data-below={a.belowMinimum ? "true" : undefined}
                   style={{ "--i": index } as React.CSSProperties}
                 >
-                  <span className="iris-orow-who">
+                  <OrowWho mark={marks?.[a.agentId]}>
                     {canOpen && a.href !== null ? (
                       <Link
                         prefetch={false}
@@ -849,7 +871,7 @@ export function Funnel({
                       <span className="iris-orow-name">{a.name}</span>
                     )}
                     <span className="iris-orow-total">{a.recordedDisplay}</span>
-                  </span>
+                  </OrowWho>
                   {/* The bar is the rate beside it, the read model's; under the floor neither is stated. */}
                   <span className="iris-orow-bar" aria-hidden="true">
                     {a.share === null || a.count === 0 ? null : (
