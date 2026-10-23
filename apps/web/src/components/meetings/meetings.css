@@ -101,3 +101,15 @@
     margin: var(--ox-inner) 0 0;
   }
 }
+
+/*
+ * Between a phone and 90rem the nine columns are tight: at 1280×720 the table
+ * ran 45px past its frame, and the presenter's face (ADR-0054) took 31px more,
+ * so the Follow-up chips were cut behind the sideways scroll. Seven pixels a
+ * side here and every row shows whole (review round 1, 2026-10-23).
+ */
+@media screen and (48rem < width < 90rem) {
+  .ox-meetings .ox-table :is(th, td) {
+    padding-inline: 0.4375rem;
+  }
+}

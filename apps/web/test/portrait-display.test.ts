@@ -105,6 +105,12 @@ describe("the portrait", () => {
       /\.ag-portrait[^{]*\{[^}]*(outline|box-shadow|border-width|border:\s*[1-9])/,
     );
     expect(css).toMatch(/@media print \{\s*\.ag-portrait \{\s*display: none/);
+    // Without the face, a marked name is laid out as an unmarked one; the reset follows the rules it undoes.
+    const reset = css.lastIndexOf("@media print");
+    expect(reset).toBeGreaterThan(css.lastIndexOf("\n.iris-ranked-name[data-marked] {"));
+    expect(css.slice(reset)).toMatch(
+      /\.iris-orow-who\[data-marked\],[^{]*\{\s*grid-template-columns: none/,
+    );
   });
 
   it("names the initials where they stand alone, and the picture by its alt", () => {

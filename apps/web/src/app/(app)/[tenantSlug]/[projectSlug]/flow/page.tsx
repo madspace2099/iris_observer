@@ -153,8 +153,10 @@ export default async function FlowPage({
       alt=""
     />
   );
-  const faces = (people: readonly { readonly agentId: string; readonly name: string }[]) =>
-    Object.fromEntries(people.map((p) => [p.agentId, face(p.agentId, p.name)]));
+  const faces = (
+    people: readonly { readonly agentId: string; readonly name: string }[],
+    size: PortraitSize = "row",
+  ) => Object.fromEntries(people.map((p) => [p.agentId, face(p.agentId, p.name, size)]));
   const nameOf = new Map(charts.lens.agents.map((agent) => [agent.id, agent.label]));
 
   // The team's own counts: its row, and both outcome keys. The key never sums
@@ -872,7 +874,8 @@ export default async function FlowPage({
               }))}
               keys={OUTCOME_KEYS}
               keyCounts={teamParts}
-              marks={faces(view.rings)}
+              // On the name's line, so the bars keep their width and the screen its one panel.
+              marks={faces(view.rings, "chip")}
               // Each part opens its meetings in the register (ADR-0053), for a reader it admits.
               open={
                 maySeeSurface(viewer.role, "meetings")
