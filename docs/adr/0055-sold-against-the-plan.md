@@ -145,10 +145,11 @@ track was 32 px and only the printed "24 / 60" survived.
 - `packages/synthetic/test/sales-plan.test.ts`: every state by hand (twenty flats whose split comes
   from the deals, six first purchases dated in the window, 2.0 against 1.8 and 3.7; the catalogue's
   own status ignored; a deal naming no flat; a second purchase; the last day, 334.8 a month; the
-  day after), and Shark Residence on the demonstration's day, 24 August 2026: 60 flats, 19 sold, 13
-  reserved, 28 available; 14 first purchases since 26 May, 14 / 90 × 30.4375 = 4.7 a month; 41
-  unsold over 310 days = 10.185 months, 4.0 a month; 41 × 90 / 14 = 264 days, May 2027. Northgate:
-  4 / 2 / 42. A delivered catalogue with a delayed and an unknown flat counts both.
+  day after), and Shark Residence on the demonstration's day, 24 August 2026: 60 flats, 29 sold, 3
+  reserved, 28 available; 19 first purchases since 26 May, 19 / 90 × 30.4375 = 6.4 a month; 31
+  unsold over 310 days = 10.185 months, 3.0 a month; 31 × 90 / 19 = 147 days, Jan 2027 (figures
+  since the 2026-10-23 amendment below). Northgate: 4 / 2 / 42. A delivered catalogue with a delayed
+  and an unknown flat counts both.
 - `apps/web/test/sales-plan-window.test.ts`: the right, the parsing, the store, every refusal, and
   the block for Clara, Daniel, Tomáš and Petra, with and without a local plane.
 - `apps/web/test/ask.test.ts`: the routing, and the tool's figures on Shark equal the block's.
@@ -177,3 +178,11 @@ by probing the demonstration CRM) and fixed. None rejected.
 | The hosted sentence promised configured dates that do not exist         | A second sentence where none is configured                              |
 | An old refusal reappeared in a form reopened after Cancel               | The answer Cancel closed on is not said again (no DOM test environment) |
 | At 360 the `i` wrapped alone under the title                            | The row does not break before the `i`; the title wraps between words    |
+
+## Amendment, 2026-10-23 — Shark's demonstration CRM signs its reservations
+
+The rules above are unchanged; Shark Residence's figures moved. Its demonstration CRM now signs a
+reservation 21 days after it is made, on the same flat (`docs/08-scenarios.md`), so on 24 August
+2026 the block reads 60 flats, 29 sold, 3 reserved, 28 available, "Selling a month 6.4", "Needed a
+month 3.0", "19 sales dated in the last 90 days", sold out in Jan 2027, still On pace. The example
+figures in Decision §1 (4.7, 4.0, 14 sales, May 2027) are those of 22 October.

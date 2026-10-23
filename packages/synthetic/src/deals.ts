@@ -433,9 +433,11 @@ const STAGE_LAG_DAYS: Readonly<Partial<Record<DealStage, number>>> = {
 };
 
 /**
- * A RESERVATION THAT ENDS IN A CONTRACT, BY SCENARIO (Máté 2026-10-23).
+ * A RESERVATION THAT ENDS IN A CONTRACT, BY SCENARIO (2026-10-23).
  *
- * Shark Developments' reservation is a three-week hold, the same three weeks a
+ * A demonstration-scenario rule, chosen so Sales Flow's sales cycle card has
+ * enough sales to measure, as Máté asked; the 21 days are the scenario's, not
+ * his. Shark Developments' reservation is a three-week hold, the same three weeks a
  * buyer who decided in the room takes to sign: 21 days after the reservation
  * the deal enters the Sold stage on the same flat, and until then it stays a
  * reservation. Before this, every Shark reservation stayed open for ever, one of

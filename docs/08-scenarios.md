@@ -83,6 +83,27 @@ pinned day the CRM holds 29 purchases and 3 reservations of the 60 flats (was 19
 available), and the last 30 days hold 10 sales, every one measured: median 170 days. Northgate keeps
 its reservations open.
 
+Every surface that reads Shark's deals moved with it (quarter to date unless named):
+
+- **Sold against the plan:** 6.4 a month against 3.0 needed, 19 sales in 90 days, sold out by Jan
+  2027 (was 4.7 against 4.0, 14 sales, May 2027); still On pace.
+- **Project page and the Briefing's Project door:** the verdict and first finding lead with two-room
+  units, "26% of the unsold stock … 46% of the time spent looking at it" (was four-room units, 12% and
+  6%), and the finding's link opens `audience?rooms=2` (was `rooms=4`).
+- **Room types:** the project reads "29 of 60 sold · 48%" (was 19, 32%); three- and four-room units
+  read "Less time on it, and selling less" with "Rethink how it is offered." (was "Less time on it,
+  selling at the project's rate", no action).
+- **IRIS-led sales:** the last 28 days read 13 of 13 and 4 of 13 within 72 hours (was 12 of 12, 4 of
+  12); a converted flat is dated at its purchase, three weeks after its reservation, so the rows
+  reorder. The IRIS-assisted note's "shown earlier" median is 8 days (was 6); the headline stays 10
+  of 32 (31%).
+- **Sales Flow ladder:** the reservation rung reads "12 days on this rung" (was 62), with 104 open
+  deals (was 114); the stalled list loses its four reservations (155 to 210 days), and meetings fill
+  their places. The reservation rung stays 33; the purchase rung is 29 (was 19).
+- **Building and units:** sold in the period 16 (was 13); ten flats (S-501, H-603, S-803, H-403,
+  S-701, S-203, H-301, S-703, H-201, H-1003) turn from Reserved to Sold, each with a measured sales
+  cycle.
+
 ---
 
 ## 4. Rules the seeds must obey
