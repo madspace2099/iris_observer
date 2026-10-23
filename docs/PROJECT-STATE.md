@@ -6517,3 +6517,56 @@ sideways scroll, no new text under 12px. Full unit suite (one run): 292 files, 5
 needs a web build (environmental), and `staged-module`'s two tree-disturbance cases, whose tree
 changed because this section and the ADR were being written during the run; re-run alone on the
 committed, clean tree, `staged-module` passed.
+
+## 2026-10-23 — Stream PORTRAITS: a face beside every name, in a plain circle (ADR-0054 amended)
+
+Máté, about to record the marketing video, uploaded the five Shark presenters' portraits and asked
+for them in a minimalist circle without a colour stroke, on every page that can show them. Branch
+`r7-portraits`, from `be3ac396`, not pushed. Streams AGENTS (ADR-0061) and MOTION (ADR-0062) run
+beside it; this one kept to `Portrait.tsx`/`portrait.css`, the presenter cells of the other pages,
+and the read models' presenter ids.
+
+- **The circle.** `AgentPortrait` is the photograph cropped to a disc and nothing round it; without
+  one, the initials on a quiet fill the seat colour may tint. The initials are drawn from
+  `data-initials`, so a name cell's text is the name alone. Sizes `chip` 20, `inline` 24, `row` 32,
+  `card` 40, `head` 48–64, `editor` 88; `AgentName` is a name with its face. No face in print.
+- **Where.** Sales Flow (the agents' outcome rows and cards, whose the not-interested meetings were,
+  the bubble lens's key and tip, the nearest meetings, the longest presentations; presentations
+  given already), the meeting register, a replay's "Presented by", a unit's meetings and "Who showed
+  it", Presentation's chips and every presenter's DNA lane, the report on screen (agent table,
+  meeting summary, a meeting's presenter, an agent summary's heading), Audience. Each page reads
+  `portraitSources` once and reuses one address per agent.
+- **Read models.** `MeetingSummary`, `MeetingReplay` and `AudienceMatch` carry `agentId`; `RankedRow`
+  and `TextRow` may (the longest presentations, the lens's nearest). Ids, never faces.
+- **Requests.** The portrait route now answers `private, max-age=3600, immutable` (refusals stay
+  no-store): on the demo's build a first load of Sales Agents fetched faces twice and every load
+  fetched all five again. On a loopback server with the static renders: one request per face per
+  load, none on a reload; 36 faces on Sales Flow are 4 requests (and Iva's initials none).
+- **Not done.** Ask's answers (the answer contract is frozen and carries no presenter id); the
+  IRIS-led sales legend and table (MOTION's page this round); a unit's timeline (a line of text).
+  Briefing and Attention name no presenter.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
+`packages/synthetic/test/presenter-ids.test.ts` (each id is the presenter its row names, and no
+read model carries a portrait's address); `portrait-display.test.ts` (initials not in the text, the
+name printed once, a mark before a presenter's row and never the team's, a DNA lane's mark, the
+stylesheet draws no ring and no face in print); `portrait-access.test.ts` (the cache header, and a
+404 kept by no cache). e2e edited, not run: `agent-portraits` and `lab-agent-portraits` read the
+initials from `data-initials`, the new cache header, and count faces in Presentations given's half
+only. Static renders (the real pages, the synthetic repository, the product stylesheets, headless
+Chromium; Shark with Iva on initials, Northgate on initials only) at 1440×900, 1280×720, 390×844 and
+360×780, looked at: no sideways scroll, no face squashed, overlapping, clipped or under 12px; in
+print no face drawn. Sales Flow's screens are no taller with the faces at 1440 and 1280 (the
+change cards and the nearest list use the 20px face; the longest presentations' name column grew
+by the face's width so each line stays whole); on a phone the agents, the not-interested and the
+presentations screens grow by 20–89px and are read through as before. The register at 1280 already
+scrolled sideways inside its table by 45px; the face adds 31px to that (names wrap rather than
+widen it). **Not looked at on a running page** (the demo serves `be3ac396`). Full unit suite (after
+`pnpm release:wrappers`): 294 files, 5385 passed, 1 skipped, 1 failed — `no-secret-recipes`, which
+needs a web build (environmental).
+
+**Next recommended action.** Cherry-pick with AGENTS and MOTION, build, and on the demo as Clara at
+1440×900 look at Sales Flow's agents, lens and presentations screens, the register, a unit, a
+replay (as Daniel), Presentation and the report; count `/api/observer/portraits` requests in the
+network panel across a reload (expected: none). Then give the IRIS-led legend its faces on top of
+MOTION's change.
