@@ -417,7 +417,8 @@ export function demoDirectory(): readonly { email: string; displayName: string }
 
 /* --- the directory, for the MADSPACE administration surface -------------- */
 
-const ROLE_WORDS: Readonly<Record<Viewer["role"], string>> = {
+/** A capacity in the words a reader uses; also the account headers' role line. */
+export const ROLE_WORDS: Readonly<Record<Viewer["role"], string>> = {
   developer: "Developer",
   agency_manager: "Agency manager",
   sales_agent: "Sales agent",

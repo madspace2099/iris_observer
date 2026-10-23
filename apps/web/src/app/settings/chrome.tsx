@@ -58,7 +58,10 @@ export function SettingsFrame({
   children,
 }: {
   readonly displayName: string;
-  /** One word for the shell's role slot: "Company admin", "Member". */
+  /**
+   * The shell's role line: the role every project header states, then the
+   * company standing these pages turn on — "Developer · company admin".
+   */
   readonly roleWord: string;
   /** The sentence behind it, as the slot's title. */
   readonly roleTitle: string;
@@ -83,7 +86,7 @@ export function SettingsFrame({
      * of absolute positioning, stretched it across the flex column and pushed
      * 16px off the right edge of a 1920 viewport.
      */
-    <div className="irs-shell ox-root ox-graphite">
+    <div className="irs-shell ox-root ox-graphite" data-surface="account">
       <header className="irs-header">
         {/*
          * THE WORDMARK, AND WHERE IT GOES.

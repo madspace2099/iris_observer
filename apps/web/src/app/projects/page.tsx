@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { ROLE_WORDS } from "@/lib/accounts";
 import { dynamicRoute } from "@/lib/href";
 import { HOME_SEGMENT } from "@/lib/routes";
 import { repository } from "@/lib/repository";
@@ -76,7 +77,7 @@ export default async function Projects() {
   }
 
   return (
-    <div className="irs-shell ox-root ox-graphite">
+    <div className="irs-shell ox-root ox-graphite" data-surface="account">
       <header className="irs-header">
         <div className="irs-brand">
           <img className="irs-brand-mark" src="/brand/iris-wordmark.svg" alt="IRIS" />
@@ -88,9 +89,10 @@ export default async function Projects() {
         <p className="os-header-title">Projects</p>
 
         <div className="irs-header-end">
+          {/* The role, as every project page's header states it; the kicker names the company. */}
           <div className="irs-who">
             <div className="irs-who-name">{account.displayName}</div>
-            <div className="irs-who-role">{viewer.organisationName}</div>
+            <div className="irs-who-role">{ROLE_WORDS[viewer.role]}</div>
           </div>
           {/*
            * Administration, for the role that holds it — reachable without

@@ -344,6 +344,14 @@
   }
 }
 
+/*
+ * The account pages (Projects, Settings) carry no navigation at all, so the
+ * cap only cut "Shark Developments" to "Shark Developmen…" beside empty space.
+ */
+.irs-shell[data-surface="account"] .irs-header-end .irs-who {
+  max-width: none;
+}
+
 .irs-who-name {
   font-size: 13px;
   line-height: 1.2;
@@ -353,8 +361,14 @@
   text-overflow: ellipsis;
 }
 
+/* The shell's own "Demo data" pill, at the same floor (`.iris-synthetic` is 11px). */
+:is(.irs-header-end, .irs-mobile-account) .iris-synthetic {
+  font-size: 12px;
+}
+
+/* 12px, the floor for words on a recorded screen; 11px blurred on video. */
 .irs-who-role {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.2;
   color: var(--iris-text-quiet);
   white-space: nowrap;

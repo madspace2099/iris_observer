@@ -267,7 +267,12 @@ export function withCurrentSection(
 const DEVELOPER_CAPTION =
   "Developers you hold. Opening one shows its first project; two developers never share a screen.";
 
-export function allProjectsOption(total: number | null): SwitchOption {
+/*
+ * No row for an account of one project: "All 1 projects you can open" led to a
+ * list holding only the project already open.
+ */
+export function allProjectsOption(total: number | null): SwitchOption | null {
+  if (total === 1) return null;
   return {
     value: "__all",
     label:
