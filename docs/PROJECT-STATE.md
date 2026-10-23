@@ -7082,5 +7082,15 @@ Static renders (react-dom/server in the real Shell, product sheets, headless Chr
 (QTD, YTD), the Briefing, What needs attention, Units, Project and IRIS-led at 1440×900, 1280×720,
 390×844 and 360×780: no sideways scroll. Full unit suite (after `pnpm release:wrappers`, on the committed tree before the last test commit): 298 files, 5445 passed, 1 skipped, 2 failed — `no-secret-recipes` (needs a web build, environmental) and `apps/web/test/views3.test.ts`, whose label rule did not allow "first day", fixed in `c0cc2ee3` and re-run green. E2E edited, not run: `iris-led.spec.ts`.
 
+**Review pass.** All nine review findings held and are fixed (`31e15b20`..`945d1fbd`): the assisted
+headline says "dated sales so far" again (beside the 1 it cannot place); IRIS-led's two cards say
+"of the period's sales" alike and "How it is counted" is about 100 words, not 236; the busiest slot
+carries `slots` and the quietest `days`, so a tie can read "6 meetings each" (the Sales Flow line is
+PAGES'); a KPI delta that prints "no change" is flat; the others are named when they are the short
+side; an agent's unrecorded finding has no baseline; the Features caveat and the unmeasured axes say
+what the showroom does not record; Ask's brief says "4m 42s". Full unit suite on the committed tree:
+298 files, 5452 passed, 1 skipped, 1 failed (`no-secret-recipes`, environmental). Text only, so no
+new static render.
+
 **Next.** Cherry-pick with R9 PAGES and SHARED, build, warm every URL, and look at Sales Flow, the
 Briefing, Units and IRIS-led at 1440×900 on the running build before recording.
