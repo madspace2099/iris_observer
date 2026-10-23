@@ -1040,7 +1040,7 @@ const REFUSAL_NO_ANALYSIS =
   "Observer has no registered analysis that answers this. It reports on what happened inside the IRIS presentation — sections, units, interactions, and how those differ between agents, meetings and periods.";
 
 const REFUSAL_FORBIDDEN =
-  "That analysis exists, but this account is not permitted to read it. Pre-meeting briefs are visible to the agent running the meeting and to their manager (ADR-0018).";
+  "That analysis exists, but this account is not permitted to read it. Pre-meeting briefs are visible to the agent running the meeting and to their manager.";
 
 const REFUSAL_CRM_ONLY =
   "That can be answered only from CRM outcome data, which Observer treats as context rather than as a subject. Ask about what happened inside the presentation, and the outcome can be used to split it.";

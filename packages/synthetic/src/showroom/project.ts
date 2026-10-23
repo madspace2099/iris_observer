@@ -886,7 +886,7 @@ export function buildShowroomOverview(
     findings.push({
       id: "glance_rate",
       statement: `${percent(glanceRate, locale)} of section visits lasted under ${MEANINGFUL_DWELL_SECONDS} seconds.`,
-      baseline: `${MEANINGFUL_DWELL_SECONDS}s is the meaningful-dwell threshold for the showroom (ADR-0016)`,
+      baseline: `${MEANINGFUL_DWELL_SECONDS}s is the shortest stay the showroom counts as a real look`,
       soWhat:
         "A section opened and left is a click, not a presentation, and counting it as engagement flatters the numbers.",
       nextStep: { label: "See section usage", href: `${base}/storytelling` },
@@ -1643,7 +1643,7 @@ const REPLAY_WORDS: Readonly<Record<Language, ReplayWords>> = {
     gapInteractions:
       "Interactions inside a section — shortlisting, opening a plan, a balcony view — are recorded as having happened during that section, but not at what moment. Only section entries carry a time.",
     gapFiltersNotEmitted:
-      "Filter state is not emitted by the current showroom build, so what the buyer searched for is unknown.",
+      "The showroom does not record searches yet, so what the buyer searched for is unknown.",
     gapNoFilter: "No filter was applied in this meeting, so there is no search to read.",
     gapNoComparison:
       "No comparison was recorded. Compare mode is only measured when the agent opens it.",

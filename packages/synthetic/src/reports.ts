@@ -110,10 +110,10 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
       summary:
         "How the period divides between the installation and the browser, and what each channel can and cannot say about dwell.",
     },
+    /* The project report's section is the period's latest meetings, a table; one meeting's own report is `meetingSequence`. */
     singleMeeting: {
-      label: "A single meeting",
-      summary:
-        "One presentation reconstructed as a sequence: what was shown, in what order, which units were opened and what the meeting recorded at the end.",
+      label: "Recent meetings",
+      summary: "The period's latest meetings: when, who presented, how long and how each ended.",
     },
     appendix: {
       label: "Evidence appendix",
@@ -181,9 +181,8 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
         "Ako sa obdobie delí medzi inštaláciu v showroome a prehliadač a čo každý kanál vie a nevie povedať o čase prezerania.",
     },
     singleMeeting: {
-      label: "Jedno stretnutie",
-      summary:
-        "Jedna prezentácia zrekonštruovaná ako postupnosť: čo sa ukázalo, v akom poradí, ktoré byty sa otvorili a čo stretnutie zaznamenalo na konci.",
+      label: "Posledné stretnutia",
+      summary: "Najnovšie stretnutia obdobia: kedy, kto prezentoval, ako dlho a ako sa skončili.",
     },
     appendix: {
       label: "Príloha s podkladmi",
@@ -250,9 +249,9 @@ const SCOPE_WORDS: Readonly<Record<Language, ScopeWords>> = {
         "Hogyan oszlik meg az időszak a showroom-telepítés és a böngésző között, és mit tud, illetve mit nem tud elmondani a két csatorna a megtekintési időről.",
     },
     singleMeeting: {
-      label: "Egyetlen találkozó",
+      label: "Legutóbbi találkozók",
       summary:
-        "Egy bemutató lépésről lépésre: mit mutattak meg, milyen sorrendben, mely lakásokat nyitották meg, és mit rögzítettek a találkozó végén.",
+        "Az időszak legutóbbi találkozói: mikor, ki mutatta be, meddig tartott és hogyan zárult.",
     },
     appendix: {
       label: "Bizonyíték-függelék",

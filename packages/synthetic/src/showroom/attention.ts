@@ -28,7 +28,8 @@ import {
   replayHref,
 } from "@observer/readmodels";
 import { catalogueFor } from "../pulse";
-import { count, dayLabel, evidenceRef, percent } from "../format";
+import { clockLabel, count, dayLabel, evidenceRef, percent } from "../format";
+import { presenterName } from "./sessions";
 
 /*
  * The words the attention findings count in, beside the findings that use
@@ -516,7 +517,8 @@ export function buildAttention(
         .filter((s) => outcomeIsUnknown(s.outcome))
         .map((s) => ({
           id: s.meetingId,
-          label: s.meetingId,
+          /* When and who, as a register row names a meeting: "24 Aug · 11:15 · Lena Fischer", never "mtg_sr0130". */
+          label: `${dayLabel(s.startedAt, locale, context.project.timeZone)} · ${clockLabel(s.startedAt, locale, context.project.timeZone)} · ${presenterName(context.project.id as string, s.agentId, context.language)}`,
           /*
            * The meeting opens only for a role the replay admits (R08-6;
            * AGENT_REGISTER_ROLES is held equal to the replay's roles by

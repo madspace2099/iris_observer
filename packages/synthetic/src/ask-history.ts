@@ -39,7 +39,7 @@ import { presenterName } from "./showroom/sessions";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 const NOTICE =
-  "These conversations are a demonstration of what Ask Observer answers and how it shows its evidence. They were not held by anyone, and nothing here is a record of a question this account asked.";
+  "These conversations show what Ask IRIS answers and how it shows its evidence. They are a demonstration: nobody held them, and none is a question this account asked.";
 
 function share(part: number, whole: number): number {
   return whole === 0 ? 0 : part / whole;
@@ -366,7 +366,7 @@ function summarise(context: ViewContext, plan: ThreadPlan): AskThreadSummary {
     threadId: plan.id,
     // The opening question, not a generated name. A title written by a model is
     // a title nobody can check against what is inside the thread.
-    title: first?.question ?? "Ask Observer",
+    title: first?.question ?? "Ask IRIS",
     askedAt,
     askedAtDisplay: stampDisplay(askedAt, locale, timeZone),
     projectLabel: context.project.name,

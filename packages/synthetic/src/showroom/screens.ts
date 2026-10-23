@@ -99,6 +99,7 @@ import {
   buildAgentsView,
   meetings as meetingsWord,
   segmentName,
+  sliceSpan,
   suppressionNoteFor,
 } from "./views3";
 
@@ -924,7 +925,7 @@ export function buildUnitDetail(
           "unit.offer",
           "Offer made",
           UNIT_MIN_SAMPLE,
-          "Observer holds no offer stage. The deal ladder is the CRM's, and no offer fact reaches this product (ADR-0021).",
+          "No source here records an offer against a unit, so none can be counted.",
         ),
         fromCount: null,
         toCount: null,
@@ -1326,8 +1327,7 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
     unrecordedStatement: (unrecorded, total) =>
       `${unrecorded} of their ${total} meetings ended with no outcome recorded.`,
     unrecordedBaseline: (share) => `${share} of their meetings`,
-    unrecordedSoWhat:
-      "Every rate on this page that uses an outcome silently drops those meetings. The remedy is a habit at the end of the meeting rather than a change to the data.",
+    unrecordedSoWhat: "Every rate on this page that uses an outcome leaves these meetings out.",
   },
   sk: {
     presentations: "Prezentácie",
@@ -1381,7 +1381,7 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
       `Bez zaznamenaného výsledku: ${unrecorded} ${slovakZForm(totalN)} ${total} stretnutí.`,
     unrecordedBaseline: (share) => `${share} stretnutí`,
     unrecordedSoWhat:
-      "Každá miera na tejto stránke, ktorá vychádza zo zaznamenaného výsledku stretnutia, tieto stretnutia bez upozornenia vynechá. Pomôže, ak sa výsledok bude pravidelne zaznamenávať na konci stretnutia; údaje netreba meniť.",
+      "Každá miera na tejto stránke, ktorá vychádza z výsledku stretnutia, tieto stretnutia vynechá.",
   },
   hu: {
     presentations: "Bemutatók",
@@ -1433,7 +1433,7 @@ const AGENT_DETAIL_WORDS: Readonly<Record<Language, AgentDetailWords>> = {
       `Rögzített eredmény nélkül zárult: ${total} találkozóból ${unrecorded}.`,
     unrecordedBaseline: (share) => `${share} a találkozói közül`,
     unrecordedSoWhat:
-      "Az oldalon minden aránymutató, amely a találkozó rögzített eredményére épül, észrevétlenül kihagyja ezeket a találkozókat. Az segít, ha a találkozók végén rendszeresen rögzítik az eredményt; az adatokat nem kell módosítani.",
+      "Az oldalon minden aránymutató, amely a találkozó eredményére épül, kihagyja ezeket a találkozókat.",
   },
 };
 
@@ -1552,13 +1552,17 @@ export function buildAgentDetail(
 
   /* --- where else they work ------------------------------------------------ */
 
+  /*
+   * The period's own slice, extended through today exactly as the page's other
+   * figures are: cut at the period's stated end it counted 25 here against 26
+   * in the activity above it.
+   */
+  const periodEnd = new Date(sliceSpan(context, new Date(context.generatedAt)).to).toISOString();
   const projects: readonly AgentProjectCoverage[] = visibleProjects.flatMap<AgentProjectCoverage>(
     (project) => {
-      const there = sessionsInPeriod(
-        project.id as string,
-        context.period.from,
-        context.period.to,
-      ).filter((s) => s.agentId === agentId);
+      const there = sessionsInPeriod(project.id as string, context.period.from, periodEnd).filter(
+        (s) => s.agentId === agentId,
+      );
       if (there.length === 0) return [];
       return [
         {
