@@ -425,10 +425,12 @@ export default async function FlowPage({
                   period={query.period}
                   rows={view.ladder.stalled.map((deal) => ({
                     id: deal.externalId,
-                    label:
-                      deal.unitCode === null
-                        ? deal.externalId
-                        : `${deal.unitCode} · ${deal.externalId}`,
+                    /*
+                     * The flat names the deal; the CRM's own key ("D-mtg_sr0004")
+                     * read as debug output beside it (review, 2026-10-23). It
+                     * stays the name only of a deal the CRM placed on no flat.
+                     */
+                    label: deal.unitCode ?? deal.externalId,
                     sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
                     value: deal.daysInStage,
                     display: deal.daysDisplay,
@@ -532,6 +534,8 @@ export default async function FlowPage({
             <h2 className="iris-kicker iris-kicker-measured">{summary.kpis.title}</h2>
             <InfoTip id="what-changed" label="what changed">
               <p>{summary.kpis.about}</p>
+              {/* The arrows' basis and steps; `ChangeKpis` keeps only a withheld arrow's reason in view. */}
+              {summary.kpis.empty === null ? <p>{summary.kpis.basis}</p> : null}
             </InfoTip>
           </header>
           {/*
@@ -1023,10 +1027,13 @@ export default async function FlowPage({
                * three deal blocks were byte-identical under all four, and every
                * section listed as reading the period moved with it. "Everything
                * below them reads the period" was false for three blocks, and since
-               * R05-a those three stand right under the cards. A new section is
-               * added to one list or the other, not claimed by either.
+               * R05-a those three stand right under the cards. The list of every
+               * screen that reads the period was a 75-word line on the video's last
+               * screen (review, 2026-10-23); the screens from the meetings on are
+               * the ones that do, so the line names where they start. A new screen
+               * that does not read the period goes above the meetings, or is named here.
                */
-              "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period. These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations over time and how they ended, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
+              "The summary cards read the whole dataset over the window you pick. The deal ladder, stalled deals and IRIS-assisted sales read the deals the CRM states, whatever the period. Every screen from the meetings on reads the period in the bar at the top.",
             ]}
             title="How to read this"
           />

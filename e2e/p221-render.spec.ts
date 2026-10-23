@@ -175,7 +175,7 @@ test("R05-1 · Sales Flow says which blocks follow the period and which their ow
 }) => {
   const text = await mainText(page, "Tomáš Varga", `${ROOT}/flow`);
   expect(text).toContain("The summary cards read the whole dataset over the window you pick.");
-  expect(text).toContain("These read the period in the bar at the top");
+  expect(text).toContain("Every screen from the meetings on reads the period in the bar at the top");
 });
 
 test("R05-2 · the four groups are drawn and named", async ({ page }) => {

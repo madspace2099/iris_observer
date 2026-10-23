@@ -95,10 +95,11 @@ test("R05-1 · Sales Flow names the blocks that read the period and the ones tha
   const text = await mainText(page, "Tomáš Varga", `${ROOT}/flow`);
   expect(text).toContain("The summary cards read the whole dataset over the window you pick.");
   expect(text).toContain(
-    "The deal ladder, stalled deals and IRIS-assisted sales do not read the period either: they read the deals the CRM states, whatever the period.",
+    "The deal ladder, stalled deals and IRIS-assisted sales read the deals the CRM states, whatever the period.",
   );
+  /* The screen-by-screen list was a 75-word line on the last screen (review, 2026-10-23). */
   expect(text).toContain(
-    "These read the period in the bar at the top: meetings and how many progressed, every outcome, what changed, when meetings happen, the day hour by hour, every meeting by who presented it and how it ended, presentations over time and how they ended, how each agent’s meetings end, the not-interested group, the longest presentations, presentations given, and the findings.",
+    "Every screen from the meetings on reads the period in the bar at the top.",
   );
 });
 

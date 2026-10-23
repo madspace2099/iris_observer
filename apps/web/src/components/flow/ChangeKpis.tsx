@@ -88,7 +88,15 @@ export function ChangeKpis({
           ))}
         </ul>
       </DrawIn>
-      <p className="iris-meta iris-meta-measured iris-ckpi-basis">{kpis.withheld ?? kpis.basis}</p>
+      {/*
+       * Why there are no arrows stays in view. The basis every arrow stands on
+       * (the window seven days earlier, its meetings and the 2-point and 5%
+       * steps) is method, and stands behind the screen's `i` (`flow/page.tsx`):
+       * each arrow already says "from 48%, 7 days ago" (review, 2026-10-23).
+       */}
+      {kpis.withheld === null ? null : (
+        <p className="iris-meta iris-meta-measured iris-ckpi-basis">{kpis.withheld}</p>
+      )}
     </div>
   );
 }
