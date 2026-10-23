@@ -98,6 +98,7 @@ export function KpiCard({
   points,
   measurementId,
   info,
+  wide = false,
 }: {
   label: React.ReactNode;
   value: string;
@@ -107,6 +108,8 @@ export function KpiCard({
   points?: readonly number[];
   measurementId?: string;
   info?: React.ReactNode;
+  /** A card twice a strip's card width (Sales Flow's figure outside any group): its line is drawn twice as long, not twice as tall. */
+  wide?: boolean;
 }) {
   void measurementId;
   /*
@@ -123,7 +126,7 @@ export function KpiCard({
         <p className="iris-kpi-value" data-statement={statement ? "true" : undefined}>
           {value}
         </p>
-        <div className="iris-kpi-foot">
+        <div className="iris-kpi-foot" data-wide={wide ? "true" : undefined}>
           <div>
             {delta === null ? null : (
               <span className="iris-kpi-delta" data-tone={tone}>
@@ -137,12 +140,14 @@ export function KpiCard({
            * line beside them was too small to read on the recording). Drawn at
            * a card's proportion, so at a desktop card's width it stands about
            * 50–60px tall and scales evenly: the tip stays round and the dot
-           * grid square (`charts.css`).
+           * grid square (`charts.css`). A wide card's drawing is twice as long,
+           * so its line stands as tall as its neighbours' (review, 2026-10-23:
+           * at 240 units "Typical length" stood 124px tall at 1440).
            */}
           {points === undefined ? null : (
             <Sparkline
               points={points}
-              width={240}
+              width={wide ? 480 : 240}
               height={52}
               label={`${value} over recent weeks`}
             />

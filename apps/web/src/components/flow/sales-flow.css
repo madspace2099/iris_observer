@@ -84,6 +84,11 @@
     width: 5.5rem;
   }
 
+  /* A wide card's drawing is twice as long: twice the width keeps it as tall. */
+  .iris-salesflow .iris-kpi-foot[data-wide] .iris-spark {
+    width: 11rem;
+  }
+
   /* The window in force on one line, its seven choices folded under it (`page.tsx`). */
   .iris-salesflow .iris-window > :not(.iris-window-pick) {
     display: none;

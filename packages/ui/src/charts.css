@@ -94,8 +94,18 @@
 .iris-kpi-foot .iris-spark {
   display: block;
   width: 100%;
+  max-width: 18rem;
   height: auto;
   overflow: visible;
+}
+
+/*
+ * Never taller than about 62px (review, 2026-10-23): a card's 240 x 52 drawing
+ * at most 18rem wide, a wide card's 480 x 52 at most 36rem. A desktop card is
+ * narrower than either cap; a card a one-column layout stretches is not.
+ */
+.iris-kpi-foot[data-wide] .iris-spark {
+  max-width: 36rem;
 }
 
 .iris-kpi-foot :is(.iris-spark-line, .iris-spark-tip) {

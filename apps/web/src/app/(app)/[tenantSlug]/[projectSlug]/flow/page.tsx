@@ -190,8 +190,8 @@ export default async function FlowPage({
     </Link>
   ));
 
-  /* One summary figure as a card, wherever the groups place it. */
-  const kpiCard = (id: string) => {
+  /* One summary figure as a card, wherever the groups place it; `wide` where it stands alone in a 2fr column. */
+  const kpiCard = (id: string, wide = false) => {
     const figure = charts.kpis.figures.find((f) => f.id === id);
     return figure === undefined ? null : (
       <KpiCard
@@ -209,6 +209,7 @@ export default async function FlowPage({
         delta={figure.delta}
         tone={figure.tone}
         points={figure.points.length < 2 ? undefined : figure.points}
+        wide={wide}
       />
     );
   };
@@ -299,10 +300,15 @@ export default async function FlowPage({
               ...charts.kpis.groups.filter((group) => group.missing === null),
               ...charts.kpis.ungrouped.map((id) => ({ id, ungrouped: true as const })),
               ...charts.kpis.groups.filter((group) => group.missing !== null),
-            ].map((item) =>
+            ].map((item, index) =>
               "ungrouped" in item ? (
                 <div className="iris-kpi-group" key={item.id}>
-                  <div className="iris-kpis">{kpiCard(item.id)}</div>
+                  {/*
+                   * Three to a row, the first column 2fr (`charts.css`): a lone
+                   * card there is twice a card's width. With no CRM the figure
+                   * falls in a 1fr column and keeps a card's drawing.
+                   */}
+                  <div className="iris-kpis">{kpiCard(item.id, index % 3 === 0)}</div>
                 </div>
               ) : (
                 <div
@@ -322,7 +328,7 @@ export default async function FlowPage({
                   </header>
                   <div className="iris-kpis">
                     {item.missing === null ? (
-                      item.figureIds.map(kpiCard)
+                      item.figureIds.map((id) => kpiCard(id))
                     ) : (
                       <div className="iris-kpi">
                         <p className="iris-kpi-missing">{item.missing}</p>

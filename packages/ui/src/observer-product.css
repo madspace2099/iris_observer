@@ -1064,6 +1064,21 @@
   line-height: 1.35;
 }
 
+/*
+ * A tile's name, read on a recorded screen (the owner, 2026-10-23: the Sales
+ * Flow summary's 12px names could not be, and these are the same kind): half
+ * as large again from a desktop window, on every page that draws a tally. A
+ * phone's two-up tiles and the printed report keep the 12px they were fitted
+ * to. A word too long for the narrowest tile (11rem) breaks inside it rather
+ * than running into the next.
+ */
+@media screen and (width >= 64rem) {
+  .ox-tally-item dt {
+    font-size: 1.125rem;
+    overflow-wrap: break-word;
+  }
+}
+
 /* Browsers indent every `dd` by 40px by default, which silently pushed every
  * figure in this system out of alignment with its own label. */
 .ox-tally-item dd {

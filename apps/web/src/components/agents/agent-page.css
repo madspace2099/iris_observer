@@ -140,19 +140,6 @@
 }
 
 /*
- * Their names, read on a recorded screen (the owner, 2026-10-23: the Sales
- * Flow summary's 12px names could not be, and these are the same kind): half
- * as large again, still tracked capitals and still under the figure. From a
- * desktop window only, where "PRESENTATIONS" (about 170px at 18px) fits a
- * quarter of the plate; a phone's two-up tiles keep the 12px they were fitted to.
- */
-@media (width >= 64rem) {
-  .ag-detail .ag-activity .ox-tally-item dt {
-    font-size: 1.125rem;
-  }
-}
-
-/*
  * The apartments: the units beside where else they present, from a desktop
  * window; the register's refusal and its way out close the screen under both.
  */

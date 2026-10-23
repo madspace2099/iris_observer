@@ -272,7 +272,9 @@ describe("the summary's cards, read on a recording", () => {
       card.indexOf("last 30 days"),
     );
     expect(rule(".iris-kpi-foot", CHARTS)).toContain("display: grid;");
-    expect(rule(".iris-kpi-foot .iris-spark", CHARTS)).toMatch(/width: 100%;\s*height: auto;/);
+    expect(rule(".iris-kpi-foot .iris-spark", CHARTS)).toMatch(
+      /width: 100%;\s*max-width: [\d.]+rem;\s*height: auto;/,
+    );
     /* No screen of the page gives it back a fixed width beside the words. */
     expect(SHEET).not.toMatch(/#flow-summary[^{]*\.iris-spark/);
   });
@@ -282,6 +284,42 @@ describe("the summary's cards, read on a recording", () => {
     /* A card holds about 226px at 1280 and 276px at 1920 (four across). */
     expect((226 * h!) / w!).toBeGreaterThanOrEqual(48);
     expect((276 * h!) / w!).toBeLessThanOrEqual(64);
+  });
+
+  /*
+   * Review, 2026-10-23: "Typical length" stands alone in the 2fr column, twice
+   * a card's width, and at a card's drawing stood 124px tall at 1440.
+   */
+  it("draws a wide card's line twice as long, so it stands as tall as its neighbours'", () => {
+    const wide = renderToStaticMarkup(
+      createElement(KpiCard, {
+        label: "Typical length",
+        value: "13m 51s",
+        qualifier: null,
+        delta: null,
+        tone: "flat",
+        points: [3, 5, 4, 8],
+        wide: true,
+      }),
+    );
+    expect(wide).toContain('data-wide="true"');
+    expect(card).not.toContain("data-wide");
+    const [w, h] = (/viewBox="0 0 (\d+) (\d+)"/.exec(wide) ?? []).slice(1).map(Number);
+    /* Two cards and the hairline between them: about 453px at 1280, 553px at 1920. */
+    expect((453 * h!) / w!).toBeGreaterThanOrEqual(48);
+    expect((553 * h!) / w!).toBeLessThanOrEqual(64);
+    /* The figure outside any group is wide where it lands in the first, 2fr, column. */
+    expect(FLOW).toContain("kpiCard(item.id, index % 3 === 0)");
+  });
+
+  it("holds every line under 64px where a one-column layout stretches its card", () => {
+    const capPx = (selector: string) =>
+      Number(/max-width: ([\d.]+)rem;/.exec(rule(selector, CHARTS))?.[1]) * 16;
+    expect((capPx(".iris-kpi-foot .iris-spark") * 52) / 240).toBeLessThanOrEqual(64);
+    expect((capPx(".iris-kpi-foot[data-wide] .iris-spark") * 52) / 480).toBeLessThanOrEqual(64);
+    /* Neither cap reaches a desktop card: 276px a card, 553px a wide one at 1920. */
+    expect(capPx(".iris-kpi-foot .iris-spark")).toBeGreaterThanOrEqual(276);
+    expect(capPx(".iris-kpi-foot[data-wide] .iris-spark")).toBeGreaterThanOrEqual(553);
   });
 });
 

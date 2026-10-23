@@ -304,6 +304,17 @@ describe("a tally tile on a phone", () => {
   it("insets a tile by 14px, so a tracked uppercase label fits a 2-up tile at 360", () => {
     expect(rule(NARROW, ".ox-tally-item")).toMatch(/padding-inline:\s*0\.875rem/);
   });
+
+  /* The owner's recording review, 2026-10-23: the same kind of name as the summary cards'. */
+  it("keeps its 12px name on a phone and on paper, and sets it at 18px on a desktop screen", () => {
+    expect(rule(PRODUCT, ".ox-tally-item dt")).toMatch(/font-size:\s*var\(--ox-micro\)/);
+    expect(rule(NARROW, ".ox-tally-item dt")).toBe("");
+    const desk = rule(within(PRODUCT, "@media screen and (width >= 64rem)"), ".ox-tally-item dt");
+    expect(desk).toMatch(/font-size:\s*1\.125rem/);
+    expect(desk, "a long word stays inside the narrowest tile").toMatch(
+      /overflow-wrap:\s*break-word/,
+    );
+  });
 });
 
 describe("no text under 12px on a phone", () => {
