@@ -181,11 +181,13 @@ test("R05-1 · Sales Flow says which blocks follow the period and which their ow
   expect(text).toContain("Every screen from the meetings on reads the period in the bar at the top");
 });
 
-test("R05-2 · the four groups are drawn and named", async ({ page }) => {
+test("R05-2 · the groups are drawn and named, Conversion struck out", async ({ page }) => {
   const text = await mainText(page, "Tomáš Varga", `${ROOT}/flow`);
-  for (const group of ["VOLUME", "PROGRESS", "CONVERSION", "CYCLE TIME"]) {
+  for (const group of ["VOLUME", "PROGRESS", "CYCLE TIME"]) {
     expect(text, group).toContain(group);
   }
+  /* The owner struck the empty Conversion card out on 2026-10-23. */
+  expect(text).not.toContain("CONVERSION");
 });
 
 test("R05-6 · an IRIS-assisted sale is a time relation, never a cause", async ({ page }) => {

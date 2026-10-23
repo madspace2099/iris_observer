@@ -103,17 +103,13 @@ test("R05-1 · Sales Flow names the blocks that read the period and the ones tha
   );
 });
 
-test("R05-2 · each of the four groups carries its own definition", async ({ page }) => {
+test("R05-2 · each group carries its own definition", async ({ page }) => {
   await mainText(page, "Tomáš Varga", `${ROOT}/flow`);
   for (const [name, definition] of [
     ["Volume", "How much the showroom was used: the presentations given, and the units opened in them."],
     [
       "Progress",
       "How far the meetings went: of those with an outcome recorded, the share that ended at a follow-up or better.",
-    ],
-    [
-      "Conversion",
-      "The share of buyers who move forward from each rung to the next, counted by when they entered it rather than when they moved.",
     ],
     [
       "Cycle time",

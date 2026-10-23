@@ -51,17 +51,17 @@ async function everyPanel(): Promise<readonly { readonly at: string; readonly kp
   return panels;
 }
 
-describe("the summary row in four groups", () => {
+describe("the summary row in its groups", () => {
   it("has panels to check, so the assertions below examine something", async () => {
     expect((await everyPanel()).length).toBe(PROJECTS.length * KPI_WINDOWS.length);
   });
 
-  it("names the four groups in the plan's order", async () => {
+  it("names the groups in the plan's order, Conversion struck out (2026-10-23)", async () => {
     for (const { at, kpis } of await everyPanel()) {
       expect(
         kpis.groups.map((g) => g.id),
         at,
-      ).toEqual(["volume", "progress", "conversion", "cycle_time"]);
+      ).toEqual(["volume", "progress", "cycle_time"]);
     }
   });
 
@@ -78,7 +78,6 @@ describe("the summary row in four groups", () => {
       expect(ids, at).toEqual({
         volume: ["presentations", "units"],
         progress: ["progressed"],
-        conversion: [],
         cycle_time: at.startsWith("northgate/") ? ["sale_cycle"] : [],
       });
       expect(kpis.ungrouped, at).toEqual(["duration"]);
@@ -91,10 +90,6 @@ describe("the summary row in four groups", () => {
         expect(group.missing === null, `${at} ${group.id}`).toBe(group.figureIds.length > 0);
       }
       const missing = Object.fromEntries(kpis.groups.map((g) => [g.id, g.missing ?? ""]));
-      /* The card says it in a line; why stands behind the group's `i`, its definition. */
-      expect(missing.conversion, at).toBe("Not measured yet.");
-      const conversion = kpis.groups.find((g) => g.id === "conversion");
-      expect(conversion?.definition, at).toMatch(/not the path it took/);
       if (at.startsWith("northgate/")) expect(missing.cycle_time, at).toBe("");
       else expect(missing.cycle_time, at).toMatch(/No CRM is connected/);
       for (const text of Object.values(missing)) expect(text, at).not.toMatch(/no data/i);

@@ -100,15 +100,12 @@ function within(sessions: readonly ShowroomSession[], from: number, to: number):
 /* --- KPI cards over a chosen window ----------------------------------------- */
 
 /**
- * The summary row's four groups (R05 item 2, approved by Máté on 2026-09-24).
+ * The summary row's groups (R05 item 2, approved by Máté on 2026-09-24).
  *
- * Measured before any was built. Two hold a figure this row already draws. Two
- * hold none, and are printed empty with what is missing:
- * - Conversion. The deal ladder is stock, not path (`deal-source.ts`), and the
- *   registry's `flow.stage_conversion` is defined but computed nowhere.
- *   Progressing is a meeting ratio, which the plan excludes as conversion.
- * - Cycle time. `sale-cycle.ts` is rendered nowhere, and P2-06 is blocked on
- *   the inputs named below.
+ * Conversion was a fourth, printed empty as "Not measured yet." (the deal
+ * ladder is stock, not path, and `flow.stage_conversion` is computed nowhere).
+ * The owner struck it out on 2026-10-23: an empty card on the recording says
+ * nothing. Cycle time stays, empty only where no CRM is connected.
  *
  * "Typical length" belongs to none. It measures workload, and under Volume the
  * group's name would say something untrue about it, so it stays in the row
@@ -133,18 +130,6 @@ const KPI_GROUPS: readonly KpiGroup[] = [
       "How far the meetings went: of those with an outcome recorded, the share that ended at a follow-up or better.",
     figureIds: ["progressed"],
     missing: null,
-  },
-  {
-    id: "conversion",
-    label: "Conversion",
-    /*
-     * The registry's own words for `flow.stage_conversion`, then why it is
-     * empty: behind the `i`, so the card itself reads one short line.
-     */
-    definition:
-      "The share of buyers who move forward from each rung to the next, counted by when they entered it. Not measured yet: the deal ladder counts where each deal stands, not the path it took. Progress counts meetings, not deals.",
-    figureIds: [],
-    missing: "Not measured yet.",
   },
   {
     id: "cycle_time",
