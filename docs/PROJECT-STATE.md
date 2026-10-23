@@ -6784,3 +6784,71 @@ no new text under 12px. Full unit suite (after `pnpm release:wrappers`, on the c
 **Next.** Cherry-pick onto the demo branch with the other round-8 groups, build, warm every URL
 once, and record at 1440×900 with animation effects on. Still taller than 591px at 1280×720 and
 read through: the lens, the agents and the not-interested group.
+
+## 2026-10-23 — Review round 8, group STOCK: Project, Units, a unit, Meetings, Features, Audience before the video
+
+Máté, before recording the marketing video, asked for a bug and overlap check on every page, less
+text where there is a lot, and responsiveness. A reviewer walked the demo (42bb68bd) and listed 26
+findings for this group. Branch `r8-stock`, from `42bb68bd`, not pushed. Each finding was confirmed
+in the code and on a static render (react-dom/server in the real Shell, the product stylesheets,
+headless Chromium, 1440×900, 1280×720, 390×844, 360×780) before it was changed.
+
+- **Units.** The register fits its plate at 1280 (it ran 92px past it, the default-sort column cut
+  mid-word): between a phone and 90rem its headings wrap and the demand cell reads "64m 28s · 100%",
+  "of the busiest unit" read out rather than drawn. The building note states the catalogue now
+  ("60 flats now: 28 available · 13 reserved · 19 sold") instead of "not observed yet" above the
+  CRM-dated sales. The lede keeps one sentence; the column glossary, the most-opened flats' method,
+  the demonstration-CRM caveat and the tie rule stand behind the titles' `i` (ADR-0051 §5's "printed
+  beside the sales lines" is amended as ADR-0058 did for the answer sheets). A clear "High interest,
+  never shortlisted" is one line with its denominator.
+- **A unit.** A catalogue-stated Reserved or Sold draws no bar (it was a 3% sliver under the
+  meetings' bar) and says its source once; the Offer made band with "ADR-0021" on camera is gone
+  and a no-source stage carries no tier; the funnel's source is said once. A meeting's end reads
+  "3 units open · …" with the outcome rule behind the `i`; the table uses the register's chips.
+- **Meetings.** An option carries its count only while no other filter is applied ("Purchase (11)"
+  stood beside "7 of 150"). Lede one sentence, the rest behind "Narrow the register"'s `i`; the
+  developer's caption is "Replays open for agents and managers, so these rows are listed rather
+  than linked." Times and lengths never wrap on a desk; at 1280 a visitor is two lines, not three.
+  A replay keeps its outcome, "not yet confirmed in the CRM" and its sources in view, explanations
+  behind the subheads' `i`, and states the journey's evidence once.
+- **Features.** The running order's "reached in 144 of 150 presentations" is whole (it was cut at
+  every width, at 11px): it wraps at 12px and a desk's name column is 14rem. Lede one sentence; the
+  register's definitions behind its `i`; "What this register does not cover" is a title and an `i`
+  holding the six limits and the clicks statement (R10-1).
+- **Audience.** The unit choice is one line on a desk; every row names its agent at every width
+  (the shared list hid it below 75rem while the note said each row did); kickers and column heads at
+  12px.
+- **Project.** A title's `i` keeps its line at 360 and 390; Four-room's line and key are dashed
+  (sky beside blue read as one line); the caveat box says it without the build's vocabulary.
+
+Verified: typecheck, eslint and prettier clean on every changed file; the four sizes rendered
+before and after: no sideways scroll on any page; the Units, Meetings and unit registers fit 1280
+and 1440 (Units still scrolls at 1024); no text under 12px left on these pages but the `i` glyph.
+Full unit suite (after `pnpm release:wrappers`, on the committed tree): 297 files, 5426 passed, 1
+skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
+
+`.sheet-titled` rows on these pages take their title line-height from `components/units/titled.css`.
+New `apps/web/test/stock-video-review.test.ts` (4). e2e specs that read moved text were edited, not
+run: `units-register` (the glossary is opened from its `i`), `dontesek1` (the clear check's one
+line), `veghajras1` (R10-1 read from the panels), a comment in `lab`.
+
+**Routed, not changed here** (outside this group's files): the search register's "Units matching"
+exceed "of 28 available now" (`packages/synthetic/src/showroom/views3.ts:1580-1594` keeps
+`sessions.ts:1086-1120`'s matches, counted against another status set — recompute from
+`catalogueFor` in the read model); the stacking plan's "against 46 on the busiest unit" is a fixed
+scale (`packages/synthetic/src/pulse.ts:603`, `:628`; `components/product/StackPlan.tsx:198`); a
+CRM-statused building's `soldInPeriod` is null (`pulse.ts:553`); the Offer stage's ADR string
+(`screens.ts:927`); Audience lights Sales Flow in the nav (`components/iris/Shell.tsx:187`); the
+Audience caveats' "UE5 v2 event" (`views3.ts:2261`, the box kept in view: its privacy line is
+marked "stays on screen"); the project findings' orange caveats (`views3.ts:1713`, `:1740`); the
+running-order and pair notes (`components/features/RunningOrder.tsx:76`, `Pairings.tsx`); a tall
+sweep waiting at 360 (`showroom/DrawIn.tsx` `arrived`); the header's 11px role and badge, and the
+"Demo data" pill twice (on a phone the header's sits in the menu, so the page chip is the only one
+in view; a rule hiding `.ox-head-aside .ox-synthetic` from 1200px belongs to the shared layer).
+Not a defect: slow first loads came from parallel QA sessions; warm each page once before
+recording. Developers do not open replays (R08-6): record the replay segment as Daniel Hart.
+
+**Next recommended action.** Cherry-pick with the other groups; on the demo build at 1440×900 and
+390×844 as Clara (Daniel for a replay) read Units, S-503, Meetings with Lena + Purchase, Features,
+Audience and Project; run `units-register`, `dontesek1`, `veghajras1`, `nav-reachability`,
+`p221-render`, `layout-integrity` and `a11y-contract`. **Not looked at on a running page.**
