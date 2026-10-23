@@ -203,7 +203,6 @@ export default async function FeaturesPage({
     (section) => section.meetings > 0 && section.availability !== "legacy_available",
   );
   const noBaseline = view.sections.some((section) => section.adoption === "no_baseline");
-  const anyNew = view.sections.some((section) => section.adoption === "new_in_period");
 
   const base = `${root}/features`;
 
@@ -317,11 +316,10 @@ export default async function FeaturesPage({
     },
   };
 
+  /* A limit only where adoption cannot be answered; otherwise the register's chips and its cut say it. */
   const baselineNote = noBaseline
-    ? `This period has no period before it in the data, so no feature is reported as newly adopted. A feature absent from an empty baseline would otherwise be reported as new.`
-    : anyNew
-      ? `A feature is newly adopted when it was reached in this period and in none of ${view.context.period.baselineLabel}. Those features carry a chip in the register.`
-      : `No feature was reached in this period that went unreached in ${view.context.period.baselineLabel}. Every feature in the register was already in use.`;
+    ? "this period has no period before it, so nothing is reported as new."
+    : null;
 
   /* A real project's first day is one presentation, and that is when this sentence is read. */
   const recordedWords =
@@ -350,7 +348,7 @@ export default async function FeaturesPage({
   const clicksUnavailable = (
     <Unavailable
       what="Clicks inside a feature"
-      why="the presentation record this product keeps holds no click count, so none is shown for any feature; Opens counts entries into a feature, not clicks"
+      why="the presentation record holds no click count; Opens counts entries into a feature, not clicks"
       action={null}
       period={period}
     />
@@ -391,10 +389,7 @@ export default async function FeaturesPage({
               <h2 className="ox-section-title">The period, and the instrument</h2>
               <InfoTip id="limits" label="what this register does not cover">
                 {clicksUnavailable}
-                <Limits
-                  untimedFeatures={untimed.map((section) => section.label)}
-                  baselineNote={baselineNote}
-                />
+                <Limits baselineNote={baselineNote} />
               </InfoTip>
             </div>
             <p className="ox-section-note">

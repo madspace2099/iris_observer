@@ -15,6 +15,12 @@ import { SHOWROOM_SECTIONS } from "@observer/contracts";
  * limits of the instrument, stated ONCE, where a reader who has just read the
  * register will look for them.
  *
+ * One line a limit, behind the instrument title's `i` (review, round 9: seven
+ * headed paragraphs, some 210 words, scrolled inside the panel on camera). A
+ * limit the screen already states in sight is not repeated here: an untimed
+ * feature is the register's own unavailable band, and "underused" was a
+ * statement of design, not of the instrument.
+ *
  * ## Why the first note names no feature that does not exist
  *
  * The showroom's nine sections are the whole vocabulary. A brief asking for a
@@ -25,63 +31,20 @@ import { SHOWROOM_SECTIONS } from "@observer/contracts";
  * it. It does not exist.
  */
 export function Limits({
-  untimedFeatures,
   baselineNote,
 }: {
-  /** Features the build did not time this period, in the read model's words. */
-  readonly untimedFeatures: readonly string[];
-  /** What adoption can and cannot say for this period. Decided by the screen. */
-  readonly baselineNote: string;
+  /** Why nothing can be newly adopted this period; null where adoption is answered. */
+  readonly baselineNote: string | null;
 }) {
   return (
-    <div className="ox-cols" data-cols="2">
-      <div>
-        <p className="ox-subhead">Features outside this vocabulary</p>
-        <p className="ox-section-note">
-          The register covers all {SHOWROOM_SECTIONS.length} features the showroom presents.
-          Anything else is not measured at all, not measured at zero.
-        </p>
-      </div>
-
-      <div>
-        <p className="ox-subhead">Completion, and abandonment</p>
-        <p className="ox-section-note">
-          No event marks a feature finished, so nothing here says one was completed or abandoned:
-          only how long a stop lasted, how often it ended at once, and how often a presentation came
-          back.
-        </p>
-      </div>
-
-      <div>
-        <p className="ox-subhead">Time spent, where the build does not record it</p>
-        <p className="ox-section-note">
-          {untimedFeatures.length === 0
-            ? "Every feature opened in this period carried a recorded stay. An untimed stay would read as unavailable, never as zero."
-            : `${untimedFeatures.join(", ")} were opened with no stay recorded: unavailable, never zero, and never ordered by stay.`}
-        </p>
-      </div>
-
-      <div>
-        <p className="ox-subhead">Newly adopted</p>
-        <p className="ox-section-note">{baselineNote}</p>
-      </div>
-
-      <div>
-        <p className="ox-subhead">Underused</p>
-        <p className="ox-section-note">
-          No feature is called underused: there is no target for how often one should be reached.
-          The register&rsquo;s bottom is in view; where the line falls is the presenters&rsquo;
-          call.
-        </p>
-      </div>
-
-      <div>
-        <p className="ox-subhead">What is opened before a unit is shortlisted</p>
-        <p className="ox-section-note">
-          Not shown: how many presentations shortlisted a unit is not returned, and a share without
-          its denominator is not printed.
-        </p>
-      </div>
-    </div>
+    <>
+      <p>
+        Only the {SHOWROOM_SECTIONS.length} features the showroom presents are measured; anything
+        else is not measured, not zero.
+      </p>
+      <p>Completion: no event marks a feature finished or abandoned.</p>
+      <p>Before a shortlist: not shown, as the shortlist count is not returned.</p>
+      {baselineNote === null ? null : <p>Newly adopted: {baselineNote}</p>}
+    </>
   );
 }
