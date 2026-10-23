@@ -7232,3 +7232,29 @@ left in place.
 
 **Next recommended action.** Máté records. Afterwards: run the full e2e suite on the final build,
 and decide whether the leftover MADSPACE registration should be removed.
+
+## 2026-10-23 — The owner's OpenAI key, end to end
+
+The owner pasted a real OpenAI key into the company key dialog and met four failures in a row. Each
+is fixed, pushed and recorded in ADR-0043's amendment:
+
+1. **"OpenAI could not be reached"** was a TLS failure: Avast's Web Shield re-signs api.openai.com
+   with a root only the Windows store holds. `scripts/demo-start.mjs` now sets
+   `NODE_USE_SYSTEM_CA=1` (verification stays on). A pasted key is also cleaned of invisible
+   characters (`credentials/clean-key.ts`), and a failed key test logs its status and vendor code.
+2. **"Rate limiting"** was OpenAI's `credit_balance_exhausted`, now classified as no credit.
+3. **Every answer fell back to the read models**: the GPT-5.6 family answers 400 on chat completions
+   to tools plus a reasoning effort. The transport now speaks the Responses API (`openai-responses`,
+   catalogue `2026-10-23.1`). The composition turn keeps a rejected call's output when the router
+   stands in.
+4. **No model choice**: where a demonstration key answers, the Ask composer offers Luna, Terra and
+   Sol. The choice is the `observer_ask_model` cookie, read by the page and spent by the stream route.
+
+**Verified:** typecheck, lint, 5,493 unit tests; two adversarial review workflows (12 and 7 findings
+confirmed, all fixed); a scripted-key demo (no request leaves) where picking Sol renamed the composer
+and the stream route logged `model: gpt-5.6-sol`. **Not verified here:** a live answer with the
+owner's key on the Responses path. It needs the key pasted again after the restart.
+
+**Next:** the owner pastes the key as Clara, asks a question, and reads the answer's note ("Worded by
+gpt-5.6-…"). If it falls back again, the server log names the vendor's code and the field it objected
+to.
