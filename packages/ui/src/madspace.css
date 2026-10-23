@@ -4507,6 +4507,23 @@ button.mad-quiet {
 }
 
 /*
+ * On a phone the two do not fit one row ("← Back" and "Generate activation
+ * code" need about 323px of a 302px foot), and wrapping left Back alone on
+ * one row and Next pushed right on the next. Stacked full width, in the order
+ * they are tabbed to.
+ */
+@media (max-width: 30rem) {
+  .mad-wizard-foot {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .mad-wizard-foot > :first-child:not(:last-child) {
+    margin-right: 0;
+  }
+}
+
+/*
  * The footer's two buttons at the size of the field beside them, and Next in
  * IRIS blue as Akhilesh drew it. Scoped to the wizard: elsewhere in MADSPACE an
  * ink fill is the primary and blue means "waiting for MADSPACE" (ADR-0042).
