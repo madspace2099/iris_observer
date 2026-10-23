@@ -7,6 +7,7 @@ import {
   type PeriodPreset,
 } from "@observer/readmodels";
 
+import { InfoTip } from "@/components/iris/InfoTip";
 import { Empty } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -34,8 +35,9 @@ import { withPeriod } from "@/lib/period";
  * names. The owner could not take the page in. A row is now the answer, the
  * check's name, what it found and the next step, in that order at every
  * width; the questions stand behind the `i` beside the register's title
- * (`CheckQuestions`), and a refusal — a check that could not be asked — still
- * says why in its own row.
+ * (`CheckQuestions`), and a refusal — a check that could not be asked — is
+ * marked "Not evaluated" in view, its reason behind the `i` beside its name
+ * (the owner, 2026-10-23: the reasons ran two and three lines a row).
  *
  * ## Every check names its next step (R04-7)
  *
@@ -109,17 +111,31 @@ export function ChecksRegister({
               <span className="ox-chip-mark" aria-hidden="true" />
               {STATE_WORDS[check.state]}
             </span>
-            <div>
-              <p className="sheet-check-name">{check.label}</p>
-              {/*
-               * A raised check's sentence is its card's, word for word; the
-               * row names the card instead, so the page says each raised
-               * thing once and the reader sees that the two names are one.
-               */}
-              <p className="sheet-check-found" data-part="found">
-                {alert === undefined ? check.reason : `Above: ${alert.title}`}
-              </p>
-            </div>
+            {check.state === "unavailable" ? (
+              /*
+               * Why a check could not be asked is method, two or three lines
+               * of it (the owner, 2026-10-23: simplify). "Not evaluated" stays
+               * in view on the chip; the reason is the `i` beside the name.
+               */
+              <div className="sheet-titled">
+                <p className="sheet-check-name">{check.label}</p>
+                <InfoTip id={`check-${check.kind}`} label={`why ${check.label} was not evaluated`}>
+                  <p data-part="found">{check.reason}</p>
+                </InfoTip>
+              </div>
+            ) : (
+              <div>
+                <p className="sheet-check-name">{check.label}</p>
+                {/*
+                 * A raised check's sentence is its card's, word for word; the
+                 * row names the card instead, so the page says each raised
+                 * thing once and the reader sees that the two names are one.
+                 */}
+                <p className="sheet-check-found" data-part="found">
+                  {alert === undefined ? check.reason : `Above: ${alert.title}`}
+                </p>
+              </div>
+            )}
             <p className="sheet-check-step" data-part="step">
               {alert === undefined || alert.actionHref === null || alert.actionLabel === null ? (
                 NO_STEP[check.state]

@@ -159,13 +159,11 @@ describe("the Briefing", () => {
     }
   });
 
-  it("keeps the period's unobserved sales in view beside the sold count", () => {
-    expect(page).toContain(
-      '{pulse.totals.sold} sold {pulse.totals.soldInPeriod === null ? "; how many of them in this period is not observed yet"',
+  it("says the sold count is to date in view, and why behind the building's i", () => {
+    expect(page).toMatch(/\{pulse\.totals\.sold\} sold[\s\S]*?=== null\s*\? " to date"/);
+    expect(page).toMatch(
+      /<InfoTip id="building"[\s\S]*Sales within this period are not\s+observed yet\.[\s\S]*<\/InfoTip>/,
     );
-    for (const tip of page.match(/<InfoTip[\s\S]*?<\/InfoTip>/g) ?? []) {
-      expect(tip).not.toContain("not observed");
-    }
   });
 
   it("draws the plan without its key, and the key behind the building's i", () => {

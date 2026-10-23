@@ -209,7 +209,8 @@ export default async function AttentionPage({
           <div className="ox-plate-inner">
             <div className="ox-section-head">
               <div className="sheet-titled">
-                <h2 className="ox-section-title">Every check, and what it found</h2>
+                {/* Short enough that its `i` never wraps alone onto a phone's second line. */}
+                <h2 className="ox-section-title">Every check</h2>
                 <InfoTip id="checks" label="every check">
                   <p>
                     Every question this screen asks of the period, and the answer to each —

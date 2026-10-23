@@ -53,7 +53,7 @@
   line-height: 0;
 }
 
-.sheet-titled > :is(h2, h3) {
+.sheet-titled > :is(h2, h3, .sheet-check-name) {
   display: inline;
 }
 
