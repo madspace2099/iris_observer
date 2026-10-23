@@ -6587,3 +6587,57 @@ legend's line in `DrawIn`; keep both changes), build, and on the demo as Clara a
 Sales Flow screen by screen (each one wheel turn), then the register at 1280×720, a unit, a replay
 (as Daniel), Presentation, IRIS-led sales and the report; across a reload `/api/observer/portraits`
 answers 304s only.
+
+## 2026-10-23 — Stream AGENTS: Sales Agents, one screen at a time (ADR-0061)
+
+Máté, before recording the marketing video, asked for Sales Flow's one-screen-per-scroll pattern
+(ADR-0059) on the Sales Agent pages too, the same prefetch saving as `be3ac396`, simpler screens
+where there is a lot of text, responsiveness on every page, and chart entrances that play on
+scroll. Branch `r7-agents`, from `be3ac396`, not pushed. Streams PORTRAITS (the plain-circle
+portrait, ADR-0054's amendment, portraits on every other page) and MOTION (ADR-0062, entrances and
+prefetch on every other page) run beside it.
+
+- **Shared rail.** `components/screens/ScreenRail.tsx` + `screens.css` hold `FlowRail`'s logic and
+  look (the wheel's one turn one screen, the observer, the dot that replaces the address) and the
+  screens' mechanics for a page that opts in (`.iris-screens` / `.screen`). `FlowRail` is a
+  wrapper; Sales Flow's rail and every screen measured where they stood at four sizes.
+- **Roster:** the verdict with the tabs; the five cards on one line from a desktop window (fits
+  1440×900); presentations given beside the first meetings, rows spread; the findings, the lead
+  sentence as the screen's headline. **Coaching:** the verdict; the question, answer and key down
+  the left, the chart beside them (fits 1440×900). **An agent's page:** eight screens (who, with a
+  large portrait; activity, two groups side by side; how meetings ended beside where they reached;
+  the shape beside the running order, each title with the agent's face; what buyers opened beside
+  the weekly line; apartments beside where else; recent meetings, or the refusal closing the
+  apartments' screen; findings). Definitions and method moved behind the `i`; denominators,
+  shortfalls and refusals stay in sight.
+- **Motion:** every chart draws in once as its screen arrives (`DrawIn`); the cards' rings turn in
+  60ms apart; Coaching's rows and the agent's funnel gained a sweep. Nothing moves under reduced
+  motion.
+- **Prefetch:** `prefetch={false}` on the cards' links, Coaching's arrows and names, the agent's
+  unit, project and "Every meeting" links, and `MeetingRegister`'s rows. Before, on the demo build
+  (Clara, 1440×900, fresh context, on load / after four wheel turns): roster 13 / 32–33, Coaching
+  21–25 / 24–25, Lena's page 14 / 14. After: **not measured on a build**; on the static render the
+  in-content links that still prefetch are the roster's and Coaching's two tabs, and on an agent's
+  page the two crumbs and five links drawn by shared components (`Evidence`, `FindingList`), which
+  are MOTION's.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
+`apps/web/test/agents-screens.test.ts` (12); `flow-screens.test.ts` reads the rail where it now
+lives, assertions unchanged. The e2e specs that read these pages were checked (R13-3's eight
+children in order, R13-6's "WHERE ELSE THEY PRESENT" … "Scoped to the projects this account
+holds", the register gate, one `h1`, the portrait specs, the a11y contract's Sales Agents walk with
+the rail after the screens) and need no edit; none run. Static renders (react-dom/server, product
+stylesheets, the five uploaded portraits read from the demo's local plane) at 1440×900, 1280×720,
+1920×1080, 390×844 and 360×780 for Clara (Shark), Daniel Hart (register drawn) and Tomáš Varga on
+Northgate (under the floor): no sideways scroll, no text under 12px but the shared `i` glyph, every
+Shark screen inside 1440×900 and 1920×1080; entrances looked at mid-play with `DrawIn` scripted
+into the static page. The a11y contract's Tab walk, run on the static renders at 1280×720: every control reached and none painted above the stop before it in its column, on the roster, Coaching and an agent's page. **Not looked at on a running page.** Full unit suite (after `pnpm release:wrappers`, one run on the committed tree): 294 files, 5393 passed, 1 skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental; nothing here touches it).
+
+**Next recommended action.** Cherry-pick with PORTRAITS and MOTION onto the demo branch, build, and
+on the running demo at 1440×900 as Clara: wheel through the roster, Coaching and Lena's page (a
+notch a screen; the rings turning in on the cards' screen), use the rail, pick a period (the rail
+follows), then a phone at 390. Count the `_rsc` requests again with the same script for the after
+figures. Run `a11y-contract` (Sales Agents), `veghajras1` (R13-3), `p221-meres`, `p221-render`,
+`register-gate`, `agent-portraits`, `dontesek1`, `p219-screens`, `quality`, `layout-integrity` and
+`fixed-covers-nothing`. If MOTION did not turn off prefetch in `Evidence` and `FindingList`, add it
+there (shared files).
