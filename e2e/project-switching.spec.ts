@@ -98,8 +98,8 @@ test.describe("project switching", () => {
   test("the Ask comparison-scope control is untouched by the new switcher", async ({ page }) => {
     await signInAs(page, "Petra Novák");
 
-    /* The scope picker is a closed <details> until asked for — same as the
-     * model picker beside it (AskScreen.tsx). Its <summary> carries the
+    /* The scope picker is a closed <details> until asked for
+     * (AskScreen.tsx). Its <summary> carries the
      * label as an aria-label rather than as its text (the text is the
      * current scope's own name instead), so a direct attribute selector is
      * more reliable here than guessing at the role a <summary> maps to. */

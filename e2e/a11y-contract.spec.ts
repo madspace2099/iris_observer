@@ -181,7 +181,6 @@ const SURFACES: readonly Surface[] = [
     key: "Ask",
     path: `${ROOT}/ask`,
     popups: [
-      { name: "the model picker", trigger: 'summary[aria-label="Model"]', kind: "details" },
       { name: "the scope picker", trigger: 'summary[aria-label="Which project this question is about"]', kind: "details" },
     ],
     change: async (page) => {

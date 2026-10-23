@@ -50,9 +50,9 @@ machine.
    paid for and never used. The dialog says what the key is for and where it lives, gives the Gate 1
    sentence, an uncontrolled password field, Save key (disabled and saying so while the key is
    checked) and Skip for now (a link to the validated destination; Escape does the same).
-   `?key=skip` plays the welcome without asking. Where no model answers at the Ask composer, members
-   and admins who skipped see one line saying the company has no key, or that its key is spent only
-   on localhost with the language model on. `/settings/ai` carries the company key panel: on a
+   `?key=skip` plays the welcome without asking. The Ask composer says nothing about the company key
+   (amended 2026-10-23: it carries no model control either). `/settings/ai` carries the company key
+   panel: on a
    spendable request the admin connects, replaces and removes it; elsewhere it reports the key and
    says where it is spent; a member sees who manages it.
 5. **Where it is on.** `scripts/demo-start.mjs` sets `OBSERVER_DEMO_COMPANY_KEYS=1`. The browser
@@ -78,10 +78,11 @@ machine.
 
 The first real key exposed three things. Each is now settled:
 
-- **The model is the reader's choice.** Where a demonstration key answers (this ADR, or ADR-0040's
-  owner key), the Ask composer's model menu lists the catalogue's models as buttons. The choice is
-  the `observer_ask_model` cookie on that browser (`lib/ai/model-choice.ts`), set by
-  `chooseAskModel` for a signed-in account and only to a catalogue id. The page names the model from
+- **The model is the reader's choice, made in Settings.** Where a demonstration key exists (this
+  ADR, or ADR-0040's owner key), `/settings/ai` shows a Model panel listing the catalogue's models.
+  The Ask composer carries no model control: one there was judged noise beside every question. The
+  choice is the `observer_ask_model` cookie on that browser (`lib/ai/model-choice.ts`), set by
+  `chooseDemoModel` for a signed-in account and only to a catalogue id. The page names the model from
   it, and the stream route spends the key on it through `demoGrant`, so the two cannot disagree. A
   key configured with a model outside the catalogue keeps that model as the first option, which
   clears the choice. An account's own connection keeps its Settings preferences and never reads the

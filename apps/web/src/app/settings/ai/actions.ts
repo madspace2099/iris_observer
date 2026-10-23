@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { safeReturnTo } from "@/portal/return-to";
 
@@ -20,7 +21,13 @@ import {
   type ModelId,
   type ProviderId,
 } from "@/lib/models/catalogue";
-import { forgetProviderAvailability, recordModelUnavailable } from "@/lib/ai/admission";
+import {
+  forgetProviderAvailability,
+  parseOverride,
+  recordModelUnavailable,
+} from "@/lib/ai/admission";
+import { ASK_MODEL_COOKIE, ASK_MODEL_COOKIE_MAX_AGE } from "@/lib/ai/model-choice";
+import { demoKeysSpendable } from "@/lib/env";
 import { preferencesFor, preferenceStore } from "@/lib/models/preferences";
 import { setBudget } from "@/lib/budget/service";
 
@@ -194,6 +201,35 @@ export async function removeCompanyKey(formData: FormData): Promise<void> {
   const account = await requireAccount();
   const removed = forgetCompanyKey(account);
   redirect(dynamicRoute(backTo(formData, removed ? "done=company_removed" : "")));
+}
+
+/**
+ * Chooses the model a demonstration key answers with (ADR-0043), on this
+ * browser: the `observer_ask_model` cookie the Ask page and the stream route
+ * read. A catalogue id or nothing is written; an empty value is the key's own
+ * model, where that is not a catalogue one, and clears the choice.
+ */
+export async function chooseDemoModel(formData: FormData): Promise<void> {
+  await requireAccount();
+  /* Where no demonstration key is spent, a choice would be confirmed and never used. */
+  if (!demoKeysSpendable((await headers()).get("host")))
+    redirect(dynamicRoute(backTo(formData, "")));
+  const asked = formData.get("model");
+  const chosen = parseOverride(asked);
+  const store = await cookies();
+  if (asked === "") store.delete(ASK_MODEL_COOKIE);
+  else if (chosen !== null) {
+    store.set(ASK_MODEL_COOKIE, chosen, {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: process.env.NODE_ENV === "production",
+      maxAge: ASK_MODEL_COOKIE_MAX_AGE,
+    });
+  }
+  redirect(
+    dynamicRoute(backTo(formData, asked === "" || chosen !== null ? "done=demo_model" : "")),
+  );
 }
 
 /**

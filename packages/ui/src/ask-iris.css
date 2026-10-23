@@ -444,11 +444,7 @@
   gap: 12.5px;
 }
 
-/* --- the model selector -------------------------------------------------- */
-
-.ask-model-wrap {
-  position: relative;
-}
+/* --- the composer's disclosure pill ------------------------------------- */
 
 .ask-model {
   display: flex;
@@ -490,10 +486,8 @@
  * ever being told to stop. Measured live against the card's own 181px
  * height, this menu's `bottom: 50px` anchor leaves 113px of headroom above
  * the card's top edge before content is cut off mid-row with nothing on
- * screen to say so — which is exactly what an account with more than one
- * model connected used to do. `max-height: 112px` — room for the note plus
- * two option rows — and its own scrollbar keep every state inside that
- * budget instead of past it.
+ * screen to say so. `max-height: 112px` and its own scrollbar keep every
+ * state inside that budget instead of past it.
  */
 .ask-model-menu {
   position: absolute;
@@ -555,68 +549,13 @@
   outline-offset: 1px;
 }
 
-.ask-model-option {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  width: 100%;
-  height: 34px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  font-family: var(--font-sans);
-  font-size: 13.5px;
-  color: #dbe4f1;
-  text-align: left;
-  cursor: pointer;
-  transition:
-    background 140ms ease-out,
-    color 140ms ease-out;
-}
-
-.ask-model-option:hover {
-  background: rgb(26 64 132 / 38%);
-  color: #ffffff;
-}
-
-.ask-model-option[aria-disabled="true"] {
-  color: rgb(219 228 241 / 45%);
-  cursor: not-allowed;
-}
-
-.ask-model-option[aria-disabled="true"]:hover {
-  background: transparent;
-  color: rgb(219 228 241 / 45%);
-}
-
-.ask-model-dot {
-  width: 5px;
-  height: 5px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--ask-accent-soft);
-  box-shadow: 0 0 7px rgb(43 180 255 / 80%);
-}
-
-/* The catalogue's models as buttons, where a demonstration key answers. */
-.ask-model-choice:focus-visible {
-  outline: 2px solid var(--ask-accent);
-  outline-offset: -2px;
-}
-
-.ask-model-choice[aria-pressed="true"] {
-  color: #ffffff;
-}
-
 /* --- which project(s) a question is asked against ------------------------ */
 
 /*
- * Built on the model selector's own classes — `.ask-model`, `.ask-model-menu`,
- * `.ask-model-option` — because the two controls are the same shape: a
- * disclosure naming what governs the next answer. What follows is only what
- * the scope picker adds to that shape.
+ * Built on the disclosure pill's classes — `.ask-model`, `.ask-model-menu`,
+ * `.ask-model-details` — kept from the model picker this row once also
+ * carried; the model is chosen in Settings now (the owner's review,
+ * 2026-10-23). What follows is only what the scope picker adds to that shape.
  */
 .ask-scope-wrap {
   position: relative;
@@ -625,25 +564,12 @@
 /*
  * `.ask-model-menu` above already carries the safe height and the
  * scrollbar that keeps a menu inside `.ask-card`'s clip: same card, same
- * `bottom: 50px` anchor, so the same 113px of headroom applies to both
- * pickers on this row. Only the width differs — wide enough for a project
- * name in the Compare checklist, where the model list never needed more
- * than 214px.
+ * `bottom: 50px` anchor, so the same 113px of headroom applies. Only the
+ * width is the scope picker's own — wide enough for a project name in the
+ * Compare checklist.
  */
 .ask-scope-menu {
   width: 264px;
-}
-
-.ask-model-option[data-selectable="true"] {
-  cursor: pointer;
-  justify-content: flex-start;
-}
-
-.ask-model-option[data-selectable="true"] input[type="radio"] {
-  flex: none;
-  width: 15px;
-  height: 15px;
-  accent-color: var(--ask-accent-deep);
 }
 
 /*
@@ -701,9 +627,8 @@
 }
 
 /*
- * `.ask-menu-scroll` wraps whatever a menu's own note-and-options content
- * is — the model list's note-plus-options, or the scope picker's checklist
- * and its closing note. On a phone (mobile media query below) this is the
+ * `.ask-menu-scroll` wraps the scope picker's checklist and its closing
+ * note. On a phone (mobile media query below) this is the
  * ONLY part of the sheet that scrolls: the head and, for the scope picker,
  * its three tabs stay pinned above it. A desktop pointer never needs the
  * distinction — `.ask-model-menu`'s own 112px box already scrolls
@@ -1601,25 +1526,20 @@
   }
 
   /*
-   * Two pills now share this row (model, then scope) where the export's own
-   * canvas only ever drew one. Side by side at a phone's width they have no
-   * room left for the three round controls this row also carries, so those
-   * drop to a row of their own — `flex-basis: 100%` on a wrapped flex line
-   * is the standard way to force exactly that without a media query per
-   * breakpoint in between.
+   * One row: the scope pill and the three round controls. The model is chosen
+   * in Settings, so the second pill that once pushed the controls to a row of
+   * their own is gone (the owner's review, 2026-10-23). The pill takes the
+   * desktop's 165px and shrinks, with its ellipsis, on a narrow phone.
    */
   .ask-actions {
     left: 18px;
     right: 16px;
     bottom: 14px;
-    flex-wrap: wrap;
-    row-gap: 8px;
     gap: 10px;
   }
 
-  .ask-model-wrap,
   .ask-scope-wrap {
-    flex: 1 1 0;
+    flex: 0 1 165px;
     min-width: 0;
   }
 
@@ -1631,12 +1551,10 @@
   }
 
   /*
-   * A sheet fixed to the bottom of the screen, not a popover over the pill —
-   * for both menus built on this base class. `.ask-card` clips anything
-   * wider than its own remaining height (§ above), and on a phone that
-   * budget is tens of pixels once the two-pill row above has taken its
-   * share — nowhere near enough for a list of connected models, three
-   * scopes, or Compare's checklist. `position: fixed` escapes the card's
+   * A sheet fixed to the bottom of the screen, not a popover over the pill.
+   * `.ask-card` clips anything wider than its own remaining height (§ above),
+   * and on a phone that budget is tens of pixels — nowhere near enough for
+   * three scopes or Compare's checklist. `position: fixed` escapes the card's
    * own overflow the same way it escapes any ancestor's — `.ask-card` sets
    * no transform, filter or will-change to stop it — so no coordinate math
    * is needed, only an edge of the viewport to sit against.
@@ -1716,8 +1634,7 @@
     font-size: 13.5px;
   }
 
-  .ask-scope-check,
-  .ask-model-option {
+  .ask-scope-check {
     height: 42px;
     font-size: 14px;
   }
@@ -1761,11 +1678,6 @@
     inset: 0;
     z-index: 19;
     background: rgb(2 5 13 / 55%);
-  }
-
-  .ask-tools {
-    flex: 1 1 100%;
-    justify-content: flex-end;
   }
 
   .ask-openings {
@@ -1854,22 +1766,12 @@
 }
 
 /*
- * THE ASK PAGE'S COMPOSER ON A PHONE (the owner's review, 2026-10-23).
+ * THE ASK PAGE'S COMPOSER ON A NARROW PHONE (the owner's review, 2026-10-23).
  *
- * The pills and the tools take two rows here (above), 90px, and the card
- * stayed 168px: an asked question's second and third lines ran under "Read
- * models" and the scope pill, on every answer screen. The card is as tall as
- * the field's three lines and the two rows. The pills' names were cut to
- * "Read mode…" and "Shark Resi…" by a 30vw cap on a row they share with
- * nothing: they take the room they have, and the pill's own inset gives some.
- * Scoped to `.ask-page`: the dock is another composer.
+ * The scope pill's name was cut to "Shark Resi…" by a 30vw cap: it takes the
+ * room its row gives it, and the pill's own inset gives some. Scoped to
+ * `.ask-page`: the dock is another composer.
  */
-@media (width <= 48rem) {
-  .ask-root.ask-page {
-    --ask-hero-h: 212px;
-  }
-}
-
 @media (width <= 30rem) {
   .ask-page .ask-model-name {
     max-width: none;
@@ -1883,15 +1785,6 @@
 
   .ask-page .ask-actions {
     column-gap: 8px;
-  }
-
-  /* The model's pill as wide as its name; the project's takes the rest. */
-  .ask-page .ask-model-wrap {
-    flex: 0 0 auto;
-  }
-
-  .ask-page .ask-model-wrap .ask-model {
-    width: auto;
   }
 }
 

@@ -1,19 +1,25 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { AskFrame, type AskModelChoice } from "@/components/ask-iris/AskScreen";
 import { parseOverride } from "@/lib/ai/admission";
 import { ASK_MODEL_COOKIE, askModelCookie, demoGrant, demoModelNamed } from "@/lib/ai/model-choice";
-import { chooseAskModel } from "@/lib/ai/model-choice-actions";
-import { CATALOGUE } from "@/lib/models/catalogue";
+
+/**
+ * THE MODEL A DEMONSTRATION KEY ANSWERS WITH IS CHOSEN IN SETTINGS (2026-10-23).
+ *
+ * The owner added the company's key and wanted to choose among OpenAI's
+ * models; a picker in the Ask composer was then judged noise beside every
+ * question. The choice is made once, on the AI settings page, and kept as a
+ * cookie the Ask page and the stream route both read, so what the composer's
+ * notice names is what the key is spent on.
+ */
 
 const jar = vi.hoisted(() => ({
-  signedIn: true,
   set: [] as [string, string][],
   deleted: [] as string[],
+  redirected: [] as string[],
+  spendable: true,
 }));
 
 vi.mock("next/headers", () => ({
@@ -22,19 +28,23 @@ vi.mock("next/headers", () => ({
     set: (name: string, value: string) => void jar.set.push([name, value]),
     delete: (name: string) => void jar.deleted.push(name),
   }),
+  headers: async () => new Headers({ host: "localhost:3400" }),
+}));
+vi.mock("next/navigation", () => ({
+  redirect: (to: string) => {
+    jar.redirected.push(to);
+    throw new Error("NEXT_REDIRECT");
+  },
 }));
 vi.mock("@/lib/session", () => ({
-  currentAccount: async () => (jar.signedIn ? { accountId: "acct_clara" } : null),
+  requireAccount: async () => ({ accountId: "acct_clara" }),
+}));
+vi.mock("@/lib/env", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  demoKeysSpendable: () => jar.spendable,
 }));
 
-/**
- * THE READER PICKS THE MODEL A DEMONSTRATION KEY ANSWERS WITH (2026-10-23).
- *
- * The owner added the company's key and found the picker named one model with
- * "nothing else to choose". Where a demonstration key answers, the catalogue's
- * models are buttons; the choice is a cookie the page and the stream route
- * both read, so what the composer names is what the key is spent on.
- */
+const { chooseDemoModel } = await import("../src/app/settings/ai/actions");
 
 const DEMO = { apiKey: "sk-observer-test-choice-0000", model: "gpt-5.6-terra" };
 
@@ -96,86 +106,61 @@ describe("the stream route spends the choice only on a demonstration key", () =>
   });
 });
 
-const frame = (modelChoice: AskModelChoice | null) =>
-  renderToStaticMarkup(
-    createElement(AskFrame, {
-      root: "/shark/shark-residence",
-      periodParam: "",
-      projectSlug: "shark-residence",
-      projectLabel: "Shark Residence",
-      question: "",
-      historyOpen: false,
-      composerLabel: modelChoice === null ? "Read models" : "gpt-5.6-sol",
-      models: [],
-      scope: { kind: "current" },
-      otherProjects: [],
-      modelNotice: modelChoice === null ? null : "Typed questions are worded by gpt-5.6-sol.",
-      keyNote: null,
-      modelChoice,
-      children: null,
-    }),
-  );
+describe("where the model is chosen", () => {
+  const source = (path: string) => readFileSync(resolve(import.meta.dirname, path), "utf8");
 
-describe("the picker", () => {
-  const choice: AskModelChoice = {
-    options: CATALOGUE.map(({ id, label }) => ({ id, label })),
-    current: "gpt-5.6-sol",
-  };
-
-  it("draws every catalogue model as a button, with the current one pressed", () => {
-    const html = frame(choice);
-    const buttons = html.match(/<button[^>]*ask-model-choice[^>]*>/g) ?? [];
-    expect(buttons).toHaveLength(CATALOGUE.length);
-    for (const entry of CATALOGUE) expect(html).toContain(`value="${entry.id}"`);
-    /*
-     * Plain submitters of a form of their own: a function `formAction` on the
-     * button made React drop `name`, so no choice ever reached the action.
-     */
-    for (const tag of buttons) {
-      expect(tag).toContain('name="model"');
-      expect(tag).toContain('form="ask-model-form"');
-      expect(tag).not.toMatch(/formaction/i);
-    }
-    expect(html).toMatch(/<form[^>]*id="ask-model-form"/);
-    expect(buttons.filter((tag) => tag.includes('aria-pressed="true"'))).toHaveLength(1);
-    expect(buttons.find((tag) => tag.includes('aria-pressed="true"'))).toContain(
-      'value="gpt-5.6-sol"',
-    );
-    expect(html).not.toContain("nothing else to");
+  it("is not the Ask composer", () => {
+    const screen = source("../src/components/ask-iris/AskScreen.tsx");
+    expect(screen).not.toContain("ask-model-wrap");
+    expect(screen).not.toContain('aria-label="Model"');
   });
 
-  it("stays inert, and says so, where no demonstration key answers", () => {
-    const html = frame(null);
-    expect(html).not.toContain("ask-model-choice");
-    expect(html).not.toContain("ask-model-form");
-    expect(html).toContain("nothing else to");
+  it("is the AI settings page, which posts the choice to chooseDemoModel", () => {
+    const page = source("../src/app/settings/ai/page.tsx");
+    expect(page).toContain("<DemoModelPanel");
+    /* Only where the key would be spent, as the composer once named a model only there. */
+    expect(page).toMatch(/demoOwnModel === null \|\| !spendable \? null : \(\s*<DemoModelPanel/);
+    expect(page).toMatch(/<form action=\{chooseDemoModel\}/);
+    expect(page).toMatch(/name="model"/);
   });
 });
 
-describe("the action that keeps the choice", () => {
-  const submit = (model: string | null) => {
+describe("the settings action that keeps the choice", () => {
+  const submit = async (model: string | null) => {
     const form = new FormData();
     if (model !== null) form.set("model", model);
-    return chooseAskModel(form);
+    await chooseDemoModel(form).catch((error: unknown) => {
+      if (!(error instanceof Error) || error.message !== "NEXT_REDIRECT") throw error;
+    });
   };
 
   beforeEach(() => {
-    jar.signedIn = true;
     jar.set.length = 0;
     jar.deleted.length = 0;
+    jar.redirected.length = 0;
+    jar.spendable = true;
   });
 
-  it("keeps a catalogue id in the cookie the page and the stream route read", async () => {
+  it("keeps nothing where no demonstration key would be spent", async () => {
+    jar.spendable = false;
     await submit("gpt-5.6-sol");
-    expect(jar.set).toEqual([[ASK_MODEL_COOKIE, "gpt-5.6-sol"]]);
-  });
-
-  it("writes nothing for anything else, or for nobody signed in", async () => {
-    for (const value of ["gpt-4o", "GPT-5.6-SOL", "<b>", null]) await submit(value);
-    jar.signedIn = false;
-    await submit("gpt-5.6-luna");
+    await submit("");
     expect(jar.set).toEqual([]);
     expect(jar.deleted).toEqual([]);
+    expect(jar.redirected).toEqual(["/settings/ai", "/settings/ai"]);
+  });
+
+  it("keeps a catalogue id in the cookie, and says so", async () => {
+    await submit("gpt-5.6-sol");
+    expect(jar.set).toEqual([[ASK_MODEL_COOKIE, "gpt-5.6-sol"]]);
+    expect(jar.redirected).toEqual(["/settings/ai?done=demo_model"]);
+  });
+
+  it("writes nothing for anything else", async () => {
+    for (const value of ["gpt-4o", "GPT-5.6-SOL", "<b>", null]) await submit(value);
+    expect(jar.set).toEqual([]);
+    expect(jar.deleted).toEqual([]);
+    expect(jar.redirected.every((to) => to === "/settings/ai")).toBe(true);
   });
 
   it("clears the choice for the key's own model", async () => {

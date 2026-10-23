@@ -8,9 +8,8 @@ import { repository } from "@/lib/repository";
 import { currentAccount, requireViewer } from "@/lib/session";
 import { connectedProviders, parseOverride } from "@/lib/ai/admission";
 import { ASK_MODEL_COOKIE, demoModelNamed } from "@/lib/ai/model-choice";
-import { companyKeyState, companyModelName } from "@/lib/credentials/company-keys";
+import { companyModelName } from "@/lib/credentials/company-keys";
 import { demoModelName, environment, loopbackHost } from "@/lib/env";
-import { CATALOGUE, modelsForProviders } from "@/lib/models/catalogue";
 import { findAnswer } from "@/components/ask/questions";
 import {
   AskConversationPanel,
@@ -144,58 +143,29 @@ export default async function AskPage({
     throw error;
   }
 
-  /*
-   * What actually composed the answer, named honestly.
-   *
-   * The design's picker says "Observer AI 4.8". Nothing of the sort ran: these
-   * sentences were assembled by the read models. Naming a model that did not
-   * write them would be the one lie this screen exists to avoid, so the control
-   * keeps the design's shape and states what is true inside it.
-   */
   const account = await currentAccount();
   const connected = account === null ? [] : await connectedProviders(account.accountId);
-  const models = modelsForProviders(connected).map((entry) => entry.label);
 
   /*
    * WHETHER A LANGUAGE MODEL MAY WORD A QUESTION, SAID BEFORE IT IS ASKED.
    *
    * Gate 1 puts the notice at the prompt box, in view before the first
    * question. `composerNotices` names a demonstration key's model only where
-   * the stream route would spend it, and says in one line when a company's key
-   * is missing or cannot be spent here (ADR-0043).
+   * the stream route would spend it, with the model chosen in Settings
+   * (`ASK_MODEL_COOKIE`) over the key's own. The composer carries no model
+   * control (the owner's review, 2026-10-23).
    */
   const chosen = parseOverride((await cookies()).get(ASK_MODEL_COOKIE)?.value);
-  const companyWire = account === null ? null : companyModelName(account.accountId);
-  const {
-    model: demoModel,
-    modelNotice,
-    keyNote,
-  } = composerNotices({
+  const { modelNotice } = composerNotices({
     aiEnabled: environment().ai.enabled,
     local: loopbackHost((await headers()).get("host")),
-    companyModel: demoModelNamed(companyWire, chosen),
+    companyModel: demoModelNamed(
+      account === null ? null : companyModelName(account.accountId),
+      chosen,
+    ),
     demoModel: demoModelNamed(demoModelName(), chosen),
     connected: connected.length > 0,
-    company: account === null ? null : companyKeyState(account),
   });
-
-  /*
-   * Where a demonstration key answers, the reader picks among the catalogue's
-   * models. A key configured with a model outside the catalogue keeps it as the
-   * first option, whose empty value clears the choice.
-   */
-  const ownWire = companyWire ?? demoModelName();
-  const ownEntry = CATALOGUE.find((entry) => entry.apiIdentifier === ownWire);
-  const modelChoice =
-    demoModel === null || ownWire === null
-      ? null
-      : {
-          options: [
-            ...(ownEntry === undefined ? [{ id: "", label: ownWire }] : []),
-            ...CATALOGUE.map(({ id, label }) => ({ id, label })),
-          ],
-          current: chosen ?? ownEntry?.id ?? "",
-        };
 
   const scope = parseAskScope(first(search, "scope"), every(search, "with"));
   const otherProjects = await otherProjectsFor(viewer, tenant.id, project.id);
@@ -208,13 +178,9 @@ export default async function AskPage({
       projectLabel={project.name}
       question={question}
       historyOpen={historyOpen}
-      composerLabel={demoModel ?? "Read models"}
-      models={models}
       scope={scope}
       otherProjects={otherProjects}
       modelNotice={modelNotice}
-      keyNote={keyNote}
-      modelChoice={modelChoice}
     >
       {demo === "thinking" ? (
         <AskThinkingPanel

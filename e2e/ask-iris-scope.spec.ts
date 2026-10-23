@@ -154,35 +154,19 @@ test.describe("Ask IRIS scope control", () => {
   });
 
   /*
-   * THE MODEL PICKER'S OWN FIX.
+   * THE MOBILE COMPARE SHEET, WITH TWO PROJECTS CHECKED AT 390.
    *
-   * `.ask-model-menu` was clipped by `.ask-card` exactly the way
-   * `.ask-scope-menu` was — same anchor, same budget — before it shared that
-   * class's own `max-height`/`overflow-y` on a desktop pointer and its fixed
-   * bottom-sheet treatment on a phone. Captured separately from the review
-   * package above because this is what the polish pass was actually asked
-   * to prove: the model picker fully visible at both widths, and the
-   * mobile Compare sheet with two projects checked at 390 specifically.
+   * The composer's model picker that shared this sheet's treatment is gone:
+   * the model is chosen once, in Settings (the owner's review, 2026-10-23).
    */
-  test("captures the model-picker fix and the mobile Compare sheet", async ({ page }) => {
+  test("captures the mobile Compare sheet", async ({ page }) => {
     test.skip(test.info().project.name !== "desktop", "captured once");
     mkdirSync(OUT, { recursive: true });
     await signInAs(page, "Petra Novák", "ISTER TOWER");
 
-    await page.setViewportSize({ width: 1440, height: 900 });
-    await page.goto(ISTER, HYDRATED);
-    await page.locator(".ask-model-wrap summary").click();
-    await expect(page.locator(".ask-model-wrap .ask-model-option").first()).toBeVisible();
-    await page.screenshot({ path: `${OUT}/model-picker-open-1440.png` });
-
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(ISTER, HYDRATED);
-    await page.locator(".ask-model-wrap summary").click();
-    await expect(page.locator(".ask-model-wrap .ask-model-option").first()).toBeVisible();
-    await page.waitForTimeout(200);
-    await page.screenshot({ path: `${OUT}/model-picker-open-390.png` });
-
-    await page.goto(ISTER, HYDRATED);
+    await expect(page.locator(".ask-model-wrap")).toHaveCount(0);
     await page.locator(".ask-scope-wrap summary").click();
     await page.getByRole("radio", { name: "Compare" }).check({ force: true });
     await expect(page.locator(".ask-scope-check").first()).toBeVisible();

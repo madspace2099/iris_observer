@@ -6,9 +6,10 @@ import type { ModelGrant } from "./provider";
  * THE READER'S MODEL, WHERE A DEMONSTRATION KEY ANSWERS (ADR-0043).
  *
  * A company's key, or the owner's, answers with one model unless the reader
- * picks another of the catalogue's in the Ask composer. The pick is a cookie
- * on this browser, read by the page that names the model and by the stream
- * route that spends the key, so the two cannot disagree. It is read through
+ * picks another of the catalogue's, once, on the AI settings page
+ * (`chooseDemoModel`). The pick is a cookie on this browser, read by that page,
+ * by the Ask page that names the model and by the stream route that spends the
+ * key, so they cannot disagree. It is read through
  * `parseOverride`, so a value that is not a catalogue id is no choice at all.
  * An account's own connection keeps its Settings preferences; this is never
  * read on that path.

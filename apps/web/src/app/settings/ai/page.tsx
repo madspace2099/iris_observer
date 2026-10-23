@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import type { Metadata } from "next";
 
 import { dynamicRoute } from "@/lib/href";
@@ -7,10 +7,16 @@ import { requireAccount, requireViewer } from "@/lib/session";
 import { ROLE_WORDS, companyOf } from "@/lib/accounts";
 import { InfoTip } from "@/components/iris/InfoTip";
 import { SettingsFrame, originFrom } from "../chrome";
-import { companyKeyState, type CompanyKeyState } from "@/lib/credentials/company-keys";
+import {
+  companyKeyState,
+  companyModelName,
+  type CompanyKeyState,
+} from "@/lib/credentials/company-keys";
+import { parseOverride } from "@/lib/ai/admission";
+import { ASK_MODEL_COOKIE } from "@/lib/ai/model-choice";
 import { connectionFor, type ConnectionMetadata } from "@/lib/credentials/service";
 import { ALL_FAILURES, describeFailure, type ConnectionFailure } from "@/lib/credentials/failure";
-import { demoKeysSpendable } from "@/lib/env";
+import { demoKeysSpendable, demoModelName } from "@/lib/env";
 import { MODEL_WORDED } from "@/components/ask-iris/live-questions";
 import {
   CATALOGUE_VERSION,
@@ -31,6 +37,7 @@ import { preferencesFor } from "@/lib/models/preferences";
 import { budgetFor, typicalQuestionMicros } from "@/lib/budget/service";
 import {
   chooseBudget,
+  chooseDemoModel,
   chooseModels,
   connect,
   connectCompanyKey,
@@ -155,6 +162,13 @@ export default async function AiSettings({
   const company = companyKeyState(account);
   const spendable = demoKeysSpendable((await headers()).get("host"));
   const companyOnly = company !== null && unavailable;
+  /*
+   * The model a demonstration key answers with, before the reader's choice;
+   * null where none exists. Offered only where this request could spend the key
+   * (`spendable`), as the Ask composer named one only there.
+   */
+  const demoOwnModel = companyModelName(account.accountId) ?? demoModelName();
+  const demoChosen = parseOverride((await cookies()).get(ASK_MODEL_COOKIE)?.value);
   const standing = companyOf(account);
   const standingLine =
     standing.role === "admin"
@@ -231,6 +245,10 @@ export default async function AiSettings({
         />
       )}
 
+      {demoOwnModel === null || !spendable ? null : (
+        <DemoModelPanel own={demoOwnModel} chosen={demoChosen} origin={origin.from} />
+      )}
+
       {companyOnly ? null : (
         <>
           <BudgetPanel budget={budget} unavailable={unavailable} origin={origin.from} />
@@ -300,6 +318,7 @@ const DONE: Readonly<Record<string, string>> = Object.freeze({
     "Company key saved. Every member of your company asks with it until this server restarts.",
   company_removed:
     "Company key removed. Members of your company ask without it until a key is added again.",
+  demo_model: "Model saved. Ask IRIS answers with it from the next question.",
 });
 
 /**
@@ -470,6 +489,89 @@ function CompanyKeyPanel({
           </form>
         )}
       </div>
+    </section>
+  );
+}
+
+/* ============================================================ the demo model */
+
+/**
+ * WHICH MODEL A DEMONSTRATION KEY ANSWERS WITH (ADR-0043).
+ *
+ * Chosen once, here, rather than in the Ask composer, where it was one more
+ * control beside every question (the owner's review, 2026-10-23). The choice
+ * is kept on this browser and read by the Ask page and the stream route alike.
+ * A key configured with a model outside the catalogue keeps it as the first
+ * option, whose empty value clears the choice.
+ */
+function DemoModelPanel({
+  own,
+  chosen,
+  origin,
+}: {
+  /** The vendor's name for the model the key answers with before any choice. */
+  own: string;
+  chosen: ModelId | null;
+  origin: string;
+}) {
+  const ownEntry = catalogue().find((entry) => entry.apiIdentifier === own);
+  const current = chosen ?? ownEntry?.id ?? "";
+
+  return (
+    <section className="ox-panel ox-panel-pad os-column" aria-labelledby="demo-model">
+      <div className="ox-section-head">
+        <h2 className="ox-section-title" id="demo-model">
+          Ask IRIS model
+        </h2>
+      </div>
+
+      <p className="ox-section-note">
+        Which OpenAI model words Ask IRIS&rsquo;s answers. Kept on this browser, from the next
+        question.
+      </p>
+
+      <form action={chooseDemoModel} className="os-column">
+        <CarryOrigin origin={origin} />
+
+        <fieldset className="os-choices">
+          <legend className="ox-field-label">Ask IRIS answers with</legend>
+          {ownEntry === undefined ? (
+            <label className="os-choice" data-usable="true">
+              <input type="radio" name="model" value="" defaultChecked={current === ""} />
+              <span className="os-choice-body">
+                <span className="os-choice-name">{own}</span>
+                <span className="os-choice-summary">
+                  The model this server&rsquo;s key is set to.
+                </span>
+              </span>
+            </label>
+          ) : null}
+          {catalogue().map((entry) => (
+            <label className="os-choice" key={entry.id} data-usable="true">
+              <input
+                type="radio"
+                name="model"
+                value={entry.id}
+                defaultChecked={current === entry.id}
+              />
+              <span className="os-choice-body">
+                <span className="os-choice-name">{entry.label}</span>
+                <span className="os-choice-summary">{entry.summary}</span>
+                <span className="os-choice-price">
+                  {formatMicros(entry.inputMicrosPerMillion)} in ·{" "}
+                  {formatMicros(entry.outputMicrosPerMillion)} out, per million tokens
+                </span>
+              </span>
+            </label>
+          ))}
+        </fieldset>
+
+        <div className="ox-btn-row">
+          <button type="submit" className="ox-btn" data-weight="primary">
+            Save model
+          </button>
+        </div>
+      </form>
     </section>
   );
 }

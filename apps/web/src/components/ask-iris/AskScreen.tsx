@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import type { AskAnswer, AskHistoryView, AskSession, AskThreadSummary } from "@observer/readmodels";
 
-import { chooseAskModel } from "@/lib/ai/model-choice-actions";
 import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { askLink } from "./ask-link";
@@ -263,15 +262,6 @@ function initialsOf(name: string): string {
  * THE FRAME — ground, composer, and whatever hangs beneath.
  * ========================================================================= */
 
-/** The empty form the model buttons submit, outside the composer's GET form. */
-const MODEL_FORM = "ask-model-form";
-
-export interface AskModelChoice {
-  readonly options: readonly { readonly id: string; readonly label: string }[];
-  /** The id that answers now: the reader's choice, else the key's own model. */
-  readonly current: string;
-}
-
 export function AskFrame({
   root,
   periodParam,
@@ -279,33 +269,17 @@ export function AskFrame({
   projectLabel,
   question,
   historyOpen,
-  composerLabel,
-  models,
   scope,
   otherProjects,
   modelNotice = null,
-  keyNote = null,
-  modelChoice = null,
   children,
 }: {
-  /**
-   * The catalogue's models, where a demonstration key answers and the reader
-   * may pick which of them (ADR-0043). Null everywhere else.
-   */
-  readonly modelChoice?: AskModelChoice | null;
   /**
    * The sentence that says a language model may word a typed question, shown
    * at the prompt box before the first question is sent (Gate 1). Null when no
    * model can answer here.
    */
   readonly modelNotice?: string | null;
-  /**
-   * One quiet line when the reader's company has not added its OpenAI key yet
-   * (ADR-0043). Not a Gate 1 notice: it says no model answers here. It stands
-   * in the model picker, beside what it is about; under the prompt it read as
-   * an error above every answer (the owner's review, 2026-10-23).
-   */
-  readonly keyNote?: string | null;
   readonly root: string;
   readonly periodParam: string;
   /** This project's own slug — the implicit member of every Compare set. */
@@ -314,10 +288,6 @@ export function AskFrame({
   /** The question as it was asked, verbatim, so the field can hold it again. */
   readonly question: string;
   readonly historyOpen: boolean;
-  /** What composed the answer. Not a model name unless a model wrote it. */
-  readonly composerLabel: string;
-  /** Models the account holds. Empty on this deployment, and stated as empty. */
-  readonly models: readonly string[];
   /** Which project(s) the next question is asked against. */
   readonly scope: AskScope;
   /** Every other project this account holds, for Compare. Never this one. */
@@ -373,163 +343,21 @@ export function AskFrame({
             />
 
             <div className="ask-actions">
-              <div className="ask-model-wrap">
-                {/*
-                 * A `<details>` rather than a scripted menu. It opens on click
-                 * and on Enter, is announced as a disclosure, and costs nothing
-                 * to ship — a reader with scripting off keeps all of that. The
-                 * export's popup geometry is reproduced by the stylesheet.
-                 * `ClosableDetails` layers on the two things a bare `<details>`
-                 * does not do natively: closing on Escape, and closing on a
-                 * click outside it — the same wrapper the scope picker beside
-                 * it uses, and the shared `name` keeps the two mutually
-                 * exclusive with no script at all.
-                 */}
-                <ClosableDetails
-                  className="ask-model-details"
-                  name="ask-composer-menu"
-                  closeOnFocusOut
-                >
-                  <summary className="ask-model" aria-label="Model">
-                    <span className="ask-model-name" title={composerLabel}>
-                      {composerLabel}
-                    </span>
-                    <ChevronDown />
-                  </summary>
-
-                  {/*
-                   * `tabIndex={0}`: this box is `.ask-model-menu`'s own
-                   * `overflow-y: auto` scroller (§ `ask-iris.css`), and unless a
-                   * demonstration key answers, every option inside it is
-                   * inert — `aria-current`/`aria-disabled` spans, never a
-                   * button or a link, because no model this account holds is
-                   * yet used to answer here. A scrollable
-                   * region with nothing focusable inside it is otherwise
-                   * unreachable by keyboard, which is exactly what axe's
-                   * `scrollable-region-focusable` catches.
-                   */}
-                  <div className="ask-model-menu" tabIndex={0}>
-                    <div className="ask-menu-head">
-                      <span className="ask-menu-title">Model</span>
-                      <MenuCloseButton label="Close model picker" />
-                    </div>
-                    {/*
-                     * `.ask-menu-scroll` — shared with the scope picker's own
-                     * checklist wrapper. Nothing here is normally long enough
-                     * to need it (no account on this deployment holds a
-                     * model connection), but an account that held several
-                     * would otherwise have its list cut off, pinned header
-                     * and all, on the phone sheet below.
-                     */}
-                    <div className="ask-menu-scroll">
-                      {/*
-                       * THE ONE PLACE A MODEL IS CHOSEN HERE: a demonstration
-                       * key answers, and the catalogue's models are buttons
-                       * that set this browser's choice (`chooseAskModel`).
-                       * First in the menu, above the notes, so the choice is in
-                       * view without scrolling the 112px box.
-                       *
-                       * They submit `#ask-model-form`, the empty form after
-                       * this one, not the composer: a function `formAction`
-                       * on the button would make React drop its name and
-                       * value, reset the composer and its unsent question, and
-                       * make Luna the composer's default button for Enter.
-                       */}
-                      {modelChoice === null ? null : (
-                        <div role="group" aria-label="Model">
-                          {modelChoice.options.map((option) => {
-                            const current = option.id === modelChoice.current;
-                            return (
-                              <button
-                                key={option.id}
-                                type="submit"
-                                form={MODEL_FORM}
-                                className="ask-model-option ask-model-choice"
-                                name="model"
-                                value={option.id}
-                                aria-pressed={current}
-                              >
-                                <span>{option.label}</span>
-                                {current ? (
-                                  <span className="ask-model-dot" aria-hidden="true" />
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      )}
-                      {modelChoice === null ? null : (
-                        <p className="ask-menu-note">
-                          Luna is the fastest, Terra balanced, Sol the deepest and dearest. The
-                          choice is kept on this browser and answers from the next question.
-                        </p>
-                      )}
-                      <p className="ask-menu-note">
-                        {modelNotice === null
-                          ? "Answers here are composed by Observer’s own read models, not written by a language model."
-                          : `${modelNotice} The other openings are answered in the read models’ own words.`}
-                      </p>
-                      {keyNote === null ? null : <p className="ask-menu-note">{keyNote}</p>}
-                      {modelChoice !== null ? null : (
-                        <span className="ask-model-option" aria-current="true">
-                          <span>{composerLabel}</span>
-                          <span className="ask-model-dot" aria-hidden="true" />
-                        </span>
-                      )}
-                      {modelChoice !== null ? null : models.length === 0 ? (
-                        <p className="ask-menu-note">
-                          This account holds no model connection, so there is nothing else to
-                          choose. One is added in Settings.
-                        </p>
-                      ) : (
-                        <>
-                          {models.map((model) => (
-                            <span key={model} className="ask-model-option" aria-disabled="true">
-                              <span>{model}</span>
-                            </span>
-                          ))}
-                          {/*
-                           * SAYING IT, RATHER THAN HANGING IT ON A TOOLTIP.
-                           *
-                           * These options were inert with their only explanation
-                           * in a `title`. A title is a mouse affordance: a reader
-                           * on a phone never triggers it, a keyboard reader never
-                           * reaches it, and a screen reader takes the visible text
-                           * as the accessible name and drops it — so the one
-                           * sentence that explained the grey was the one nobody
-                           * got. The sibling note above is already the idiom this
-                           * menu uses to say something to everybody, so it says
-                           * this too.
-                           */}
-                          <p className="ask-menu-note">
-                            Connected to this account, and not used here: every answer on this
-                            surface is composed from this project&rsquo;s own figures, so no model
-                            is called for any of them.
-                          </p>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </ClosableDetails>
-              </div>
-
               {/*
                * WHICH PROJECT(S) THE NEXT QUESTION IS ASKED AGAINST.
                *
                * The trigger names the scope itself — the project, "All
-               * projects", or the compared names/count — the same shape as
-               * the model picker beside it, so the row stays two compact
-               * pills rather than a settings panel dropped into the
-               * composer. Inside, three short radios sit in one segmented
+               * projects", or the compared names/count — so the row stays
+               * one compact pill rather than a settings panel dropped into
+               * the composer. The model is not chosen here: it is chosen
+               * once, in Settings (the owner's review, 2026-10-23). Inside, three short radios sit in one segmented
                * row rather than three full-width rows: `.ask-card` clips
                * anything that opens past its own rounded edge, and a
                * segmented row of three costs a fraction of what three full
                * rows would. `ask-iris.css` carries what each width does with
-               * that budget on `.ask-model-menu` itself, so both pickers on
-               * this row share it: the menu scrolls its own small box on a
-               * desktop pointer, and drops to a sheet fixed to the screen's
-               * own bottom edge on a phone, where the same budget is smaller
-               * still once the model and scope pills have taken a row each.
+               * that budget on `.ask-model-menu` itself: the menu scrolls its
+               * own small box on a desktop pointer, and drops to a sheet
+               * fixed to the screen's own bottom edge on a phone.
                *
                * Real radios and checkboxes in a `method="get"` form, not a
                * scripted picker — the same reason the composer works with
@@ -542,8 +370,7 @@ export function AskFrame({
                * answer — no read model in this deployment composes one. It
                * sets the scope the NEXT submitted question is asked against,
                * and `AskConversationPanel` states the honest limit before it
-               * ever tries `findAnswer`, the same way an unconnected model
-               * states its own limit above.
+               * ever tries `findAnswer`.
                */}
               <div className="ask-scope-wrap">
                 <ClosableDetails
@@ -617,8 +444,7 @@ export function AskFrame({
                        * being the one on screen.
                        *
                        * `.ask-menu-scroll` is the ONLY part of this sheet
-                       * that scrolls on a phone (`ask-iris.css`; shared with
-                       * the model picker's own note-plus-options group) —
+                       * that scrolls on a phone (`ask-iris.css`) —
                        * the head and the tabs above it are pinned, so a long
                        * checklist never carries the close button or the
                        * scope choice itself out of view with it. The note
@@ -712,7 +538,6 @@ export function AskFrame({
               </div>
             </div>
           </form>
-          {modelChoice === null ? null : <form id={MODEL_FORM} action={chooseAskModel} hidden />}
         </div>
 
         {/*

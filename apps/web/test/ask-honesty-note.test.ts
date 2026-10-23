@@ -110,13 +110,13 @@ describe("the honesty note above an answer", () => {
 });
 
 /*
- * THE COMPOSER'S TWO LINES (ADR-0040, ADR-0043).
+ * THE COMPOSER'S NOTICE (ADR-0040, ADR-0043).
  *
  * The Gate 1 notice names the model wherever one words an answer, live
- * openings included; the key note says a company has no key yet, and is not a
- * Gate 1 notice, so it never carries the marker.
+ * openings included. The composer carries no model control and no key note:
+ * both live in Settings since the owner's review of 2026-10-23.
  */
-const renderFrame = (modelNotice: string | null, keyNote: string | null) =>
+const renderFrame = (modelNotice: string | null) =>
   renderToStaticMarkup(
     createElement(AskFrame, {
       root: "/shark/shark-residence",
@@ -125,36 +125,26 @@ const renderFrame = (modelNotice: string | null, keyNote: string | null) =>
       projectLabel: "Shark Residence",
       question: "",
       historyOpen: false,
-      composerLabel: "Read models",
-      models: [],
       scope: { kind: "current" },
       otherProjects: [],
       modelNotice,
-      keyNote,
       children: null,
     }),
   );
 
 describe("the composer's notices", () => {
-  const NOTE = "You have not added an OpenAI key for Shark Developments yet";
-
-  it("says a company has no key outside the AI notice, in the model picker", () => {
-    const html = renderFrame(null, `${NOTE}; answers come from the read models.`);
-    /* Beside what it is about, not as a line above every answer (the owner's review, 2026-10-23). */
-    expect(html).toContain(`<p class="ask-menu-note">${NOTE}`);
-    expect(html).not.toContain(`<p class="ask-hint">${NOTE}`);
+  it("carries no AI notice and no model control where no model answers", () => {
+    const html = renderFrame(null);
     expect(html).not.toContain("data-ai-notice");
-    expect(renderFrame(null, null)).not.toContain(NOTE);
+    expect(html).not.toContain("ask-model-wrap");
   });
 
   it("does not call the live openings the read models' words where a model words them", () => {
-    const html = renderFrame(
-      "Typed questions and the first 4 openings are worded by gpt-5-mini.",
-      null,
-    );
+    const html = renderFrame("Typed questions and the first 4 openings are worded by gpt-5-mini.");
     expect(html).toContain("data-ai-notice");
     expect(html).not.toContain("prepared openings are the read models");
-    expect(html).toContain("The other openings are answered in the read models");
+    /* Scoped to the openings a model words; the rest need no second line under the prompt. */
+    expect(html).toContain("the first 4 openings are worded by gpt-5-mini");
   });
 });
 
@@ -162,41 +152,24 @@ describe("the composer's notices", () => {
  * WHICH MODEL THE COMPOSER NAMES (ADR-0040, ADR-0043).
  *
  * A demonstration key is named only where the stream route would spend it:
- * AI on and a loopback request. The key note appears only where no model
- * answers, so it can never sit beside a Gate 1 notice.
+ * AI on and a loopback request.
  */
 describe("composerNotices", () => {
-  const SHARK = {
-    company: "Shark Developments",
-    role: "member" as const,
-    adminName: "Clara Weiss",
-    key: null,
-  };
-  const KEYED = {
-    ...SHARK,
-    key: { lastFour: "1111", setAt: "2026-10-19T09:00:00Z", setBy: "Clara Weiss" },
-  };
   const base = {
     aiEnabled: true,
     local: true,
     companyModel: null,
     demoModel: null,
     connected: false,
-    company: null,
   };
 
   it("names the company's model before the owner's, on a loopback request with AI on", () => {
-    const notes = composerNotices({
-      ...base,
-      companyModel: "gpt-5-mini",
-      demoModel: "gpt-5",
-      company: KEYED,
-    });
-    expect(notes.model).toBe("gpt-5-mini");
+    const notes = composerNotices({ ...base, companyModel: "gpt-5-mini", demoModel: "gpt-5" });
     expect(notes.modelNotice).toContain("worded by gpt-5-mini");
     expect(notes.modelNotice).toContain("first 4 openings");
-    expect(notes.keyNote).toBeNull();
-    expect(composerNotices({ ...base, demoModel: "gpt-5" }).model).toBe("gpt-5");
+    expect(composerNotices({ ...base, demoModel: "gpt-5" }).modelNotice).toContain(
+      "worded by gpt-5,",
+    );
   });
 
   it("names no model with AI off, and says nothing a model would word", () => {
@@ -205,11 +178,8 @@ describe("composerNotices", () => {
       aiEnabled: false,
       companyModel: "gpt-5-mini",
       connected: true,
-      company: KEYED,
     });
-    expect(notes.model).toBeNull();
     expect(notes.modelNotice).toBeNull();
-    expect(notes.keyNote).toContain("only on requests to localhost");
   });
 
   it("names no demonstration model on a request addressed to a name", () => {
@@ -218,24 +188,15 @@ describe("composerNotices", () => {
       local: false,
       companyModel: "gpt-5-mini",
       demoModel: "gpt-5",
-      company: KEYED,
     });
-    expect(notes.model).toBeNull();
     expect(notes.modelNotice).toBeNull();
-    expect(notes.keyNote).toContain("only on requests to localhost");
   });
 
-  it("says the company has no key only where no model answers, and only to its admin", () => {
-    /* Review round 8: a member was told another person had not added a key. */
-    expect(composerNotices({ ...base, company: SHARK }).keyNote).toBeNull();
-    expect(composerNotices({ ...base, company: { ...SHARK, role: "admin" } }).keyNote).toBe(
-      "You have not added an OpenAI key for Shark Developments yet; answers come from the read models. Add it in Settings.",
+  it("says nothing where no model answers, and names the account's own connection", () => {
+    /* The key's state lives in Settings since the owner's review of 2026-10-23. */
+    expect(composerNotices(base).modelNotice).toBeNull();
+    expect(composerNotices({ ...base, connected: true }).modelNotice).toContain(
+      "connected to this account",
     );
-    /* The account's own connection answers: a Gate 1 notice, and no key note beside it. */
-    const own = composerNotices({ ...base, connected: true, company: SHARK });
-    expect(own.modelNotice).toContain("connected to this account");
-    expect(own.keyNote).toBeNull();
-    /* The owner's key answers. */
-    expect(composerNotices({ ...base, demoModel: "gpt-5", company: SHARK }).keyNote).toBeNull();
   });
 });
