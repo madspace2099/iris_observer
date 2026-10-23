@@ -177,23 +177,14 @@ html:has(.iris-salesflow) {
     letter-spacing: 0;
   }
 
-  /* The sparkline beside its words where the cell holds both, under them where it does not. */
-  .iris-salesflow #flow-summary .iris-kpi-foot {
-    flex-wrap: wrap;
-    row-gap: 0.75rem;
-  }
-
-  .iris-salesflow #flow-summary .iris-kpi-foot > div:not(.dld-draw) {
-    flex: 1 1 10rem;
-  }
-
-  .iris-salesflow #flow-summary .iris-kpi-foot > .dld-draw {
-    margin-left: auto;
-  }
-
-  .iris-salesflow #flow-summary .iris-kpi-foot .iris-spark {
-    width: 8rem;
-    height: auto;
+  /*
+   * The card's name at twice the 12px it had (the owner, 2026-10-23), about
+   * half the figure under it. "Presentations", the widest with its glyph and
+   * `i`, takes about 210px of the ~226px a card holds at 1280; a narrower
+   * card wraps a name between its words.
+   */
+  .iris-salesflow #flow-summary .iris-kpi-label {
+    font-size: 1.5rem;
   }
 }
 
@@ -209,6 +200,11 @@ html:has(.iris-salesflow) {
 
   .iris-salesflow #flow-summary .iris-kpi-value {
     font-size: clamp(2rem, 1rem + 1.6vw, 2.5rem);
+  }
+
+  /* The sparkline's height follows the card's width, not the window's: the gap over it gives some back. */
+  .iris-salesflow #flow-summary .iris-kpi-foot {
+    gap: 0.5rem;
   }
 }
 

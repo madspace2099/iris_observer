@@ -75,8 +75,20 @@
     line-height: 1.1;
   }
 
+  /*
+   * The figures' names, read on a recorded screen (the owner, 2026-10-23: the
+   * Sales Flow summary's 12px names could not be, and these are the same
+   * kind): up to 24px, held to what a quarter of a column holds (`cqi` is the
+   * card's width), so "Available" and its swatch keep their line at every
+   * width the two columns stand side by side.
+   */
   .pr-page #project-plan .iris-plan-figures dt {
-    font-size: 14px;
+    font-size: clamp(0.875rem, 1.8cqi, 1.5rem);
+  }
+
+  .pr-page #project-plan .iris-plan-figures dt i {
+    width: max(9px, 0.5em);
+    height: max(9px, 0.5em);
   }
 
   .pr-page #project-plan .iris-plan-stock {

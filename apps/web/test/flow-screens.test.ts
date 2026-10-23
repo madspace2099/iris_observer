@@ -4,6 +4,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { FlowRail, wheelTarget } from "@/components/flow/FlowRail";
+import { KpiCard } from "@/showroom/charts2";
 
 /**
  * SALES FLOW, ONE SCREEN AT A TIME (the owner, 2026-10-22, ADR-0059).
@@ -21,6 +22,15 @@ const SHEET = readFileSync(
   resolve(import.meta.dirname, "../src/components/flow/flow-screens.css"),
   "utf8",
 ).replace(/\/\*[\s\S]*?\*\//g, "");
+/* The shared chart sheet, where a KPI card's own rules stand. */
+const CHARTS = readFileSync(
+  resolve(import.meta.dirname, "../../../packages/ui/src/charts.css"),
+  "utf8",
+).replace(/\/\*[\s\S]*?\*\//g, "");
+const CHANGES = readFileSync(
+  resolve(import.meta.dirname, "../src/components/flow/change-kpis.css"),
+  "utf8",
+).replace(/\/\*[\s\S]*?\*\//g, "");
 /* Sales Flow's rail is the shared `ScreenRail` (ADR-0061), with its own sheet. */
 const RAIL = readFileSync(
   resolve(import.meta.dirname, "../src/components/screens/ScreenRail.tsx"),
@@ -32,10 +42,10 @@ const RAIL_SHEET = readFileSync(
 ).replace(/\/\*[\s\S]*?\*\//g, "");
 
 /** One rule's body, by its exact selector. */
-function rule(selector: string): string {
-  const at = SHEET.indexOf(`${selector} {`);
+function rule(selector: string, sheet = SHEET): string {
+  const at = sheet.indexOf(`${selector} {`);
   expect(at, selector).toBeGreaterThan(-1);
-  return SHEET.slice(at, SHEET.indexOf("}", at));
+  return sheet.slice(at, sheet.indexOf("}", at));
 }
 
 /** The page from one screen's opening to the next one's. */
@@ -222,6 +232,56 @@ describe("the screens' stylesheet", () => {
     expect(SHEET).toMatch(
       /#flow-ladder > \.dld-draw,\s*\.iris-salesflow #flow-ladder \.dld-draw-body,\s*\.iris-salesflow #flow-ladder \.ox-funnel \{\s*display: flex;\s*flex-direction: column;\s*flex: 1 0 auto;/,
     );
+  });
+});
+
+/*
+ * The owner's recording review, 2026-10-23: the summary cards' names could not
+ * be read on screen, nor could the 96px sparklines beside their words.
+ */
+describe("the summary's cards, read on a recording", () => {
+  const card = renderToStaticMarkup(
+    createElement(KpiCard, {
+      label: "Presentations",
+      value: "82",
+      qualifier: "last 30 days · 72 before",
+      delta: "+14%",
+      tone: "good",
+      points: [3, 5, 4, 8],
+    }),
+  );
+
+  it("sets a card's name at twice the 12px it had, its glyph and i with it", () => {
+    expect(rule("  .iris-salesflow #flow-summary .iris-kpi-label")).toContain("font-size: 1.5rem;");
+    expect(rule(".iris-kpi-label", CHARTS)).toContain("font-size: 1.25rem;");
+    const measured = rule(".iris-kpi-label .iris-measure-label", CHARTS);
+    expect(measured).toContain("font-size: inherit;");
+    expect(measured, "a name too long for its card wraps").toContain("white-space: normal;");
+    /* The `i`'s button would set its own 13px type; it takes the name's, which sizes its dot. */
+    expect(rule(".iris-kpi-label .iris-measure-info", CHARTS)).toContain("font-size: inherit;");
+    expect(rule(".iris-kpi-label .iris-measure-dot", CHARTS)).toMatch(/width: 1\.6em;/);
+  });
+
+  it("sets What changed's names larger too, the lead three's largest", () => {
+    expect(rule(".iris-ckpi-name", CHANGES)).toContain("font-size: 1.25rem;");
+    expect(rule(".iris-ckpi[data-lead] .iris-ckpi-name", CHANGES)).toContain("font-size: 1.5rem;");
+  });
+
+  it("draws the sparkline under the words, across the card", () => {
+    expect(card.indexOf("<svg"), "after the change and its words").toBeGreaterThan(
+      card.indexOf("last 30 days"),
+    );
+    expect(rule(".iris-kpi-foot", CHARTS)).toContain("display: grid;");
+    expect(rule(".iris-kpi-foot .iris-spark", CHARTS)).toMatch(/width: 100%;\s*height: auto;/);
+    /* No screen of the page gives it back a fixed width beside the words. */
+    expect(SHEET).not.toMatch(/#flow-summary[^{]*\.iris-spark/);
+  });
+
+  it("scales it evenly to between 48 and 64px tall across a desktop card", () => {
+    const [w, h] = (/viewBox="0 0 (\d+) (\d+)"/.exec(card) ?? []).slice(1).map(Number);
+    /* A card holds about 226px at 1280 and 276px at 1920 (four across). */
+    expect((226 * h!) / w!).toBeGreaterThanOrEqual(48);
+    expect((276 * h!) / w!).toBeLessThanOrEqual(64);
   });
 });
 

@@ -84,7 +84,8 @@ export function Sparkline({
 /**
  * A metric card.
  *
- * Not a chart — a summary figure with its comparison and its own recent shape.
+ * Not a chart — a summary figure with its comparison and its own recent shape
+ * drawn across the card under them.
  * The period it covers is the reader's choice, which is the point: "how many
  * presentations" is a different question this week and this year.
  */
@@ -131,8 +132,20 @@ export function KpiCard({
             )}
             {qualifier === null ? null : <span className="iris-code">{qualifier}</span>}
           </div>
+          {/*
+           * Under the words, the card's width (the owner, 2026-10-23: the 96px
+           * line beside them was too small to read on the recording). Drawn at
+           * a card's proportion, so at a desktop card's width it stands about
+           * 50–60px tall and scales evenly: the tip stays round and the dot
+           * grid square (`charts.css`).
+           */}
           {points === undefined ? null : (
-            <Sparkline points={points} label={`${value} over recent weeks`} />
+            <Sparkline
+              points={points}
+              width={240}
+              height={52}
+              label={`${value} over recent weeks`}
+            />
           )}
         </div>
       </article>

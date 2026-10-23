@@ -28,8 +28,10 @@
     padding: 0.75rem 0.875rem;
   }
 
+  /* The name half as large again as its old 12px, under the 24px figure it shares a line with. */
   .iris-salesflow .iris-kpi-label {
     min-height: 0;
+    font-size: 1.125rem;
   }
 
   .iris-salesflow .iris-kpi-value {
@@ -73,9 +75,13 @@
     grid-column: 2;
   }
 
+  /*
+   * A phone keeps the sparkline beside the change, where a tile stays one
+   * short row. Drawn now at a card's proportion (`KpiCard`), 5.5rem wide
+   * stands as tall as the 4rem one did, about 19px.
+   */
   .iris-salesflow .iris-kpi-foot .iris-spark {
-    width: 4rem;
-    height: auto;
+    width: 5.5rem;
   }
 
   /* The window in force on one line, its seven choices folded under it (`page.tsx`). */
