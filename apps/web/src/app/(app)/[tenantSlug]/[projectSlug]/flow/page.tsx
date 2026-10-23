@@ -430,16 +430,18 @@ export default async function FlowPage({
                   rows={view.ladder.stalled.map((deal) => ({
                     id: deal.externalId,
                     /*
-                     * One buyer's deal, on its flat. The CRM's own key
+                     * An open deal, on its flat. The CRM's own key
                      * ("D-mtg_sr0004") read as debug output (review,
                      * 2026-10-23), and the flat alone read as the flat stuck:
                      * one frame below, the same flat stood sold to another
-                     * buyer (review, round 9).
+                     * buyer (review, round 9). A suffix on every row told no
+                     * row apart; which deals sit on a sold flat is the read
+                     * model's to say, and the `i` says a flat can hold both.
                      */
                     label:
                       deal.unitCode === null
-                        ? "A deal on no flat"
-                        : `${deal.unitCode} · one buyer’s deal`,
+                        ? "Open deal on no flat"
+                        : `Open deal on ${deal.unitCode}`,
                     sub: `${deal.stageLabel} since ${deal.enteredDisplay}`,
                     value: deal.daysInStage,
                     display: deal.daysDisplay,
@@ -932,9 +934,9 @@ export default async function FlowPage({
                           prefetch={false}
                           className="flow-agent-open"
                           href={dynamicRoute(withPeriod(ring.href, query.period))}
-                          aria-label={`How ${ring.name} presents`}
                         >
-                          How they present
+                          {/* The visible words open the name (WCAG 2.5.3), the presenter after them. */}
+                          How they present<span className="ox-sr">: {ring.name}</span>
                         </Link>
                       </li>,
                     ],
