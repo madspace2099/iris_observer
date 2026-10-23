@@ -504,8 +504,9 @@ export class SyntheticObserverRepository implements ObserverRepository {
 
   async getProjectPulse(query: OverviewQuery): Promise<ProjectPulse> {
     /* The period's meetings go with it, so a delivered building is lit by them and not left dark. */
-    const { context, current, previous } = await this.slices(query);
-    return buildProjectPulse(context, { current, previous });
+    const { context, current, previous, today } = await this.slices(query);
+    /* The period's own slice, extended through today exactly as `slices` extends the meetings. */
+    return buildProjectPulse(context, { current, previous }, sliceSpan(context, today));
   }
 
   async getAskSession(query: OverviewQuery, selectionLabel: string | null): Promise<AskSession> {

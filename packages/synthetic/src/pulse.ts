@@ -71,6 +71,12 @@ export interface BuildingSpec {
    * building's own rule or pin said. Only on screen — the session generator reads the building as it
    * stood before those deals, which is also what keeps this from feeding back
    * into the meetings it is derived from.
+   *
+   * Such a building is the demonstration's own all through: its light is its
+   * meetings' meaningful views, as a delivered building's is, and its sales in
+   * the period are the CRM's dated purchases. The scenario's stand-ins drew the
+   * legend "against 46 on the busiest unit" beside a register whose busiest
+   * unit had 39 views, and left the period's sales unknown.
    */
   readonly statusFromCrm?: true;
 }
@@ -553,9 +559,22 @@ function scenarioSoldInPeriod(projectId: string): number | null {
   return BUILDINGS[projectId]?.soldInPeriod ?? null;
 }
 
+/** The flats the CRM's deals bought inside the window: the same deals that mark them sold. */
+function crmSoldIn(projectId: string, window: { readonly from: number; readonly to: number }) {
+  const bought = syntheticDeals(sessionsForProject(projectId), TODAY).deals.flatMap((d) => {
+    const at = d.stageEnteredAt === null ? NaN : Date.parse(d.stageEnteredAt);
+    return d.stage === "purchase" && d.unitCode !== null && at >= window.from && at < window.to
+      ? [d.unitCode]
+      : [];
+  });
+  return new Set(bought).size;
+}
+
 export function buildProjectPulse(
   context: ViewContext,
   meetings: ObservedMeetings | null = null,
+  /** The period's own slice (`sliceSpan`), where the CRM dates the building's sales. */
+  window: { readonly from: number; readonly to: number } | null = null,
 ): ProjectPulse {
   const projectId = context.project.id as string;
   const raw = catalogueFor(projectId);
@@ -582,8 +601,10 @@ export function buildProjectPulse(
    * catalogue and the CRM share. A code the catalogue does not hold lights
    * nothing here: there is no cell to light.
    */
+  const fromCrm = BUILDINGS[projectId]?.statusFromCrm === true;
   const real =
-    !observed && meetings !== null && (context.sessionsDelivered || context.ownDataOnly)
+    meetings !== null &&
+    (fromCrm || (!observed && (context.sessionsDelivered || context.ownDataOnly)))
       ? readingsFrom(meetings)
       : null;
 
@@ -629,6 +650,9 @@ export function buildProjectPulse(
     withAttention.length === 0 ? 0 : Math.max(...withAttention.map((u) => u.meaningfulViews));
 
   const units: PulseUnit[] = withAttention.map((unit) => {
+    const lit = peakViews === 0 ? 0 : unit.meaningfulViews / peakViews;
+    /* Intent reads the light the unit is drawn with: its meetings' where they light it. */
+    const score = real === null ? unit.attention : lit;
     return {
       /*
        * Every separator goes, not the first one.
@@ -653,15 +677,15 @@ export function buildProjectPulse(
       status: unit.status,
       meaningfulViews: unit.meaningfulViews,
       uniqueContacts: unit.uniqueContacts,
-      attention: peakViews === 0 ? 0 : unit.meaningfulViews / peakViews,
+      attention: lit,
       trend: unit.trend,
       change: observed ? (CHANGE_FOR[unit.code] ?? null) : null,
       intent:
         unit.status !== "available" || !observed
           ? null
-          : unit.attention > 0.72
+          : score > 0.72
             ? "high"
-            : unit.attention > 0.45
+            : score > 0.45
               ? "medium"
               : unit.uniqueContacts < 3
                 ? "insufficient_data"
@@ -819,12 +843,18 @@ export function buildProjectPulse(
        * "how many of them in this period is not observed yet". A scheme whose
        * scenario states no figure is exactly that, and saying so is the answer.
        */
-      soldInPeriod: observed && raw.length > 0 ? scenarioSoldInPeriod(projectId) : null,
+      soldInPeriod:
+        fromCrm && window !== null
+          ? crmSoldIn(projectId, window)
+          : observed && raw.length > 0
+            ? scenarioSoldInPeriod(projectId)
+            : null,
     },
     peakViews,
     /*
      * What the light rests on: the scenario's count for a synthetic building,
-     * the project's own meaningful views for a delivered one, and nought for a
+     * the project's own meaningful views for a delivered one or one whose
+     * statuses the CRM states, and nought for a
      * delivered catalogue no meeting has touched yet. The count says so.
      */
     evidence: evidenceRef(
@@ -832,7 +862,9 @@ export function buildProjectPulse(
       "observed_sequence",
       `${root}/project`,
       /* Summed over the catalogue's own units: a view of a code it does not hold lit nothing, so it is not evidence for this picture. */
-      observed ? 46 : withAttention.reduce((sum, unit) => sum + unit.meaningfulViews, 0),
+      observed && real === null
+        ? 46
+        : withAttention.reduce((sum, unit) => sum + unit.meaningfulViews, 0),
     ),
   };
 }
