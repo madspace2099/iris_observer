@@ -6656,3 +6656,47 @@ count still waits for a running build, which this round may not make. Commits `7
 `2334a622`, `288b9d27`. Full unit suite (one run, committed tree): 294 files, 5395 passed, 1
 skipped, 1 failed — `no-secret-recipes`, which needs a web build (the auditor itself reports the
 tree, the staged diff and the history clean, the bundle not scanned).
+
+## 2026-10-23 — Stream MOTION: the charts arrive as you scroll, and fewer prefetches (ADR-0062)
+
+Máté, before recording the marketing video, asked for motion on the chart loads, played as the page
+scrolls, and for fewer prefetch requests. Branch `r7-motion`, from `be3ac396`, not pushed. Streams
+AGENTS (ADR-0061) and PORTRAITS (ADR-0054) run in parallel; this one stays off Sales Flow, the
+agents pages and the presenter cells.
+
+- **Entrances.** `DrawIn` gains two kinds, additively (`apps/web/src/showroom/draw-in.css`): `fill`
+  grows a block's marks from their start while its words and figures stand from the first frame,
+  and `floors` raises a stacking plan from the ground floor up. Wrapped: Project's plan, flat types,
+  readings and room grid; the Units and Briefing buildings; a unit's figures, funnel and
+  comparisons; Features', Attention's, the Briefing's and a replay's figures (bloom); IRIS-led's
+  timeline row by row; the report's summary, coverage bars, outcome mix and ladder. Ask's answer
+  figures bloom by CSS alone (`ask-iris.css`). A wrapped card keeps the rule beside it hidden.
+  `DrawIn` also now starts a drawing taller than the view once a fifth of the view is it
+  (`arrived`): IRIS-led's 2,375px timeline on a phone waited with 475px of it on screen. Figures do
+  not count up (a screen reader would hear the count).
+- **Prefetch.** `prefetch={false}` on the stacking plan's cells, register rows, unit links in rows
+  and charts, chart links, finding and evidence links and chips (21 files); the chrome, crumbs,
+  single action pills and presenter links keep theirs. Measured on the demo build before (RSC
+  requests after load / after scrolling): Units 82 / 82, Briefing 68 / 80, meetings register as
+  Daniel 37 / 233, IRIS-led 24 / 45, report 13 / 32; projected after, from the static render: the
+  chrome's 13–23 a page plus at most seven presenter or action links. The table per page is in
+  ADR-0062.
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
+`apps/web/test/entrances-and-prefetch.test.ts` (17: the frames' media, marks only, inside
+`PLAY_MS`, the kinds, `arrived`, the fan-out files' links). Static renders of the thirteen pages
+(react-dom/server in the real Shell, the product stylesheets, headless Chromium) at 1440×900,
+1280×720, 390×844 and 360×780, against the same render of `be3ac396`: under reduced motion every
+page's height, heading positions and visible rules are unchanged; no sideways scroll. DrawIn's
+effect replayed on the renders: every new drawing waits with only its marks hidden, plays when
+scrolled to and ends `done` with nothing hidden. No e2e or unit spec asserted the moved structure
+(grep of `e2e/` and `apps/web/test/`; `veghajras1`'s `:scope > dl.ox-tally` is the agents page).
+Found and **not** changed (pre-existing): 11px kickers on Presentation and Audience, Audience's
+10px column heads, Presentation's 10px chip counts. **Not looked at on a running page.**
+
+**Next recommended action.** Cherry-pick with AGENTS and PORTRAITS, build, and on the demo at
+1440×900 as Clara scroll Project, Units, a unit, IRIS-led sales and the report with a mouse wheel:
+each chart plays once as it arrives, nothing waits empty, reduced motion shows everything at once.
+Count `_rsc` requests on Units, the Briefing and the meetings register (as Daniel) against
+ADR-0062's table. Run `a11y-contract`, `layout-integrity`, `iris-led`, `tally-shortfall` and
+`showroom`.
