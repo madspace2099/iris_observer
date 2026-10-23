@@ -122,12 +122,25 @@ const PLAY_MS = 1500;
 const STEPS = [0, 0.05, 0.1, 0.2];
 
 /**
+ * How much of a drawing in view is enough, whatever its height: about two rows
+ * of a ranked list. A phone held 100px of Features' sweep in view, blank, while
+ * a fifth of the view was still 156px away (review round 8).
+ */
+const ARRIVE_PX = 80;
+
+/** `STEPS`, and the step at which `ARRIVE_PX` of a drawing this tall is in view. */
+export function stepsFor(height: number): number[] {
+  return height > ARRIVE_PX / 0.2 ? [...STEPS, ARRIVE_PX / height].sort((a, b) => a - b) : STEPS;
+}
+
+/**
  * Whether a drawing has arrived: a fifth of it is in view, as it always was —
- * or, added for the tall ones (ADR-0062), a fifth of the view is it. A drawing
- * taller than five views never showed a fifth of itself and would never have
- * played, and one two views tall waited, marks hidden, with nearly half the
- * view of it already on screen (IRIS-led's timeline on a phone). The ratio is
- * read with a hair of tolerance: the entry at the 0.2 step can report 0.1999.
+ * or, for the tall ones (ADR-0062), a fifth of the view or `ARRIVE_PX` of it
+ * is. A drawing taller than five views never showed a fifth of itself and
+ * would never have played, and one two views tall waited, marks hidden, with
+ * nearly half the view of it already on screen (IRIS-led's timeline on a
+ * phone). The ratio is read with a hair of tolerance: the entry at the 0.2
+ * step can report 0.1999.
  */
 export function arrived(
   entry: Pick<
@@ -138,7 +151,10 @@ export function arrived(
 ): boolean {
   if (!entry.isIntersecting) return false;
   const view = entry.rootBounds?.height ?? viewHeight;
-  return entry.intersectionRatio >= 0.199 || entry.intersectionRect.height >= 0.2 * view;
+  return (
+    entry.intersectionRatio >= 0.199 ||
+    entry.intersectionRect.height >= Math.min(0.2 * view, ARRIVE_PX - 0.5)
+  );
 }
 
 export function DrawIn({
@@ -168,7 +184,7 @@ export function DrawIn({
           element.dataset.draw = "done";
         }, PLAY_MS);
       },
-      { threshold: STEPS },
+      { threshold: stepsFor(element.getBoundingClientRect().height) },
     );
     observer.observe(element);
     return () => {

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import { RoomTypes } from "@/components/project/RoomTypes";
 import { OutcomeMix } from "@/components/report/ReportCharts";
-import { FILL_MARKS, arrived, cascade } from "@/showroom/DrawIn";
+import { FILL_MARKS, arrived, cascade, stepsFor } from "@/showroom/DrawIn";
 
 /**
  * ADR-0062: the charts draw in as they scroll into view, and the in-content
@@ -223,11 +223,26 @@ describe("the entrances (draw-in.css)", () => {
     expect(arrived(entry(0.1, 40), 800)).toBe(false);
     expect(arrived(entry(0.1999, 80), 800)).toBe(true);
     // A 2000px timeline: 10% of it is 200px, a quarter of the view — it has arrived.
-    expect(arrived(entry(0.05, 100), 800)).toBe(false);
+    expect(arrived(entry(0.03, 60), 800)).toBe(false);
     expect(arrived(entry(0.1, 200), 800)).toBe(true);
     // A drawing six views tall never shows a fifth of itself; it still arrives.
     expect(arrived(entry(0.05, 240), 800)).toBe(true);
     expect(arrived(entry(0.5, 400, false), 800)).toBe(false);
+  });
+
+  /* Review round 8: a phone held 100px of Features' sweep in view, blank, waiting for 156px. */
+  it("starts a tall drawing once 80px of it is in view, and is looked at when that is so", () => {
+    const entry = (ratio: number, visible: number) => ({
+      isIntersecting: true,
+      intersectionRatio: ratio,
+      intersectionRect: { height: visible } as DOMRectReadOnly,
+      rootBounds: { height: 780 } as DOMRectReadOnly,
+    });
+    expect(arrived(entry(0.167, 100), 780)).toBe(true);
+    expect(arrived(entry(0.133, 79.9), 780)).toBe(true);
+    expect(arrived(entry(0.1, 60), 780)).toBe(false);
+    expect(stepsFor(600)).toEqual([0, 0.05, 0.1, 80 / 600, 0.2]);
+    expect(stepsFor(300)).toEqual([0, 0.05, 0.1, 0.2]);
   });
 
   it("names both new kinds in DrawIn's own type", () => {
