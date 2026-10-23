@@ -6738,3 +6738,49 @@ mid-play (counts standing), one agent's report at 1440 and 390 at rest.
 
 Full unit suite after the round (after `pnpm release:wrappers`, on the committed tree): 294 files,
 5401 passed, 1 skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
+
+## 2026-10-23 — Round 8, FLOW group: Sales Flow and IRIS-led sales before the marketing video
+
+Máté records the marketing video from the local production build (`/shark/shark-residence/flow`)
+and asked for a bug, overlap and text pass on every page, then responsiveness. This group owned
+`flow/**`, `components/flow/**` and the Sales Flow sheets. Branch `r8-flow` from `42bb68bd`, not
+pushed. Thirty-three reviewer findings, each confirmed in the code or a static render first.
+
+**Fixed (in the group's files).** Stalled deals are named by their flat (the CRM key only for a
+deal on no flat). "How to read this" says in one sentence where the screens that read the period
+start (75 words → 43). "What changed": the arrows' basis and steps stand behind its `i`. Every
+screen uses its height at 1440×900: ranked lists spread their rows, the weekly line and month rows
+stand mid-half, "What changed" and the not-interested group stand between title and source (bands
+of 150–245px → 25–40, the weekly half 132 centred). Where the wheel does not step (under 64rem
+wide or 40rem tall) a screen is as tall as what it holds, so a phone reads one page. A presenter's
+outcome counts and the lens keys wrap on a phone instead of scrolling under a fade. At 1280×720 the
+summary, IRIS-assisted sales and "What changed" fit their 591px screen. A KPI value that is a
+sentence is set in the text face; a wrapping title keeps its `i` beside its last words; "under an
+hour" holds one line; a finding's sample is 12px; an InfoTip panel never stands over the sticky
+chrome (measured: 24 tips, three heights each, 1440×900 and 1280×720). IRIS-led sales: the
+definition and both figure notes are behind controls, the two closing cards are one (the
+demonstration-CRM sentence once), the table marks only sync-dated changes, keeps a change on one
+line, and counts showings once (the "Meetings" column is gone); the timeline's verdict has its own
+line; a phone's "Shown by" always stacks under its label.
+
+**Routed, not in this group's files** (see the round's report for each cause): heatmap ties and the
+"±" week change (`synthetic/showroom/charts.ts`); the findings' restated baseline, false CRM source
+and doubled team clause (`views3.ts`); the Progressing delta in points and red tones under the
+5-meeting floor, the Sales cycle and Conversion words, the not-interested texts and long `i` texts
+(`charts.ts`, `deals.ts`, `charts2.tsx` Funnel/PairedRates); "first 1 day" and the YTD verdict
+(`views3.ts`, ADR-0048); IRIS-led's 100% against 31%/42% (`iris-led.ts`, `deals.ts`); "Show all"
+mid-list (`charts2.tsx` RankedBars); header text under 12px (the shell); the wheel under reduced
+motion (`components/screens/ScreenRail.tsx`, shared with Sales Agents — **record with Windows
+animation effects on**).
+
+**Verified.** Typecheck clean; eslint and prettier clean on every changed file; `flow-screens`
+(21), `sales-flow-phone` (8), `flow-claims`, `assisted-sales`, `change-kpis`, `surfaces`,
+`reference-parity` pass. E2E edited, not run: `flow-screens` (a phone screen is as tall as what it
+holds), `p221-meres` and `p221-render` (the reading note). Static renders (react-dom/server, the
+product sheets, headless Chromium) at 1440×900, 1280×720, 390×844 and 360×780: no sideways scroll,
+no new text under 12px. Full unit suite (after `pnpm release:wrappers`, on the committed tree): 296 files, 5424 passed,
+1 skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
+
+**Next.** Cherry-pick onto the demo branch with the other round-8 groups, build, warm every URL
+once, and record at 1440×900 with animation effects on. Still taller than 591px at 1280×720 and
+read through: the lens, the agents and the not-interested group.
