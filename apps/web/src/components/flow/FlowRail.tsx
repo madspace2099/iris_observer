@@ -103,7 +103,7 @@ export function FlowRail({ screens }: { readonly screens: readonly FlowScreen[] 
       event.preventDefault();
       const now = performance.now();
       if (now < quietAt) {
-        quietAt = now + 220;
+        quietAt = Math.max(quietAt, now + 220);
         return;
       }
       /* A turn begins after a pause: what an earlier turn left short does not carry over. */
