@@ -137,7 +137,10 @@ export function classifyProviderFailure(status: number, code: string | null): Co
    * first would collapse all three into "slow down", which is advice that
    * cannot work for two of them.
    */
-  if (code === "insufficient_quota") return "insufficient_credits";
+  /* `credit_balance_exhausted`: a prepaid balance at zero, seen 2026-10-23. */
+  if (code === "insufficient_quota" || code === "credit_balance_exhausted") {
+    return "insufficient_credits";
+  }
   if (code === "billing_hard_limit_reached" || code === "billing_not_active") {
     return "spending_limit";
   }

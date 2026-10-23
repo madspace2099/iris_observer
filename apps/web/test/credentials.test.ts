@@ -475,6 +475,7 @@ describe("testing a connection", () => {
       [rejects(400, "model_not_found"), "model_unavailable"],
       [rejects(429), "rate_limited"],
       [rejects(429, "insufficient_quota"), "insufficient_credits"],
+      [rejects(429, "credit_balance_exhausted"), "insufficient_credits"],
       [rejects(500), "provider_unavailable"],
       [rejects(0), "provider_unavailable"],
     ];

@@ -175,7 +175,7 @@ export function describeOpenAiFailure(
      * deployment is configured correctly; the account is empty. The reader
      * should still get every figure the tools computed.
      */
-    if (code === "insufficient_quota") {
+    if (code === "insufficient_quota" || code === "credit_balance_exhausted") {
       return new ModelUnavailableError(
         "openai: the account has no remaining quota — a billing setting, not an outage",
       );
