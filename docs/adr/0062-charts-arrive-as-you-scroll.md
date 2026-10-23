@@ -48,17 +48,21 @@ played. A drawing shorter than the view starts exactly as before (measured: a 63
 in view waits). Two kinds are added beside the five it had, with their frames in
 `apps/web/src/showroom/draw-in.css`:
 
-- **`fill`** — the marks inside a block grow from their start; every word and figure beside them
-  stands from the first frame, so nothing a reader needs is hidden while it plays. The marks are a
-  fixed list in one place: the plan's stock bar and window (SalesPlan), a flat type's blocks,
-  interest bar and lines (RoomTypes), a reading's meters (RoomReadings), a comparison cell's bar
-  (RoomCompare), a funnel's fills (a unit's funnel and comparisons, the report's ladder), the
-  report's cell bars and outcome mix, and a sale's track of showings (IrisLedTimeline). A row may
-  set `--i` to stagger, 70ms a row, the ninth and after together.
+- **`fill`** — the marks inside a block grow from their start, **each mark as it arrives itself**;
+  every word and figure beside them stands from the first frame, an SVG's axis labels and printed
+  counts included, because an SVG mark is its shapes and never the whole drawing. The marks are
+  one list, `FILL_MARKS` in `DrawIn.tsx`, which `draw-in.css` names too: the plan's stock bar and
+  window (SalesPlan), a flat type's blocks, interest bar and lines (RoomTypes), a reading's meters
+  (RoomReadings), a comparison cell's bar (RoomCompare), a funnel's fills (a unit's funnel and
+  comparisons, the report's ladder, one agent's funnel), the report's cell bars and outcome mix's
+  parts, and a sale's track of showings (IrisLedTimeline). A mark waits transparent, so it can be
+  observed itself; marks that arrive together start top to bottom, a millisecond a pixel below the
+  highest, 560ms at most (`cascade`). The play ends on a clip 16px wider than the mark each side
+  and lets it go as it ends.
 - **`floors`** — a stacking plan rises from the ground floor up, 60ms a floor (`StackPlan` writes
   each floor's `--i` from the ground).
 
-Both end inside DrawIn's 1500ms, so `done` never cuts one short. Figure groups that read as charts
+A `fill` mark ends by 1460ms, `floors` inside DrawIn's 1500ms, so `done` never cuts one short. Figure groups that read as charts
 bloom (the existing kind). A card wrapped in `DrawIn` keeps the rule beside it hidden, as a bare
 `.d-card` does.
 
@@ -75,6 +79,7 @@ bloom (the existing kind). A card wrapped in `DrawIn` keeps the rule beside it h
 | Audience             | a register, no chart                                                                                                      |
 | IRIS-led sales       | the figures already bloomed; every showing before every sale, row by row (`fill`)                                         |
 | The report on screen | the period summary (bloom); presentation coverage, the outcome mix and the ladder (`fill`); print never waits             |
+| One agent's report   | the funnel, the running order's bars and the outcome mix (`fill`), as the project's report draws them                     |
 | Ask                  | an answer's figures bloom by CSS alone as the answer is drawn (`ask-iris.css`)                                            |
 
 **Not done: figures counting up.** A count-up rewrites the figure's text while it plays, which a
@@ -127,9 +132,9 @@ sort headers (`DataTable`) still prefetch; neither run saw one of them sent.
 ## What stays out
 
 - **The trigger's fifth.** A drawing on these pages starts when a fifth of it (or of the view) is in
-  view, as on Sales Flow and the agents pages; a later start would change those pages too. A
-  drawing more than twenty views tall would still never cross the first step: none is near it (the
-  tallest here is IRIS-led's timeline at about three views on a phone).
+  view, as on Sales Flow and the agents pages; a later start would change those pages too. For
+  `fill` the drawing is each mark; a stacking plan (`floors`) still rises as one building, at most
+  492px tall (Units on a phone).
 - **Registers' in-cell bars** (the units register's demand signal) do not grow: a register is read,
   not watched, and a wrapper around a table a phone draws 5,000px tall is a wrapper nobody sees play.
 - **Text under 12px found on the way, not caused here and not changed:** Presentation's and
@@ -140,10 +145,13 @@ sort headers (`DataTable`) still prefetch; neither run saw one of them sent.
 ## Consequences
 
 - `apps/web/test/entrances-and-prefetch.test.ts`: every waiting and playing frame sits under
-  screen, scripting and no-preference; `fill` hides only marks; both new entries end inside
-  `PLAY_MS`; both kinds are in `DrawKind`; `arrived` starts a short drawing at a fifth of
-  itself and a tall one at a fifth of the view; every link in the fan-out files carries
-  `prefetch={false}`, and the meetings register's rows and units do.
+  screen, scripting and no-preference; the stylesheet waits on exactly `FILL_MARKS`; rendered
+  `OutcomeMix` and `RoomTypes` paint no word inside a mark (the counts and the axis are read off
+  the render, and the check fails on the first round's whole-SVG list); a `fill` play is
+  `backwards` and ends by 1460ms; `cascade`; the floors end inside `PLAY_MS`; both kinds are in
+  `DrawKind`; `arrived` starts a short drawing at a fifth of itself and a tall one at a fifth of
+  the view; every link in the fan-out files carries `prefetch={false}`, and the meetings
+  register's rows and units do.
 - Static renders (the page in the real Shell through `react-dom/server`, the product stylesheets,
   headless Chromium) of the thirteen pages at 1440×900, 1280×720, 390×844 and 360×780 against the
   same render of `be3ac396`: under reduced motion every page's height, every heading's position and
@@ -151,3 +159,37 @@ sort headers (`DataTable`) still prefetch; neither run saw one of them sent.
   replayed on the render: below the fold every `fill` and `floors` drawing waits with only its marks
   hidden, plays when scrolled to, and is `done` with nothing hidden at the end. **Not looked at on a
   running page.**
+
+## Review round 1 (2026-10-23)
+
+Five findings, each checked against the code and, read-only, against the demo (`be3ac396` at
+`http://127.0.0.1:3400` as Clara, this branch's `draw-in.css` and `fill` logic injected onto the
+same blocks, scrolled 10px at a time). Four fixed, one fixed in part and handed on.
+
+1. **A tall `fill` block played off screen — confirmed, wider than reported, fixed.** At the
+   moment a block arrived, IRIS-led's timeline had 17 of its 19 tracks below the fold at 1440×900
+   (the deepest 1,649px) and 18 at 390×844. On a phone the same was true of Flat types (938px),
+   Interest against sales, the room comparison, the report's coverage table and ladder, and a
+   unit's funnel (1,114px). The block-level trigger is gone for `fill`: each mark is observed
+   itself (observing its row instead still started a track 70px below the fold, its row's head in
+   view). After: at 1440×900, 1280×720, 390×844 and 360×780, on Project, IRIS-led, the report, one
+   agent's report and a unit, every one of 113 marks started on screen, all played, none was
+   clipped at rest, and nothing scrolled sideways. The rows' `--i` props went with it.
+2. **The end clip cut the dots and they snapped at `done` — confirmed, fixed.** The play is now
+   `backwards` and ends on a clip 16px wider each side and a view taller, so a dot on a track's end
+   (10px overhang) is never cut and the clip lets go as the play ends, not 600ms later.
+3. **One agent's report drew at once — confirmed, fixed.** The funnel, the running order's table
+   and the outcome mix draw in with `fill`.
+4. **Cherry-picking with PORTRAITS stopped on two hunks — confirmed; one removed, one handed on.**
+   `IrisLedTimeline` now wraps itself in `DrawIn`, so the IRIS-led page's line beside the
+   presenters' key is the base line again and merges clean (`git merge-tree` against
+   `r7-portraits`). The report's single-meeting rows still conflict: `prefetch={false}` split the
+   `meeting:` cell over five lines beside PORTRAITS' new `agent:` cell. Resolve by keeping both:
+   the five-line `meeting:` Link with `prefetch={false}`, then
+   `agent: <AgentName name={row.agentName} src={portraits[row.agentId] ?? null} />`.
+   `docs/PROJECT-STATE.md` conflicts as expected; keep both sections.
+5. **`fill` hid SVG words while it waited — confirmed, fixed.** The marks were whole SVGs
+   (`.pr-lines svg`, `.ox-mix`), which hold Flat types' axis labels and the outcome mix's counts.
+   They are now the shapes (`.pr-lines .pr-line`, `.ox-mix .ox-mix-part`), so §1 holds as written.
+   The test now renders `OutcomeMix` and `RoomTypes` and reads the painted words against the
+   marks; put back, the first round's list fails it.
