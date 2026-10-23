@@ -215,17 +215,36 @@
  * pixels tall, on every page load. It is letterspaced small caps and nothing
  * more, so type reproduces it exactly, scales to any density, follows the
  * theme, and can be read aloud.
+ *
+ * 12px, the floor for words on a recorded screen: at the artefact's 7px it
+ * was a smudge on video (review round 8).
  */
 .irs-brand-sub {
-  font-size: 7px;
+  font-size: 12px;
   line-height: 1;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   font-weight: var(--weight-semibold);
   color: var(--iris-text-primary);
   opacity: 0.8;
   padding-bottom: 3px;
   white-space: nowrap;
+}
+
+/*
+ * Under the wordmark where the bar is a phone's: beside it, at 12px, it ran
+ * into the project's name at 320–390px.
+ */
+@media (width <= 1199px) {
+  .irs-brand {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .irs-brand-sub {
+    padding-bottom: 0;
+  }
 }
 
 /* --- primary navigation ------------------------------------------------------ */
