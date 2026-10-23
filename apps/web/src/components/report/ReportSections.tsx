@@ -1,6 +1,6 @@
 "use client";
 
-import type { Language, ReportSection, ReportSectionAvailability } from "@observer/readmodels";
+import type { ReportSection, ReportSectionAvailability } from "@observer/readmodels";
 
 /*
  * Reached by module rather than through the layer's barrel. This is a client
@@ -9,7 +9,7 @@ import type { Language, ReportSection, ReportSectionAvailability } from "@observ
  * dialog draws. `Provenance.tsx` is markup and two label maps and crosses the
  * boundary cleanly.
  */
-import { Sample, Sources } from "@/components/product/Provenance";
+import { Sample } from "@/components/product/Provenance";
 
 /**
  * WHAT A REPORT WOULD CONTAIN, SECTION BY SECTION, AND WHAT EACH ONE WOULD SAY.
@@ -66,7 +66,6 @@ export function ReportSections({
   excluded,
   onToggle,
   idPrefix,
-  language,
 }: {
   readonly sections: readonly ReportSection[];
   /** Ids the reader has taken out. Everything writable starts included. */
@@ -74,7 +73,6 @@ export function ReportSections({
   readonly onToggle: (id: string) => void;
   /** Namespaces the checkbox ids, so two dialogs on one screen do not collide. */
   readonly idPrefix: string;
-  readonly language: Language;
 }) {
   return (
     <ul className="ox-scope">
@@ -99,8 +97,6 @@ export function ReportSections({
                 {section.label}
               </label>
 
-              <p className="ox-section-note">{section.summary}</p>
-
               {/*
                * Why it is partial or blank, in the read model's words. Null only
                * when the section is ready, which is the one case where there is
@@ -112,12 +108,17 @@ export function ReportSections({
                 </p>
               )}
 
-              <div className="ox-alert-foot">
-                <Sources language={language} sources={section.sources} />
-                {section.sampleSize === null ? null : (
+              {/*
+               * The sample only: the summary and the source line made one
+               * section fill a phone's list (the owner, 2026-10-23). The
+               * report prints both; the dialog chooses sections, it does not
+               * describe them.
+               */}
+              {section.sampleSize === null ? null : (
+                <div className="ox-alert-foot">
                   <Sample n={section.sampleSize} noun={section.sampleNoun} />
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <span className="ox-chip" data-tone={AVAILABILITY_TONES[section.availability]}>

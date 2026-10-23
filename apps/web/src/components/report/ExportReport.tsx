@@ -21,6 +21,7 @@ const TITLES: Readonly<Record<ReportScope["kind"], string>> = {
   agent: "Export agent summary",
 };
 
+import { InfoTip } from "@/components/iris/InfoTip";
 import { Dialog } from "@/components/product/Dialog";
 import { LANGUAGE_NAMES, WRITTEN_IN, withLanguage } from "@/lib/language";
 import { ReportSections } from "./ReportSections";
@@ -114,17 +115,17 @@ const FORMATS = [
   {
     id: "pdf",
     label: "PDF document",
-    note: "The report opens in a new tab and the browser’s print dialog appears: choose “Save as PDF”. The browser makes the PDF from the printed page.",
+    note: "Opens in a new tab with the print dialog: choose “Save as PDF”.",
   },
   {
     id: "page",
     label: "Shareable page",
-    note: "The shareable page is this report drawn on a screen of its own, printable through the browser.",
+    note: "Opens the report as a page of its own, printable through the browser.",
   },
   {
     id: "csv",
     label: "Figures as CSV",
-    note: "Downloads every figure the report prints, one row each, with its own base where the report states one, the period’s dates, scope and sources. Separated by commas in English and by semicolons in Slovak and Hungarian, the separator Excel expects under those regional settings.",
+    note: "Downloads every figure the report prints, one row each, with its base, dates, scope and sources; semicolons in Slovak and Hungarian, for Excel.",
   },
 ] as const;
 
@@ -271,14 +272,30 @@ export function ExportReport({
 
         <div className="ox-dialog-body">
           {/* --- the three facts the document would carry on its cover --- */}
+          {/*
+           * Scope and audience in view; the scope's label already names the
+           * period, so a Period row only repeated it. Where the period comes
+           * from and what is never built here stand behind the scope's `i`.
+           */}
           <ul className="ox-scope">
             <li className="ox-scope-item">
-              <span>Scope</span>
+              <span>
+                Scope
+                <InfoTip
+                  id={`export${ids.replace(/[^A-Za-z0-9_-]/g, "")}-scope`}
+                  label="the document's scope"
+                >
+                  <p>
+                    It covers the whole document, over the period chosen with the{" "}
+                    {"period control (on a narrow screen, in the menu)"}.
+                  </p>
+                  <p>
+                    Everything made here is the internal report; a document for a buyer is a
+                    separate, sanitised contract, and it is not built.
+                  </p>
+                </InfoTip>
+              </span>
               <span>{report.scope.label}</span>
-            </li>
-            <li className="ox-scope-item">
-              <span>Period</span>
-              <span>{report.periodLabel}</span>
             </li>
             <li className="ox-scope-item">
               <span>Audience</span>
@@ -286,17 +303,10 @@ export function ExportReport({
             </li>
           </ul>
 
-          <p className="ox-section-note">
-            The period is the one chosen with the period control (on a narrow screen, in the menu),
-            and it covers the whole document. Everything made here is the internal report; a
-            document for a buyer is a separate, sanitised contract, and it is not built.
-          </p>
-
           {/* --- what would be in it -------------------------------------- */}
           <div className="ox-field">
             <span className="ox-field-label">Sections</span>
             <ReportSections
-              language={language}
               sections={report.sections}
               excluded={excluded}
               onToggle={toggle}
