@@ -8,6 +8,8 @@ import { presetFrom } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { DnaLane, Finding, Gaps, SourceChips, shortCode } from "@/showroom/parts";
 import { DrawIn } from "@/showroom/DrawIn";
+import { AgentPortrait, type PortraitSize } from "@/components/agents/Portrait";
+import { portraitSources } from "@/lib/portraits/server";
 import "./presentation.css";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
@@ -71,6 +73,24 @@ export default async function PresentationPage({
   const pair: Record<string, string> = {
     ...(search.left === undefined ? {} : { left: search.left }),
     ...(search.right === undefined ? {} : { right: search.right }),
+  };
+
+  /*
+   * A face beside every presenter the page names (ADR-0054): one address per
+   * agent, reused by the chips and the lanes. A lane is a presenter's only
+   * where its id is on the roster; the team's and a cohort's are not.
+   */
+  const portraits = await portraitSources(
+    view.context.tenant,
+    projectSlug,
+    agents.map((agent) => agent.agentId),
+  );
+  const rosterName = new Map<string, string>(agents.map((agent) => [agent.agentId, agent.name]));
+  const face = (id: string, size: PortraitSize = "row") => {
+    const name = rosterName.get(id);
+    return name === undefined ? undefined : (
+      <AgentPortrait name={name} src={portraits[id] ?? null} size={size} alt="" />
+    );
   };
 
   const comparison = view.comparison;
@@ -145,6 +165,7 @@ export default async function PresentationPage({
                   }),
                 )}
               >
+                {face(agent.agentId, "chip")}
                 {agent.name}
                 <b>{agent.meetingCount}</b>
               </Link>
@@ -169,8 +190,8 @@ export default async function PresentationPage({
             >
               <DrawIn kind="bloom">
                 <div className="iris-dna">
-                  <DnaLane lane={comparison.left} compact />
-                  <DnaLane lane={comparison.right} compact />
+                  <DnaLane lane={comparison.left} compact mark={face(comparison.left.id)} />
+                  <DnaLane lane={comparison.right} compact mark={face(comparison.right.id)} />
                 </div>
               </DrawIn>
               {/*
@@ -317,7 +338,7 @@ export default async function PresentationPage({
               <DnaLane lane={view.teamBenchmark} />
               <hr className="iris-rule" style={{ margin: ".5rem 0" }} />
               {view.lanes.map((lane) => (
-                <DnaLane key={lane.id} lane={lane} />
+                <DnaLane key={lane.id} lane={lane} mark={face(lane.id)} />
               ))}
             </div>
           </DrawIn>
