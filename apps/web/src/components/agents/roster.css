@@ -613,6 +613,28 @@
 }
 
 /*
+ * The rings turn in one after another as their screen arrives, 60ms apart:
+ * the last ends at 1440ms, inside `DrawIn`'s 1500 (it lets go after that).
+ */
+@media screen and (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .ag-page .ag-roster > :nth-child(2) .dld-draw[data-draw="run"][data-kind="turn"] svg {
+    animation-delay: 60ms;
+  }
+
+  .ag-page .ag-roster > :nth-child(3) .dld-draw[data-draw="run"][data-kind="turn"] svg {
+    animation-delay: 120ms;
+  }
+
+  .ag-page .ag-roster > :nth-child(4) .dld-draw[data-draw="run"][data-kind="turn"] svg {
+    animation-delay: 180ms;
+  }
+
+  .ag-page .ag-roster > :nth-child(n + 5) .dld-draw[data-draw="run"][data-kind="turn"] svg {
+    animation-delay: 240ms;
+  }
+}
+
+/*
  * Five cards on a line in a 1280 window leave each 211px: the card's own
  * padding narrows to a phone's, so a name and "Follow-up needed" keep one line.
  */
