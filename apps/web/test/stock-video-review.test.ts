@@ -36,9 +36,9 @@ const OPTIONS: MeetingFilterOptions = {
 } as never;
 
 const labels = (fields: ReturnType<typeof meetingFilterFields>, name: string): string[] =>
-  (fields.find((field) => field.name === name) as { options: { label: string }[] }).options.map(
-    (option) => option.label,
-  );
+  (
+    fields.find((field) => field.name === name) as unknown as { options: { label: string }[] }
+  ).options.map((option) => option.label);
 
 describe("the meeting register's options", () => {
   it("count what an option would keep only while no other filter narrows", () => {
