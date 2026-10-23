@@ -38,9 +38,17 @@
 /* --- a section's title and its `i` on one line ------------------------------ */
 
 .ag-detail .ag-head {
+  flex-wrap: wrap;
   justify-content: flex-start;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* A screen's one line of absence, under its title (review round). */
+.ag-detail .ag-head > .ag-unreferenced {
+  flex-basis: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 /*
@@ -147,10 +155,34 @@
 
 /*
  * The weekly line is drawn 360 units tall on a wide card (`wideHeight`): the
- * shared 11rem cap would letterbox it, its 12px ticks shrunk with it.
+ * shared 11rem cap would letterbox it, its 12px ticks shrunk with it. Only the
+ * wide drawings: the phone's 240-unit one keeps the cap, or it is blown up
+ * twice over, its ticks at 28px (review round).
  */
-.ag-detail .ag-frame .iris-trend {
+.ag-detail .ag-frame .dld-size:is([data-size="xl"], [data-size="m"]) .iris-trend {
   max-height: none;
+}
+
+/*
+ * A pair's half in a desktop window under 1440 (a 1280 window: 512px inside the
+ * card) is no phone, though it is under `Sized`'s 34rem: from 30rem it draws
+ * the shape at 340 and the weekly line's middle drawing, never the phone's
+ * (review round). The middle line is shown just under its 544 units there, so
+ * its ticks are set a step up to stay at 12px or more.
+ */
+@container (30rem <= width < 34rem) {
+  .ag-detail .ag-pair .dld-size[data-size="l"] {
+    display: none;
+  }
+
+  .ag-detail .ag-pair .dld-size[data-size="m"],
+  .ag-detail .ag-pair .dld-size[data-size="xl"]:not(:has(~ .dld-size[data-size="m"])) {
+    display: block;
+  }
+
+  .ag-detail .ag-pair .dld-size[data-size="m"] .iris-trend-tick {
+    font-size: 14px;
+  }
 }
 
 /* What their buyers opened: the rows spread down the card, the marks on longer tracks. */
@@ -165,6 +197,19 @@
   flex: 1 0 auto;
   display: grid;
   align-content: center;
+}
+
+/*
+ * The running order's rows a little closer, so its screen keeps its shortfall
+ * line inside a 1440×900 window under the floor too (review round: 804px).
+ */
+.ag-detail .ag-frame .iris-sequence li {
+  padding-block: 0.375rem;
+}
+
+/* A shortfall under a drawing is one line across the card, not a 58ch column (review round). */
+.ag-detail .ag-frame .ox-chart-note {
+  max-width: none;
 }
 
 .ag-detail .ag-frame-title {

@@ -196,8 +196,9 @@ export default async function AgentPage({
    * `Evidence` states "No evidence" in words for a null reference, which is
    * exactly right beside one claim and wrong thirteen times down one screen —
    * the visual autopsy's defect is a repeated absence, whatever the absence is.
-   * So the line is drawn per figure only where a reference exists, and a region
-   * where none does says so once, below the figures.
+   * So the line is drawn per figure only where a reference exists, and a screen
+   * whose regions have none says so once, in one short line under its figures;
+   * why stands behind the screen's `i` (ADR-0061, review round).
    *
    * The agent read models return `evidence: null` on every metric in
    * `activity`, `followUp`, `recordedOutcomes` and `funnel`, even though the
@@ -207,6 +208,10 @@ export default async function AgentPage({
   const activityHasEvidence = view.activity.some((metric) => metric.evidence !== null);
   const outcomesHaveEvidence = view.recordedOutcomes.some((o) => o.metric.evidence !== null);
   const funnelHasEvidence = view.funnel.some((step) => step.metric.evidence !== null);
+  const unreferenced = [
+    activityHasEvidence ? null : "the counts",
+    outcomesHaveEvidence ? null : "the outcomes they recorded",
+  ].filter((part) => part !== null);
 
   /*
    * THE SHARE COLUMN EXISTS ONLY WHERE A SHARE MAY BE READ.
@@ -382,11 +387,11 @@ export default async function AgentPage({
                     Counts, a median and a coverage share. A count is never suppressed: the sample
                     size is the figure a reader most needs when it is small.
                   </p>
-                  {activityHasEvidence ? null : (
+                  {unreferenced.length === 0 ? null : (
                     <p>
-                      None of these figures carries an evidence reference: the read model computes
-                      them from the period&rsquo;s sessions without recording a drill-down. The
-                      sessions themselves are the register further down this page.
+                      Where a figure has no drill-down reference, the read model computes it from
+                      the period&rsquo;s sessions without recording one.
+                      {register ? " The sessions themselves are the register further down." : ""}
                     </p>
                   )}
                   <p>{view.followUp.note}</p>
@@ -396,11 +401,19 @@ export default async function AgentPage({
                     and not a sale. Kept apart from the outcome mix, which is every outcome
                     including the ones nobody recorded. The tier on each says how strong the claim
                     is; the source says what kind of fact it rests on.
-                    {outcomesHaveEvidence
-                      ? ""
-                      : " Neither figure carries a drill-down reference; the meetings behind them are in the register further down this page."}
                   </p>
                 </InfoTip>
+                {/*
+                 * An absence is a state, so it stands in sight, once for the
+                 * screen, under its title; why is the `i`'s (review round).
+                 * Inside the head, so the plate keeps its eight children and
+                 * "Verified outcomes" stays its last (R13-3).
+                 */}
+                {unreferenced.length === 0 ? null : (
+                  <p className="ox-section-note ag-unreferenced">
+                    No drill-down reference stands behind {unreferenced.join(" or ")}.
+                  </p>
+                )}
               </div>
 
               <Tally>
@@ -549,7 +562,7 @@ export default async function AgentPage({
               title="Where their meetings reached"
               about="the stages their meetings reached"
               period={periodLabel}
-              note={`Five states, each a count of meetings that reached it, with the count it is a fraction of beside it. A stage no source can answer draws no bar at all — a track at zero standing in for something unmeasured is the reading this treatment exists to prevent. Nothing here says that one stage produced the next.${funnelHasEvidence ? "" : " No stage carries a drill-down reference; the meetings behind them are in the register further down this page."}`}
+              note={`Five states, each a count of meetings that reached it, with the count it is a fraction of beside it. A stage no source can answer draws no bar at all — a track at zero standing in for something unmeasured is the reading this treatment exists to prevent. Nothing here says that one stage produced the next.${funnelHasEvidence ? "" : ` The read model records no drill-down for a stage${register ? "; the meetings behind them are in the register further down this page" : ""}.`}`}
             >
               <DrawIn kind="sweep">
                 <StageFunnel
@@ -559,6 +572,9 @@ export default async function AgentPage({
                   label={`Stages ${view.name}'s meetings reached`}
                 />
               </DrawIn>
+              {funnelHasEvidence ? null : (
+                <p className="ox-chart-note">No stage carries a drill-down reference.</p>
+              )}
             </Frame>
           </div>
         </div>
@@ -633,7 +649,7 @@ export default async function AgentPage({
               period={periodLabel}
               note={
                 view.belowMinimum
-                  ? "The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop."
+                  ? "The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop. The team's median is left out under the floor: at this sample the comparison would be a judgement about how somebody works drawn from a sample too thin to carry one."
                   : "The order is where each section falls on average across their meetings, not one meeting's path — nobody presents the same way twice. The bar is their median stay in that section against their own longest stop; the team's median is printed beside it, since a section time on its own has no scale."
               }
               summary={`${view.profile.sections.length} sections, in running order: ${view.profile.sections
@@ -652,10 +668,9 @@ export default async function AgentPage({
               />
               {view.belowMinimum ? (
                 <p className="ox-chart-note">
-                  The team&rsquo;s median is not printed beside their stops: at {view.sampleSize}{" "}
+                  The team&rsquo;s median is not printed beside their stops: {view.sampleSize}{" "}
                   meetings, {view.minimumSampleSize - view.sampleSize} short of{" "}
-                  {view.minimumSampleSize}, that comparison would be a judgement about how somebody
-                  works drawn from a sample too thin to carry one.
+                  {view.minimumSampleSize}.
                 </p>
               ) : null}
             </Frame>
@@ -682,7 +697,7 @@ export default async function AgentPage({
                 title="What their buyers opened"
                 about="what their buyers opened"
                 period={periodLabel}
-                note="Meetings of theirs in which at least one apartment of that size was opened. A meeting that showed a one-room flat and a four-room penthouse counts in both, so these do not sum to the meeting count."
+                note="Meetings of theirs in which at least one apartment of that size was opened. A meeting that showed a one-room flat and a four-room penthouse counts in both, so these do not sum to the meeting count. The project's rate is left out under the floor: at this sample the comparison would be a judgement about how somebody works drawn from a sample too thin to carry one."
               >
                 <Tally>
                   {view.buyerInterest.map((row) => (
@@ -703,10 +718,8 @@ export default async function AgentPage({
                   ))}
                 </Tally>
                 <p className="ox-chart-note">
-                  The project&rsquo;s own rate is not set beside them: at {view.sampleSize}{" "}
-                  meetings, {view.minimumSampleSize - view.sampleSize} short of{" "}
-                  {view.minimumSampleSize}, that comparison would be a judgement about how somebody
-                  works drawn from a sample too thin to carry one.
+                  The project&rsquo;s own rate is not set beside them: {view.sampleSize} meetings,{" "}
+                  {view.minimumSampleSize - view.sampleSize} short of {view.minimumSampleSize}.
                 </p>
               </Frame>
             ) : (
@@ -789,6 +802,12 @@ export default async function AgentPage({
                     in most of somebody&rsquo;s meetings may be the one the buyers ask for or the
                     one the agent reaches for, and this figure cannot tell the two apart.
                   </p>
+                  {view.belowMinimum ? (
+                    <p>
+                      Under the floor no share is shown: a rate over this few of somebody&rsquo;s
+                      meetings is not a figure to act on.
+                    </p>
+                  ) : null}
                   <p>
                     Where else they present is scoped to the projects this account holds: an agency
                     selling for two developers is the ordinary arrangement, and a list that showed
@@ -814,10 +833,9 @@ export default async function AgentPage({
 
                 {view.belowMinimum ? (
                   <p className="ox-section-note">
-                    No share is shown against these counts. At {view.sampleSize} meetings —{" "}
-                    {view.minimumSampleSize - view.sampleSize} short of {view.minimumSampleSize} — a
-                    rate over this person&rsquo;s meetings is not a figure to act on, and the count
-                    already carries the denominator it is a fraction of.
+                    No share beside these counts: {view.sampleSize} meetings,{" "}
+                    {view.minimumSampleSize - view.sampleSize} short of {view.minimumSampleSize}.
+                    Each count carries its own denominator.
                   </p>
                 ) : null}
               </div>
@@ -894,11 +912,11 @@ export default async function AgentPage({
                       <span className="ox-chip-mark" aria-hidden="true" />
                       Kept for the sales team
                     </span>
+                    {/* Its own subject: under the apartments, "this register" read as their table (review round). */}
                     <span>
-                      The rows of this register are the meeting drill-down&rsquo;s own material,
-                      which this account does not open: what is about one buyer stays on the sales
-                      team&rsquo;s surfaces. Every one of these meetings is counted in the figures
-                      above.
+                      {view.name}&rsquo;s meetings, one by one, are the meeting drill-down&rsquo;s
+                      own material, which this account does not open. Every one of them is counted
+                      in the figures above.
                     </span>
                   </p>
                   {everyMeeting}

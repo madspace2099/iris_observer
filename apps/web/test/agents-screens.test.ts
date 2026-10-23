@@ -94,6 +94,10 @@ describe("an agent's page", () => {
       /\.\.\.\(register \? \[\{ id: "agent-meetings", label: "Their most recent meetings" \}\] : \[\]\)/,
     );
     expect(DETAIL).toMatch(/\{register \? null : \([\s\S]*?Kept for the sales team/);
+    /* Under the apartments, it names what it withholds (review round). */
+    expect(DETAIL).toMatch(
+      /Kept for the sales team[\s\S]*?\{view\.name\}&rsquo;s meetings, one by one/,
+    );
   });
 
   it("puts the agent's face beside every title that names them", () => {
@@ -113,7 +117,11 @@ describe("an agent's page", () => {
       "No trend",
       "not printed beside their stops",
       "The project&rsquo;s own rate is not set beside them",
+      "No share beside these counts",
       "Scoped to the projects this account holds",
+      /* An absent reference is a state (InfoTip's rule; review round). */
+      "No drill-down reference stands behind",
+      "No stage carries a drill-down reference.",
     ]) {
       const at = DETAIL.indexOf(text);
       expect(at, text).toBeGreaterThan(-1);
