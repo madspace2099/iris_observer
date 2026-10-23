@@ -5,6 +5,7 @@ import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { maySeeSurface } from "@/lib/routes";
 import { presetFrom } from "@/lib/period";
+import { portraitSources } from "@/lib/portraits/server";
 import { FilterBar, FindingList, PageHead, Synthetic } from "@/components/product";
 import {
   MeetingRegister,
@@ -79,6 +80,10 @@ export default async function MeetingsPage({
 
   const { context } = view;
   const periodLabel = context.period.label.toLowerCase();
+  // One address per presenter, reused by every row they gave (ADR-0054).
+  const portraits = await portraitSources(context.tenant, projectSlug, [
+    ...new Set(view.rows.map((row) => row.agentId)),
+  ]);
   const narrowed = view.total !== view.periodTotal;
 
   return (
@@ -160,6 +165,7 @@ export default async function MeetingsPage({
               // A phone draws twenty and offers the rest (`MeetingRegister`); a wide screen draws all.
               all={search.more === "1"}
               moreHref={withMeetingFilters(`${base}/meetings?more=1`, view.filters)}
+              portraits={portraits}
             />
           </div>
         </div>

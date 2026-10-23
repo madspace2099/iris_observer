@@ -16,6 +16,8 @@ import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { maySeeSurface } from "@/lib/routes";
+import { portraitSources } from "@/lib/portraits/server";
+import { AgentName, AgentPortrait } from "@/components/agents/Portrait";
 import { MEETINGS_NOT_OPENABLE } from "@/components/meetings";
 import { requireViewer } from "@/lib/session";
 import { TrendLine } from "@/showroom/charts2";
@@ -153,6 +155,13 @@ export default async function UnitPage({
   const { context, unit, signals, trend } = detail;
   const base = `${root}/units`;
   const periodLabel = context.period.label;
+  // One address per presenter, for the meetings and the people beside them (ADR-0054).
+  const portraits = await portraitSources(context.tenant, projectSlug, [
+    ...new Set([
+      ...detail.relatedMeetings.map((meeting) => meeting.agentId),
+      ...detail.relatedAgents.map((agent) => agent.agentId as string),
+    ]),
+  ]);
 
   /*
    * The stages no source can answer, stated once each above the funnel.
@@ -195,7 +204,7 @@ export default async function UnitPage({
         meeting.label
       ),
       when: meeting.startedDisplay,
-      agent: meeting.agentName,
+      agent: <AgentName name={meeting.agentName} src={portraits[meeting.agentId] ?? null} />,
       /* Never a name, an email or a phone number. See `VisitorLabel`. */
       visitor: meeting.visitor.display,
       length: meeting.durationDisplay,
@@ -634,6 +643,14 @@ export default async function UnitPage({
                   name={agent.name}
                   href={agent.href}
                   period={period}
+                  mark={
+                    <AgentPortrait
+                      name={agent.name}
+                      src={portraits[agent.agentId] ?? null}
+                      size="card"
+                      alt=""
+                    />
+                  }
                   /*
                    * No `role`. `.ox-person-role` is what a person DOES, not how
                    * often they did something, and putting a count there would

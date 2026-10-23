@@ -6,6 +6,7 @@ import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
+import { portraitSources } from "@/lib/portraits/server";
 import { BriefView } from "@/showroom/BriefView";
 import { MeetingReplayView, parseMeetingFilters, type MeetingSearch } from "@/components/meetings";
 
@@ -85,9 +86,12 @@ export default async function MeetingPage({
       { viewer, tenantSlug, projectSlug, period, language: DEFAULT_LANGUAGE },
       { meetingId },
     );
+    // The presenter's face beside "Presented by" (ADR-0054).
+    const portraits = await portraitSources(replay.context.tenant, projectSlug, [replay.agentId]);
 
     return (
       <MeetingReplayView
+        portrait={portraits[replay.agentId] ?? null}
         replay={replay}
         period={period}
         base={base}

@@ -7,6 +7,7 @@ import {
   type UnitReference,
 } from "@observer/readmodels";
 
+import { AgentName } from "@/components/agents/Portrait";
 import { DataTable, type DataColumn, type DataRow } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -178,6 +179,7 @@ export function MeetingRegister({
   emptyState,
   all = false,
   moreHref = null,
+  portraits,
 }: {
   /**
    * Every route a row needs (`href`, each `unitsViewed[].href`) arrives
@@ -217,6 +219,12 @@ export function MeetingRegister({
   readonly all?: boolean;
   /** This register with its filters and `more=1`: where a phone's "Show the remaining N" goes. */
   readonly moreHref?: string | null;
+  /**
+   * Each presenter's portrait address by agent id, from the page's
+   * `portraitSources` (ADR-0054): given, every presenter wears their face or
+   * initials beside their name. Absent, the column is names alone.
+   */
+  readonly portraits?: Readonly<Record<string, string>>;
 }) {
   const data: readonly DataRow[] = rows.map((row, index) => ({
     key: row.meetingId,
@@ -230,7 +238,12 @@ export function MeetingRegister({
       ) : (
         row.label
       ),
-      agent: row.agentName,
+      agent:
+        portraits === undefined ? (
+          row.agentName
+        ) : (
+          <AgentName name={row.agentName} src={portraits[row.agentId] ?? null} />
+        ),
       visitor: row.visitor.display,
       channel: row.channelLabel,
       /*

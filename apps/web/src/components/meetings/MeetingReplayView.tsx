@@ -7,6 +7,7 @@ import type {
 } from "@observer/readmodels";
 import { ExportReport } from "@/components/report";
 
+import { AgentName } from "@/components/agents/Portrait";
 import { Evidence, PageHead, Sources, Synthetic } from "@/components/product";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
@@ -77,8 +78,11 @@ export function MeetingReplayView({
   filters,
   crmConnected,
   report,
+  portrait = null,
 }: {
   readonly replay: MeetingReplay;
+  /** The presenter's portrait address (`portraitSources`, ADR-0054); null draws their initials. */
+  readonly portrait?: string | null;
   /** The meeting's own report scope, for the export dialog and the page it opens. */
   readonly report: ReportScopeView;
   readonly period: PeriodPreset;
@@ -115,15 +119,19 @@ export function MeetingReplayView({
          */
         lede={
           replay.agentHref === null ? (
-            `Presented by ${replay.agentName}.`
+            <AgentName
+              name={replay.agentName}
+              src={portrait}
+              size="row"
+            >{`Presented by ${replay.agentName}.`}</AgentName>
           ) : (
-            <>
+            <AgentName name={replay.agentName} src={portrait} size="row">
               Presented by{" "}
               <Link className="ox-link" href={dynamicRoute(withPeriod(replay.agentHref, period))}>
                 {replay.agentName}
               </Link>
               .
-            </>
+            </AgentName>
           )
         }
         crumbs={[

@@ -82,6 +82,7 @@ export function PersonCard({
   href = null,
   period,
   children = null,
+  mark = null,
 }: {
   readonly name: string;
   /** What they do, not how well they do it. */
@@ -90,11 +91,13 @@ export function PersonCard({
   readonly href?: string | null;
   readonly period: PeriodPreset;
   readonly children?: ReactNode;
+  /** In place of the initials: an agent's portrait (`AgentPortrait`, ADR-0054). */
+  readonly mark?: ReactNode;
 }) {
   return (
     <li className="ox-person">
       <div className="ox-person-head">
-        <Initials name={name} />
+        {mark ?? <Initials name={name} />}
         <div>
           <h3 className="ox-person-name">
             {href === null ? (
