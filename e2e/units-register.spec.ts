@@ -20,15 +20,20 @@ import { signInAs } from "./sign-in";
  * reported as a gap in the shared layer rather than worked around by
  * hand-rolling a second table." The current register has twelve real
  * columns (Unit, Status, Rooms, Floor, Area m², Price, Meetings, Views,
- * Shortlisted, Plans opened, Comparisons, Demand signal · derived) and a static
- * "How to read this register" list beneath the table
- * that defines every measured one — always present, so a reader (and a
- * screen reader) never has to find and activate a control to read it, which
- * is a stronger claim than the popover it replaced, not a weaker one.
+ * Shortlisted, Plans opened, Comparisons, Demand signal · derived) and one
+ * list that defines every measured one.
+ *
+ * That list stood beneath the table, always open, until the owner asked for
+ * the text around the figures to move behind an `i` before recording the
+ * video (2026-10-23, as ADR-0058 did for the answer sheets): it is now the
+ * panel of the one `i` beside the register's title ("About how to read this
+ * register"). The panel is in the server's HTML, so a reader without script
+ * still has it, and a definition may stand behind an `i` where a figure may
+ * not.
  *
  * This file protects the actual current requirement — every measured column
- * has its definition stated, reachable without any interaction, contained on
- * a phone — rather than the retired popover. Moved to its own file because
+ * has its definition stated, one press away, contained on a phone — rather
+ * than the retired per-column popover. Moved to its own file because
  * the register is a real product surface, not a `/lab/*` composition: it
  * does not belong under `lab.spec.ts`'s file-level `test.skip` for mobile
  * (lab concepts are desktop-only by design; the shipping register is not).
@@ -74,24 +79,20 @@ test("every measured column on the unit register states what it measures", async
   }
 
   /*
-   * The definitions list beneath the table. The page carries a second,
-   * unrelated `.ox-scope` list above the seam (the "high interest, no
-   * follow-up recorded" finding), so scoped to the one paper plate the page
-   * has — the register's own ground (ADR-0034) — rather than by text, which
-   * a plain CSS engine (axe's `.include()`, used below) cannot match.
+   * The definitions, in the panel of the `i` beside the register's title.
+   * One button opens them; the panel is the register's own (`#info-register`).
    */
-  const scope = page.locator(".ox-plate.ox-paper .ox-scope");
+  await page.getByRole("button", { name: "About how to read this register" }).click();
+  const scope = page.locator("#info-register .ox-scope");
   await expect(scope).toBeVisible();
 
   /*
-   * At least the fixed set of column definitions, never fewer. The list can
-   * carry one more: "Not opened", present only when `neverOpened > 0` for the
-   * period (Northgate has it in the reference period; a project where every
-   * unit was opened, like Ister Tower today, does not) — a real data-driven
-   * item, not a fixed column, so it is not asserted by name here.
+   * Exactly the fixed set of column definitions. "Not opened" was a ninth
+   * item when the list stood beneath the table; it is a count of the period,
+   * so it stays in view under the register and is not part of the panel.
    */
   const items = scope.locator("li.ox-scope-item");
-  expect(await items.count()).toBeGreaterThanOrEqual(DEFINED_COLUMNS.length);
+  expect(await items.count()).toBe(DEFINED_COLUMNS.length);
 
   for (const term of DEFINED_COLUMNS) {
     const item = items.filter({ has: page.locator("span", { hasText: term }) });
@@ -106,9 +107,7 @@ test("every measured column on the unit register states what it measures", async
     items.filter({ has: page.locator("span", { hasText: "Demand signal · derived" }) }),
   ).toContainText(/ordering aid and not a verdict/);
 
-  // Reachable with no interaction at all: no button, no expanded/collapsed
-  // state — the definitions are always in the document, which a screen
-  // reader reaches by reading order rather than by finding a control first.
+  // One control, not one per column: the retired per-column popovers stay retired.
   await expect(page.getByRole("button", { name: /What .* measures/ })).toHaveCount(0);
 });
 
@@ -117,15 +116,17 @@ test("the column definitions are contained on a phone", async ({ page }) => {
   await signInAs(page, "Petra Novák");
   await page.goto("/alpha/northgate/units");
 
-  const scope = page.locator(".ox-plate.ox-paper .ox-scope");
-  await scope.scrollIntoViewIfNeeded();
+  const button = page.getByRole("button", { name: "About how to read this register" });
+  await button.scrollIntoViewIfNeeded();
+  await button.click();
+  const scope = page.locator("#info-register .ox-scope");
   await expect(scope).toBeVisible();
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   expect(overflow, "the register's definitions list overflows the 390px viewport").toBe(false);
 
   const results = await new AxeBuilder({ page })
-    .include(".ox-plate.ox-paper .ox-scope")
+    .include("#info-register .ox-scope")
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
   expect(results.violations.map((v) => `${v.id}: ${v.help}`)).toEqual([]);

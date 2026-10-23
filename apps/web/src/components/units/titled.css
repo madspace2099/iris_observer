@@ -1,0 +1,14 @@
+/*
+ * A SECTION TITLE AND THE `i` AFTER ITS LAST WORD, ON THE STOCK PAGES
+ * (Units, a unit, Meetings, a replay, Features; Máté's video review,
+ * 2026-10-23).
+ *
+ * `.sheet-titled` (`components/sheet/sheet.css`) draws the row: the title runs
+ * inline, so one that wraps carries the `i` on its last line, and the row's
+ * own line-height is zero. Its titles take their line-height from `.sheet`,
+ * which these pages are not, so here a title sets its own; the answer sheets
+ * keep theirs.
+ */
+.ox-page:not(.sheet) .sheet-titled > :is(.ox-section-title, .ox-subhead) {
+  line-height: 1.5;
+}

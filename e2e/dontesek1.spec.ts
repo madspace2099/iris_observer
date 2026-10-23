@@ -87,7 +87,9 @@ test("R04-1 · R07-3 · the shortlist follow-up check is retired on attention an
   await page.goto(`${ROOT}/units`, { waitUntil: "networkidle" });
   const units = await page.locator("main").innerText();
   expect(units).not.toContain("meetings that shortlisted a unit");
-  expect(units).toContain("A unit opened repeatedly and never kept is a question the register cannot show in a column.");
+  /* The one check that remains, raised or clear (clear is one line since 2026-10-23). */
+  expect(units).toContain("High interest, never shortlisted");
+  expect(units).toMatch(/at least 10 observations/);
 });
 
 test("R07-3 · the units page states high interest without a conversion its check does not read, and no lateness", async ({
@@ -97,11 +99,19 @@ test("R07-3 · the units page states high interest without a conversion its chec
   let raised = 0;
   for (const project of ["northgate", "riverside", "ister-tower"]) {
     await page.goto(`/alpha/${project}/units`, { waitUntil: "networkidle" });
-    const region = page.locator("main section.ox-plane").filter({ hasText: "A unit opened repeatedly and never kept" });
+    const region = page.locator("main section.ox-plane").filter({
+      has: page.locator("h2.ox-section-title", { hasText: "High interest, never shortlisted" }),
+    });
     await expect(region, project).toHaveCount(1);
-    const asked = (await region.locator("li.ox-scope-item > span:first-child").allInnerTexts()).map((t) => t.trim());
-    expect(asked, project).toEqual(["Opened repeatedly, never shortlisted"]);
     await expect(region.locator("h2.ox-section-title"), project).toHaveText("High interest, never shortlisted");
+    /* Raised, the question is listed with its answer; clear, it is one line (2026-10-23). */
+    if ((await region.locator("ul.ox-attention").count()) > 0) {
+      const asked = (await region.locator("li.ox-scope-item > span:first-child").allInnerTexts()).map((t) => t.trim());
+      expect(asked, project).toEqual(["Opened repeatedly, never shortlisted"]);
+    } else {
+      await expect(region.locator("p.ox-result"), project).toContainText("Clear");
+      await expect(region.locator("p.ox-result"), project).toContainText(/Asked of \d+ meetings/);
+    }
     expect(await region.innerText(), project).not.toMatch(/conver|no follow-up|overdue|\blate\b/i);
     await expect(region.locator('[aria-label*="conver" i]'), project).toHaveCount(0);
     raised += await region.locator("ul.ox-attention").count();

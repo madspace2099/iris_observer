@@ -1,8 +1,11 @@
 import Link from "next/link";
 import type { PeriodPreset, UnitAttentionPatterns } from "@observer/readmodels";
 
+import { InfoTip } from "@/components/iris/InfoTip";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
+import "@/components/sheet/sheet.css";
+import "@/components/units/titled.css";
 
 /** Two columns where the plane is wide, one where it is not. */
 const COLUMNS = {
@@ -39,15 +42,29 @@ export function UnitPatterns({
       : view.note === null
         ? []
         : [view.note];
+  /*
+   * What the lines cannot say — the method, the demonstration CRM, how a tie
+   * was ordered — stands behind the title's `i` (Máté's video review,
+   * 2026-10-23). The lines, their spans and the flats stay in view.
+   */
+  const behind = [
+    ...view.caveats,
+    ...(view.salesNote === null ? [] : [view.salesNote]),
+    ...(view.tieNote === null ? [] : [view.tieNote]),
+  ];
   return (
     <>
       <div className="ox-section-head">
-        <h2 className="ox-section-title">What the most-opened flats share</h2>
-        {view.caveats.map((caveat) => (
-          <p key={caveat} className="ox-section-note">
-            {caveat}
-          </p>
-        ))}
+        <div className="sheet-titled">
+          <h2 className="ox-section-title">What the most-opened flats share</h2>
+          {behind.length === 0 ? null : (
+            <InfoTip id="most-opened" label="what the most-opened flats share">
+              {behind.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </InfoTip>
+          )}
+        </div>
       </div>
       <div style={COLUMNS}>
         <div style={STACK}>
@@ -69,7 +86,6 @@ export function UnitPatterns({
                 {line}
               </p>
             ))}
-            {view.salesNote === null ? null : <p className="ox-section-note">{view.salesNote}</p>}
             <p className="ox-subhead" style={{ marginTop: ".5rem" }}>
               Most opened, of the period&apos;s {view.meetings} meetings
             </p>
@@ -87,7 +103,6 @@ export function UnitPatterns({
                 </li>
               ))}
             </ul>
-            {view.tieNote === null ? null : <p className="ox-section-note">{view.tieNote}</p>}
           </div>
         )}
       </div>

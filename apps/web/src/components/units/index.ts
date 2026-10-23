@@ -23,7 +23,7 @@
  *   UnitPatterns   what the most-opened flats share, never why (ADR-0051).
  */
 
-export { UnitRegister } from "./UnitRegister";
+export { RegisterGlossary, UnitRegister } from "./UnitRegister";
 export { UnitFunnel } from "./UnitFunnel";
 export { StatusChip } from "./UnitStatus";
 export { DemandAttention } from "./DemandAttention";

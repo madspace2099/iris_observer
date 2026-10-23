@@ -78,6 +78,7 @@ test("Ask Observer answers against the current selection", async ({ page }) => {
  * not belong under this file's mobile skip above — the register is not a
  * desktop-only concept. The interaction it checked (a per-column info button
  * opening a four-fact popover) was also superseded by the current register's
- * own always-present "How to read this register" definitions list, which the
- * new file verifies instead; see that file's docblock for the evidence.
+ * own definitions list — beneath the table until 2026-10-23, now behind the
+ * one `i` beside the register's title — which the new file verifies instead;
+ * see that file's docblock for the evidence.
  */

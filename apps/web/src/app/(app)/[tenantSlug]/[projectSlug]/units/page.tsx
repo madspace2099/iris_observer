@@ -5,15 +5,20 @@ import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { DrawIn } from "@/showroom/DrawIn";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { FindingList, PageHead, StackPlan, Synthetic, Unavailable } from "@/components/product";
 import {
   DemandAttention,
+  RegisterGlossary,
   UNIT_CHECKS,
   UnitPatterns,
   UnitRegister,
   readRegisterQuery,
   type RegisterSearch,
 } from "@/components/units";
+/* `.sheet-titled`: a title and the `i` after its last word, as the answer sheets draw it. */
+import "@/components/sheet/sheet.css";
+import "@/components/units/titled.css";
 
 import { DEFAULT_LANGUAGE } from "@observer/readmodels";
 export const metadata: Metadata = { title: "Units" };
@@ -159,7 +164,7 @@ export default async function UnitsPage({
             ? "No unit catalogue has reached this project yet, so there is no unit to open."
             : `${opened} of ${view.rows.length} units were opened in front of a buyer in ${periodLabel}.`
         }
-        lede="Every flat in the catalogue, with what the showroom recorded against it. The order is yours and it is carried in the address, so the register you are reading is the register you can send. Open a unit code for what IRIS saw happen to that apartment."
+        lede="Every flat in the catalogue, with what the showroom recorded against it."
         crumbs={[{ label: view.context.project.name, href: `${root}/project` }, { label: "Units" }]}
         aside={<Synthetic language={view.context.language} />}
         period={period}
@@ -189,13 +194,19 @@ export default async function UnitsPage({
                * Null is not nought: a delivered catalogue with no observed
                * sessions behind it has not measured the period at all, and a
                * zero would say that nothing sold.
+               *
+               * "Now" says the three are the catalogue's state today, so a
+               * lifetime count is not read as the period's. Where the period's
+               * own sales are not answered the clause is left off rather than
+               * printed as an absence: "not observed" stood two lines above the
+               * conversion lines, which date the period's sales from the CRM
+               * (Máté's video review, 2026-10-23).
                */
               <p className="ox-section-note">
-                The same {pulse.totals.units} flats the register below lists, arranged as the
-                building rather than as a list. {pulse.totals.available} available,{" "}
-                {pulse.totals.reserved} reserved, {pulse.totals.sold} sold
+                {pulse.totals.units} flats now: {pulse.totals.available} available ·{" "}
+                {pulse.totals.reserved} reserved · {pulse.totals.sold} sold
                 {pulse.totals.soldInPeriod === null
-                  ? "; how many of them in this period is not observed yet"
+                  ? ""
                   : `, ${pulse.totals.soldInPeriod} of them in this period`}
                 .
               </p>
@@ -259,7 +270,13 @@ export default async function UnitsPage({
         <div className="ox-plate ox-paper" hidden={view.rows.length === 0}>
           <div className="ox-plate-inner">
             <div className="ox-section-head">
-              <h2 className="ox-section-title">The register</h2>
+              {/* What every column measures, behind the title's `i` (`RegisterGlossary`). */}
+              <div className="sheet-titled">
+                <h2 className="ox-section-title">The register</h2>
+                <InfoTip id="register" label="how to read this register">
+                  <RegisterGlossary />
+                </InfoTip>
+              </div>
               <p className="ox-section-note">
                 Measured in {view.context.period.label}, compared against{" "}
                 {view.context.period.baselineLabel}.

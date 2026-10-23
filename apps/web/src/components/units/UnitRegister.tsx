@@ -61,8 +61,8 @@ import {
  * Every sortable header is a link, so the order survives being sent to somebody
  * else. What it is not is a verdict: `docs/10-policies.md` §6 refuses a rank
  * below the minimum sample, and a table sorted by views would hand the reader
- * one anyway if nothing said otherwise. The note beneath the table says
- * otherwise, in words, next to the definition of every measured column.
+ * one anyway if nothing said otherwise. The register's `i` says otherwise, in
+ * words, beside the definition of every measured column (`RegisterGlossary`).
  *
  * ## Demand is derived and says so in its own heading
  *
@@ -230,7 +230,14 @@ function Demand({
   return (
     <>
       <span className="ox-of">
-        {duration(row.totalDwellSeconds, language)} · {share}% of the busiest unit
+        {duration(row.totalDwellSeconds, language)} · {share}%
+        {/*
+         * The reference is read out everywhere and drawn where the plate has
+         * room: between a phone and 90rem this clause alone pushed the
+         * default-sort column past the plate's edge at 1280 (`units.css`). The
+         * column's definition behind the register's `i` names it as well.
+         */}
+        <span className="ox-units-reference"> of the busiest unit</span>
       </span>
       <div className="ox-track" aria-hidden="true">
         <div className="ox-track-fill" style={{ width: `${share}%` } as CSSProperties} />
@@ -482,50 +489,53 @@ export function UnitRegister({
       )}
 
       {/*
-       * WHAT EVERY COLUMN MEASURES, AND WHAT THE ORDER IS NOT.
-       *
-       * The surface this replaces put an info control beside each heading, and
-       * that property is worth keeping: a register whose columns are
-       * unexplained is a register a reader will interpret rather than read.
-       * `DataColumn.label` is a string and cannot hold a control, so the
-       * definitions are stated once beneath the table instead — reported as a
-       * gap in the shared layer rather than worked around by hand-rolling a
-       * second table.
+       * The columns' definitions stand behind the register's `i`
+       * (`RegisterGlossary`); a count of the flats nobody opened is a figure
+       * about the period, so it stays in view.
        */}
-      <div>
-        <p className="ox-subhead">How to read this register</p>
-        <ul className="ox-scope">
-          {/*
-           * A `<p>` for the definition and a `<span>` for the term. The sheet
-           * gives `.ox-n` `white-space: nowrap`, which is right for a sample
-           * size and wrong for a sentence, and `.ox-section-note` is the
-           * caption-sized ink this system already uses for a definition.
-           */}
-          <li className="ox-scope-item">
-            <span>Order</span>
-            <p className="ox-section-note">
-              The reader&rsquo;s own arrangement, carried in the address. It is not a ranking, and
-              no column here is a verdict about a flat.
-            </p>
-          </li>
-          {COLUMNS.filter((column) => column.note !== null).map((column) => (
-            <li className="ox-scope-item" key={column.key}>
-              <span>{column.label}</span>
-              <p className="ox-section-note">{column.note}</p>
-            </li>
-          ))}
-          {neverOpened === 0 ? null : (
-            <li className="ox-scope-item">
-              <span>Not opened</span>
-              <p className="ox-section-note">
-                {neverOpened} of {rows.length} units were never opened in front of a buyer in{" "}
-                {periodLabel}. That is an observation about the presentation, not a gap in the data;
-                switch the register to every unit in the catalogue to see them.
-              </p>
-            </li>
-          )}
-        </ul>
-      </div>
+      {neverOpened === 0 ? null : (
+        <p className="ox-section-note">
+          {neverOpened} of {rows.length} units were never opened in front of a buyer in{" "}
+          {periodLabel}; switch the register to every unit in the catalogue to see them.
+        </p>
+      )}
     </>
+  );
+}
+
+/**
+ * WHAT EVERY COLUMN MEASURES, AND WHAT THE ORDER IS NOT.
+ *
+ * The surface this replaced put an info control beside each heading, and that
+ * property is worth keeping: a register whose columns are unexplained is a
+ * register a reader will interpret rather than read. `DataColumn.label` is a
+ * string and cannot hold a control, so the definitions are one list, which the
+ * page draws inside the `i` beside the register's title. They stood beneath
+ * the table, always open, until the owner asked for the text around the
+ * figures to move behind an `i` before recording (2026-10-23): a definition
+ * may stand behind one, a figure may not (`InfoTip`).
+ *
+ * A `<p>` for the definition and a `<span>` for the term: the sheet gives
+ * `.ox-n` `white-space: nowrap`, right for a sample size and wrong for a
+ * sentence, and `.ox-section-note` is the caption ink this system already uses
+ * for a definition.
+ */
+export function RegisterGlossary() {
+  return (
+    <ul className="ox-scope">
+      <li className="ox-scope-item">
+        <span>Order</span>
+        <p className="ox-section-note">
+          The reader&rsquo;s own arrangement, carried in the address. It is not a ranking, and no
+          column here is a verdict about a flat.
+        </p>
+      </li>
+      {COLUMNS.filter((column) => column.note !== null).map((column) => (
+        <li className="ox-scope-item" key={column.key}>
+          <span>{column.label}</span>
+          <p className="ox-section-note">{column.note}</p>
+        </li>
+      ))}
+    </ul>
   );
 }

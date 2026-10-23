@@ -103,18 +103,44 @@ export function DemandAttention({
 }) {
   const mine = states.filter((state) => KINDS.includes(state.kind));
   const asked = checks.filter((check) => KINDS.includes(check.kind));
+  const askedOf = sentence(language, DEMAND_ATTENTION_ASKED_SENTENCE, {
+    count: meetingCount,
+    period: periodLabel,
+  });
+
+  /*
+   * A QUESTION ASKED AND ANSWERED CLEAR IS ONE LINE (Máté's video review,
+   * 2026-10-23). It was a title, a note on what the question is for, "Clear"
+   * over "what it asked is below", and the question again with its answer:
+   * four blocks for one fact. The check's own sentence says what was found and
+   * the asked-of sentence its denominator. A check that could not be asked
+   * keeps the full shape below, so "clear" and "could not look" never share
+   * one.
+   */
+  if (mine.length === 0 && asked.length > 0 && asked.every((check) => check.state === "clear")) {
+    return (
+      <section className="ox-plane">
+        <div className="ox-section-head">
+          <h2 className="ox-section-title">High interest, never shortlisted</h2>
+        </div>
+        <AttentionList
+          language={language}
+          alerts={[]}
+          period={period}
+          label="High interest, never shortlisted"
+          emptyNote={`${asked.map((check) => check.reason).join(" ")} ${askedOf}`}
+        />
+      </section>
+    );
+  }
 
   return (
     <section className="ox-plane">
       <div className="ox-section-head">
         <h2 className="ox-section-title">High interest, never shortlisted</h2>
         <p className="ox-section-note">
-          {sentence(language, DEMAND_ATTENTION_ASKED_SENTENCE, {
-            count: meetingCount,
-            period: periodLabel,
-          })}{" "}
-          A unit opened repeatedly and never kept is a question the register cannot show in a
-          column.
+          {askedOf} A unit opened repeatedly and never kept is a question the register cannot show
+          in a column.
         </p>
       </div>
 

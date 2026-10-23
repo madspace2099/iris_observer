@@ -28,10 +28,21 @@ describe("What the most-opened flats share, on Units", () => {
     expect(first).not.toBe("");
     expect(html.indexOf(first)).toBeGreaterThan(-1);
     expect(html.indexOf(sale)).toBeGreaterThan(html.indexOf(first));
-    /* What the sales lines cannot say stands in print beside them, not behind an `i`. */
+    /*
+     * What the lines cannot say — the method, the demonstration CRM — stands
+     * behind the title's `i` (Máté's video review, 2026-10-23), and never in
+     * place of a line: the lines stay in view.
+     */
     const salesNote = view.salesNote ?? "";
     expect(salesNote).toMatch(/demonstration CRM/);
-    expect(html.indexOf(salesNote)).toBeGreaterThan(html.indexOf(sale));
+    const from = html.indexOf('id="info-most-opened"');
+    expect(from).toBeGreaterThan(-1);
+    /* The panel holds paragraphs only, so its first closing div is its own. */
+    const panel = html.slice(from, html.indexOf("</div>", from));
+    expect(panel.indexOf(salesNote)).toBeGreaterThan(-1);
+    expect(panel.indexOf(view.caveats[0] ?? "?")).toBeGreaterThan(-1);
+    expect(panel).not.toContain(first);
+    expect(panel).not.toContain(sale);
     /* A text section on an ox- page: the page's own section head, and no chart card. */
     expect(html).toContain('<h2 class="ox-section-title">What the most-opened flats share</h2>');
     expect(html).not.toContain("d-card");

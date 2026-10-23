@@ -15,3 +15,34 @@
     height: 32px;
   }
 }
+
+/*
+ * THE REGISTER BETWEEN A PHONE AND 90REM (Máté's video review, 2026-10-23).
+ *
+ * At 1280×720 the twelve columns ran 92px past the plate and the default-sort
+ * column, Demand signal, was cut mid-word with nothing saying the table
+ * scrolled. Its width was the headings', which never wrapped: here they may,
+ * and the cell keeps its time and share while "of the busiest unit" is read
+ * out rather than drawn. The column's definition, behind the register's `i`,
+ * names the reference.
+ */
+@media screen and (48rem < width < 90rem) {
+  .ox-units-page .ox-table thead th {
+    white-space: normal;
+  }
+
+  .ox-units-page .ox-units-reference {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* The definitions in the register's `i`: the term over its sentence, in the panel's measure. */
+.ox-units-page .iris-info-panel .ox-scope-item {
+  flex-direction: column;
+  gap: 0.125rem;
+}
