@@ -3,11 +3,22 @@
  *
  * The criteria's column was never narrower than 21rem (336px), inside 256px at
  * 360: the whole page scrolled 28px sideways and the unit control ran off the
- * screen. The column now gives way to its container. Scoped to this page; on a
- * wide screen nothing moves.
+ * screen. The column now gives way to its container. Scoped to this page.
+ *
+ * And on a desk (Máté's video review, 2026-10-23): in a third of the row the
+ * five room choices folded into a ragged two-line pill, "Four-room" alone on
+ * the second line, at 1440 and 1280. The unit criterion now takes the width
+ * its choices need and the strength of interest the rest; below 64rem each
+ * criterion has the row to itself.
  */
 .iris-audiencepage .iris-criteria {
-  grid-template-columns: repeat(auto-fit, minmax(min(21rem, 100%), 1fr));
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (width >= 64rem) {
+  .iris-audiencepage .iris-criteria {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
 }
 
 /*
@@ -31,5 +42,51 @@
     border-radius: 1rem;
     text-align: center;
     white-space: nowrap;
+  }
+}
+
+/* The kickers read at 12px (`.iris-kicker-measured`); the list's column heads at the same floor. */
+.iris-audiencepage .iris-matrix-head {
+  font-size: 0.75rem;
+}
+
+/*
+ * EVERY ROW NAMES ITS AGENT, AT EVERY WIDTH (Máté's video review, 2026-10-23).
+ *
+ * Below 75rem the shared list hid the agent column, so on every phone and
+ * tablet no row named who ran the meeting while the note under the list said
+ * each one did. Between a phone and 75rem the column comes back on a narrower
+ * track; on a phone the agent stands on the row's first line, between the
+ * date and the outcome, and the reason takes the line under them.
+ */
+@media (max-width: 75rem) {
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-head,
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-row {
+    grid-template-columns: 5rem 9.5rem minmax(0, 1fr) 10rem;
+  }
+
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-head > :nth-child(2),
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-row > :nth-child(2) {
+    display: block;
+  }
+
+  /* The reason a row matched is its claim: on the narrower track it wraps rather than ending in "…". */
+  .iris-audiencepage .iris-matrix[data-columns="audience"] .iris-audience-why .iris-bar-label {
+    white-space: normal;
+  }
+}
+
+@container matrix (max-width: 40rem) {
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-head {
+    display: none;
+  }
+
+  /* A name is never cut on a phone: it wraps beside its face rather than ending in "…". */
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-row > :nth-child(2) {
+    white-space: normal;
   }
 }

@@ -110,7 +110,7 @@ export default async function AudiencePage({
   return (
     <div className="iris-one iris-audiencepage">
       <section className="iris-plane iris-stack">
-        <p className="iris-kicker">Audience · {view.context.period.label}</p>
+        <p className="iris-kicker iris-kicker-measured">Audience · {view.context.period.label}</p>
         <h1 className="iris-section">
           {view.ofMeetings === 0
             ? (nothingReceivedYet(view.context) ??
@@ -125,7 +125,7 @@ export default async function AudiencePage({
 
         <div className="iris-criteria">
           <div>
-            <p className="iris-kicker">Unit</p>
+            <p className="iris-kicker iris-kicker-measured">Unit</p>
             <div className="iris-segmented" role="tablist" aria-label="Unit type">
               <Link
                 prefetch={false}
@@ -150,7 +150,7 @@ export default async function AudiencePage({
           </div>
 
           <div>
-            <p className="iris-kicker">Strength of interest</p>
+            <p className="iris-kicker iris-kicker-measured">Strength of interest</p>
             <div className="iris-segmented" role="tablist" aria-label="Strength of interest">
               <Link
                 prefetch={false}
@@ -172,7 +172,9 @@ export default async function AudiencePage({
           </div>
 
           <div style={{ gridColumn: "1 / -1" }}>
-            <p className="iris-kicker">Spent at least {seconds}s on places of this kind</p>
+            <p className="iris-kicker iris-kicker-measured">
+              Spent at least {seconds}s on places of this kind
+            </p>
             <div className="iris-mode-strip">
               <Link
                 prefetch={false}
