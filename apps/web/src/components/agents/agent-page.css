@@ -1,0 +1,204 @@
+/*
+ * AN AGENT'S PAGE, ONE SCREEN AT A TIME (the owner, 2026-10-23, ADR-0061).
+ *
+ * The page's blocks are `.screen`s (`components/screens/screens.css`): each as
+ * tall as the viewport under the sticky chrome, so the next starts below the
+ * fold. What a screen holds stands in the middle of it, its drawing at the
+ * screen's scale. Every rule is scoped to the page's own `ag-detail` root.
+ */
+
+.ag-detail .ag-screens {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ox-major);
+  min-width: 0;
+}
+
+/* Every screen after the head keeps the body's inset (`.ox-body`). */
+.ag-detail .ag-screen {
+  justify-content: center;
+  gap: var(--ox-major);
+  padding-inline: var(--ox-inset);
+}
+
+/* --- who they are: the head in the middle of its screen, the face large --- */
+
+.ag-detail .ag-who {
+  justify-content: center;
+}
+
+.ag-detail .ag-who .ag-portrait[data-size="head"] {
+  --ag-size: clamp(4rem, 2.5rem + 4vw, 7rem);
+}
+
+.ag-detail .ag-who .ag-titled {
+  gap: clamp(0.875rem, 0.5rem + 1vw, 1.5rem);
+}
+
+/* --- a section's title and its `i` on one line ------------------------------ */
+
+.ag-detail .ag-head {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/*
+ * Activity: the counts across the screen, then follow-up and the outcomes they
+ * recorded side by side, each its subhead, its figures and the absence beside
+ * them. The plate's eight children keep their order (R13-3 reads them so); the
+ * grid only places them.
+ */
+@media (width >= 64rem) {
+  .ag-detail .ag-activity {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--ox-section) var(--ox-major);
+  }
+
+  .ag-detail .ag-activity > :nth-child(-n + 2) {
+    grid-column: 1 / -1;
+  }
+
+  .ag-detail .ag-activity > :nth-child(n + 3):nth-child(-n + 5) {
+    grid-column: 1;
+  }
+
+  .ag-detail .ag-activity > :nth-child(n + 6) {
+    grid-column: 2;
+  }
+
+  .ag-detail .ag-activity > :is(:nth-child(3), :nth-child(6)) {
+    grid-row: 3;
+    margin-top: var(--ox-inner);
+  }
+
+  .ag-detail .ag-activity > :is(:nth-child(4), :nth-child(7)) {
+    grid-row: 4;
+  }
+
+  .ag-detail .ag-activity > :is(:nth-child(5), :nth-child(8)) {
+    grid-row: 5;
+  }
+}
+
+/* The screen's figures read first: the counts at the type scale's Figure size. */
+.ag-detail .ag-activity .ox-figure {
+  font-size: clamp(1.625rem, 1rem + 1.4vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+/*
+ * The apartments: the units beside where else they present, from a desktop
+ * window; the register's refusal and its way out close the screen under both.
+ */
+@media (width >= 64rem) {
+  .ag-detail .ag-units-plate {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(16rem, 1fr);
+    gap: var(--ox-major);
+    align-items: start;
+  }
+
+  .ag-detail .ag-units-plate > :not(.ag-units, .ag-elsewhere) {
+    grid-column: 1 / -1;
+  }
+}
+
+.ag-detail :is(.ag-units, .ag-elsewhere) {
+  display: grid;
+  gap: var(--ox-section);
+  min-width: 0;
+}
+
+/* --- two charts on a screen -------------------------------------------------- */
+
+.ag-detail .ag-pair {
+  display: grid;
+  gap: var(--ox-major);
+}
+
+@media (width >= 64rem) {
+  .ag-detail .ag-pair {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  /* A pair's cards take the screen's height, so the drawings are the screen's. */
+  .ag-detail .ag-pair > .ag-frame {
+    min-height: min(calc(var(--screen-h) - 4rem), 40rem);
+  }
+}
+
+/*
+ * The weekly line is drawn 360 units tall on a wide card (`wideHeight`): the
+ * shared 11rem cap would letterbox it, its 12px ticks shrunk with it.
+ */
+.ag-detail .ag-frame .iris-trend {
+  max-height: none;
+}
+
+/* What their buyers opened: the rows spread down the card, the marks on longer tracks. */
+@media (width >= 40rem) {
+  .ag-detail .ag-frame .iris-paired-row {
+    padding-block: clamp(0.5rem, calc((var(--screen-h) - 30rem) / 10), 1.375rem);
+  }
+}
+
+/* A chart's card: its title, face and `i` on one line, the drawing in the middle of what is left. */
+.ag-detail .ag-frame > .ox-chart-plot {
+  flex: 1 0 auto;
+  display: grid;
+  align-content: center;
+}
+
+.ag-detail .ag-frame-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* The ring as the screen's drawing, its key beside it where the card is wide enough. */
+.ag-detail .ag-ring {
+  display: grid;
+  justify-items: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.ag-detail .ag-ring .iris-ring {
+  max-width: 100%;
+  height: auto;
+}
+
+@container (width >= 34rem) {
+  .ag-detail .ag-ring {
+    grid-template-columns: auto minmax(0, 15rem);
+    justify-content: center;
+    column-gap: 2.5rem;
+  }
+
+  .ag-detail .ag-ring > .iris-ring-key {
+    width: 100%;
+  }
+}
+
+/* The key at Body size beside a ring drawn this large. */
+.ag-detail .ag-ring .iris-ring-key li {
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+}
+
+/* What a spoke measures, behind the shape's `i`: one per line, the name first. */
+.ag-detail .iris-info-panel .iris-axis-key {
+  display: grid;
+  gap: 0.375rem;
+  margin: 0.5rem 0 0;
+}
+
+/* The findings and the reading note close the page, in the middle of their screen. */
+.ag-detail .ag-closing {
+  padding-inline: 0;
+}
