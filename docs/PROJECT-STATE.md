@@ -6538,13 +6538,14 @@ and the read models' presenter ids.
   `portraitSources` once and reuses one address per agent.
 - **Read models.** `MeetingSummary`, `MeetingReplay` and `AudienceMatch` carry `agentId`; `RankedRow`
   and `TextRow` may (the longest presentations, the lens's nearest). Ids, never faces.
-- **Requests.** The portrait route now answers `private, max-age=3600, immutable` (refusals stay
-  no-store): on the demo's build a first load of Sales Agents fetched faces twice and every load
-  fetched all five again. On a loopback server with the static renders: one request per face per
-  load, none on a reload; 36 faces on Sales Flow are 4 requests (and Iva's initials none).
-- **Not done.** Ask's answers (the answer contract is frozen and carries no presenter id); the
-  IRIS-led sales legend and table (MOTION's page this round); a unit's timeline (a line of text).
-  Briefing and Attention name no presenter.
+- **Requests.** The portrait route answers `private, no-cache` with an ETag of the picture, and a
+  matching `If-None-Match` a bodiless 304 after the session and project checks (refusals stay
+  no-store). Measured on a loopback page (a preload and nine `<img>` a face): one request per face on
+  a first load, none on a client-side navigation, a 304 per face on a reload. 36 faces on Sales Flow
+  are 4 requests (Iva's initials none).
+- **Not done.** Ask's answers (the answer contract is frozen and carries no presenter id); IRIS-led
+  sales' "Shown by" column (a face each doubled every row; the key above it has them); a unit's
+  timeline (a line of text). Briefing and Attention name no presenter.
 
 **Verified.** Typecheck clean; eslint and prettier clean on every changed file. New
 `packages/synthetic/test/presenter-ids.test.ts` (each id is the presenter its row names, and no
@@ -6556,17 +6557,33 @@ initials from `data-initials`, the new cache header, and count faces in Presenta
 only. Static renders (the real pages, the synthetic repository, the product stylesheets, headless
 Chromium; Shark with Iva on initials, Northgate on initials only) at 1440×900, 1280×720, 390×844 and
 360×780, looked at: no sideways scroll, no face squashed, overlapping, clipped or under 12px; in
-print no face drawn. Sales Flow's screens are no taller with the faces at 1440 and 1280 (the
-change cards and the nearest list use the 20px face; the longest presentations' name column grew
-by the face's width so each line stays whole); on a phone the agents, the not-interested and the
-presentations screens grow by 20–89px and are read through as before. The register at 1280 already
-scrolled sideways inside its table by 45px; the face adds 31px to that (names wrap rather than
-widen it). **Not looked at on a running page** (the demo serves `be3ac396`). Full unit suite (after
-`pnpm release:wrappers`): 294 files, 5385 passed, 1 skipped, 1 failed — `no-secret-recipes`, which
-needs a web build (environmental).
+print no face drawn. On a phone the agents, the not-interested and the presentations screens grow
+by 20–89px and are read through as before. (Two claims of this paragraph were wrong and review
+round 1 corrected them, below.) **Not looked at on a running page** (the demo serves `be3ac396`).
+Full unit suite (after `pnpm release:wrappers`): 294 files, 5385 passed, 1 skipped, 1 failed —
+`no-secret-recipes`, which needs a web build (environmental).
 
-**Next recommended action.** Cherry-pick with AGENTS and MOTION, build, and on the demo as Clara at
-1440×900 look at Sales Flow's agents, lens and presentations screens, the register, a unit, a
-replay (as Daniel), Presentation and the report; count `/api/observer/portraits` requests in the
-network panel across a reload (expected: none). Then give the IRIS-led legend its faces on top of
-MOTION's change.
+**Review round 1** (two adversarial reviewers, seven findings, two of them reported twice; all five
+confirmed, none rejected; ADR-0054's table). Measured on the demo's build with this round's
+stylesheet and markup applied in a Playwright browser only: (1) the agents' outcome rows' 32px face
+widened the shared name column by 42px, wrapped Iva Horváth's counts (803px needed, 838 left) and
+took Sales Flow's agents screen from 771 to 798px at 1440×900 — past one panel, so one wheel turn
+was no longer one screen. They now wear the 20px face on the name's line: 771px, every row its old
+height; 1280 was already taller than its view (843 → 844 from the cards). (2) The register at
+1280×720 overflowed its frame by 45px before the faces and 76 with them; between a phone and 90rem
+its cells keep 7px a side, and `scrollWidth == clientWidth` at 1280 (1366, 1440, 390, 360 flush).
+(3) IRIS-led sales: faces in the key (initials tinted by the presenter's colour); the table's names
+stay text. (4) In print a marked name's grid put name and count side by side (rows, ranked rows,
+DNA lanes): a print rule after them restores the unmarked layout, checked under print media.
+(5) `private, max-age=3600, immutable` kept a face an hour past sign-out, a revoked grant and its
+removal; now `private, no-cache` + ETag + 304 after the checks (`portrait-access.test.ts`: a 304
+bodiless, a replaced picture 200, signed out 401). Typecheck, eslint and prettier clean on every
+changed file. Full unit suite, once, on the committed tree (after `pnpm release:wrappers`): 294
+files, 5386 passed, 1 skipped, 1 failed — `no-secret-recipes`, whose auditor reports the tree and
+history clean and fails only for want of a web build (environmental).
+
+**Next recommended action.** Cherry-pick with AGENTS and MOTION (MOTION may wrap the IRIS-led
+legend's line in `DrawIn`; keep both changes), build, and on the demo as Clara at 1440×900 scroll
+Sales Flow screen by screen (each one wheel turn), then the register at 1280×720, a unit, a replay
+(as Daniel), Presentation, IRIS-led sales and the report; across a reload `/api/observer/portraits`
+answers 304s only.
