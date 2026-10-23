@@ -185,7 +185,8 @@ const SECTION_OF: Readonly<Record<string, string>> = {
   showroom: "ask",
   attention: "ask",
   flow: "flow",
-  audience: "flow",
+  /* Opened from Project's room types; under Sales Flow it underlined the wrong section (review round 8). */
+  audience: "project",
   overview: "flow",
   people: "flow",
   project: "project",
