@@ -77,6 +77,7 @@ export function UnitPatterns({
               {view.top.map((flat) => (
                 <li key={flat.unitCode}>
                   <Link
+                    prefetch={false}
                     className="ox-toggle"
                     href={dynamicRoute(withPeriod(flat.href, period))}
                     aria-label={`${flat.unitCode}, opened in ${String(flat.meetings)} of ${String(view.meetings)} meetings`}

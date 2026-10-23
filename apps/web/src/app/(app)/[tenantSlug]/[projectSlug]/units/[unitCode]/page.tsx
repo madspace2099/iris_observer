@@ -199,7 +199,9 @@ export default async function UnitPage({
     key: meeting.meetingId,
     cells: {
       meeting: canOpenMeeting ? (
-        <Link href={dynamicRoute(withPeriod(meeting.href, period))}>{meeting.label}</Link>
+        <Link prefetch={false} href={dynamicRoute(withPeriod(meeting.href, period))}>
+          {meeting.label}
+        </Link>
       ) : (
         meeting.label
       ),
@@ -574,6 +576,7 @@ export default async function UnitPage({
                   <div className="ox-stage" key={competitor.unitCode} role="listitem">
                     <span className="ox-stage-label">
                       <Link
+                        prefetch={false}
                         href={dynamicRoute(withPeriod(`${base}/${competitor.unitCode}`, period))}
                       >
                         {competitor.unitCode}

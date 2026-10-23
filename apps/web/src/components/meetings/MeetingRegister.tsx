@@ -138,6 +138,7 @@ function Units({
           </span>
         ) : (
           <Link
+            prefetch={false}
             className="ox-evidence"
             key={unit.code}
             href={dynamicRoute(withPeriod(unit.href, period))}
@@ -231,7 +232,14 @@ export function MeetingRegister({
     ...(index === PHONE_PAGE ? { id: MORE_ANCHOR } : {}),
     cells: {
       when: canOpen ? (
-        <Link href={dynamicRoute(withPeriod(withMeetingFilters(row.href, filters), period))}>
+        /*
+         * No viewport prefetch on a register's rows: 150 meetings and their
+         * units sent 233 page renders as the register scrolled by (ADR-0062).
+         */
+        <Link
+          prefetch={false}
+          href={dynamicRoute(withPeriod(withMeetingFilters(row.href, filters), period))}
+        >
           {row.label}
           <span className="ox-sr"> — open this meeting</span>
         </Link>

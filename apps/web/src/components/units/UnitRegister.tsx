@@ -369,6 +369,8 @@ export function UnitRegister({
     const cells: Readonly<Record<string, ReactNode>> = {
       code: (
         <Link
+          /* No viewport prefetch on a register's rows (ADR-0062). */
+          prefetch={false}
           /*
            * The register the reader built travels with them.
            *

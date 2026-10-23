@@ -120,6 +120,7 @@ export function AttentionList({
 
           {alert.actionHref === null || alert.actionLabel === null ? null : (
             <Link
+              prefetch={false}
               className="ox-btn"
               data-weight={alert.severity === "critical" ? "primary" : undefined}
               href={dynamicRoute(withPeriod(alert.actionHref, period))}

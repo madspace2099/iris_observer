@@ -233,7 +233,11 @@ export function Evidence({
   }
 
   return (
-    <Link className="ox-evidence" href={dynamicRoute(withPeriod(evidence.href, period))}>
+    <Link
+      prefetch={false}
+      className="ox-evidence"
+      href={dynamicRoute(withPeriod(evidence.href, period))}
+    >
       {words}
     </Link>
   );

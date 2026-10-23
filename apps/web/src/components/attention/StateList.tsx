@@ -193,6 +193,7 @@ export function StateList({
                         <span className="ox-n">{subject.label}</span>
                       ) : (
                         <Link
+                          prefetch={false}
                           className="ox-toggle"
                           href={dynamicRoute(withPeriod(subject.href, period))}
                         >
@@ -246,6 +247,7 @@ export function StateList({
            */}
           {state.alert.actionHref === null || state.alert.actionLabel === null ? null : (
             <Link
+              prefetch={false}
               className="ox-btn"
               {...(state.alert.severity === "critical" ? { "data-weight": "primary" } : {})}
               href={dynamicRoute(withPeriod(state.alert.actionHref, period))}

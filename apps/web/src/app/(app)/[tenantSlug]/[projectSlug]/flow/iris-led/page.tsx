@@ -193,7 +193,9 @@ export default async function IrisLedPage({
                         sale.unitHref === null ? (
                           sale.unitCode
                         ) : (
-                          <Link href={link(sale.unitHref)}>{sale.unitCode}</Link>
+                          <Link prefetch={false} href={link(sale.unitHref)}>
+                            {sale.unitCode}
+                          </Link>
                         ),
                       change: (
                         <>
@@ -229,7 +231,7 @@ export default async function IrisLedPage({
                             {sale.showings.map((showing) => (
                               <li key={showing.meetingId}>
                                 {canOpen ? (
-                                  <Link href={link(showing.meetingHref)}>
+                                  <Link prefetch={false} href={link(showing.meetingHref)}>
                                     {showing.dateDisplay}
                                   </Link>
                                 ) : (
@@ -267,7 +269,9 @@ export default async function IrisLedPage({
                           {sale.unitHref === null ? (
                             sale.unitCode
                           ) : (
-                            <Link href={link(sale.unitHref)}>{sale.unitCode}</Link>
+                            <Link prefetch={false} href={link(sale.unitHref)}>
+                              {sale.unitCode}
+                            </Link>
                           )}
                         </span>
                         <span>

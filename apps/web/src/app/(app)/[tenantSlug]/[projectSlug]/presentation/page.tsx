@@ -114,6 +114,7 @@ export default async function PresentationPage({
           <div className="iris-segmented" role="tablist" aria-label="Comparison mode">
             {MODES.map((m) => (
               <Link
+                prefetch={false}
                 key={m.id}
                 role="tab"
                 aria-selected={mode === m.id}

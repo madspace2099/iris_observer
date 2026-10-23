@@ -123,7 +123,7 @@ export function IrisLedTimeline({
                   {sale.unitHref === null ? (
                     sale.unitCode
                   ) : (
-                    <Link href={dynamicRoute(withPeriod(sale.unitHref, period))}>
+                    <Link prefetch={false} href={dynamicRoute(withPeriod(sale.unitHref, period))}>
                       {sale.unitCode}
                     </Link>
                   )}
@@ -162,6 +162,7 @@ export function IrisLedTimeline({
                   );
                   return canOpen ? (
                     <Link
+                      prefetch={false}
                       key={showing.meetingId}
                       className="ir-led-dot"
                       data-last={last ? "true" : undefined}

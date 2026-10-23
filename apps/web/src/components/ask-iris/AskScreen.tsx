@@ -750,6 +750,7 @@ export function AskOpeningList({
                * gives the answer an address on the way.
                */}
               <Link
+                prefetch={false}
                 className="ask-opening"
                 href={dynamicRoute(askLink(root, periodParam, { q: suggestion }))}
               >
@@ -996,6 +997,7 @@ export function AskConversationPanel({
                   <ul className="ask-follow">
                     <li>
                       <Link
+                        prefetch={false}
                         className="ask-follow-item"
                         href={dynamicRoute(
                           askLink(root, periodParam, {
@@ -1028,6 +1030,7 @@ export function AskConversationPanel({
                     {session.suggestions.map((suggestion) => (
                       <li key={suggestion}>
                         <Link
+                          prefetch={false}
                           className="ask-follow-item"
                           href={dynamicRoute(askLink(root, periodParam, { q: suggestion }))}
                         >
@@ -1073,6 +1076,7 @@ export function AskConversationPanel({
                             </span>
                           ) : (
                             <Link
+                              prefetch={false}
                               className="ask-evidence-link"
                               href={dynamicRoute(
                                 withPeriod(answer.evidence.href, presetFrom(periodParam)),
@@ -1096,6 +1100,7 @@ export function AskConversationPanel({
                       ) : (
                         <li>
                           <Link
+                            prefetch={false}
                             className="ask-evidence-link"
                             href={dynamicRoute(
                               withPeriod(answer.actionHref, presetFrom(periodParam)),
@@ -1113,6 +1118,7 @@ export function AskConversationPanel({
                       {answer.followUps.map((followUp) => (
                         <li key={followUp}>
                           <Link
+                            prefetch={false}
                             className="ask-follow-item"
                             href={dynamicRoute(askLink(root, periodParam, { q: followUp }))}
                           >

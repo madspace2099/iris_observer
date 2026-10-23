@@ -81,7 +81,11 @@ export function RoomCompare({
           {view.columns.map((c) => (
             <span role="cell" key={c.id}>
               {c.audienceHref === null ? null : (
-                <Link className="iris-action" href={dynamicRoute(hrefFor(c.audienceHref))}>
+                <Link
+                  prefetch={false}
+                  className="iris-action"
+                  href={dynamicRoute(hrefFor(c.audienceHref))}
+                >
                   Build an audience
                   <span className="pr-for"> of {c.label.toLowerCase()} buyers</span>
                 </Link>

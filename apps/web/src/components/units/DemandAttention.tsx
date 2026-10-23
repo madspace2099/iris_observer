@@ -176,6 +176,7 @@ export function DemandAttention({
                     <span className="ox-n">{subject.label}</span>
                   ) : (
                     <Link
+                      prefetch={false}
                       className="ox-toggle"
                       href={dynamicRoute(withPeriod(subject.href, period))}
                     >

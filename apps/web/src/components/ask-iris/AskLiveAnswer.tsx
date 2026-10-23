@@ -211,6 +211,7 @@ export function AskLiveAnswer({
                         {followUps.map((next) => (
                           <li key={next}>
                             <Link
+                              prefetch={false}
                               className="ask-follow-item"
                               href={dynamicRoute(askLink(root, periodParam, { q: next }))}
                             >
@@ -263,6 +264,7 @@ export function AskLiveAnswer({
                                 <span className="ask-evidence-link">{words}</span>
                               ) : (
                                 <Link
+                                  prefetch={false}
                                   className="ask-evidence-link"
                                   href={dynamicRoute(
                                     withPeriod(bundle.href, presetFrom(periodParam)),
@@ -280,6 +282,7 @@ export function AskLiveAnswer({
                               <span className="ask-figure-note">{action.label}</span>
                             ) : (
                               <Link
+                                prefetch={false}
                                 className="ask-evidence-link"
                                 href={dynamicRoute(
                                   withPeriod(action.href, presetFrom(periodParam)),
@@ -298,6 +301,7 @@ export function AskLiveAnswer({
                         {followUps.map((next) => (
                           <li key={next}>
                             <Link
+                              prefetch={false}
                               className="ask-follow-item"
                               href={dynamicRoute(askLink(root, periodParam, { q: next }))}
                             >

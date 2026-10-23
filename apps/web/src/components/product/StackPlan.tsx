@@ -317,5 +317,10 @@ function Cell({
     return <span {...attributes} role="img" />;
   }
 
-  return <Link {...attributes} href={dynamicRoute(withPeriod(href, period))} />;
+  /*
+   * No viewport prefetch: a stacking plan is sixty links on screen at once,
+   * each a unit page the server would render (ADR-0062). A click still goes
+   * straight there.
+   */
+  return <Link {...attributes} prefetch={false} href={dynamicRoute(withPeriod(href, period))} />;
 }

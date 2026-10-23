@@ -99,6 +99,7 @@ export function Pairings({
     cells: {
       pair: (
         <Link
+          prefetch={false}
           href={dynamicRoute(
             withPeriod(
               withMeetingFilters(meetingsHref, {

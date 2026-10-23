@@ -128,6 +128,7 @@ export function FindingList({
             <Sample n={finding.sampleSize} noun={noun(finding.sampleSize)} />
             {finding.nextStep === null ? null : (
               <Link
+                prefetch={false}
                 className="ox-btn"
                 data-weight="quiet"
                 href={dynamicRoute(withPeriod(finding.nextStep.href, period))}

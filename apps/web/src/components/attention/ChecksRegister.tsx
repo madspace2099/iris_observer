@@ -124,7 +124,11 @@ export function ChecksRegister({
               {alert === undefined || alert.actionHref === null || alert.actionLabel === null ? (
                 NO_STEP[check.state]
               ) : (
-                <Link className="ox-link" href={dynamicRoute(withPeriod(alert.actionHref, period))}>
+                <Link
+                  prefetch={false}
+                  className="ox-link"
+                  href={dynamicRoute(withPeriod(alert.actionHref, period))}
+                >
                   {alert.actionLabel}
                 </Link>
               )}

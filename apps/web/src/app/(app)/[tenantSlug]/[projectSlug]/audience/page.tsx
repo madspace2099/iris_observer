@@ -128,6 +128,7 @@ export default async function AudiencePage({
             <p className="iris-kicker">Unit</p>
             <div className="iris-segmented" role="tablist" aria-label="Unit type">
               <Link
+                prefetch={false}
                 role="tab"
                 aria-selected={rooms === null}
                 href={dynamicRoute(qs({ rooms: null }))}
@@ -136,6 +137,7 @@ export default async function AudiencePage({
               </Link>
               {view.roomChoices.map((o) => (
                 <Link
+                  prefetch={false}
                   key={o.rooms}
                   role="tab"
                   aria-selected={rooms === o.rooms}
@@ -151,6 +153,7 @@ export default async function AudiencePage({
             <p className="iris-kicker">Strength of interest</p>
             <div className="iris-segmented" role="tablist" aria-label="Strength of interest">
               <Link
+                prefetch={false}
                 role="tab"
                 aria-selected={favouritedOnly}
                 href={dynamicRoute(qs({ all: null }))}
@@ -158,6 +161,7 @@ export default async function AudiencePage({
                 Shortlisted it
               </Link>
               <Link
+                prefetch={false}
                 role="tab"
                 aria-selected={!favouritedOnly}
                 href={dynamicRoute(qs({ all: "1" }))}
@@ -171,6 +175,7 @@ export default async function AudiencePage({
             <p className="iris-kicker">Spent at least {seconds}s on places of this kind</p>
             <div className="iris-mode-strip">
               <Link
+                prefetch={false}
                 className="iris-chip"
                 aria-current={category === null ? "true" : undefined}
                 href={dynamicRoute(qs({ category: null }))}
@@ -179,6 +184,7 @@ export default async function AudiencePage({
               </Link>
               {PLACE_CATEGORIES.map((c) => (
                 <Link
+                  prefetch={false}
                   key={c}
                   className="iris-chip"
                   aria-current={category === c ? "true" : undefined}
@@ -242,6 +248,7 @@ export default async function AudiencePage({
               );
               return canOpen ? (
                 <Link
+                  prefetch={false}
                   className="iris-matrix-row"
                   key={m.meetingId}
                   href={dynamicRoute(withPeriod(m.href, presetFrom(search.period)))}

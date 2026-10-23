@@ -397,7 +397,11 @@ async function ProjectReport({
           rows={meetings.rows.slice(0, 5).map((row) => ({
             key: row.meetingId,
             cells: {
-              meeting: <Link href={link(row.href)}>{row.label}</Link>,
+              meeting: (
+                <Link prefetch={false} href={link(row.href)}>
+                  {row.label}
+                </Link>
+              ),
               agent: <AgentName name={row.agentName} src={portraits[row.agentId] ?? null} />,
               started: row.startedDisplay,
               outcome: row.outcomeLabel,

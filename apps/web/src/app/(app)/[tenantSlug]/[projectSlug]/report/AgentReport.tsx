@@ -179,7 +179,11 @@ export async function AgentReport({
   const unitRows: readonly DataRow[] = view.commonUnits.map((unit) => ({
     key: unit.unitCode,
     cells: {
-      unit: <Link href={link(unit.href)}>{unit.unitCode}</Link>,
+      unit: (
+        <Link prefetch={false} href={link(unit.href)}>
+          {unit.unitCode}
+        </Link>
+      ),
       meetings: ofTheirs(unit.meetings),
       share: <ShareFigure share={unit.share} {...floor} qualifier={words.ofTheirMeetings} />,
       favourites:
