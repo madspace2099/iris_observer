@@ -61,18 +61,34 @@
 
 /* --- a section's title and its `i` on one line ------------------------------ */
 
+/*
+ * The title runs inline and the `i` follows its last word: as flex items, a
+ * title wider than the line took the line and the `i` dropped to one of its
+ * own on every phone ("The apartments they keep opening", review, round 9).
+ * The row breaks only inside the title.
+ */
 .ag-detail .ag-head {
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 0.5rem;
+  display: block;
+  white-space: nowrap;
+}
+
+.ag-detail .ag-head > :not(.iris-info) {
+  white-space: normal;
+}
+
+.ag-detail .ag-head > .ox-section-title {
+  display: inline;
+}
+
+.ag-detail .ag-head > .iris-info {
+  margin-left: 0.5rem;
+  vertical-align: 0.125em;
 }
 
 /* A screen's one line under its title: an absence (review round), or the reading note. */
 .ag-detail .ag-head > :is(.ag-unreferenced, .ag-head-note) {
-  flex-basis: 100%;
   max-width: none;
-  margin: 0;
+  margin: 0.5rem 0 0;
 }
 
 /*
@@ -151,36 +167,112 @@
  *
  * The shared sheet turns a row into a record that names every column
  * (`observer-product.css`): a unit took 185px and Lena's own page ran to
- * seventeen screens at 360. The records stay records, each figure beside its
- * name, closer together; a unit's share drops the "of their meetings" its own
- * label already says. Every column and figure stays.
+ * seventeen screens at 360, and closer records still left a unit three
+ * labelled lines and a meeting seven (review, round 9). A unit is one line
+ * again: the apartments' table keeps its head and its four columns, which fit
+ * a phone. A meeting is its date over one flowing line of name-and-figure
+ * pairs. Every column, name and figure stays.
  */
 @media screen and (width <= 48rem) {
-  .ag-detail :is(.ag-units, #agent-meetings) .ox-table tr {
-    padding: 0.5rem 0.75rem;
-  }
-
   /* Three insets nested inside 360px left a record 216px: the plate's own gives some back. */
   .ag-detail :is(#agent-units, #agent-meetings) .ox-plate-inner {
     padding-inline: 0.75rem;
   }
 
-  .ag-detail :is(.ag-units, #agent-meetings) .ox-table td {
-    padding-block: 0;
+  .ag-detail .ag-units .ox-table {
+    display: table;
   }
 
-  .ag-detail :is(.ag-units, #agent-meetings) .ox-table td.ox-table-code {
+  .ag-detail .ag-units .ox-table caption:not(.ox-sr) {
+    display: table-caption;
+    padding: var(--ox-inner) 0.375rem;
+  }
+
+  .ag-detail .ag-units .ox-table thead {
+    position: static;
+    display: table-header-group;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+  }
+
+  .ag-detail .ag-units .ox-table tbody {
+    display: table-row-group;
+  }
+
+  .ag-detail .ag-units .ox-table tr {
+    display: table-row;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .ag-detail .ag-units .ox-table :is(th, td) {
+    display: table-cell;
+    padding: 0.5rem 0.1875rem;
+    vertical-align: bottom;
+    box-shadow: 0 -1px 0 var(--ox-line-hair);
+  }
+
+  .ag-detail .ag-units .ox-table :is(th, td):first-child {
+    padding-inline-start: 0.375rem;
+  }
+
+  .ag-detail .ag-units .ox-table :is(th, td):last-child {
+    padding-inline-end: 0.375rem;
+  }
+
+  .ag-detail .ag-units .ox-table th {
+    white-space: normal;
+    letter-spacing: 0;
+    line-height: 1rem;
+  }
+
+  .ag-detail .ag-units .ox-table td {
+    vertical-align: baseline;
+  }
+
+  .ag-detail .ag-units .ox-table td.ox-table-code {
+    font-size: inherit;
+  }
+
+  .ag-detail .ag-units .ox-table .ox-figure {
+    font-size: 1rem;
+  }
+
+  .ag-detail .ag-units .ox-table :is(th, td)[data-label]::before {
+    content: none;
+  }
+
+  /* The share column is the third of four, its own head says "of their meetings". */
+  .ag-detail .ag-units .ox-table tr:has(> td:nth-child(4)) > td:nth-child(3) .ox-of {
+    display: none;
+  }
+
+  .ag-detail #agent-meetings .ox-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.125rem 1rem;
+    padding: 0.5rem 0.625rem;
+  }
+
+  /* A name and its figure move to the next line together, unless the pair is wider than the line. */
+  .ag-detail #agent-meetings .ox-table td {
+    flex: 0 0 auto;
+    max-width: 100%;
+    justify-content: flex-start;
+    padding: 0;
+    font-size: 0.875rem;
+  }
+
+  .ag-detail #agent-meetings .ox-table td.ox-table-code {
+    flex-basis: 100%;
     padding-bottom: 0.125rem;
   }
 
-  /* A name and its figure on one line: the names' tracking is what pushed the figures under them. */
-  .ag-detail :is(.ag-units, #agent-meetings) .ox-table td[data-label]::before {
-    letter-spacing: 0.02em;
-  }
-
-  /* The share column is the third of four; under the floor it is not drawn at all. */
-  .ag-detail .ag-units .ox-table tr:has(> td:nth-child(4)) > td:nth-child(3) .ox-of {
-    display: none;
+  .ag-detail #agent-meetings .ox-table td[data-label]::before {
+    margin-inline-end: 0;
+    letter-spacing: 0;
   }
 }
 
@@ -288,7 +380,7 @@
  * review, 2026-10-23). The card's inset and the rows close up; every stop,
  * figure and team median stays.
  */
-@media (width >= 64rem) and (height <= 760px) {
+@media (width >= 64rem) and (height <= 860px) {
   .ag-detail .ag-frame {
     padding-block: 1rem;
   }
@@ -309,6 +401,20 @@
   /* Their eight recent meetings: 653px on the same window, so the rows close up too. */
   .ag-detail #agent-meetings .ox-table :is(th, td) {
     padding-block: 0.375rem;
+  }
+
+  /*
+   * Activity, for a presenter with no purchase or reservation recorded: each
+   * zero states itself in a sentence, and the screen was 632px in 591 at
+   * 1280 × 720 with the two absences under the fold (review, round 9). The
+   * groups stand closer; every figure and absence stays.
+   */
+  .ag-detail .ag-activity {
+    row-gap: 0.5rem;
+  }
+
+  .ag-detail .ag-activity > :is(:nth-child(3), :nth-child(6)) {
+    margin-top: 0;
   }
 }
 
