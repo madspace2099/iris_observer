@@ -68,17 +68,6 @@ export default async function Projects() {
     projects.map((project) => ({ tenant, project })),
   );
 
-  /*
-   * One project is no choice: it opens, as signing in does. A chooser of one
-   * row was a mostly empty frame, reached from settings' "Projects" link
-   * (review round 8). An administrator keeps the page, which carries "New
-   * project".
-   */
-  const [only] = cards;
-  if (cards.length === 1 && only !== undefined && viewer.role !== "madspace_admin") {
-    redirect(dynamicRoute(`/${only.tenant.slug}/${only.project.slug}/${HOME_SEGMENT}`));
-  }
-
   async function signOut(): Promise<void> {
     "use server";
     const store = await cookies();
@@ -130,14 +119,13 @@ export default async function Projects() {
         </div>
       </header>
 
-      <main className="irs-main" id="main" tabIndex={-1}>
+      <main className="irs-main os-chooser" id="main" tabIndex={-1}>
         <div className="os-column">
           <div className="ox-head">
             <div className="ox-head-text">
               <p className="ox-kicker">{viewer.organisationName}</p>
               <h1 className="ox-title">Projects</h1>
               <p className="ox-lede">
-                Select the project you want to open in Observer.{" "}
                 {cards.length === 1 ? "1 project" : `${cards.length} projects`} available to your
                 account.
               </p>

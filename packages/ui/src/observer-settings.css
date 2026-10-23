@@ -51,6 +51,16 @@
   min-width: 0;
 }
 
+/*
+ * The project chooser stands in the middle of the frame: one or two rows at
+ * the top of an empty one read as a page that did not load (review round 8).
+ * A longer list starts at the top as before.
+ */
+.irs-main.os-chooser {
+  display: grid;
+  align-content: center;
+}
+
 /**
  * THE HEAD STANDS ON THE SAME LEFT EDGE AS THE PANELS.
  *
