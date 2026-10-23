@@ -664,9 +664,11 @@
  * was 799px tall, its links under the fold and three wheel turns inside one
  * screen (the owner's review, 2026-10-23). The ring smaller, the rows closer
  * and the links tighter; every row and figure stays. The ring's caption is set
- * larger in its own units, so it still shows at 12px.
+ * larger in its own units, so it still shows at 12px. Up to 899px: the full
+ * cards need 767px of screen, and 1440 × 880 or 1536 × 864 cut their links
+ * (review, round 9).
  */
-@media (width >= 64rem) and (height <= 860px) {
+@media (width >= 64rem) and (height < 900px) {
   [data-charts="d"] .ag-page .d-card.ag-card {
     row-gap: 0.5rem;
     padding: 12px 14px;
@@ -795,8 +797,9 @@
     margin-top: 0;
   }
 
+  /* A year with every presenter drawn and none under the floor was 773px in 771 (review, round 9). */
   .ag-page .ag-coaching .ag-coach-rows > li {
-    padding-block: 0.625rem;
+    padding-block: 0.5rem;
   }
 }
 
@@ -816,7 +819,7 @@
 }
 
 /* A short desktop window: the statement on one line and the screen's gaps closer, so it fits 591px. */
-@media (width >= 64rem) and (height <= 860px) {
+@media (width >= 64rem) and (height < 900px) {
   .ag-page .ag-workload {
     gap: 0.75rem;
   }
@@ -834,13 +837,13 @@
   }
 
   /*
-   * Coaching: 875px in 591 at 1280 × 720 (review, round 9). The rows close up,
+   * Coaching: 875px in 591 at 1280 × 720, and a year 596 (review, round 9). The rows close up,
    * the lanes of a crowded row sit nearer, and who stands at each end reads
    * along the whole row under its label and track, one line rather than two.
    */
   .ag-page .ag-coaching .ag-coach-rows > li {
     row-gap: 0.25rem;
-    padding-block: 0.25rem;
+    padding-block: 0.125rem;
   }
 
   .ag-page .ag-coaching .ag-coach-end .ag-portrait {

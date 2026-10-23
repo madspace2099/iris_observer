@@ -305,6 +305,17 @@
     align-self: center;
     min-height: 0;
   }
+
+  /*
+   * The shape a sentence, the running order beside it takes the width: at half,
+   * its title and three stops' lines wrapped and the screen was 613px in 591
+   * at 1280 × 720 (review, round 9).
+   */
+  .ag-detail
+    #agent-presenting
+    .ag-pair:has(> .ag-frame:first-child > .ox-chart-plot > .ox-chart-note:only-child) {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  }
 }
 
 /*
@@ -378,9 +389,10 @@
  * A short desktop window (1280 × 720 leaves 591px under the chrome): the
  * running order was 744px tall, cut at its eighth stop on arrival (the owner's
  * review, 2026-10-23). The card's inset and the rows close up; every stop,
- * figure and team median stays.
+ * figure and team median stays. Up to 899px: the full layout needs about
+ * 900, and at 861–897 it was cut at the screen's foot (review, round 9).
  */
-@media (width >= 64rem) and (height <= 860px) {
+@media (width >= 64rem) and (height < 900px) {
   .ag-detail .ag-frame {
     padding-block: 1rem;
   }

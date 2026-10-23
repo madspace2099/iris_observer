@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import {
   NotFoundError,
   NotPermittedError,
+  type MetricValue,
   type PeriodPreset,
   DEFAULT_LANGUAGE,
 } from "@observer/readmodels";
@@ -318,6 +319,16 @@ export default async function AgentPage({
     </div>
   );
 
+  /*
+   * Under the floor a count's tile says how far short in four words ("14 of 20
+   * needed", `Figure`'s own); the read model's sentence, the same on three
+   * tiles, is the activity `i`'s, once. Three copies ran the screen to 630px in
+   * 591 at 1280 × 720 in a completed quarter (review, round 9).
+   */
+  const floorNote = view.activity.find((m) => m.state === "insufficient")?.message ?? null;
+  const short = (metric: MetricValue): MetricValue =>
+    metric.state === "insufficient" ? { ...metric, message: null } : metric;
+
   return (
     <div className="ox-page ag-detail iris-screens">
       <div className="ag-screens">
@@ -392,6 +403,7 @@ export default async function AgentPage({
               <div className="ox-section-head ag-head">
                 <h2 className="ox-section-title">Activity in this period</h2>
                 <InfoTip id="agent-activity" label="these figures">
+                  {floorNote === null ? null : <p>{floorNote}</p>}
                   <p>
                     Counts, a median and a coverage share. A count is never suppressed: the sample
                     size is the figure a reader most needs when it is small.
@@ -440,7 +452,7 @@ export default async function AgentPage({
                   <TallyItem
                     key={metric.metricId}
                     label={metric.label}
-                    value={<Figure language={view.context.language} value={metric} />}
+                    value={<Figure language={view.context.language} value={short(metric)} />}
                     evidence={
                       metric.evidence === null ? null : (
                         <Evidence
