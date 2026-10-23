@@ -120,11 +120,12 @@ describe("sales flow", () => {
   it("never compares a partial current window to a full prior one", async () => {
     // Whichever fallback fired for today's fixture, the label on the
     // comparison period must say so when it is not a complete window —
-    // "Last week"/"Last month" bare, or "..., first N days" when clipped.
+    // "Last week"/"Last month" bare, or "..., first N days" when clipped
+    // ("..., first day" for one, never "first 1 day").
     const flow = await syntheticRepository.getSalesFlow(QUERY);
     for (const p of flow.periods) {
       if (p.id === "last_week" || p.id === "last_month") {
-        expect(p.label).toMatch(/^Last (week|month)(, first \d+ days?)?$/);
+        expect(p.label).toMatch(/^Last (week|month)(, first (day|([2-9]|\d{2,}) days))?$/);
       }
     }
   });

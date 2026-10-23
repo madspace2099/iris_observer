@@ -63,7 +63,7 @@ describe("the trend line's x labels", () => {
       createElement(TrendLine, {
         points,
         valueLabel: "Meetings per week",
-        annotation: { index: 3, text: "±7 against the week before" },
+        annotation: { index: 3, text: "+7 against the week before" },
       }),
     );
     const phone = html.slice(html.indexOf('data-size="l"'));
@@ -71,7 +71,7 @@ describe("the trend line's x labels", () => {
     expect(xLabels(phone)[0]?.length).toBeLessThanOrEqual(4);
     expect(phone).not.toContain('class="iris-trend-note"');
     expect(phone).toContain(
-      '<p class="iris-trend-caption">27 Jul · ±7 against the week before</p>',
+      '<p class="iris-trend-caption">27 Jul · +7 against the week before</p>',
     );
   });
 });
