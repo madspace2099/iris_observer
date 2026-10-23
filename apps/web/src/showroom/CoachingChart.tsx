@@ -7,6 +7,8 @@ import type { PresenterEnd, PresenterRow } from "@observer/readmodels";
 import { AgentPortrait } from "@/components/agents/Portrait";
 import { dynamicRoute } from "@/lib/href";
 
+import { DrawIn } from "./DrawIn";
+
 /**
  * HOW DO THE AGENTS DIFFER: ONE CHART, AND A KEY THAT WORKS (ADR-0057).
  *
@@ -122,7 +124,8 @@ export function CoachingChart({
                 <em>{p.meetings}</em>
               </span>
             </button>
-            <Link href={dynamicRoute(p.href)} title="Agent page">
+            {/* No viewport prefetch: a click still goes straight there (ADR-0061). */}
+            <Link prefetch={false} href={dynamicRoute(p.href)} title="Agent page">
               <span aria-hidden="true">→</span>
               <span className="ox-sr">Agent page for {p.name}</span>
             </Link>
@@ -140,45 +143,48 @@ export function CoachingChart({
             <span>100%</span>
           </span>
         </div>
-        <ol className="ag-coach-rows">
-          {rows.map((row) => (
-            <li
-              key={row.id}
-              data-named={row.ends === null ? undefined : "true"}
-              style={{ "--lanes": row.lanes } as CSSProperties}
-            >
-              <span className="ag-coach-label">{row.label}</span>
-              {/* Pointer detail: the screen reader's summary beside the chart carries every figure. */}
-              <span className="ag-coach-track" aria-hidden="true">
-                {shown.map((p) => {
-                  const mark = row.marks.find((m) => m.agentId === p.id);
-                  return mark === undefined ? null : (
-                    <i
-                      key={p.id}
-                      data-lifted={p.id === lift ? "true" : undefined}
-                      title={`${p.name}: ${mark.display}`}
-                      style={
-                        {
-                          "--at": mark.share,
-                          "--lane": mark.lane,
-                          "--tone": p.tone,
-                        } as CSSProperties
-                      }
-                    >
-                      {p.id === lift ? <b>{mark.display}</b> : null}
-                    </i>
-                  );
-                })}
-              </span>
-              {row.ends === null ? null : (
-                <p className="ag-coach-ends">
-                  <End end={row.ends.high} people={byId} />
-                  <End end={row.ends.low} people={byId} />
-                </p>
-              )}
-            </li>
-          ))}
-        </ol>
+        {/* The rows sweep in from 0% when their screen arrives, once (ADR-0061). */}
+        <DrawIn kind="sweep">
+          <ol className="ag-coach-rows">
+            {rows.map((row) => (
+              <li
+                key={row.id}
+                data-named={row.ends === null ? undefined : "true"}
+                style={{ "--lanes": row.lanes } as CSSProperties}
+              >
+                <span className="ag-coach-label">{row.label}</span>
+                {/* Pointer detail: the screen reader's summary beside the chart carries every figure. */}
+                <span className="ag-coach-track" aria-hidden="true">
+                  {shown.map((p) => {
+                    const mark = row.marks.find((m) => m.agentId === p.id);
+                    return mark === undefined ? null : (
+                      <i
+                        key={p.id}
+                        data-lifted={p.id === lift ? "true" : undefined}
+                        title={`${p.name}: ${mark.display}`}
+                        style={
+                          {
+                            "--at": mark.share,
+                            "--lane": mark.lane,
+                            "--tone": p.tone,
+                          } as CSSProperties
+                        }
+                      >
+                        {p.id === lift ? <b>{mark.display}</b> : null}
+                      </i>
+                    );
+                  })}
+                </span>
+                {row.ends === null ? null : (
+                  <p className="ag-coach-ends">
+                    <End end={row.ends.high} people={byId} />
+                    <End end={row.ends.low} people={byId} />
+                  </p>
+                )}
+              </li>
+            ))}
+          </ol>
+        </DrawIn>
       </div>
     </div>
   );

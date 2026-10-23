@@ -560,3 +560,149 @@
     display: grid;
   }
 }
+
+/* --- one screen at a time (the owner, 2026-10-23, ADR-0061) -----------------
+ *
+ * Each block is a `.screen` (`components/screens/screens.css`): as tall as the
+ * viewport under the sticky chrome, so the next starts below the fold. What a
+ * screen holds is drawn in its middle, at the screen's scale.
+ */
+
+/* The verdict, alone and large (ADR-0048), the two tabs under it. */
+.ag-page .ag-verdict {
+  justify-content: center;
+  gap: 2rem;
+  padding: 2rem 0;
+}
+
+.ag-page .ag-verdict .iris-spoken {
+  grid-template-columns: 72px minmax(0, 1fr);
+  column-gap: 1.5rem;
+}
+
+.ag-page .ag-verdict .iris-spoken-mark {
+  width: 72px;
+  height: 72px;
+}
+
+.ag-page .ag-verdict .iris-spoken-line {
+  max-width: 30ch;
+  font-size: clamp(1.75rem, 0.9rem + 2.6vw, 3.5rem);
+  line-height: 1.14;
+}
+
+.ag-page .ag-verdict .iris-segmented {
+  align-self: flex-start;
+}
+
+/* The presenters, every card on one line from a desktop window, in the middle of the screen. */
+.ag-page :is(.ag-cards, .ag-workload, .ag-findings, .ag-coaching) {
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+@media (width >= 64rem) {
+  [data-charts="d"] .ag-page .ag-roster {
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+
+  /* A card's rows a little closer, so five cards and a flag fit 1440 × 900. */
+  [data-charts="d"] .ag-page .d-card.ag-card {
+    row-gap: 0.75rem;
+  }
+}
+
+/*
+ * Five cards on a line in a 1280 window leave each 211px: the card's own
+ * padding narrows to a phone's, so a name and "Follow-up needed" keep one line.
+ */
+@media (64rem <= width < 90rem) {
+  [data-charts="d"] .ag-page .d-card.ag-card {
+    padding: 16px;
+  }
+
+  [data-charts="d"] .ag-page .d-card.ag-card .ag-card-head h3 {
+    font-size: 18px;
+  }
+}
+
+/*
+ * Presentations given and the first meetings: the rows spread down the
+ * screen, the bars thicker, as on Sales Flow's ranked screens (ADR-0059).
+ */
+@media (width >= 40rem) {
+  .ag-page .ag-workload .iris-ranked li {
+    padding-block: clamp(0.5rem, calc((var(--screen-h) - 30rem) / 12), 1.25rem);
+  }
+
+  .ag-page .ag-workload .iris-ranked-track {
+    height: 12px;
+  }
+
+  .ag-page .ag-workload .iris-ranked-name {
+    font-size: 1rem;
+  }
+
+  .ag-page .ag-workload .ag-repeats .iris-bars {
+    gap: clamp(0.75rem, calc((var(--screen-h) - 28rem) / 8), 1.75rem);
+  }
+
+  [data-charts="d"] .ag-page .ag-workload .ag-repeats .iris-bar-track {
+    height: 12px;
+  }
+}
+
+/*
+ * Coaching on one screen: the question, its answer and the key down the left,
+ * the chart the screen's height beside them. The key stays the chart's
+ * control; who is under the floor and the source close the card under both
+ * columns, so nothing is read after the chart and painted above its end.
+ */
+@media (width >= 75rem) {
+  .ag-page .ag-coaching .ag-coach {
+    grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    column-gap: 2.5rem;
+    align-content: start;
+  }
+
+  .ag-page .ag-coaching .ag-coach > * {
+    grid-column: 1 / -1;
+  }
+
+  .ag-page .ag-coaching .ag-coach > :is(header, .ag-coach-headline) {
+    grid-column: 1;
+  }
+
+  .ag-page .ag-coaching .ag-coach-chart {
+    display: contents;
+  }
+
+  .ag-page .ag-coaching .ag-coach-key {
+    grid-column: 1;
+    display: grid;
+    align-content: start;
+    gap: 0.25rem;
+  }
+
+  .ag-page .ag-coaching .ag-coach-key li {
+    justify-content: space-between;
+  }
+
+  .ag-page .ag-coaching .ag-coach-plot {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+    margin-top: 0;
+  }
+
+  .ag-page .ag-coaching .ag-coach-rows > li {
+    padding-block: 0.625rem;
+  }
+}
+
+/* The findings close the page: the lead finding's sentence is the screen's headline. */
+.ag-page .ag-findings .iris-finding[data-lead] .iris-finding-statement {
+  max-width: 36ch;
+  font-size: clamp(1.375rem, 0.9rem + 1.3vw, 2.125rem);
+  line-height: 1.2;
+}
