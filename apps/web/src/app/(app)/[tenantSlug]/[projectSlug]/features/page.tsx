@@ -7,6 +7,7 @@ import { requireSurface } from "@/lib/authz";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { presetFrom } from "@/lib/period";
+import { DrawIn } from "@/showroom/DrawIn";
 import {
   Evidence,
   FindingList,
@@ -364,49 +365,51 @@ export default async function FeaturesPage({
             </p>
           </div>
 
-          <Tally>
-            <TallyItem
-              label="Presentations recorded"
-              value={<KeyCount n={meetingsTotal} />}
-              evidence={
-                <Evidence
-                  language={view.context.language}
-                  evidence={view.evidence}
-                  period={period}
-                />
-              }
-            />
-            <TallyItem
-              label="Features IRIS can present"
-              value={<KeyCount n={SHOWROOM_SECTIONS.length} />}
-            />
-            <TallyItem
-              label="Core to a complete presentation"
-              value={<KeyCount n={CORE_SECTION_IDS.length} of={SHOWROOM_SECTIONS.length} />}
-            />
-            {/* A share of no presentations is "0 of 0", which is a denominator of nothing. */}
-            {recorded ? (
+          <DrawIn kind="bloom">
+            <Tally>
               <TallyItem
-                label="Presentations that moved the light or the weather"
-                value={
-                  <KeyCount
-                    n={view.environment.meetingsUsingEnvironment}
-                    of={view.environment.meetingsTotal}
+                label="Presentations recorded"
+                value={<KeyCount n={meetingsTotal} />}
+                evidence={
+                  <Evidence
+                    language={view.context.language}
+                    evidence={view.evidence}
+                    period={period}
                   />
                 }
               />
-            ) : null}
-            {/*
-             * R10-1: the total screenshot count gets a place. A plain count, on
-             * the presentations the first cell counts, so its base is named.
-             */}
-            {recorded ? (
               <TallyItem
-                label="Screenshots taken in the presentations recorded"
-                value={<KeyCount n={view.screenshots} />}
+                label="Features IRIS can present"
+                value={<KeyCount n={SHOWROOM_SECTIONS.length} />}
               />
-            ) : null}
-          </Tally>
+              <TallyItem
+                label="Core to a complete presentation"
+                value={<KeyCount n={CORE_SECTION_IDS.length} of={SHOWROOM_SECTIONS.length} />}
+              />
+              {/* A share of no presentations is "0 of 0", which is a denominator of nothing. */}
+              {recorded ? (
+                <TallyItem
+                  label="Presentations that moved the light or the weather"
+                  value={
+                    <KeyCount
+                      n={view.environment.meetingsUsingEnvironment}
+                      of={view.environment.meetingsTotal}
+                    />
+                  }
+                />
+              ) : null}
+              {/*
+               * R10-1: the total screenshot count gets a place. A plain count, on
+               * the presentations the first cell counts, so its base is named.
+               */}
+              {recorded ? (
+                <TallyItem
+                  label="Screenshots taken in the presentations recorded"
+                  value={<KeyCount n={view.screenshots} />}
+                />
+              ) : null}
+            </Tally>
+          </DrawIn>
 
           {/*
            * ONE STATEMENT FOR THE REGION, NOT ONE PER FIGURE.

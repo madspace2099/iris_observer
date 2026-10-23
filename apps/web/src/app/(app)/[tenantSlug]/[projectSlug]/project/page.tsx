@@ -172,15 +172,17 @@ export default async function ProjectPage({
 
         {/* --- the plan, and where the project stands against it (ADR-0055) --- */}
 
-        <SalesPlanBlock
-          key={`plan-${query.period}`}
-          plan={charts.plan}
-          role={viewer.role}
-          tenant={view.context.tenant}
-          tenantSlug={tenantSlug}
-          projectSlug={projectSlug}
-          crmConnected={view.context.project.connectedSources.includes("crm")}
-        />
+        {/* Each card's marks grow in as it comes into view (ADR-0062). */}
+        <DrawIn kind="fill" key={`plan-${query.period}`}>
+          <SalesPlanBlock
+            plan={charts.plan}
+            role={viewer.role}
+            tenant={view.context.tenant}
+            tenantSlug={tenantSlug}
+            projectSlug={projectSlug}
+            crmConnected={view.context.project.connectedSources.includes("crm")}
+          />
+        </DrawIn>
 
         <hr className="iris-rule" />
 
@@ -199,27 +201,35 @@ export default async function ProjectPage({
           </div>
         ) : (
           <>
-            <RoomTypes view={roomTypes}>
-              <SourceChips
-                sources={
-                  crm
-                    ? ["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]
-                    : ["IRIS_SHOWROOM_OBSERVED"]
-                }
-              />
-            </RoomTypes>
+            <DrawIn kind="fill">
+              <RoomTypes view={roomTypes}>
+                <SourceChips
+                  sources={
+                    crm
+                      ? ["IRIS_SHOWROOM_OBSERVED", "CRM_OUTCOME_CONTEXT"]
+                      : ["IRIS_SHOWROOM_OBSERVED"]
+                  }
+                />
+              </RoomTypes>
+            </DrawIn>
 
-            <RoomReadings view={roomTypes}>
-              <SourceChips
-                sources={
-                  crm ? ["IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"] : ["IRIS_SHOWROOM_DERIVED"]
-                }
-              />
-            </RoomReadings>
+            <DrawIn kind="fill">
+              <RoomReadings view={roomTypes}>
+                <SourceChips
+                  sources={
+                    crm
+                      ? ["IRIS_SHOWROOM_DERIVED", "CRM_OUTCOME_CONTEXT"]
+                      : ["IRIS_SHOWROOM_DERIVED"]
+                  }
+                />
+              </RoomReadings>
+            </DrawIn>
 
-            <RoomCompare view={roomTypes} hrefFor={(href) => withPeriod(href, query.period)}>
-              <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
-            </RoomCompare>
+            <DrawIn kind="fill">
+              <RoomCompare view={roomTypes} hrefFor={(href) => withPeriod(href, query.period)}>
+                <SourceChips sources={["IRIS_SHOWROOM_OBSERVED"]} />
+              </RoomCompare>
+            </DrawIn>
           </>
         )}
 

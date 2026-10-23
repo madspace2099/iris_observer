@@ -4,6 +4,7 @@ import { requireSurface } from "@/lib/authz";
 import { presetFrom } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { DrawIn } from "@/showroom/DrawIn";
 import { FindingList, PageHead, StackPlan, Synthetic, Unavailable } from "@/components/product";
 import {
   DemandAttention,
@@ -209,14 +210,16 @@ export default async function UnitsPage({
               period={period}
             />
           ) : (
-            <StackPlan
-              language={view.context.language}
-              floors={pulse.floors}
-              unitHrefs={unitHrefs}
-              period={period}
-              buildingLabel={pulse.buildingLabel}
-              peakViews={pulse.peakViews}
-            />
+            <DrawIn kind="floors">
+              <StackPlan
+                language={view.context.language}
+                floors={pulse.floors}
+                unitHrefs={unitHrefs}
+                period={period}
+                buildingLabel={pulse.buildingLabel}
+                peakViews={pulse.peakViews}
+              />
+            </DrawIn>
           )}
         </section>
 

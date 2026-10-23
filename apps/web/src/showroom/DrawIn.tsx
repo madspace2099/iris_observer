@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
+import "./draw-in.css";
 
 /**
  * THE DATA DRAWS IN, ONCE.
@@ -32,8 +33,15 @@ import { useEffect, useRef, type ReactNode } from "react";
  * and every rule the entry needed lets go. That matters for the turn: its conic
  * mask clips to the drawing's box, and left in place at rest it cut the ring's
  * glow off in a square.
+ *
+ * ## Two more kinds (ADR-0062)
+ *
+ * `fill` grows the marks inside a block from their start while its words and
+ * figures stand from the first frame; `floors` raises a stacking plan from the
+ * ground floor up. Their frames are in `draw-in.css`, beside this file; the
+ * mechanism above is unchanged.
  */
-export type DrawKind = "sweep" | "turn" | "bloom" | "rise" | "grow";
+export type DrawKind = "sweep" | "turn" | "bloom" | "rise" | "grow" | "fill" | "floors";
 
 /** The longest entry, the turn's 1200ms, with room to finish; the heat cells end by 1000ms. */
 const PLAY_MS = 1500;

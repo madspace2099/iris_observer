@@ -11,6 +11,7 @@ import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
+import { DrawIn } from "@/showroom/DrawIn";
 import "@/components/sheet/sheet.css";
 
 export const metadata: Metadata = { title: "Attention" };
@@ -144,17 +145,19 @@ export default async function AttentionPage({
          * asked" never look alike, and each figure says what it is out of.
          */}
         <section className="ox-plane" aria-label="Every check’s answer, counted">
-          <dl className="sheet-figures">
-            {ATTENTION_CHECK_STATES.map((state) => (
-              <div className="sheet-figure" key={state} data-state={state}>
-                <dt>{STATE_WORDS[state]}</dt>
-                <dd>
-                  <span className="sheet-n">{view.tally[state]}</span>
-                  <span className="sheet-of">of {asked} checks</span>
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <DrawIn kind="bloom">
+            <dl className="sheet-figures">
+              {ATTENTION_CHECK_STATES.map((state) => (
+                <div className="sheet-figure" key={state} data-state={state}>
+                  <dt>{STATE_WORDS[state]}</dt>
+                  <dd>
+                    <span className="sheet-n">{view.tally[state]}</span>
+                    <span className="sheet-of">of {asked} checks</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </DrawIn>
         </section>
 
         {/* --- what was raised. A conclusion, so it stays on graphite. ---- */}

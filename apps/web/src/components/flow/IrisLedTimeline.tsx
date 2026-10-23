@@ -114,10 +114,15 @@ export function IrisLedTimeline({
   return (
     <figure className="ir-led-figure">
       <ol className="ir-led-rows" aria-label="Sales shown in IRIS before their status changed">
-        {view.sales.map((sale) => {
+        {view.sales.map((sale, row) => {
           const lastIndex = sale.showings.length - 1;
           return (
-            <li className="ir-led-row" key={sale.id}>
+            <li
+              className="ir-led-row"
+              key={sale.id}
+              /* The row's place in a `fill` entrance's stagger (ADR-0062). */
+              style={{ "--i": row } as CSSProperties}
+            >
               <div className="ir-led-head">
                 <span className="ir-led-unit">
                   {sale.unitHref === null ? (

@@ -36,6 +36,7 @@ import {
 import { PrintPage } from "@/components/report";
 import { omittedFrom, printedSections } from "@/components/report/omit";
 import { CellBar, OutcomeMix, OutcomeSwatch } from "@/components/report/ReportCharts";
+import { DrawIn } from "@/showroom/DrawIn";
 import {
   Count,
   ReportCover,
@@ -216,50 +217,55 @@ async function ProjectReport({
   const content: Readonly<Record<string, ReactNode>> = {
     "period-summary": (
       <>
-        <Tally>
-          <TallyItem label={words.meetingsInPeriod} value={String(flow.meetingCount)} />
-          {/* Today and yesterday, where the period holds them: outside it they have no count. */}
-          {flow.periods
-            .slice(0, 2)
-            .filter((window) => window.inPeriod)
-            .map((window) => (
-              <TallyItem
-                key={window.id}
-                label={words.windowMeetings(window.label)}
-                /* Its own box: two bare strings in the tile's flex row ran together as "2median". */
-                value={<span>{window.meetings}</span>}
-                delta={words.median(window.medianDurationDisplay)}
-              />
-            ))}
-        </Tally>
+        {/* On screen the figures and the marks draw in as they arrive; print is never kept waiting (ADR-0062). */}
+        <DrawIn kind="bloom">
+          <Tally>
+            <TallyItem label={words.meetingsInPeriod} value={String(flow.meetingCount)} />
+            {/* Today and yesterday, where the period holds them: outside it they have no count. */}
+            {flow.periods
+              .slice(0, 2)
+              .filter((window) => window.inPeriod)
+              .map((window) => (
+                <TallyItem
+                  key={window.id}
+                  label={words.windowMeetings(window.label)}
+                  /* Its own box: two bare strings in the tile's flex row ran together as "2median". */
+                  value={<span>{window.meetings}</span>}
+                  delta={words.median(window.medianDurationDisplay)}
+                />
+              ))}
+          </Tally>
+        </DrawIn>
         <FindingList findings={flow.findings} period={period} language={language} />
       </>
     ),
     "presentation-coverage":
       agents.teamSections.length === 0 ? null : (
-        <DataTable
-          captionHidden
-          caption={coverageCaption}
-          columns={[
-            { key: "section", label: words.coverageColumns[0] },
-            { key: "share", label: words.coverageColumns[1], numeric: true },
-            { key: "dwell", label: words.coverageColumns[2], numeric: true },
-          ]}
-          rows={agents.teamSections.map((section) => ({
-            key: section.sectionId,
-            cells: {
-              section: section.label,
-              share: (
-                <span className="ox-bar-value">
-                  <CellBar value={section.teamShare} max={widestShare} />
-                  {pct(section.teamShare)}
-                </span>
-              ),
-              dwell: section.teamDwellDisplay,
-            },
-          }))}
-          period={period}
-        />
+        <DrawIn kind="fill">
+          <DataTable
+            captionHidden
+            caption={coverageCaption}
+            columns={[
+              { key: "section", label: words.coverageColumns[0] },
+              { key: "share", label: words.coverageColumns[1], numeric: true },
+              { key: "dwell", label: words.coverageColumns[2], numeric: true },
+            ]}
+            rows={agents.teamSections.map((section) => ({
+              key: section.sectionId,
+              cells: {
+                section: section.label,
+                share: (
+                  <span className="ox-bar-value">
+                    <CellBar value={section.teamShare} max={widestShare} />
+                    {pct(section.teamShare)}
+                  </span>
+                ),
+                dwell: section.teamDwellDisplay,
+              },
+            }))}
+            period={period}
+          />
+        </DrawIn>
       ),
     "unit-demand": (
       <DataTable
@@ -334,11 +340,13 @@ async function ProjectReport({
     outcomes: (
       <>
         <div className="ox-report-chart">
-          <OutcomeMix
-            slices={flow.outcomes}
-            id="project-outcomes"
-            label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
-          />
+          <DrawIn kind="fill">
+            <OutcomeMix
+              slices={flow.outcomes}
+              id="project-outcomes"
+              label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
+            />
+          </DrawIn>
           <DataTable
             captionHidden
             caption={words.outcomesCaption}
@@ -368,9 +376,11 @@ async function ProjectReport({
         </div>
         {/* The ladder's intro and its note are the section's notes, at the back. */}
         {flow.ladder.source === "crm" ? (
-          <div className="ox-report-ladder">
-            <FlowLadder stages={flow.ladder.stages} noun="deals" language={language} />
-          </div>
+          <DrawIn kind="fill">
+            <div className="ox-report-ladder">
+              <FlowLadder stages={flow.ladder.stages} noun="deals" language={language} />
+            </div>
+          </DrawIn>
         ) : null}
       </>
     ),

@@ -159,8 +159,13 @@ export function StackPlan({
           and its fill is how much buyer attention it drew in this period.
         </p>
 
-        {floors.map((floor) => (
-          <div className="ox-stack-floor" key={floor.label}>
+        {floors.map((floor, index) => (
+          <div
+            className="ox-stack-floor"
+            key={floor.label}
+            /* From the ground: the order a `floors` entry raises them in (ADR-0062). */
+            style={{ "--i": floors.length - 1 - index } as CSSProperties}
+          >
             <span className="ox-stack-label">{floor.label}</span>
             <div className="ox-stack-units">
               {floor.units.map((unit) => (

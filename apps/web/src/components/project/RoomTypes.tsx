@@ -120,7 +120,7 @@ export function RoomTypes({
                   key={t.id}
                   data-type={t.id}
                   data-on={focus === t.id ? "true" : undefined}
-                  style={{ "--pr-hue": hueOf(i) } as CSSProperties}
+                  style={{ "--pr-hue": hueOf(i), "--i": i } as CSSProperties}
                   onPointerEnter={() => setFocus(t.id)}
                   onPointerLeave={() => setFocus(null)}
                 >

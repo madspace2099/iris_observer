@@ -1,6 +1,7 @@
 import type { MeetingReplay, PeriodPreset, ReplayStep } from "@observer/readmodels";
 
 import { Tally, TallyItem, Timeline, type TimelineStep } from "@/components/product";
+import { DrawIn } from "@/showroom/DrawIn";
 import { STEP_EVENTS, STEP_LABEL_NAMES_ENTITY } from "./vocabulary";
 
 /**
@@ -129,42 +130,45 @@ export function MeetingJourney({
     <>
       <p className="ox-subhead">How much of the story was told</p>
 
-      <Tally>
-        {/*
-         * A denominator may dim and may never be dropped. "7 of 12" is one
-         * figure, not a figure beside a footnote, which is why the count and
-         * its total are one `.ox-value` rather than two cells.
-         */}
-        <TallyItem
-          label="Sections entered"
-          value={
-            <span className="ox-value">
-              <span className="ox-figure">{coverage.sectionsReached}</span>
-              <span className="ox-of">of {coverage.sectionsTotal} in the story</span>
-            </span>
-          }
-        />
-        <TallyItem
-          label="Steps in the running order"
-          value={
-            <span className="ox-value">
-              <span className="ox-figure">{coverage.medianDepth}</span>
-              <span className="ox-of">entries, returns included</span>
-            </span>
-          }
-        />
-        <TallyItem
-          label="Length"
-          value={
-            <span className="ox-value">
-              <span className="ox-figure">{replay.durationDisplay}</span>
-              {replay.timingAvailable ? null : (
-                <span className="ox-of">the session&rsquo;s own, not a sum of steps</span>
-              )}
-            </span>
-          }
-        />
-      </Tally>
+      {/* The three figures arrive as the journey comes into view (ADR-0062). */}
+      <DrawIn kind="bloom">
+        <Tally>
+          {/*
+           * A denominator may dim and may never be dropped. "7 of 12" is one
+           * figure, not a figure beside a footnote, which is why the count and
+           * its total are one `.ox-value` rather than two cells.
+           */}
+          <TallyItem
+            label="Sections entered"
+            value={
+              <span className="ox-value">
+                <span className="ox-figure">{coverage.sectionsReached}</span>
+                <span className="ox-of">of {coverage.sectionsTotal} in the story</span>
+              </span>
+            }
+          />
+          <TallyItem
+            label="Steps in the running order"
+            value={
+              <span className="ox-value">
+                <span className="ox-figure">{coverage.medianDepth}</span>
+                <span className="ox-of">entries, returns included</span>
+              </span>
+            }
+          />
+          <TallyItem
+            label="Length"
+            value={
+              <span className="ox-value">
+                <span className="ox-figure">{replay.durationDisplay}</span>
+                {replay.timingAvailable ? null : (
+                  <span className="ox-of">the session&rsquo;s own, not a sum of steps</span>
+                )}
+              </span>
+            }
+          />
+        </Tally>
+      </DrawIn>
 
       {coverage.routinelySkipped.length === 0 ? null : (
         <p className="ox-section-note">

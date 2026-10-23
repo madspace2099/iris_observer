@@ -21,6 +21,7 @@ import { AgentName, AgentPortrait } from "@/components/agents/Portrait";
 import { MEETINGS_NOT_OPENABLE } from "@/components/meetings";
 import { requireViewer } from "@/lib/session";
 import { TrendLine } from "@/showroom/charts2";
+import { DrawIn } from "@/showroom/DrawIn";
 import {
   ChartFrame,
   DataTable,
@@ -338,36 +339,38 @@ export default async function UnitPage({
               </span>
             </div>
 
-            <Tally>
-              <TallyItem
-                label={signals.views.label}
-                value={<Figure language={context.language} value={signals.views} />}
-              />
-              <TallyItem
-                label={signals.uniqueSessions.label}
-                value={<Figure language={context.language} value={signals.uniqueSessions} />}
-              />
-              <TallyItem
-                label={signals.favourites.label}
-                value={<Figure language={context.language} value={signals.favourites} />}
-              />
-              <TallyItem
-                label={signals.documentOpens.label}
-                value={<Figure language={context.language} value={signals.documentOpens} />}
-              />
-              <TallyItem
-                label={signals.comparisons.label}
-                value={<Figure language={context.language} value={signals.comparisons} />}
-              />
-              <TallyItem
-                label={signals.shares.label}
-                value={<Figure language={context.language} value={signals.shares} />}
-              />
-              <TallyItem
-                label={trend.verdict.label}
-                value={<Figure language={context.language} value={trend.verdict} />}
-              />
-            </Tally>
+            <DrawIn kind="bloom">
+              <Tally>
+                <TallyItem
+                  label={signals.views.label}
+                  value={<Figure language={context.language} value={signals.views} />}
+                />
+                <TallyItem
+                  label={signals.uniqueSessions.label}
+                  value={<Figure language={context.language} value={signals.uniqueSessions} />}
+                />
+                <TallyItem
+                  label={signals.favourites.label}
+                  value={<Figure language={context.language} value={signals.favourites} />}
+                />
+                <TallyItem
+                  label={signals.documentOpens.label}
+                  value={<Figure language={context.language} value={signals.documentOpens} />}
+                />
+                <TallyItem
+                  label={signals.comparisons.label}
+                  value={<Figure language={context.language} value={signals.comparisons} />}
+                />
+                <TallyItem
+                  label={signals.shares.label}
+                  value={<Figure language={context.language} value={signals.shares} />}
+                />
+                <TallyItem
+                  label={trend.verdict.label}
+                  value={<Figure language={context.language} value={trend.verdict} />}
+                />
+              </Tally>
+            </DrawIn>
 
             {trend.series.points.length < 2 ? (
               <Empty
@@ -432,7 +435,9 @@ export default async function UnitPage({
             />
           ))}
 
-          <UnitFunnel language={context.language} stages={detail.funnel} />
+          <DrawIn kind="fill">
+            <UnitFunnel language={context.language} stages={detail.funnel} />
+          </DrawIn>
 
           {/*
            * R07-4 (Máté, 2026-10-02): the sale's cycle from the shared
@@ -567,36 +572,40 @@ export default async function UnitPage({
                * is a proportion of two counts the read model supplied, and the
                * figure beside it prints both, so nobody estimates an angle.
                */
-              <div
-                className="ox-funnel"
-                role="list"
-                aria-label={`Units ${unit.unitCode} was compared against in ${periodLabel.toLowerCase()}, by how often the other was kept`}
-              >
-                {competitors.map((competitor) => (
-                  <div className="ox-stage" key={competitor.unitCode} role="listitem">
-                    <span className="ox-stage-label">
-                      <Link
-                        prefetch={false}
-                        href={dynamicRoute(withPeriod(`${base}/${competitor.unitCode}`, period))}
-                      >
-                        {competitor.unitCode}
-                      </Link>
-                    </span>
-                    <span className="ox-stage-bar">
-                      <span
-                        className="ox-stage-fill"
-                        style={{
-                          width: `${((competitor.keptOther / Math.max(1, competitor.together)) * 100).toFixed(1)}%`,
-                        }}
-                      />
-                    </span>
-                    <span className="ox-stage-figures">
-                      <span className="ox-figure">{competitor.keptOther}</span>
-                      <span className="ox-of">kept of {competitor.together} compared together</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
+              <DrawIn kind="fill">
+                <div
+                  className="ox-funnel"
+                  role="list"
+                  aria-label={`Units ${unit.unitCode} was compared against in ${periodLabel.toLowerCase()}, by how often the other was kept`}
+                >
+                  {competitors.map((competitor) => (
+                    <div className="ox-stage" key={competitor.unitCode} role="listitem">
+                      <span className="ox-stage-label">
+                        <Link
+                          prefetch={false}
+                          href={dynamicRoute(withPeriod(`${base}/${competitor.unitCode}`, period))}
+                        >
+                          {competitor.unitCode}
+                        </Link>
+                      </span>
+                      <span className="ox-stage-bar">
+                        <span
+                          className="ox-stage-fill"
+                          style={{
+                            width: `${((competitor.keptOther / Math.max(1, competitor.together)) * 100).toFixed(1)}%`,
+                          }}
+                        />
+                      </span>
+                      <span className="ox-stage-figures">
+                        <span className="ox-figure">{competitor.keptOther}</span>
+                        <span className="ox-of">
+                          kept of {competitor.together} compared together
+                        </span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </DrawIn>
             )}
 
             {comparison === null || comparison.relatedFilters.length === 0 ? (

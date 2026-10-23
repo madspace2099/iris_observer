@@ -58,8 +58,13 @@ export function RoomCompare({
             </span>
           ))}
         </div>
-        {view.rows.map((row) => (
-          <div className="pr-grid-row" role="row" key={row.id}>
+        {view.rows.map((row, r) => (
+          <div
+            className="pr-grid-row"
+            role="row"
+            key={row.id}
+            style={{ "--i": r } as CSSProperties}
+          >
             <span role="rowheader">{row.label}</span>
             {row.cells.map((cell, i) => (
               <span

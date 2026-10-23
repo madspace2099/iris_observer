@@ -14,6 +14,7 @@ import {
 } from "@/components/product";
 import { requireSurface } from "@/lib/authz";
 import { dynamicRoute } from "@/lib/href";
+import { DrawIn } from "@/showroom/DrawIn";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
@@ -220,38 +221,40 @@ export default async function BriefingPage({
               </div>
             </div>
 
-            <dl className="sheet-figures">
-              {home.figures.map((figure) => {
-                const definition =
-                  figure.measurementId === null
-                    ? undefined
-                    : defineMeasurement(figure.measurementId);
-                return (
-                  <div className="sheet-figure" key={figure.id}>
-                    <dt>
-                      {figure.label}
-                      {definition === undefined ? null : (
-                        <InfoTip id={`figure-${figure.id}`} label={figure.label}>
-                          <p>{definition.whatItMeasures}</p>
-                          <p>{definition.howItIsComputed}</p>
-                        </InfoTip>
-                      )}
-                    </dt>
-                    <dd>
-                      <span className="sheet-n">{figure.value}</span>
-                      {/*
-                       * A whole clause — "65 last month", "of 150 meetings",
-                       * "no earlier period to compare" — so it wraps under the
-                       * figure rather than sitting in a nowrap delta.
-                       */}
-                      {figure.against === null ? null : (
-                        <span className="sheet-of">{figure.against}</span>
-                      )}
-                    </dd>
-                  </div>
-                );
-              })}
-            </dl>
+            <DrawIn kind="bloom">
+              <dl className="sheet-figures">
+                {home.figures.map((figure) => {
+                  const definition =
+                    figure.measurementId === null
+                      ? undefined
+                      : defineMeasurement(figure.measurementId);
+                  return (
+                    <div className="sheet-figure" key={figure.id}>
+                      <dt>
+                        {figure.label}
+                        {definition === undefined ? null : (
+                          <InfoTip id={`figure-${figure.id}`} label={figure.label}>
+                            <p>{definition.whatItMeasures}</p>
+                            <p>{definition.howItIsComputed}</p>
+                          </InfoTip>
+                        )}
+                      </dt>
+                      <dd>
+                        <span className="sheet-n">{figure.value}</span>
+                        {/*
+                         * A whole clause — "65 last month", "of 150 meetings",
+                         * "no earlier period to compare" — so it wraps under the
+                         * figure rather than sitting in a nowrap delta.
+                         */}
+                        {figure.against === null ? null : (
+                          <span className="sheet-of">{figure.against}</span>
+                        )}
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+            </DrawIn>
 
             {/*
              * Which system each figure comes from stays in view (ADR-0052's
@@ -336,15 +339,17 @@ export default async function BriefingPage({
                 : `, ${pulse.totals.soldInPeriod} of them in this period`}
             </p>
 
-            <StackPlan
-              language={home.context.language}
-              floors={pulse.floors}
-              unitHrefs={unitHrefs}
-              period={period}
-              buildingLabel={pulse.buildingLabel}
-              peakViews={pulse.peakViews}
-              keyed={false}
-            />
+            <DrawIn kind="floors">
+              <StackPlan
+                language={home.context.language}
+                floors={pulse.floors}
+                unitHrefs={unitHrefs}
+                period={period}
+                buildingLabel={pulse.buildingLabel}
+                peakViews={pulse.peakViews}
+                keyed={false}
+              />
+            </DrawIn>
 
             <div className="ox-finding-foot">
               <Evidence
