@@ -7193,3 +7193,14 @@ running demo.**
 **Next.** Cherry-pick with SYN and SHARED, build, warm every URL, record at 1440×900 with animation
 effects on; run `flow-screens`, `fejezet1`, `p221-render`, `p221-meres`, `veghajras1`, `iris-led`,
 `a11y-contract`, `layout-integrity`.
+
+**Review of this branch (same day).** All seven findings confirmed and fixed. The agents' short
+layout now runs to 899px and Sales Flow's to 864px (1440×813–897, 1536×864 and 1280×800–850 were
+cut). Under the floor an agent's activity tile reads "14 of 20 needed", with the read model's
+sentence once behind the `i`. Beside a shape that is only a sentence, the running order takes three
+fifths of the width, and coaching's year fits 1440×900 and 1280×720. All five presenters were
+measured in four periods. The lens fits 591px at every card width. "How they present" keeps its
+visible words in its accessible name. A stalled row reads "Open deal on S-503". The project
+report's recent meetings link only for a role the replay admits. Features' limits are four lines.
+Full suite: 5428 passed, `no-secret-recipes` red (needs a web build). **For SYN:** flag a stalled
+deal whose flat is sold or reserved (or do not rank it), so its row can say it is another buyer's.
