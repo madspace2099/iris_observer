@@ -46,6 +46,29 @@ export type DrawKind = "sweep" | "turn" | "bloom" | "rise" | "grow" | "fill" | "
 /** The longest entry, the turn's 1200ms, with room to finish; the heat cells end by 1000ms. */
 const PLAY_MS = 1500;
 
+/** The thresholds a drawing is looked at on its way in: enough steps to catch a tall one. */
+const STEPS = [0, 0.05, 0.1, 0.2];
+
+/**
+ * Whether a drawing has arrived: a fifth of it is in view, as it always was —
+ * or, added for the tall ones (ADR-0062), a fifth of the view is it. A drawing
+ * taller than five views never showed a fifth of itself and would never have
+ * played, and one two views tall waited, marks hidden, with nearly half the
+ * view of it already on screen (IRIS-led's timeline on a phone). The ratio is
+ * read with a hair of tolerance: the entry at the 0.2 step can report 0.1999.
+ */
+export function arrived(
+  entry: Pick<
+    IntersectionObserverEntry,
+    "isIntersecting" | "intersectionRatio" | "intersectionRect" | "rootBounds"
+  >,
+  viewHeight: number,
+): boolean {
+  if (!entry.isIntersecting) return false;
+  const view = entry.rootBounds?.height ?? viewHeight;
+  return entry.intersectionRatio >= 0.199 || entry.intersectionRect.height >= 0.2 * view;
+}
+
 export function DrawIn({
   kind,
   children,
@@ -65,14 +88,14 @@ export function DrawIn({
     let rest: number | undefined;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (!entries.some((entry) => entry.isIntersecting)) return;
+        if (!entries.some((entry) => arrived(entry, window.innerHeight))) return;
         element.dataset.draw = "run";
         observer.disconnect();
         rest = window.setTimeout(() => {
           element.dataset.draw = "done";
         }, PLAY_MS);
       },
-      { threshold: 0.2 },
+      { threshold: STEPS },
     );
     observer.observe(element);
     return () => {

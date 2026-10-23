@@ -2,6 +2,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { arrived } from "@/showroom/DrawIn";
+
 /**
  * ADR-0062: the charts draw in as they scroll into view, and the in-content
  * links that fan out send no viewport prefetch.
@@ -54,6 +56,25 @@ describe("the entrances (draw-in.css)", () => {
       const [, duration, cap, step] = m ?? [];
       expect(Number(duration) + Number(cap) * Number(step)).toBeLessThan(play);
     }
+  });
+
+  it("starts a drawing at a fifth of itself, or at a fifth of the view when it is taller", () => {
+    const view = { height: 800 } as DOMRectReadOnly;
+    const entry = (ratio: number, visible: number, isIntersecting = true) => ({
+      isIntersecting,
+      intersectionRatio: ratio,
+      intersectionRect: { height: visible } as DOMRectReadOnly,
+      rootBounds: view,
+    });
+    // A 400px drawing: a fifth of it is 80px, as before.
+    expect(arrived(entry(0.1, 40), 800)).toBe(false);
+    expect(arrived(entry(0.1999, 80), 800)).toBe(true);
+    // A 2000px timeline: 10% of it is 200px, a quarter of the view — it has arrived.
+    expect(arrived(entry(0.05, 100), 800)).toBe(false);
+    expect(arrived(entry(0.1, 200), 800)).toBe(true);
+    // A drawing six views tall never shows a fifth of itself; it still arrives.
+    expect(arrived(entry(0.05, 240), 800)).toBe(true);
+    expect(arrived(entry(0.5, 400, false), 800)).toBe(false);
   });
 
   it("names both new kinds in DrawIn's own type", () => {
