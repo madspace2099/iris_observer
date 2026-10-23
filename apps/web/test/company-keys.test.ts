@@ -154,6 +154,27 @@ describe("who may set it, and who asks with it", () => {
   it("keeps a key that authenticates but cannot reach the model", async () => {
     expect(await setCompanyKey(CLARA, KEY, noModel, ON)).toEqual({ ok: true });
   });
+
+  /* 2026-10-23: a pasted key carried an invisible character, and the header threw. */
+  it("probes and keeps a pasted key without what the copy carried along", async () => {
+    const [zwsp, nbsp, bom] = [0x200b, 0x00a0, 0xfeff].map((c) => String.fromCharCode(c));
+    const pasted = `${bom} ${KEY.slice(0, 10)}${zwsp}${KEY.slice(10, 20)}\n${nbsp}${KEY.slice(20)}\t`;
+    const sent: string[] = [];
+    const recording: ConnectionProbe = async (key) => (sent.push(key), { ok: true });
+    expect(await setCompanyKey(CLARA, pasted, recording, ON)).toEqual({ ok: true });
+    expect(sent).toEqual([KEY]);
+    expect(companyKeyState(CLARA, ON)?.key?.lastFour).toBe(KEY.slice(-4));
+  });
+
+  it("refuses a value that is not printable ASCII once cleaned, without a probe", async () => {
+    const sent: string[] = [];
+    const recording: ConnectionProbe = async (key) => (sent.push(key), { ok: true });
+    expect(await setCompanyKey(CLARA, `${KEY}${String.fromCharCode(0x00e9)}`, recording, ON)).toEqual({
+      ok: false,
+      failure: "rejected",
+    });
+    expect(sent).toEqual([]);
+  });
 });
 
 describe("what a screen may know", () => {

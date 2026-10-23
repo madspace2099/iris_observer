@@ -9,6 +9,7 @@ import {
   seal,
 } from "./envelope";
 import { probeModelFor, type ModelId, type ProviderId } from "@/lib/models/catalogue";
+import { cleanKey } from "./clean-key";
 import { classifyProviderFailure, impugnsCredential, type ConnectionFailure } from "./failure";
 import {
   CredentialStorageError,
@@ -250,7 +251,7 @@ export async function saveConnection(
   provider: ProviderId = "openai",
   model: ModelId = probeModelFor(provider),
 ): Promise<SaveResult> {
-  const trimmed = rawKey.trim();
+  const trimmed = cleanKey(rawKey) ?? "";
 
   const unavailable = unavailableReason();
   if (unavailable !== null) {

@@ -75,8 +75,21 @@ export function probeFor(source: EnvSource = process.env): ConnectionProbe {
        * request back, and the request carried the credential.
        */
       if (error instanceof TransportFailure) {
+        console.warn(
+          `[observer.credentials] connection test failed: status ${error.status}${error.code === null ? "" : ` · ${error.code}`}`,
+        );
         return { ok: false, status: error.status, code: error.code };
       }
+      /*
+       * No answer at all. The error's name and its cause's system code
+       * (ECONNRESET, UND_ERR_CONNECT_TIMEOUT…) say why; its message does not
+       * leave, because a rejected header value is quoted in it.
+       */
+      const name = error instanceof Error ? error.name : typeof error;
+      const cause = (error as { cause?: { code?: unknown } } | null)?.cause?.code;
+      console.warn(
+        `[observer.credentials] connection test failed before an answer: ${name}${typeof cause === "string" ? ` · ${cause}` : ""}`,
+      );
       return { ok: false, status: 0, code: null };
     }
   };

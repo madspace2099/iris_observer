@@ -3,6 +3,7 @@ import "server-only";
 import { accountById, companyOf, type Account } from "@/lib/accounts";
 import { demoWireModel, localDemonstration, type DemoModelAccess } from "@/lib/env";
 import { RECOMMENDED_DEFAULT } from "@/lib/models/catalogue";
+import { cleanKey } from "./clean-key";
 import { lastFour } from "./envelope";
 import { classifyProviderFailure, type ConnectionFailure } from "./failure";
 import type { ConnectionProbe } from "./service";
@@ -112,8 +113,8 @@ export async function setCompanyKey(
   const company = companyOf(account);
   if (company.role !== "admin") return { ok: false, failure: "forbidden" };
 
-  const trimmed = raw.trim();
-  if (trimmed.length < 12) return { ok: false, failure: "rejected" };
+  const trimmed = cleanKey(raw);
+  if (trimmed === null || trimmed.length < 12) return { ok: false, failure: "rejected" };
 
   const probed = await probe(trimmed, RECOMMENDED_DEFAULT);
   const failure = probed.ok ? null : classifyProviderFailure(probed.status, probed.code);
