@@ -7,6 +7,8 @@ import {
   type ShowroomFinding,
 } from "@observer/readmodels";
 
+import { InfoTip } from "@/components/iris/InfoTip";
+import { SOURCE_LINE_WORDS } from "@/components/report/words";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 import { Evidence, Sample, Sources } from "./Provenance";
@@ -123,9 +125,26 @@ export function FindingList({
           {finding.caveat === null ? null : <p className="ox-finding-caveat">{finding.caveat}</p>}
 
           <div className="ox-finding-foot">
-            <Sources sources={finding.sources} language={language} />
+            {/*
+             * The source line said the same sentence under every finding, down
+             * the report (review round 8). On screen it is the foot's `i`; paper,
+             * which has no `i`, prints the line (`observer-product.css`).
+             */}
+            <span className="ox-finding-sources">
+              <Sources sources={finding.sources} language={language} />
+            </span>
             <Evidence evidence={finding.evidence} period={period} language={language} />
             <Sample n={finding.sampleSize} noun={noun(finding.sampleSize)} />
+            {finding.sources.length === 0 ? null : (
+              <InfoTip
+                id={`finding-src-${finding.id.replace(/[^\w-]/g, "-")}`}
+                label={SOURCE_LINE_WORDS[language].lead}
+              >
+                <p>
+                  <Sources sources={finding.sources} language={language} />
+                </p>
+              </InfoTip>
+            )}
             {finding.nextStep === null ? null : (
               <Link
                 prefetch={false}

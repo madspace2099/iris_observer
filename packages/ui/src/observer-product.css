@@ -1419,6 +1419,21 @@
   align-items: center;
 }
 
+/* On screen a finding's source is its foot's `i` (`FindingList`); paper prints the line. */
+.ox-finding-foot > .ox-finding-sources {
+  display: none;
+}
+
+@media print {
+  .ox-finding-foot > .ox-finding-sources {
+    display: inline;
+  }
+
+  .ox-finding-foot > .iris-info {
+    display: none;
+  }
+}
+
 /* ============================================================================
  * 12. ATTENTION — info, attention, critical. Red is reserved.
  *

@@ -3,12 +3,24 @@ import { join, resolve } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { INSIGHT_SOURCES, INSIGHT_SOURCE_LABELS, type InsightSource } from "@observer/contracts";
+import {
+  INSIGHT_SOURCES,
+  INSIGHT_SOURCE_LABELS,
+  type EvidenceId,
+  type EvidenceTier,
+  type InsightSource,
+} from "@observer/contracts";
 import { LANGUAGES } from "@observer/readmodels";
 
+import { FindingList } from "@/components/product/Finding";
 import { Sources } from "@/components/product/Provenance";
 import { Timeline } from "@/components/product/Timeline";
 import { SOURCE_LINE_WORDS } from "@/components/report/words";
+
+const SHEET = readFileSync(
+  resolve(import.meta.dirname, "../../../packages/ui/src/observer-product.css"),
+  "utf8",
+);
 
 /**
  * ONE SOURCE, ONE NAME, ON EVERY SCREEN (ADR-0052, the second round).
@@ -77,5 +89,40 @@ describe("the source line", () => {
       .filter((file) => /\.tsx?$/.test(file))
       .filter((file) => /INSIGHT_SOURCE_LABELS\s*\[/.test(readFileSync(file, "utf8")));
     expect(readers).toEqual([]);
+  });
+
+  /* Review round 8: the same source sentence stood under every finding, down the report. */
+  it("is a finding's `i` on screen, and printed on paper", () => {
+    const finding = {
+      id: "f:1",
+      statement: "Two-room flats were opened in 98% of meetings.",
+      baseline: null,
+      soWhat: "Interest is concentrated.",
+      nextStep: null,
+      evidence: {
+        evidenceId: "units" as EvidenceId,
+        tier: "observed_sequence" as EvidenceTier,
+        href: "",
+        observationCount: 82,
+      },
+      sampleSize: 82,
+      sources: ["IRIS_SHOWROOM_OBSERVED"] as const,
+      caveat: null,
+    };
+    const html = renderToStaticMarkup(
+      createElement(FindingList, {
+        findings: [finding],
+        period: "quarter_to_date",
+        language: "en",
+      }),
+    );
+    const foot = html.slice(html.indexOf('class="ox-finding-foot"'));
+    expect(foot).toMatch(
+      /^class="ox-finding-foot"><span class="ox-finding-sources"><span class="iris-srcs">/,
+    );
+    expect(foot).toMatch(/<button[^>]*aria-label="About Source"/);
+    expect(foot).toContain('id="info-finding-src-f-1"');
+    expect(html.split('class="iris-srcs"')).toHaveLength(3);
+    expect(SHEET).toMatch(/\.ox-finding-foot > \.ox-finding-sources \{\s*display: none;/);
   });
 });
