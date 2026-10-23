@@ -10,16 +10,16 @@
  * under reduced motion.
  *
  * `fill` — the marks of a block grow from their start: a bar, a meter, a
- * stacked bar, a line, a timeline's track. Only the marks wait; every word and
- * every figure beside them is there from the first frame, so nothing a reader
- * needs is hidden while it plays. A row may set `--i` to stagger its marks,
- * 70ms a row, the ninth and after together, as `grow` does.
+ * stacked bar's parts, a line, a timeline's track. Only the marks wait; every
+ * word and every figure beside them is there from the first frame, an SVG's
+ * axis labels and printed counts included, because an SVG mark is its shapes
+ * and never the whole drawing. Each mark plays as it arrives itself, not when
+ * its block does (review round 1): until `DrawIn` has run, the block's `wait`
+ * holds every mark; then each mark waits under its own `data-fill`, and marks
+ * that arrive together start top to bottom (`cascade` in `DrawIn.tsx`).
  *
  * `floors` — a stacking plan rises from the ground floor up, 60ms a floor:
  * `StackPlan` numbers its floors from the ground in `--i`.
- *
- * The clip leaves 24px above and below a mark, so a marker taller than its
- * track (today on the plan's track, a meter's parity tick) is never cut.
  * ========================================================================= */
 
 /*
@@ -33,12 +33,21 @@
   display: none;
 }
 
+/*
+ * A `fill` mark waits transparent, so `DrawIn` can observe the mark itself, and
+ * plays from an empty clip to one that holds 16px either side of it and a view
+ * above and below: a showing's dot centred on either end of its track
+ * overhangs it by 10px, and its tip rises over it. The play is `backwards`, so
+ * the clip lets go the moment it ends and a mark at rest is never clipped
+ * (review round 1: held to `done`, the end frame cut the dots for half a
+ * second and they snapped whole).
+ */
 @keyframes dld-fill {
   from {
-    clip-path: inset(-24px 100% -24px -4px);
+    clip-path: inset(-100vh calc(100% + 16px) -100vh -16px);
   }
   to {
-    clip-path: inset(-24px -4px -24px -4px);
+    clip-path: inset(-100vh -16px -100vh -16px);
   }
 }
 
@@ -54,47 +63,28 @@
 }
 
 @media screen and (scripting: enabled) and (prefers-reduced-motion: no-preference) {
-  /*
-   * The marks `fill` grows, by the component that draws them: the plan's stock
-   * bar and its window (SalesPlan), a flat type's blocks, interest bar and lines
-   * (RoomTypes), a reading's meters (RoomReadings), a comparison cell's bar
-   * (RoomCompare), a ladder's and a funnel's fills (FlowLadder, StageFunnel, a
-   * unit's comparisons), a table cell's bar and the outcome mix (ReportCharts),
-   * and a sale's track of showings (IrisLedTimeline).
-   */
+  /* The marks are `FILL_MARKS` in `DrawIn.tsx`, which says whose each one is. */
   .dld-draw[data-draw="wait"][data-kind="fill"]
     :is(
       .iris-plan-stock,
       .iris-plan-track > i,
       .pr-flats,
       .pr-bar > i,
-      .pr-lines svg,
+      .pr-lines .pr-line,
       .pr-meter-track > i,
       .pr-grid [role="cell"] > i,
       .ox-stage-fill,
       .ox-cell-bar,
-      .ox-mix,
+      .ox-mix .ox-mix-part,
       .ir-led-track
-    ) {
-    clip-path: inset(-24px 100% -24px -4px);
+    ),
+  .dld-draw[data-kind="fill"] [data-fill="wait"] {
+    opacity: 0;
   }
 
-  .dld-draw[data-draw="run"][data-kind="fill"]
-    :is(
-      .iris-plan-stock,
-      .iris-plan-track > i,
-      .pr-flats,
-      .pr-bar > i,
-      .pr-lines svg,
-      .pr-meter-track > i,
-      .pr-grid [role="cell"] > i,
-      .ox-stage-fill,
-      .ox-cell-bar,
-      .ox-mix,
-      .ir-led-track
-    ) {
-    animation: dld-fill 900ms var(--d-ease) both;
-    animation-delay: calc(min(var(--i, 0), 8) * 70ms);
+  /* `DrawIn` writes each mark's delay as it arrives: at most 560ms, so it ends by 1460ms. */
+  .dld-draw[data-kind="fill"] [data-fill="run"] {
+    animation: dld-fill 900ms var(--d-ease) backwards;
   }
 
   .dld-draw[data-draw="wait"][data-kind="floors"] .ox-stack-floor {

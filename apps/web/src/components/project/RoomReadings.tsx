@@ -61,15 +61,10 @@ function Rows({ view }: { readonly view: RoomTypesView }) {
         <span>{view.soldAgainst}</span>
       </div>
       <ul className="pr-read-rows">
-        {view.readings.map((r, i) => {
+        {view.readings.map((r) => {
           const look = r.lookedAt === null ? null : Math.min(r.lookedAt, PARITY_SPAN);
           return (
-            <li
-              key={r.id}
-              data-type={r.id}
-              data-verdict={r.verdict ?? "none"}
-              style={{ "--i": i } as CSSProperties}
-            >
+            <li key={r.id} data-type={r.id} data-verdict={r.verdict ?? "none"}>
               <span className="pr-read-type">
                 <b>{r.label}</b>
                 <small>{r.basis}</small>

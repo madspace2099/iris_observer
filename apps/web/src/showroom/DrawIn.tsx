@@ -37,11 +37,83 @@ import "./draw-in.css";
  * ## Two more kinds (ADR-0062)
  *
  * `fill` grows the marks inside a block from their start while its words and
- * figures stand from the first frame; `floors` raises a stacking plan from the
- * ground floor up. Their frames are in `draw-in.css`, beside this file; the
- * mechanism above is unchanged.
+ * figures stand from the first frame, each mark as it arrives (below);
+ * `floors` raises a stacking plan from the ground floor up. Their frames are in
+ * `draw-in.css`, beside this file; the mechanism above is unchanged for every
+ * other kind.
  */
 export type DrawKind = "sweep" | "turn" | "bloom" | "rise" | "grow" | "fill" | "floors";
+
+/**
+ * The marks `fill` grows, by the component that draws them: the plan's stock
+ * bar and window (SalesPlan), a flat type's blocks, interest bar and lines
+ * (RoomTypes), a reading's meters (RoomReadings), a comparison cell's bar
+ * (RoomCompare), a ladder's and a funnel's fills, a table cell's bar and the
+ * outcome mix's parts (ReportCharts), and a sale's track (IrisLedTimeline).
+ * An SVG mark is its shapes, never the whole drawing, so an axis label or a
+ * printed count stands while the shapes grow. `draw-in.css` names the same
+ * list; a test holds the two together.
+ */
+export const FILL_MARKS = [
+  ".iris-plan-stock",
+  ".iris-plan-track > i",
+  ".pr-flats",
+  ".pr-bar > i",
+  ".pr-lines .pr-line",
+  ".pr-meter-track > i",
+  '.pr-grid [role="cell"] > i',
+  ".ox-stage-fill",
+  ".ox-cell-bar",
+  ".ox-mix .ox-mix-part",
+  ".ir-led-track",
+].join(", ");
+
+/** The longest a mark that arrived with others waits for the ones above it. */
+const CASCADE_MS = 560;
+
+/**
+ * Marks that arrive together start top to bottom, a millisecond a pixel below
+ * the highest of them, none later than `CASCADE_MS`: rows 70px apart start
+ * 70ms apart, a row's marks together, and a mark that arrives alone at once.
+ */
+export function cascade(tops: readonly number[]): number[] {
+  const first = Math.min(...tops);
+  return tops.map((top) => Math.min(CASCADE_MS, Math.round(top - first)));
+}
+
+/**
+ * `fill`, mark by mark (ADR-0062, review round 1). A block whose marks all
+ * started when the block arrived played most of a tall one below the fold:
+ * IRIS-led's timeline is two views on a desktop and nearly three on a phone.
+ * So each mark is flagged `wait` and observed itself: a fill mark waits
+ * transparent rather than clipped, which an observer still sees (the sweep's
+ * clip hid it from its own) and which keeps every link in it in the reading
+ * order. Observing a mark's row instead started a sale's track while it was
+ * still 70px below the fold on a phone, its row's head above it in view. The
+ * block's own frame lets go at once (`run`), so a mark drawn after this ran
+ * (another window's line) is never left waiting; each flagged mark plays once
+ * and keeps nothing of its entry at rest (`draw-in.css`).
+ */
+function fillEach(block: HTMLElement): () => void {
+  const marks = block.querySelectorAll<HTMLElement | SVGElement>(FILL_MARKS);
+  for (const mark of marks) mark.dataset.fill = "wait";
+  block.dataset.draw = "run";
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const come = entries.filter((entry) => arrived(entry, window.innerHeight));
+      const delays = cascade(come.map((entry) => entry.boundingClientRect.top));
+      come.forEach((entry, i) => {
+        observer.unobserve(entry.target);
+        const mark = entry.target as HTMLElement | SVGElement;
+        mark.style.animationDelay = `${String(delays[i] ?? 0)}ms`;
+        mark.dataset.fill = "run";
+      });
+    },
+    { threshold: STEPS },
+  );
+  for (const mark of marks) observer.observe(mark);
+  return () => observer.disconnect();
+}
 
 /** The longest entry, the turn's 1200ms, with room to finish; the heat cells end by 1000ms. */
 const PLAY_MS = 1500;
@@ -85,6 +157,7 @@ export function DrawIn({
       element.dataset.draw = "done";
       return;
     }
+    if (kind === "fill") return fillEach(element);
     let rest: number | undefined;
     const observer = new IntersectionObserver(
       (entries) => {
@@ -102,7 +175,7 @@ export function DrawIn({
       observer.disconnect();
       window.clearTimeout(rest);
     };
-  }, []);
+  }, [kind]);
 
   /*
    * Two elements, because the observed one must never be the clipped one: the

@@ -5,6 +5,7 @@ import type { IrisLedAgent, IrisLedSalesView, PeriodPreset } from "@observer/rea
 import { AgentPortrait } from "@/components/agents/Portrait";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
+import { DrawIn } from "@/showroom/DrawIn";
 
 /**
  * IRIS-LED SALES, ONE ROW PER SALE (ADR-0049).
@@ -99,7 +100,16 @@ export function IrisLedLegend({
   );
 }
 
-export function IrisLedTimeline({
+/** Each sale's track sweeps in as it scrolls into view, row by row (ADR-0062). */
+export function IrisLedTimeline(props: Parameters<typeof Timeline>[0]) {
+  return (
+    <DrawIn kind="fill">
+      <Timeline {...props} />
+    </DrawIn>
+  );
+}
+
+function Timeline({
   view,
   period,
   canOpen,
@@ -114,15 +124,10 @@ export function IrisLedTimeline({
   return (
     <figure className="ir-led-figure">
       <ol className="ir-led-rows" aria-label="Sales shown in IRIS before their status changed">
-        {view.sales.map((sale, row) => {
+        {view.sales.map((sale) => {
           const lastIndex = sale.showings.length - 1;
           return (
-            <li
-              className="ir-led-row"
-              key={sale.id}
-              /* The row's place in a `fill` entrance's stagger (ADR-0062). */
-              style={{ "--i": row } as CSSProperties}
-            >
+            <li className="ir-led-row" key={sale.id}>
               <div className="ir-led-head">
                 <span className="ir-led-unit">
                   {sale.unitHref === null ? (

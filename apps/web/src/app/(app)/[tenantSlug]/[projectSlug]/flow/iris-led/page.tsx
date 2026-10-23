@@ -15,7 +15,6 @@ import { DataTable } from "@/components/product/DataTable";
 import { Empty } from "@/components/product/Absence";
 import { SourceChips } from "@/showroom/parts";
 import { KpiCard } from "@/showroom/charts2";
-import { DrawIn } from "@/showroom/DrawIn";
 import "@/components/flow/iris-led.css";
 
 export const metadata: Metadata = { title: "IRIS-led sales" };
@@ -160,10 +159,7 @@ export default async function IrisLedPage({
                   Every showing before every sale
                 </h2>
                 <IrisLedLegend agents={view.agents} period={period} portraits={portraits} />
-                {/* Each sale's track sweeps in, its showings in the order of time (ADR-0062). */}
-                <DrawIn kind="fill">
-                  <IrisLedTimeline view={view} period={period} canOpen={canOpen} />
-                </DrawIn>
+                <IrisLedTimeline view={view} period={period} canOpen={canOpen} />
               </div>
             )}
 
