@@ -2170,9 +2170,14 @@
     align-items: center;
   }
 
+  /*
+   * Placed, not ordered last: a window inside the period has no line after its
+   * name since the median went (2026-10-23), and an ordered bar would take
+   * that line's narrow track instead of starting the row under the count.
+   */
   .iris-step-bar {
     height: 1.5rem;
-    order: 2;
+    grid-area: 2 / 1;
   }
 
   .iris-step-bar i,
@@ -2711,9 +2716,9 @@
  * theirs. Side by side, the two cards split the row more evenly so the ring
  * can hold its key beside it, and the columns grow to the height the ring
  * sets. The six steps share four rows through two subgrids (the bar, the
- * count, the label, the median), so a label that wraps ("Last month, first 24
- * days") pushes every label down alike instead of lifting its own column off
- * the shared floor. Stacked (75rem and under) each card is its own height and none of this
+ * count, the label, and "Not in this period" where a window is outside it),
+ * so a label that wraps ("Last month, first 24 days") pushes every label down
+ * alike instead of lifting its own column off the shared floor. Stacked (75rem and under) each card is its own height and none of this
  * applies.
  */
 @media (width > 75rem) {

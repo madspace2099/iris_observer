@@ -504,8 +504,10 @@ export default async function FlowPage({
               {view.periods.some((p) => p.inPeriod) ? (
                 <InfoTip id="meetings-progressed" label="meetings, and how many progressed">
                   The lighter column is every meeting; the solid part is those that reached a
-                  follow-up or better. Beneath each is the median length — a part-week is compared
-                  against the same days of the week before, never against a whole one.
+                  follow-up or better. Each window counts back from today, and a part-week is
+                  compared against the same days of the week before, never against a whole one. The
+                  ring beside it counts the {view.context.period.label.toLowerCase()} as a whole,
+                  not these windows.
                 </InfoTip>
               ) : null}
             </header>
@@ -524,11 +526,22 @@ export default async function FlowPage({
           </div>
 
           <div className="iris-band-side">
+            {/*
+             * Named for its period, in the title and in the ring's hole: its
+             * count is the period's, which the windows beside it are not, and
+             * the two were read as one total (the owner, 2026-10-23).
+             */}
             <h2 className="iris-kicker iris-kicker-measured" style={{ marginBottom: ".75rem" }}>
-              Every outcome
+              Every outcome · {view.context.period.label}
             </h2>
             <div className="iris-ring-hero">
-              <OutcomeRing slices={view.outcomes} total={view.meetingCount} size={248} measured />
+              <OutcomeRing
+                slices={view.outcomes}
+                total={view.meetingCount}
+                size={248}
+                measured
+                period={view.context.period.label}
+              />
               <OutcomeKey slices={view.outcomes} />
             </div>
           </div>

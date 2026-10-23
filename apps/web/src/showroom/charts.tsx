@@ -87,6 +87,26 @@ function arc(cx: number, cy: number, r: number, from: number, to: number): strin
 }
 
 /**
+ * A period's name in the ring's hole: one line, or two split where the longer
+ * half is shortest. "Quarter to date" fits the hole on one line, uppercase at
+ * the 12px caption; "Last completed quarter" does not.
+ */
+function holeLines(name: string): readonly string[] {
+  const words = name.split(" ");
+  const cuts = words
+    .slice(1)
+    .map((_, i): readonly [string, string] => [
+      words.slice(0, i + 1).join(" "),
+      words.slice(i + 1).join(" "),
+    ]);
+  const longest = (cut: readonly [string, string]) => Math.max(cut[0].length, cut[1].length);
+  // ponytail: characters stand in for measured width; a longer name with no space overflows the hole.
+  return name.length <= 16 || cuts.length === 0
+    ? [name]
+    : cuts.reduce((a, b) => (longest(b) < longest(a) ? b : a));
+}
+
+/**
  * An outcome mix, as parts of one whole.
  *
  * A ring rather than a pie: the hole carries the count, which is the figure a
@@ -100,6 +120,7 @@ export function OutcomeRing({
   size = 132,
   label,
   measured = false,
+  period,
 }: {
   slices: readonly OutcomeSlice[];
   total: number;
@@ -107,10 +128,17 @@ export function OutcomeRing({
   label?: string;
   /** Opt-in: raises the 9px "meetings" caption to the 12px floor. Sales Flow only — see `charts.css`. */
   measured?: boolean;
+  /**
+   * The span the count covers, named under "meetings" in the hole. Sales Flow
+   * passes it, where the steps beside the ring count shorter windows and the
+   * two totals were read as one (the owner, 2026-10-23).
+   */
+  period?: string;
 }) {
   const stroke = size * 0.13;
   const r = (size - stroke) / 2 - 1;
   const c = size / 2;
+  const lines = period === undefined ? [] : holeLines(period);
   let cursor = 0;
 
   return (
@@ -122,7 +150,8 @@ export function OutcomeRing({
         className={`iris-ring${measured ? " iris-ring-measured" : ""}`}
         role="img"
         aria-label={
-          label ?? `${total} meetings: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
+          label ??
+          `${total} meetings${period === undefined ? "" : `, ${period}`}: ${slices.map((s) => `${s.label} ${s.count}`).join(", ")}`
         }
       >
         <circle cx={c} cy={c} r={r} fill="none" stroke="var(--rule)" strokeWidth={stroke} />
@@ -147,18 +176,35 @@ export function OutcomeRing({
             </path>
           );
         })}
+        {/* With a period's name under it, the count rises to keep the three lines centred. */}
         <text
           x={c}
-          y={c - 2}
+          y={period === undefined ? c - 2 : c - size * 0.06}
           className="iris-ring-figure"
           textAnchor="middle"
           dominantBaseline="middle"
         >
           {total}
         </text>
-        <text x={c} y={c + size * 0.14} className="iris-ring-caption" textAnchor="middle">
+        <text
+          x={c}
+          y={c + size * (period === undefined ? 0.14 : 0.08)}
+          className="iris-ring-caption"
+          textAnchor="middle"
+        >
           meetings
         </text>
+        {lines.map((line, i) => (
+          <text
+            key={line}
+            x={c}
+            y={c + size * (0.145 + i * 0.065)}
+            className="iris-ring-caption"
+            textAnchor="middle"
+          >
+            {line}
+          </text>
+        ))}
       </svg>
     </DrawIn>
   );
@@ -187,7 +233,6 @@ interface Bucket {
   /** False where the selected period does not hold the bucket: it has no count to draw. */
   readonly inPeriod: boolean;
   readonly meetings: number;
-  readonly medianDurationDisplay: string;
   readonly progressed: number;
 }
 
@@ -255,9 +300,8 @@ export function PeriodSteps({ periods }: { periods: readonly Bucket[] }) {
                   {/* Outside the period: a dash and the reason, never a zero. */}
                   <span className="iris-step-figure">{p.inPeriod ? p.meetings : "—"}</span>
                   <span className="iris-step-label">{p.label}</span>
-                  <span className="iris-step-meta">
-                    {p.inPeriod ? p.medianDurationDisplay : "Not in this period"}
-                  </span>
+                  {/* No median length under a column: the owner struck it (2026-10-23). */}
+                  {p.inPeriod ? null : <span className="iris-step-meta">Not in this period</span>}
                 </div>
               ))}
             </div>

@@ -65,7 +65,10 @@ describe("Sales Flow's screens", () => {
   it("draws the meetings with every outcome, and the longest presentations with who gave them", () => {
     const meetings = screen("flow-meetings");
     expect(meetings).toContain("Meetings, and how many progressed");
-    expect(meetings).toContain("Every outcome");
+    /* The ring counts the period, not the windows beside it, and says so (the owner, 2026-10-23). */
+    expect(meetings).toContain("Every outcome · {view.context.period.label}");
+    expect(meetings).toMatch(/<OutcomeRing[^>]*period=\{view\.context\.period\.label\}/);
+    expect(meetings).not.toMatch(/median/i);
     const presentations = screen("flow-presentations");
     expect(presentations).toContain("Longest presentations this period");
     expect(presentations).toContain("Presentations given");
