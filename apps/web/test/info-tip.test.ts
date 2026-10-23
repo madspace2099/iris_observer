@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { InfoTip } from "@/components/iris/InfoTip";
+import { InfoTip, InfoTipLanguage } from "@/components/iris/InfoTip";
 
 /**
  * SALES FLOW'S EXPLANATIONS STAND BEHIND AN `i` (the owner, 2026-10-20).
@@ -44,5 +44,20 @@ describe("InfoTip", () => {
   it("hangs the panel from its own button", () => {
     expect(html).toMatch(/<button[^>]*style="anchor-name:--info-deal-ladder"/);
     expect(html).toMatch(/<div[^>]*style="position-anchor:--info-deal-ladder"/);
+  });
+
+  /* Review round 8: a Slovak report's buttons were "About Interná správa o predaji". */
+  it("names its button in the page's language, as the shell gives it", () => {
+    const named = (language: "sk" | "hu") =>
+      renderToStaticMarkup(
+        createElement(
+          InfoTipLanguage,
+          { value: language },
+          createElement(InfoTip, { id: "s", label: "Zhrnutie obdobia: Zdroj", children: "…" }),
+        ),
+      );
+    expect(named("sk")).toContain('aria-label="Vysvetlenie: Zhrnutie obdobia: Zdroj"');
+    expect(named("hu")).toContain('aria-label="Magyarázat: Zhrnutie obdobia: Zdroj"');
+    expect(named("sk")).not.toContain("About");
   });
 });

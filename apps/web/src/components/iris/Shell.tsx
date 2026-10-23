@@ -14,6 +14,7 @@ import { SyntheticBadge } from "@/showroom/parts";
 import { ChartDefs } from "@/showroom/forms";
 import { dynamicRoute } from "@/lib/href";
 import { frameLanguage } from "@/lib/language";
+import { InfoTipLanguage } from "./InfoTip";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { HOME_SEGMENT, PROJECT_NAV } from "@/lib/routes";
 
@@ -984,7 +985,8 @@ export function Shell({
       ) : null}
 
       <main className={wide ? "irs-main irs-main--wide" : "irs-main"} id="main">
-        {children}
+        {/* A report's `i`s are named in the report's language, as the frame is (`InfoTip`). */}
+        <InfoTipLanguage value={language}>{children}</InfoTipLanguage>
       </main>
     </div>
   );

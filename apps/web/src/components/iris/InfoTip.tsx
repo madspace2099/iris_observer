@@ -1,6 +1,21 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+import type { Language } from "@observer/readmodels";
+
+/**
+ * The language of the page an `i` sits on: the shell's (`frameLanguage`), so a
+ * Slovak or Hungarian report names its buttons in its own words. They were
+ * "About Interná správa o predaji" (review round 8).
+ */
+export const InfoTipLanguage = createContext<Language>("en");
+
+/** The button's name around what it explains, in each language a page is written in. */
+const ABOUT: Readonly<Record<Language, (label: string) => string>> = {
+  en: (label) => `About ${label}`,
+  sk: (label) => `Vysvetlenie: ${label}`,
+  hu: (label) => `Magyarázat: ${label}`,
+};
 
 /**
  * AN `i` BESIDE A TITLE, AND THE EXPLANATION BEHIND IT (Sales Flow, 2026-10-20).
@@ -35,10 +50,11 @@ export function InfoTip({
 }: {
   /** Unique on the page; the panel is `info-<id>`. Letters, digits, `-` and `_` only. */
   readonly id: string;
-  /** What this explains, as a phrase: the button is named "About <label>". */
+  /** What this explains, as a phrase in the page's language: the button is named "About <label>". */
   readonly label: string;
   readonly children: ReactNode;
 }) {
+  const about = ABOUT[useContext(InfoTipLanguage)];
   const panel = `info-${id}`;
   const anchor = `--${panel}`;
   return (
@@ -47,7 +63,7 @@ export function InfoTip({
         type="button"
         className="iris-info"
         popoverTarget={panel}
-        aria-label={`About ${label}`}
+        aria-label={about(label)}
         style={{ anchorName: anchor }}
         onBlur={(event) => {
           // Focus moved to another control: close, as `Measure` does. A press on
