@@ -161,6 +161,11 @@
   margin-inline-start: -0.25rem;
 }
 
+/* IRIS-led sales’ key: the face after the colour its showings wear. */
+.ir-led-legend i + .ag-portrait {
+  margin-inline-start: -0.25rem;
+}
+
 .dld-lens-key[aria-pressed] .ag-portrait {
   text-decoration: none;
 }

@@ -9,6 +9,7 @@ import { maySeeSurface } from "@/lib/routes";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { SpokenVerdict } from "@/components/iris/SpokenVerdict";
+import { portraitSources } from "@/lib/portraits/server";
 import { IrisLedLegend, IrisLedTimeline } from "@/components/flow/IrisLedTimeline";
 import { DataTable } from "@/components/product/DataTable";
 import { Empty } from "@/components/product/Absence";
@@ -53,6 +54,16 @@ export default async function IrisLedPage({
   const root = `/${tenantSlug}/${projectSlug}`;
   const here = `${root}/flow/iris-led`;
   const link = (href: string) => dynamicRoute(withPeriod(href, period));
+  /*
+   * A face beside each presenter in the key (ADR-0054). The table's "Shown by"
+   * keeps names alone: up to five a sale, a face each doubled every row's height,
+   * and the key above pairs each face with its name and colour.
+   */
+  const portraits = await portraitSources(
+    view.context.tenant,
+    projectSlug,
+    view.agents.map((agent) => agent.id),
+  );
 
   return (
     <div className="iris-one">
@@ -147,7 +158,7 @@ export default async function IrisLedPage({
                 >
                   Every showing before every sale
                 </h2>
-                <IrisLedLegend agents={view.agents} period={period} />
+                <IrisLedLegend agents={view.agents} period={period} portraits={portraits} />
                 <IrisLedTimeline view={view} period={period} canOpen={canOpen} />
               </div>
             )}

@@ -2,6 +2,7 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import type { IrisLedAgent, IrisLedSalesView, PeriodPreset } from "@observer/readmodels";
 
+import { AgentPortrait } from "@/components/agents/Portrait";
 import { dynamicRoute } from "@/lib/href";
 import { withPeriod } from "@/lib/period";
 
@@ -66,15 +67,27 @@ export function axisTicks<T extends { readonly label: string; readonly position:
 export function IrisLedLegend({
   agents,
   period,
+  portraits,
 }: {
   readonly agents: readonly IrisLedAgent[];
   readonly period: PeriodPreset;
+  /** Each presenter's portrait address by agent id (ADR-0054); given, a face follows the colour. */
+  readonly portraits?: Readonly<Record<string, string>>;
 }) {
   return (
     <ul className="ir-led-legend" aria-label="Who presented, by colour">
       {agents.map((agent) => (
         <li key={agent.id} style={colour(agent.index)}>
           <i aria-hidden="true" />
+          {portraits === undefined ? null : (
+            <AgentPortrait
+              name={agent.name}
+              src={portraits[agent.id] ?? null}
+              tone="var(--ir-c)"
+              size="chip"
+              alt=""
+            />
+          )}
           {agent.href === null ? (
             agent.name
           ) : (
