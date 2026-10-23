@@ -6987,10 +6987,11 @@ What needs attention, settings. Route the integrator list above. Run `a11y-contr
 From `acce16ba`, the routed and still-open items of review round 8 whose cause is in the shared UI.
 
 - **Screens (`ScreenRail`).** Page Down, Page Up, Space, Shift+Space and the arrows go to the next or
-  previous screen's top and read a taller screen a view at a time (`pageTarget`); under reduced motion
-  the wheel steps too and every step is instant. A field, button, menu, popover or scrolling box keeps
-  its keys. With motion the snap had pulled an arrow back to where it started (measured in a hydrated
-  harness). `flow-screens.css`'s comment "record with animation effects on" is now stale (PAGES).
+  previous screen's top and read a taller screen a view at a time (`pageTarget`), going up too (it is
+  entered at its last view, wheel included); under reduced motion the wheel steps too and every step
+  is instant. They step from a link, a button or a summary as from the page (Space not from a button
+  or a summary); a field, an open period or phone menu, a popover or a scrolling box keeps its keys.
+  With motion the snap had pulled an arrow back to where it started (measured in a hydrated harness). `flow-screens.css`'s comment "record with animation effects on" is now stale (PAGES).
 - **Ranked lists.** "Show all" stays after the last row and reads "Show fewer" once open (the rest
   stand before the `details`; `charts.css`). Unit test and the two R05-8 e2e checks updated.
 - **DrawIn.** A drawing taller than 400px also arrives once 80px of it is in view (60px waits, 100px
@@ -7003,7 +7004,8 @@ From `acce16ba`, the routed and still-open items of review round 8 whose cause i
   report's own rule folded in). The role line and the pill were already 12px at `acce16ba`.
 - **Findings.** The source line is an `i` first in each finding's foot; paper prints it.
 - **Root 404** wears the shell's header and the project 404's one-line empty state. **/projects**
-  opens the project for a one-project account (an administrator keeps the page). **Diagnostics** on a
+  stands in the middle of the frame (a one-project redirect was tried and reverted in review: it made
+  every "Projects" link open Ask IRIS). **Diagnostics** on a
   phone: the label keeps up to 55% and the value wraps, no overprint. **Ask IRIS**: a member is no
   longer told another person has not added an OpenAI key.
 
@@ -7025,7 +7027,8 @@ injected. Hydrated harnesses for the rail's keys and DrawIn. e2e not run; `p221-
 `p221-render` and `dark-surfaces` edited for the new structure. Full unit suite (after
 `pnpm release:wrappers`, committed tree): 297 files, 5433 passed, 1 skipped, 2 failed:
 `no-secret-recipes` (needs a web build) and a 30s timeout in `release-operation` under three
-parallel streams' load, green re-run alone.
+parallel streams' load, green re-run alone. After the review fixes: 5434 passed, 1 skipped, 2
+failed — `no-secret-recipes` again, and `collisions` (`.irs-main.os-chooser`), fixed and green.
 
 **Next recommended action.** Cherry-pick with SYN and PAGES; record at 1440×900 with reduced motion
 either way; route the lists above.
