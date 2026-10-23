@@ -376,17 +376,6 @@
   text-overflow: ellipsis;
 }
 
-/*
- * One "Demo data" in view. From 1200px the header's pill says it on every
- * screen, so the answer sheets' and the report's own chip steps aside; below
- * it the pill is inside the menu, and the page's chip is the one in view.
- */
-@media (width >= 1200px) {
-  :is(.sheet, .ox-report) > .ox-head .ox-head-aside span.ox-synthetic {
-    display: none;
-  }
-}
-
 /* --- the main column --------------------------------------------------------- */
 
 .irs-main {

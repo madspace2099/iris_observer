@@ -3127,6 +3127,16 @@
   margin-top: 0;
 }
 
+/*
+ * One "Demo data" in view: from 1200px the shell header's pill says it, so the
+ * report head's own chip steps aside (below it, the pill is inside the menu).
+ */
+@media (width >= 1200px) {
+  .ox-report > .ox-head .ox-head-aside span.ox-synthetic {
+    display: none;
+  }
+}
+
 /* The head's `i` (what this report is) and the print control, on one row. */
 .ox-report-actions {
   display: flex;

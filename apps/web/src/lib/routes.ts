@@ -51,6 +51,12 @@ export const SURFACES: readonly SurfaceDescriptor[] = [
     audience: "internal",
     requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
   },
+  /* `/settings` itself only redirects to AI and usage, for the same readers. */
+  {
+    route: "/settings",
+    audience: "internal",
+    requiresRole: ["developer", "agency_manager", "sales_agent", "madspace_admin"],
+  },
 
   /*
    * The welcome after a password sign-in: a few seconds between the account
