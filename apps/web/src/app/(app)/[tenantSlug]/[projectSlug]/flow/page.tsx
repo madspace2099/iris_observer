@@ -1023,7 +1023,7 @@ export default async function FlowPage({
               }
               measured
               collapseAfter={10}
-              // Each meeting wears the face of who gave it, the name its line opens with (ADR-0054).
+              // Each meeting wears the face of who gave it, the name after its date (ADR-0054).
               marks={Object.fromEntries(
                 charts.longestMeetings.flatMap((row) =>
                   row.agentId === undefined

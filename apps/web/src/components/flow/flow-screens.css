@@ -508,7 +508,7 @@ html:has(.iris-salesflow) {
 
 /*
  * A ranked list (stalled deals, IRIS-assisted sales, the longest presentations,
- * who gave them) spreads its five rows down the screen, its bar thicker. Where
+ * who gave them) spreads its rows down the screen (five; the longest ten), its bar thicker. Where
  * a sale is named, a name gets a third more width in a wide card, so "H-1003 ·
  * Reservation 30 Jul" stays one line at 16px; only there, so everywhere else
  * the bars keep the width (review round 1).
@@ -528,14 +528,15 @@ html:has(.iris-salesflow) {
  * The longest presentations and who gave them, their presenters at the agents'
  * size (the owner, 2026-10-23: too small to read on the recording). On both
  * halves and at every width the face is 44px beside the row's line, that line
- * 22px (a date on the longest, a name on the given) and the line under it 14px;
- * the face stays the plain disc `portrait.css` draws.
+ * 22px (a date and its presenter on the longest, a name on the given) and the
+ * line under it 14px; the face stays the plain disc `portrait.css` draws.
  *
  * Each half its own columns (review round 1). The longest's holds the face and
- * a presenter, steps and outcome line of about 36 characters at 14px (a longer
- * one ends in "…", its whole text the title, as before); the given's the face
- * and a 22px name of about fifteen. A count of a few figures needs no 5rem, so
- * the bars take the rest.
+ * a date and presenter of about 24 characters at 22px (Manrope's advances:
+ * "24 Aug · Zsófia Bárány" 222px, "14 Aug · Monika Kováčová" 255px, of the
+ * 264px beside the face), steps and outcome at 14px under it; the given's the
+ * face and a 22px name of about fifteen. A count of a few figures needs no
+ * 5rem, so the bars take the rest.
  */
 .iris-salesflow #flow-presentations .ag-portrait {
   --ag-size: 2.75rem;
@@ -634,6 +635,18 @@ html:has(.iris-salesflow) {
 .iris-salesflow :is(#flow-stalled, #flow-presentations, #flow-assisted) .dld-draw-body > ol {
   flex: 1 0 auto;
   grid-auto-rows: 1fr;
+}
+
+/*
+ * Opened, the twenty longest run past the screen (about 1000px of 591px at
+ * 1280 × 720) and the screen grows to hold them, read through like any taller
+ * screen. Nothing spreads then: the rows keep their own height, and the five
+ * presenters beside them stay together at the top instead of 180–200px apart
+ * down the taller screen (review, 2026-10-23).
+ */
+.iris-salesflow #flow-presentations:has(.iris-ranked-more[open]) .dld-draw-body > ol {
+  flex-grow: 0;
+  grid-auto-rows: auto;
 }
 
 .iris-salesflow :is(#flow-presentations > div, #flow-assisted > .d-card) {

@@ -25,8 +25,10 @@ describe("on Shark Residence, quarter to date", () => {
     const charts = await repository.getFlowCharts(query, "month");
     const name = new Map(charts.lens.agents.map((a) => [a.id, a.label]));
     expect(charts.longestMeetings.length).toBeGreaterThan(0);
+    /* The name in the row's own line, after its date; steps and outcome alone under it (the owner, 2026-10-23). */
     for (const row of charts.longestMeetings) {
-      expect(row.sub?.startsWith(`${name.get(row.agentId ?? "")} · `)).toBe(true);
+      expect(row.label.endsWith(` · ${name.get(row.agentId ?? "")}`)).toBe(true);
+      expect(row.sub).toMatch(/^\d+ steps · [^·]+$/);
     }
     expect(charts.lens.nearest.length).toBeGreaterThan(0);
     for (const row of charts.lens.nearest) {
@@ -39,12 +41,14 @@ describe("on Shark Residence, quarter to date", () => {
   /*
    * Sales Flow shows ten and the rest behind "Show all" (the owner,
    * 2026-10-23), so the read model hands it more than ten where the period
-   * has them: the twenty longest, longest first.
+   * has them: up to the twenty longest, longest first. The bounds, not the
+   * scenario's count, so a regenerated quarter keeps the test honest.
    */
-  it("lists the twenty longest presentations, longest first, so ten leave a rest", async () => {
+  it("lists up to the twenty longest presentations, longest first, so ten leave a rest", async () => {
     const charts = await repository.getFlowCharts(query, "month");
     const lengths = charts.longestMeetings.map((row) => row.value);
-    expect(lengths).toHaveLength(20);
+    expect(lengths.length).toBeGreaterThan(10);
+    expect(lengths.length).toBeLessThanOrEqual(20);
     expect(lengths).toEqual([...lengths].sort((a, b) => b - a));
   });
 

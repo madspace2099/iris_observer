@@ -197,7 +197,7 @@ test("R05-6 · an IRIS-assisted sale is a time relation, never a cause", async (
   expect(assisted).not.toMatch(/caused|because of IRIS|led to the sale|drove/i);
 });
 
-test("R05-8 · the longest lists show five rows and keep the rest behind Show all", async ({
+test("R05-8 · the long lists keep the rest behind Show all, closed", async ({
   page,
 }) => {
   await mainText(page, "Tomáš Varga", `${ROOT}/flow`);

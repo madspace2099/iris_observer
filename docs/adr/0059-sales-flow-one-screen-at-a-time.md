@@ -202,8 +202,9 @@ point 5's "a ranked list's five rows" and R05 item 8's five for that one list; s
 IRIS-assisted sales still show five.
 
 - On both halves, at every width, the face is 44px (a plain disc, as everywhere), the row's line
-  22px (a date on the longest, a name on the given) and the line under it 14px, as on the agents'
-  screen. Above 60rem the name columns are 20rem and 15.5rem (17.75rem and 12rem before).
+  22px (a date and its presenter on the longest, a name on the given) and the line under it 14px,
+  as on the agents' screen. Above 60rem the name columns are 20rem and 15.5rem (17.75rem and
+  12rem before).
 - The longest show ten and the rest behind "Show all"; the read model lists the twenty longest
   (eight before), so a period with more than ten still has a rest. Presentations given stays a full
   list.
@@ -211,5 +212,12 @@ IRIS-assisted sales still show five.
   none from 40rem to 54rem tall, where the card's padding is 16px and "Show all" has nothing under
   it. By arithmetic, ten 46px rows, the title and the control take about 579px of the 591px at
   1280 × 720, and the rows spread to 56–61px at 1440 × 900. Not yet measured in a browser.
-- On the longest the presenter's name opens the 14px line; the 22px line stays the date, which is
-  the replay's link, so the screen carries no run of same-named links to different meetings.
+- On the longest the 22px line is when and who, "16 Jul · Zsófia Bárány", as the lens names its
+  nearest meeting, and steps and outcome are the 14px line under it (review, 2026-10-23: the name
+  was 14px, and "Lena Fischer · 10 steps · Follow-up needed" ended in "…" on the recording). Each
+  replay link still carries its meeting's date. By Manrope's advances the widest line is 222px on
+  Shark Residence and 255px on Northgate of the 264px beside the face; a longer one wraps, never
+  cut. Steps and outcome take 209px at most, whole at 14px.
+- Opened, the twenty longest run past the screen (about 1000px of 591px at 1280 × 720), which is
+  read through like any taller screen; nothing spreads then, so the presenters beside them stay
+  together at the top rather than 180–200px apart (review, 2026-10-23).

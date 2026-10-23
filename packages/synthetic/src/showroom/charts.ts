@@ -1333,6 +1333,11 @@ export function buildFeatureUsage(
  * ten and the rest behind "Show all" (the owner, 2026-10-23: ten fit the
  * screen; it was five of eight), so a period with more than ten still has a
  * rest to show.
+ *
+ * The row's line is when and who, "16 Jul · Zsófia Bárány", as the lens's
+ * nearest meeting names one: the presenter's name at the row's size, so it
+ * reads on a recording (the owner, 2026-10-23), and each replay link still
+ * says which meeting it opens. Steps and outcome are the line under it.
  */
 export function buildLongestMeetings(
   sessions: readonly ShowroomSession[],
@@ -1347,8 +1352,8 @@ export function buildLongestMeetings(
     .slice(0, 20)
     .map((s) => ({
       id: s.meetingId,
-      label: dayLabel(s.startedAt, locale, timeZone),
-      sub: `${presenterName(s.projectId, s.agentId, language)} · ${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
+      label: `${dayLabel(s.startedAt, locale, timeZone)} · ${presenterName(s.projectId, s.agentId, language)}`,
+      sub: `${s.steps.length} steps · ${OUTCOME_LABELS[s.outcome]}`,
       value: s.durationSeconds,
       display: duration(s.durationSeconds, language),
       href: replayHref(at, s.meetingId),

@@ -239,6 +239,12 @@ describe("the screens' stylesheet", () => {
     expect(SHEET.slice(short, SHEET.indexOf("\n}", short))).toMatch(
       /#flow-presentations \.iris-ranked li \{\s*padding-block: 0;/,
     );
+    /* Opened, the twenty run past the screen: nothing spreads, so the presenters beside them stay together. */
+    const opened = rule(
+      ".iris-salesflow #flow-presentations:has(.iris-ranked-more[open]) .dld-draw-body > ol",
+    );
+    expect(opened).toContain("flex-grow: 0;");
+    expect(opened).toContain("grid-auto-rows: auto;");
   });
 
   /*
