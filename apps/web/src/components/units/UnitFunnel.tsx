@@ -96,9 +96,16 @@ export function UnitFunnel({
   /*
    * The stages' sources, said once under the funnel rather than on every row
    * (Máté's video review, 2026-10-23): each row's sentence and its word on the
-   * right already say which source stands behind it.
+   * right already say which source stands behind it. Only the stages IRIS
+   * answers: a catalogue-stated stage names the catalogue in its own figure,
+   * and the showroom under the funnel read as the source of "Sold" (review,
+   * round 9; the product's source classes have no catalogue to name here).
    */
-  const sources = [...new Set(stages.flatMap((stage) => stage.sources))];
+  const sources = [
+    ...new Set(
+      stages.filter((stage) => stage.verification !== "verified").flatMap((stage) => stage.sources),
+    ),
+  ];
 
   return (
     <>
@@ -152,8 +159,13 @@ export function UnitFunnel({
                  * screen states the view's own reference once for the region
                  * instead, and the missing per-stage reference is reported.
                  */}
-                {/* A stage no source answers claims nothing, so it carries no tier. */}
-                {stage.verification === "unavailable" ? null : (
+                {/*
+                 * A stage no source answers claims nothing, so it carries no
+                 * tier; a stage the catalogue states is the catalogue's word,
+                 * not something IRIS observed, so it carries no "Observed".
+                 */}
+                {stage.verification === "unavailable" ||
+                stage.verification === "verified" ? null : (
                   <div className="ox-time-foot">
                     <Tier language={language} tier={stage.tier} />
                   </div>

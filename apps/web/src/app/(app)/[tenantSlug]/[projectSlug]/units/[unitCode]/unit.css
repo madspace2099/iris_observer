@@ -66,3 +66,13 @@
     padding-inline: 0.4375rem;
   }
 }
+
+/*
+ * A time and a length are one token each, as on the meeting register: at
+ * 1280 22 of 29 lengths broke ("15m / 26s"; review, round 9).
+ */
+@media screen and (width > 48rem) {
+  .ox-unit-meetings .ox-table td:is([data-label="Started"], [data-label="Length"]) {
+    white-space: nowrap;
+  }
+}

@@ -76,9 +76,21 @@
   }
 }
 
+/*
+ * On a phone the date takes one width on every row, so the faces stand in
+ * one column ("4 Jul" and "10 Jul" set them 8px apart, review, round 9), and
+ * a long outcome wraps at the right rather than pushing the name onto two lines.
+ */
 @container matrix (max-width: 40rem) {
   .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-row {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+    column-gap: 0.5rem;
+  }
+
+  .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-row > .iris-matrix-num {
+    max-width: 7rem;
+    white-space: normal;
+    text-align: right;
   }
 
   .iris-audiencepage .iris-matrix[data-columns="audience"] > .iris-matrix-head {

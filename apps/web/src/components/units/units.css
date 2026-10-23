@@ -41,6 +41,39 @@
   }
 }
 
+/*
+ * Where the register still runs past its plate (1024: 1038px in 932), its
+ * right edge fades until the reader scrolls to the end, so the cut column
+ * reads as more to come (review, round 9). The fade rides the table's own
+ * scroll: a register that fits has no scroll range, its timeline is inactive
+ * and nothing fades. A browser without scroll timelines draws no cue.
+ */
+@property --units-cue {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes units-cue {
+  from {
+    --units-cue: 3rem;
+  }
+
+  to {
+    --units-cue: 0px;
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  @media screen and (width > 48rem) {
+    .ox-units-page .ox-table-scroll {
+      mask-image: linear-gradient(to left, transparent, #000 var(--units-cue));
+      animation: units-cue linear both;
+      animation-timeline: scroll(self inline);
+    }
+  }
+}
+
 /* The definitions in the register's `i`: the term over its sentence, in the panel's measure. */
 .ox-units-page .iris-info-panel .ox-scope-item {
   flex-direction: column;

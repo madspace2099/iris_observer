@@ -176,7 +176,8 @@ describe("the page-level phone sheets", () => {
       .map((s) => (s.split(/[;}]/).pop() ?? "").trim());
     expect(preludes.length).toBeGreaterThan(0);
     for (const prelude of preludes) {
-      if (prelude.startsWith("@")) continue;
+      /* An at-rule, or a keyframe's step (`from`, `to`, `40%`), which selects no element. */
+      if (prelude.startsWith("@") || /^(from|to|[\d.]+%)$/.test(prelude)) continue;
       /* Commas inside `:is(...)` separate arguments, not selectors. */
       for (const selector of prelude.split(/,(?![^(]*\))/))
         expect(selector.trim().startsWith(scope), selector).toBe(true);

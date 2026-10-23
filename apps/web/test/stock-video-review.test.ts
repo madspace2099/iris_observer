@@ -76,6 +76,10 @@ describe("a unit's funnel", () => {
     expect(html.match(/Source/g)?.length ?? 0).toBeLessThanOrEqual(1);
     const offer = stages[detail.funnel.findIndex((stage) => stage.verification === "unavailable")];
     expect(offer).not.toContain("ox-tier");
+    /* Round 9: a stage the catalogue states is not "Observed". */
+    detail.funnel.forEach((stage, i) => {
+      if (stage.verification === "verified") expect(stages[i], stage.id).not.toContain("ox-tier");
+    });
   });
 });
 
