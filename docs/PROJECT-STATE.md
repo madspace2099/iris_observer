@@ -6703,3 +6703,38 @@ ADR-0062's table. Run `a11y-contract`, `layout-integrity`, `iris-led`, `tally-sh
 
 Full unit suite (after `pnpm release:wrappers`, on the committed tree): 294 files, 5398 passed, 1
 skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
+
+**Review round 1 (2026-10-23).** Five findings, all confirmed in the code and, read-only, on the
+demo (this branch's stylesheet and `fill` logic injected onto the same blocks); recorded in
+ADR-0062's review section.
+
+- **A tall `fill` block played off screen.** When IRIS-led's timeline arrived, 17 of its 19
+  tracks were below the fold at 1440×900 and 18 at 390×844; on a phone Flat types, Interest
+  against sales, the room comparison, the report's coverage table and ladder and a unit's funnel
+  did the same. `DrawIn`'s `fill` now flags and observes each mark itself (it waits transparent,
+  which an observer sees and the reading order keeps; observing the mark's row still started a
+  track 70px below the fold). Marks that arrive together cascade top to bottom, a millisecond a
+  pixel, 560ms at most (`cascade`); the rows' `--i` props are gone. Measured at 1440×900,
+  1280×720, 390×844 and 360×780 on Project, IRIS-led, the report, one agent's report and a unit:
+  all 113 marks started on screen, played, ended unclipped; no sideways scroll.
+- **The end clip cut dots and they snapped.** The play is `backwards` and ends 16px wider each
+  side, so the clip lets go as it ends and a dot on a track's end is never cut.
+- **One agent's report drew at once.** Its funnel, running order and outcome mix now `fill`.
+- **Cherry-pick with PORTRAITS stopped on two hunks.** `IrisLedTimeline` wraps itself, so the
+  IRIS-led page merges clean. One hunk remains in `report/page.tsx` (the single meetings' rows):
+  keep MOTION's five-line `meeting:` Link with `prefetch={false}` and PORTRAITS'
+  `agent: <AgentName name={row.agentName} src={portraits[row.agentId] ?? null} />`.
+  `docs/PROJECT-STATE.md` conflicts too; keep both sections. Against AGENTS only
+  `docs/PROJECT-STATE.md` conflicts.
+- **`fill` hid SVG words.** The marks were whole SVGs; they are the shapes now
+  (`.pr-lines .pr-line`, `.ox-mix .ox-mix-part`), so axis labels and counts stand. The guard test
+  renders `OutcomeMix` and `RoomTypes` and reads painted words against `FILL_MARKS`, the one list
+  the stylesheet must match; with the first round's list put back it fails.
+
+Verified: typecheck, eslint, prettier clean; `entrances-and-prefetch` 20 passed, plus
+`report-document`, `report-print`, `flow-screens`, `showroom`. Frames of the play read on the
+demo: IRIS-led mid-play and at rest, Flat types mid-play (axis standing), the outcome mix
+mid-play (counts standing), one agent's report at 1440 and 390 at rest.
+
+Full unit suite after the round (after `pnpm release:wrappers`, on the committed tree): 294 files,
+5401 passed, 1 skipped, 1 failed — `no-secret-recipes`, which needs a web build (environmental).
