@@ -103,10 +103,26 @@
   }
 
   /*
-   * Flat types: the rows spread down the screen and the interest line takes
-   * the screen's height beside them, its labels drawn at 12px whatever its
-   * size (`Lines` draws at its box's size). Stacked under the rows on a
-   * narrower card, it keeps a third of the screen.
+   * Flat types and interest against sales fill their screen: each card is the
+   * screen's height, and the room its header, reading, notes and source leave
+   * goes to the rows and the interest line. The room left decides their size,
+   * not a guess at what the rest of the card takes, which wrapped past it at
+   * 1280 × 800 and 1366 × 768 (review, 2026-10-23). What a card holds that
+   * does not grow stands in its middle.
+   */
+  .pr-page #project-types .pr-rooms,
+  .pr-page #project-readings .pr-readings {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: var(--screen-h);
+  }
+
+  /*
+   * Flat types: on a wide card the rows and the line grow into the room left
+   * (below). Stacked under the rows on a narrower card, the line keeps a third
+   * of the screen and the rows spread with it. Its labels are drawn at 12px
+   * whatever its size (`Lines` draws at its box's size).
    */
   .pr-page #project-types .pr-rows li {
     padding-block: clamp(12px, calc((var(--screen-h) - 34rem) / 8), 1.5rem);
@@ -124,9 +140,16 @@
     height: max(196px, calc(var(--screen-h) / 3));
   }
 
-  /* Interest against sales: four rows down the screen, the meters thicker. */
+  /* Interest against sales: four rows sharing the room left, the meters thicker. */
+  .pr-page #project-readings .pr-read-rows {
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+  }
+
   .pr-page #project-readings .pr-read-rows li {
-    padding-block: clamp(14px, calc((var(--screen-h) - 26rem) / 8), 2.25rem);
+    flex: 1 0 auto;
+    padding-block: 10px;
   }
 
   .pr-page #project-readings .pr-read-say b {
@@ -195,6 +218,14 @@
   }
 }
 
+/* On paper a card is as tall as what it holds, as its screen is (`screens.css`). */
+@media print {
+  .pr-page #project-types .pr-rooms,
+  .pr-page #project-readings .pr-readings {
+    min-height: 0;
+  }
+}
+
 /* The path's say column, wide enough for its larger count beside a phrase. */
 @container (width >= 40rem) {
   .pr-page #project-path .dld-jf.pr-path li {
@@ -202,10 +233,50 @@
   }
 }
 
-/* Flat types on a wide card: the line beside the rows, as tall as the screen leaves it. */
+/*
+ * Flat types on a wide card: the rows and the line beside them take the room
+ * the card leaves, the rows sharing it and the line all of it. The line's
+ * drawing stands out of the flow, so the size `Lines` measures and draws at is
+ * the box's, never one an earlier drawing pushed it to: a window made shorter
+ * gives a shorter line. Never under the 196px it is drawn at.
+ */
 @container (width >= 62rem) {
+  .pr-page #project-types .pr-rooms-body {
+    flex: 1 0 auto;
+    align-items: stretch;
+  }
+
+  .pr-page #project-types .pr-rows-field {
+    grid-template-rows: auto 1fr;
+  }
+
+  .pr-page #project-types .pr-rows {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .pr-page #project-types .pr-rows li {
+    flex: 1 0 auto;
+    padding-block: 8px;
+  }
+
+  .pr-page #project-types .pr-lines-field {
+    grid-template-rows: auto 1fr auto;
+  }
+
   .pr-page #project-types .pr-lines {
-    height: clamp(196px, calc(var(--screen-h) - 21rem), 34rem);
+    position: relative;
+    height: auto;
+    min-height: 196px;
+  }
+
+  .pr-page #project-types .pr-lines svg {
+    position: absolute;
+    inset: 0;
+  }
+
+  .pr-page #project-types .pr-lines-empty {
+    align-self: start;
   }
 }
 
@@ -261,11 +332,16 @@
 }
 
 /*
- * A short desktop window (1280 × 720 leaves a 591px screen): the cards'
- * padding, the rows and the gaps closer, so each screen fits the view with
- * its source line in sight. Every row, figure and sentence stays.
+ * A short desktop window: the cards' padding, the rows and the gaps closer,
+ * so each screen fits the view with its source line in sight. Every row,
+ * figure and sentence stays. The searches with the places and the findings
+ * do not grow with the screen (Shark's 690px and 675px, Riverside's searches
+ * 756px at 1280 wide), so this holds until a window leaves them that much
+ * under the chrome: under 900px tall, down to 1280 × 720 and its 591px screen
+ * (review, 2026-10-23: drawn for 1280 × 720 alone, at 760px, it left 1280 ×
+ * 800, 1366 × 768 and 1440 × 810 cutting them).
  */
-@media (width >= 64rem) and (height <= 760px) {
+@media (width >= 64rem) and (height < 900px) {
   .pr-page .screen {
     gap: 1rem;
   }
@@ -286,10 +362,6 @@
 
   .pr-page #project-types .pr-rows li {
     padding-block: 8px;
-  }
-
-  .pr-page #project-readings .pr-read-rows li {
-    padding-block: 10px;
   }
 
   .pr-page #project-search .iris-matrix-row {

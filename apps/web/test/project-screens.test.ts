@@ -127,7 +127,38 @@ describe("the page's screen sheet", () => {
     expect(source("src/components/project/rooms.css")).toMatch(
       /\.pr-lines \{\s*min-width: 0;\s*height: 196px;\s*\}/,
     );
-    for (const m of SHEET.matchAll(/\.pr-lines \{\s*height: ([^;]+);/g))
-      expect(m[1], "the line's box").toMatch(/^(max|clamp)\(196px,/);
+    const boxes = [...SHEET.matchAll(/\.pr-lines \{([^}]*)\}/g)].map((m) => m[1] ?? "");
+    expect(boxes.length).toBeGreaterThan(1);
+    for (const box of boxes) {
+      const height = /(?:^|;)\s*height: ([^;]+);/.exec(box)?.[1];
+      if (height === "auto") expect(box, "the line's box").toContain("min-height: 196px;");
+      else expect(height, "the line's box").toMatch(/^(max|clamp)\(196px,/);
+    }
+  });
+
+  /*
+   * Review, 2026-10-23: the line was the screen less a constant 21rem and the
+   * readings' rows the screen less 26rem, so whatever wrapped past the guess
+   * (1280 × 800, 1366 × 768, 1199 × 800) pushed the source line under the fold.
+   */
+  it("gives flat types and interest against sales the room their screen leaves, not a guess", () => {
+    expect(SHEET).toMatch(
+      /\.pr-page #project-types \.pr-rooms,\s*\.pr-page #project-readings \.pr-readings \{\s*display: flex;\s*flex-direction: column;\s*justify-content: center;\s*min-height: var\(--screen-h\);\s*\}/,
+    );
+    expect(SHEET).toMatch(/#project-readings \.pr-read-rows li \{\s*flex: 1 0 auto;/);
+    expect(SHEET).toMatch(/#project-types \.pr-rows li \{\s*flex: 1 0 auto;/);
+    expect(SHEET).toMatch(
+      /#project-types \.pr-lines-field \{\s*grid-template-rows: auto 1fr auto;/,
+    );
+    // The drawing out of the flow: `Lines` measures the box, never a size it drew before.
+    expect(SHEET).toMatch(/#project-types \.pr-lines svg \{\s*position: absolute;\s*inset: 0;/);
+    for (const rule of ["#project-types .pr-lines", "#project-readings .pr-read-rows li"])
+      for (const m of SHEET.matchAll(
+        new RegExp(`${rule.replace(/\./g, "\\.")} \\{([^}]*)\\}`, "g"),
+      ))
+        expect(m[1], rule).not.toMatch(/var\(--screen-h\) - \d/);
+    expect(SHEET).toMatch(
+      /@media print \{\s*\.pr-page #project-types \.pr-rooms,[^}]*min-height: 0;/,
+    );
   });
 });
