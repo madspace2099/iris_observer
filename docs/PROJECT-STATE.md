@@ -6639,5 +6639,18 @@ notch a screen; the rings turning in on the cards' screen), use the rail, pick a
 follows), then a phone at 390. Count the `_rsc` requests again with the same script for the after
 figures. Run `a11y-contract` (Sales Agents), `veghajras1` (R13-3), `p221-meres`, `p221-render`,
 `register-gate`, `agent-portraits`, `dontesek1`, `p219-screens`, `quality`, `layout-integrity` and
-`fixed-covers-nothing`. If MOTION did not turn off prefetch in `Evidence` and `FindingList`, add it
-there (shared files).
+`fixed-covers-nothing`. MOTION's `16bc409d` turns off prefetch in `Evidence` and `FindingList`
+(checked on `r7-motion`), so after the cherry-pick an agent's page keeps only the crumbs'.
+
+**Review round 1** (eight findings, ADR-0061 §"Review round 1"; seven fixed, one partly rejected).
+Coaching's key and ends carry each agent's dot, since PORTRAITS' plain circle no longer says which
+dot is whose; the register's refusal names its subject ("Lena Fischer's meetings, one by one, …");
+a pair's half in a 1280 window draws the shape at 340 and the weekly line's middle drawing (ticks
+13.2px), the 11rem cap lifted only for the wide drawings; each under-the-floor shortfall is one
+line, so Lena's last 28 days fits 1440×900 (how they present 730px, was 804); the rail's wheel
+leaves an open Dialog or a popover alone (one guard in `ScreenRail`, Sales Flow included); "no
+drill-down reference" is back in sight, one line under the activity title and one under the
+funnel. Partly rejected: the agent page's five shared-component prefetching links are MOTION's to
+fix and are fixed there (rendered with its two files: 2 of 14 left, the crumbs); the "after" RSC
+count still waits for a running build, which this round may not make. Commits `789ef812`,
+`2334a622`, `288b9d27`.

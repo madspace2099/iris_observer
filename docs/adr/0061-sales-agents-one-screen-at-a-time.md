@@ -68,14 +68,19 @@ Refusals and sample shortfalls stay in view.
    recorded, the two absences — follow-ups completed, verified outcomes — in sight); how their
    meetings ended (the ring, 260px) beside where they reached (the funnel); how they present (the
    shape at 340) beside the running order; what their buyers opened beside the weekly line (360
-   units tall, the shared 11rem cap lifted so its ticks stay 12px); the apartments they keep
-   opening beside where else they present; their most recent meetings; what this period found and
-   how to read the page. For a reader the register is kept from, its refusal and "Every meeting of
-   theirs" close the apartments' screen: a screen of one sentence would be a black field. Under the
-   floor a half that holds a sentence (the shape's note, "No trend") is as tall as the sentence.
+   units tall on a wide card, the shared 11rem cap lifted for the wide drawings only; a pair's
+   half in a 1280 window draws the middle line and the shape at 340, never the phone's — review
+   round); the apartments they keep opening beside where else they present; their most recent
+   meetings; what this period found and how to read the page. For a reader the register is kept
+   from, its refusal — naming its subject, "Lena Fischer's meetings, one by one, …" — and "Every
+   meeting of theirs" close the apartments' screen: a screen of one sentence would be a black field.
+   Under the floor a half that holds a sentence (the shape's note, "No trend") is as tall as the
+   sentence, and each shortfall is one line: what is left out, the sample, the floor.
 5. **Five seconds: the title, the drawing, the figure; the rest behind the `i`.** Moved behind an
    `i` beside the title: the activity screen's three notes (what the counts are, why none carries a
-   drill-down reference, follow-up's two questions, what "outcomes they recorded" are); every
+   drill-down reference — that none does stays in one line under the title, and under the funnel,
+   since an absence is a state, review round — follow-up's two questions, what "outcomes they
+   recorded" are); why a comparison is left out under the floor; every
    chart's definition (the agent page's charts are drawn in a local `Frame`: `ChartFrame`'s card
    with the note behind the `i`); what each of the shape's six spokes measures; the association
    note on the apartments and why where else they present is scoped; the register's naming rule;
@@ -119,12 +124,16 @@ Of the roster's 20 extra requests, 15 were the cards' links (each agent's page, 
 as the cards scrolled into view; Coaching's extra were the five agents' pages, twice. The agent page
 never reached its findings in four turns.
 
-After: **not measured on a running build** (this round builds nothing). Counted on the static
-render, the in-content links that still prefetch: the roster 2 of 23 (the two tabs), Coaching 2 of
-7 (the tabs), an agent's page 7 of 14 — the two crumbs and five links drawn by shared product
-components (the head's and the findings' `Evidence`, the findings' next steps), which stream
-MOTION's prefetch pass owns. Expected on the build: the roster's load count with nothing added by
-scrolling, Coaching about ten fewer, an agent's page unchanged on load.
+After: **not measured on a running build** — this round builds and serves nothing (the brief's
+rule), so the count of RSC requests after is still to be taken on the recording build, as above.
+Counted on the static render, the in-content links that still prefetch: the roster 2 of 23 (the
+two tabs), Coaching 2 of 7 (the tabs), an agent's page 7 of 14 on this branch alone — the two
+crumbs and five links drawn by shared product components (the head's and the findings'
+`Evidence`, the findings' next steps). Stream MOTION's `16bc409d` sets `prefetch={false}` on both
+(`Provenance.tsx`, `Finding.tsx`); rendered with those two files in place, an agent's page keeps
+2 of 14, the crumbs (review round). Expected on the build: the roster's load count with nothing
+added by scrolling, Coaching about ten fewer, an agent's page about five fewer once its findings
+come into view.
 
 ## What stays out
 
@@ -132,11 +141,13 @@ scrolling, Coaching about ten fewer, an agent's page unchanged on load.
   team's share…") carries no face. The finding names no subject in its read model, and a page that
   parsed one out of a link would be computing in a component; `ShowroomFinding.subjectAgentId` is
   the upgrade if the owner wants the face there.
-- **The shared components' links** (`PageHead`'s crumbs, `Evidence`, `FindingList`) keep their
-  prefetch here; they are drawn on every page and are stream MOTION's.
+- **The shared components' links** are stream MOTION's (drawn on every page): `Evidence` and
+  `FindingList` lose their prefetch there; `PageHead`'s crumbs keep it, page navigation like the
+  header's.
 - **Screens still taller than a ~600px window** (1280×720, a 591px screen), read through: the
-  presenters' cards (799), Coaching (875), how they present (784) and the apartments (695). At
-  1440×900 and 1920×1080 every Shark screen fits. On a phone most screens are taller than the view and
+  presenters' cards (799), Coaching (875), how they present (744) and the apartments (675). At
+  1440×900 and 1920×1080 every Shark screen fits, in every period (review round: Lena's last 28
+  days, under the floor, had two over). On a phone most screens are taller than the view and
   are read through; the rail is not drawn there.
 - **The roster card's flag** keeps its sentence; it is something to act on.
 
@@ -164,3 +175,47 @@ scrolling, Coaching about ten fewer, an agent's page unchanged on load.
   1920×1080 inside its viewport (Northgate's agent under the floor: how they present is 808px at
   1440×900, its shortfall sentence under the running order). The entrances were looked at mid-play with `DrawIn`'s behaviour scripted
   into the static page. **Not looked at on a running page.**
+
+## Review round 1 (2026-10-23)
+
+Eight findings from the adversarial reviewers, each confirmed in the code and on the static render
+before it was changed.
+
+1. **Coaching's key lost its colour with the ring** (high, fixed). With PORTRAITS' plain circle the
+   seat colour only tints the initials, so the key — photographs and names — said nothing about
+   which of a row's five dots is whose. Every key name and every name under a row's ends now carries
+   the dot the rows draw for that agent (`CoachingChart`'s `Dot`, `roster.css`'s `.ag-coach-dot`).
+   Looked at with PORTRAITS' `portrait.css` in place.
+2. **"Kept for the sales team" under the apartments read as about their table** (medium, fixed).
+   The sentence names its subject: "Lena Fischer's meetings, one by one, are the meeting
+   drill-down's own material, which this account does not open. Every one of them is counted in the
+   figures above." Shorter than before; the chip and "Every meeting of theirs" stand.
+3. **At 1280×720 the pairs drew the phone's geometry** (medium, fixed), and **6. the weekly line
+   blown up twice over** (low, fixed). `Sized` picks by a card's 34rem; a pair's half in a 1280
+   window is 512px inside the card. From 30rem a pair now draws the shape at 340 and the weekly
+   line's middle drawing (its ticks set to 14 units, 13.2px there); the 11rem cap is lifted for the
+   wide drawings only, so under 30rem (a 1024 window) the phone's line is capped, not stretched.
+   ADR §4's "so its ticks stay 12px" was wrong below 1440 and is corrected.
+4. **Lena's last 28 days pushed two screens past 1440×900** (low, fixed). Each under-the-floor
+   shortfall is one line with its sample and the floor, its reason behind the `i`; the card's
+   chart note runs the card's width; the running order's rows are 2px closer. How they present
+   measures 730px against the 771 screen (was 804), the apartments 734 (was 773); Northgate's agent
+   under the floor fits too (was 808).
+5. **The wheel moved the page behind an open Dialog** (medium, fixed). `Dialog` locks the body's
+   overflow, which stops the wheel but not `window.scrollTo`. `ScreenRail`'s handler returns while
+   the body is locked or the pointer is over a popover or a dialog — one guard in the shared rail,
+   so Sales Flow has it too; nothing else about Sales Flow changes.
+6. **In-content links still prefetching on an agent's page; "after" not measured** (low, partly
+   rejected). The five links are `Evidence` and `FindingList`'s, which stream MOTION fixes in its own
+   files (`16bc409d`); with them in place the page keeps the two crumbs. A running-build count is
+   not possible in this round — it builds and serves nothing by rule — and is still to be taken on
+   the recording build; the section above says so.
+7. **"No drill-down reference" moved behind the `i`** (low, fixed). `InfoTip`'s contract keeps a
+   state in sight. One line under the activity screen's title ("No drill-down reference stands
+   behind the counts or the outcomes they recorded."), inside its head so the plate keeps its eight
+   children and "Verified outcomes" stays its last (R13-3); one under the funnel ("No stage carries
+   a drill-down reference."). Why is the `i`'s, and it points at the register only for a reader who
+   has one. The page's docblock says so.
+
+Tests: `agents-screens.test.ts` holds the wheel's guard, the key's and ends' dots, the refusal's
+subject and the three new lines among the refusals and shortfalls kept outside an `i`.
