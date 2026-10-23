@@ -334,6 +334,11 @@ describe("the live questions reach their analyses without a model", () => {
     expect(counts).toHaveLength(5);
     expect(counts).toEqual([...counts].sort((a, b) => b - a));
 
+    /* A paragraph of 120 words, cut to the strongest trait, the price, the sales and the ranking. */
+    expect(text).toBe(
+      "All 5 most-opened flats measure 59 to 65 m², against 32% of the 60 flats in the catalogue. They are priced €191,000 to €218,000, a range that holds 35% of the catalogue. 4 of the 5 are reserved or sold now, against 53% of the catalogue. Most opened: S-503 (29 of 150 meetings), S-403 (23), S-603 (22), S-501 (22), H-401 (18).",
+    );
+
     /* No project-wide share, no list for an answer, no cause, in any language the guard reads. */
     expect(text).not.toMatch(/units drawing most attention|dated sales \(/);
     expect(containsCausalClaim(answer)).toBe(false);
@@ -568,6 +573,25 @@ describe("the tools state each figure's own denominator", () => {
     const rates = result.facts.filter((f) => / vs /.test(f.value));
     expect(rates.length).toBeGreaterThan(0);
     for (const fact of rates) expect(fact.note ?? "").toMatch(/, of \d+ and \d+ meetings/);
+  });
+
+  it("ranks no presenter below the recorded-outcome floor, however many meetings they held", async () => {
+    /*
+     * Shark Residence, quarter to date: Iva Horváth held 25 meetings and recorded
+     * an outcome at 19, one short of the 20 a rate needs. Four presenters rank.
+     */
+    const result = await run("compare_agent_outcomes");
+    expect(result.draft).toMatch(/^Of the 4 presenters with enough recorded outcomes, /);
+    expect(result.draft).not.toContain("Iva Horváth");
+    expect(result.caveats.join(" ")).toMatch(/Not ranked — [^:]+: Iva Horváth\./);
+  });
+
+  it("says a median stay as a length, never as raw seconds", async () => {
+    const result = await run("analyze_feature_usage");
+    const said = [result.draft, ...result.facts.map((f) => f.note ?? "")].join(" ");
+    /* Residences' median stay is 282 seconds: 4 minutes and 42. Under a minute stays "45s". */
+    expect(said).toContain("Residences is opened in 100% of meetings, median 4m 42s");
+    expect(said).not.toMatch(/median \d{3,}s\b/);
   });
 
   it("keeps the read model's own note on a behaviour row", async () => {

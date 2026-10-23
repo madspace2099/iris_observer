@@ -14,6 +14,7 @@ import {
   areaWord,
   roomsWord,
   DEFAULT_LANGUAGE,
+  duration,
   replayHref,
 } from "@observer/readmodels";
 import { repository } from "@/lib/repository";
@@ -95,6 +96,9 @@ function pct(value: number): string {
 
 /** The most a composed answer says, in characters; whole sentences past it are dropped (`composeDeterministic`). */
 export const ANSWER_CEILING = 600;
+
+/** The units answer's own, shorter ceiling: about sixty words, its ranking included. */
+const UNITS_ANSWER_CEILING = 360;
 
 const OBSERVED: readonly InsightSource[] = ["IRIS_SHOWROOM_OBSERVED"];
 const DERIVED: readonly InsightSource[] = ["IRIS_SHOWROOM_OBSERVED", "IRIS_SHOWROOM_DERIVED"];
@@ -418,9 +422,17 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
   input: z.object({}),
   async run(context) {
     const team = await repository.getAgentsView(query(context));
+    /*
+     * The floor is on the recorded outcomes the share is taken over, as the
+     * ring's own figure reads it, not on the meetings held: Iva held 25 and
+     * recorded 19, one short, and was ranked among those "with enough recorded
+     * outcomes". A tie keeps one order, by name, in every answer.
+     */
     const ranked = team.agents
-      .filter((a) => !a.belowMinimum && a.ring.decidedMeetings > 0)
-      .sort((a, b) => b.ring.progressedShare - a.ring.progressedShare);
+      .filter((a) => !a.belowMinimum && !a.ring.figure.belowMinimum && a.ring.decidedMeetings > 0)
+      .sort(
+        (a, b) => b.ring.progressedShare - a.ring.progressedShare || a.name.localeCompare(b.name),
+      );
     const unranked = team.agents.filter((a) => !ranked.includes(a)).map((a) => a.name);
     const progressed = (a: (typeof ranked)[number]) => ({
       label: `${a.name} · progressed`,
@@ -452,7 +464,17 @@ const compareAgentOutcomes: ToolDefinition<z.ZodObject<Record<string, never>>> =
             : `The ${ranked.length} presenters with enough recorded outcomes progressed in the same share of their meetings with a recorded outcome: ${ranked.map((a) => `${a.name} ${pct(a.ring.progressedShare)} of ${a.ring.decidedMeetings}`).join(", ")}. None ranks above another.`;
       return {
         tool: "compare_agent_outcomes",
-        facts: ranked.map(progressed),
+        /* Below the floor the raw figure stands, with how far short it is: the ring's own words. */
+        facts: [
+          ...ranked.map(progressed),
+          ...team.agents
+            .filter((a) => !ranked.includes(a))
+            .map((a) => ({
+              label: `${a.name} · not ranked`,
+              value: a.ring.figure.display,
+              note: null,
+            })),
+        ],
         sources: WITH_OUTCOME,
         evidence: team.evidence,
         sampleSize: ranked.reduce((sum, a) => sum + a.ring.decidedMeetings, 0),
@@ -598,7 +620,7 @@ const analyzeFeatureUsage: ToolDefinition<z.ZodObject<{ sectionId: z.ZodOptional
           note:
             s.medianDwellSeconds === null
               ? "timing not recorded by this source"
-              : `median ${s.medianDwellSeconds}s · ${pct(s.glanceRate)} under the meaningful threshold`,
+              : `median ${duration(s.medianDwellSeconds, DEFAULT_LANGUAGE)} · ${pct(s.glanceRate)} under the meaningful threshold`,
         })),
         sources: DERIVED,
         evidence: view.evidence,
@@ -614,7 +636,9 @@ const analyzeFeatureUsage: ToolDefinition<z.ZodObject<{ sectionId: z.ZodOptional
             .map(
               (s) =>
                 `${s.label} is opened in ${pct(s.reachRate)} of meetings${
-                  s.medianDwellSeconds === null ? "" : `, median ${s.medianDwellSeconds}s`
+                  s.medianDwellSeconds === null
+                    ? ""
+                    : `, median ${duration(s.medianDwellSeconds, DEFAULT_LANGUAGE)}`
                 }`,
             )
             .join("; ") + ".",
@@ -646,7 +670,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
             { label: "Meetings", value: String(r.meetings), note: `${r.views} views` },
             {
               label: "Median look",
-              value: `${r.medianDwellSeconds}s`,
+              value: duration(r.medianDwellSeconds, view.context.language),
               note: `${r.repeatViews} repeat views`,
             },
             {
@@ -675,7 +699,7 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
             label: `Open ${r.unitCode}`,
             href: `${root(context)}/units?unit=${r.unitCode}`,
           },
-          draft: `${r.unitCode} was opened in ${r.meetings} meetings with a median look of ${r.medianDwellSeconds} seconds, shortlisted ${r.favourites} times, and its attention is ${r.trend} against the previous period.`,
+          draft: `${r.unitCode} was opened in ${r.meetings} meetings with a median look of ${duration(r.medianDwellSeconds, view.context.language)}, shortlisted ${r.favourites} times, and its attention is ${r.trend} against the previous period.`,
         };
       }
 
@@ -693,22 +717,26 @@ const analyzeUnitAttention: ToolDefinition<z.ZodObject<{ unitCode: z.ZodOptional
       const lead =
         patterns.note === null ? patterns.patterns.map((p) => p.statement) : [patterns.note];
       /*
-       * Whole sentences up to the answer's ceiling, the ranking always among
-       * them: an answer to "which units" that names none is no answer, and the
-       * composer drops whatever passes the ceiling. What they share is kept
-       * first, then how many are sold, then the spans (the owner asked for the
-       * price), then each sale against its showing; the draft reads patterns,
-       * spans, sales, ranking. A sentence that does not fit is left
-       * out whole, so no clause is parted from the sentence it qualifies.
+       * Whole sentences up to a short answer's ceiling, the ranking always
+       * among them: an answer to "which units" that names none is no answer.
+       * It was a 120-word paragraph (the owner: "where there is a lot of
+       * text, SIMPLIFY!"), so it keeps the strongest shared trait, the spans
+       * (the owner asked for the price), how many are sold, then further
+       * traits and each sale only while they fit; every line stays a fact for
+       * a model to word from. The draft reads patterns, spans, sales, ranking.
+       * A sentence that does not fit is left out whole, so no clause is parted
+       * from the sentence it qualifies.
        */
-      const room = ANSWER_CEILING - (ranking[0] ?? "").length - 1;
+      const room = UNITS_ANSWER_CEILING - (ranking[0] ?? "").length - 1;
       const kept = new Set<string>();
       let used = -1;
       const [held, ...placed] = patterns.conversion;
+      const [strongest, ...further] = lead;
       for (const line of [
-        ...lead,
-        ...(held === undefined ? [] : [held]),
+        ...(strongest === undefined ? [] : [strongest]),
         ...patterns.ranges,
+        ...(held === undefined ? [] : [held]),
+        ...further,
         ...placed,
       ]) {
         if (used + 1 + line.length > room) continue;
@@ -864,7 +892,7 @@ const analyzeEnvironmentUsage: ToolDefinition<z.ZodObject<Record<string, never>>
       evidence: view.evidence,
       sampleSize: env.meetingsTotal,
       caveats: [
-        "Which unit was on screen at the moment of the change is not recorded by the current showroom build, so the preset cannot be tied to an aspect or a floor.",
+        "The showroom does not record which unit was on screen when the preset changed, so it cannot be tied to an aspect or a floor.",
       ],
       action: { label: "Open Storytelling", href: `${root(context)}/storytelling` },
       draft: `The environment controls were used in ${env.meetingsUsingEnvironment} of ${env.meetingsTotal} meetings, most often ${[...env.timeOfDay].sort((a, b) => b.count - a.count)[0]?.label ?? "no preset"}.`,

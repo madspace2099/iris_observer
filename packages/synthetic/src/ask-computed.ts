@@ -1,4 +1,13 @@
-import { OUTCOME_LABELS, outcomeIsUnknown, type ShowroomSession } from "@observer/contracts";
+import {
+  DID_NOT_PROGRESS_OUTCOMES,
+  OUTCOME_LABELS,
+  PROGRESSED_OUTCOMES,
+  outcomeIsUnknown,
+  type ShowroomSession,
+} from "@observer/contracts";
+
+/** Recorded outcomes from a purchase down, the order the outcome ladder reads in. */
+const OUTCOME_ORDER = [...PROGRESSED_OUTCOMES, ...DID_NOT_PROGRESS_OUTCOMES] as const;
 import { DEFAULT_IRIS_ASSIST_POLICY } from "@observer/metrics";
 import {
   plural,
@@ -470,7 +479,8 @@ export function assistedSalesAnswer(context: ViewContext): AskAnswer | null {
     actionLabel: "Open the sales on Sales Flow",
     actionHref: `${root}/flow`,
     followUps: [],
-    caveat: assisted.note,
+    /* The card keeps the sales it cannot place beside its rows; an answer has no rows, so it says them here. */
+    caveat: [assisted.note, assisted.unplacedNote].filter((w) => w !== null).join(" "),
   };
 }
 
@@ -497,14 +507,15 @@ export function buildDeliveredAskSession(
       n === 0
         ? `No presentation was recorded on ${context.project.name} in ${period}.`
         : askRecordedSentence(language, locale, n, recorded.length, context.project.name, period),
-    figures: [...byOutcome.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 3)
-      .map(([outcome, k]) => ({
-        label: OUTCOME_LABELS[outcome],
-        value: `${count(k, locale)} of ${count(n, locale)}`,
-        note: null,
-      })),
+    /* Every outcome recorded, in the ladder's order from a purchase down: three of five left two unsaid. */
+    figures: OUTCOME_ORDER.flatMap((outcome) => {
+      const k = byOutcome.get(outcome) ?? 0;
+      return k === 0 ? [] : [[outcome, k] as const];
+    }).map(([outcome, k]) => ({
+      label: OUTCOME_LABELS[outcome],
+      value: `${count(k, locale)} of ${count(n, locale)}`,
+      note: null,
+    })),
     evidence: evidenceRef("ask.delivered.meetings", "observed_sequence", `${root}/meetings`, n),
     actionLabel: "Open the meetings",
     actionHref: `${root}/meetings`,
@@ -515,12 +526,22 @@ export function buildDeliveredAskSession(
 
   /* --- which apartments -------------------------------------------------------- */
   const opened = new Map<string, number>();
+  const shortlisted = new Map<string, number>();
   for (const s of sessions) {
     for (const code of new Set(s.units.map((u) => u.unitCode))) {
       opened.set(code, (opened.get(code) ?? 0) + 1);
     }
+    for (const u of s.units.filter((x) => x.favourited)) {
+      shortlisted.set(u.unitCode, (shortlisted.get(u.unitCode) ?? 0) + 1);
+    }
   }
-  const ranked = [...opened.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  /* A tie in the order the units answer and the register give it: times shortlisted, then the code. */
+  const ranked = [...opened.entries()].sort(
+    (a, b) =>
+      b[1] - a[1] ||
+      (shortlisted.get(b[0]) ?? 0) - (shortlisted.get(a[0]) ?? 0) ||
+      a[0].localeCompare(b[0], "en", { numeric: true }),
+  );
   const top = ranked[0];
   answers.push({
     question: "Which apartments were opened most?",
@@ -554,7 +575,8 @@ export function buildDeliveredAskSession(
       presenters.length === 0
         ? `Nobody presented on ${context.project.name} in ${period}.`
         : askPresentersSentence(language, locale, n, presenters.length, period),
-    figures: presenters.slice(0, 3).map((p) => ({
+    /* Everyone who presented: the answer counts them all, so it lists them all. */
+    figures: presenters.map((p) => ({
       label: p.name,
       value: `${count(p.meetings, locale)} of ${count(n, locale)}`,
       note: null,
