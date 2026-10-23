@@ -242,7 +242,7 @@ describe("which of the period's sales the showroom showed first", () => {
     const figure = (id: string) => view.figures.find((f) => f.id === id);
     expect(figure("led")).toMatchObject({
       value: "3 of 5",
-      of: "60% of the period's sales with a date and a flat",
+      of: "60% of the period's sales",
     });
     expect(figure("window")).toMatchObject({
       value: "2 of 5",
@@ -254,7 +254,7 @@ describe("which of the period's sales the showroom showed first", () => {
     /* m1, m2, m3 for A-1; m2 again for B-2; m6 for F-6. */
     expect(view.verdictMeetings).toBe(4);
     expect(view.frameNote).toBe(
-      "The IRIS-assisted card on Sales Flow takes the same 72-hour rule over every sale so far; these figures count this period's sales only.",
+      "The IRIS-assisted card on Sales Flow takes the same 72-hour rule over every dated sale so far; these figures count this period's sales only.",
     );
   });
 

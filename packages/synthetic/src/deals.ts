@@ -944,10 +944,12 @@ export function buildAssistedSales(
   const enough = datedSales >= policy.minimumSales;
 
   /*
-   * "So far": every dated sale, whatever the period, so it cannot be read
-   * against IRIS-led's figures for this period's sales (ADR-0039 §8).
+   * "Dated … so far": every sale it can place, whatever the period, so it
+   * cannot be read against IRIS-led's figures for this period's sales
+   * (ADR-0039 §8). "Dated" stays: the sale it cannot place is counted under
+   * the rows, and "32 sales so far" beside it read as a second total.
    */
-  const salesSoFar = datedSales === 1 ? "sale so far" : "sales so far";
+  const salesSoFar = datedSales === 1 ? "dated sale so far" : "dated sales so far";
   const headline =
     datedSales === 0
       ? "The CRM dates no reservation or purchase yet, so there is no sale to place against a showing."
@@ -968,7 +970,7 @@ export function buildAssistedSales(
    * the rows, so they are not said again here.
    */
   const note = [
-    `A sale counts when a meeting opened the unit within ${window} before the reservation or purchase date ${CONNECTOR_WORDS[deals.connector]} states, over every sale so far. It says the showing came first, not that the buyer saw it or that it produced the sale.`,
+    `A sale counts when a meeting opened the unit within ${window} before the reservation or purchase date ${CONNECTOR_WORDS[deals.connector]} states, over every dated sale so far. It says the showing came first, not that the buyer saw it or that it produced the sale.`,
     earlier.length === 0 || earlierMedian === null
       ? null
       : sentence(language, DEAL_SHOWN_EARLIER_SENTENCE, {

@@ -47,7 +47,7 @@ test("the page states a rule about order, with denominators, and no cause", asyn
    * Behind the figures' `i` (read through textContent): the card above counts
    * another frame. The demonstration CRM's 100% is made, said once on the page.
    */
-  await expect(main).toContainText("takes the same 72-hour rule over every sale so far");
+  await expect(main).toContainText("takes the same 72-hour rule over every dated sale so far");
   await expect(main).toContainText("was shown in IRIS by construction");
 
   const info = page.locator("details.ir-led-info");

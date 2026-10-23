@@ -145,8 +145,9 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
   const language = context.language;
   const window = `${String(policy.windowHours)} hours`;
 
-  const definition = `A sale is IRIS-led when its flat was opened in an IRIS presentation before its status changed: before the date the CRM states for its reservation or purchase, or before a sync saw the flat's availability change to reserved or sold. It is a rule about order. It counts every showing that came first, how long before, and who gave it. The ${window} column is the IRIS-assisted rule, kept beside it.`;
-  const caveat = `Sequence, not cause. That a flat was shown before its status changed does not say the showing produced the sale: the CRM's buyer is not linked to the visitor in the room, so the buyer may never have seen the flat in IRIS while someone else did. A date the CRM states is its own. Where it states none, and where a flat's availability changed in the catalogue, Observer knows only that the change came after one sync and by the next, and dates it by the later one. A showing counts as before the change only if it started by the earlier sync; one between the two may have come after the change, so it is listed as of unknown order and counted nowhere. Measured to the later sync, the gap from the last showing reads longer than it was, never shorter. A sale with no date, or with no flat, cannot be placed and is counted beside the figures, never inside them.`;
+  /* Printed in the page's "How it is counted" panel: the rule, then what it cannot say, about fifty words each. */
+  const definition = `A sale is IRIS-led when an IRIS presentation opened its flat before its status changed: before the reservation or purchase date the CRM states, or before a sync saw the flat turn reserved or sold. It is a rule about order. The ${window} column is the IRIS-assisted rule.`;
+  const caveat = `Sequence, not cause. The CRM's buyer is not linked to the visitor in the room. A change only a sync dates is placed at that sync, so its gap reads longer, never shorter; a showing between two syncs is of unknown order and not counted. A sale with no date or flat is counted beside the figures.`;
 
   const connected = deals !== null || catalogue.connector !== null;
   const counts0 = {
@@ -410,13 +411,18 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
             of:
               share(shownBefore) === null
                 ? floorWords
-                : `${share(shownBefore) ?? ""} of the period's sales with a date and a flat`,
+                : `${share(shownBefore) ?? ""} of the period's sales`,
           },
           {
             id: "window",
             label: `Shown within ${window} of the change`,
             value: `${String(withinWindow)} of ${String(total)}`,
-            /* Of this period's sales: Sales Flow's card takes the same rule over every sale so far. */
+            /*
+             * The same denominator as the card beside it, in the same words, so
+             * the two 19s cannot read as two. A sale this period has with no
+             * flat is in `unplacedNote`. Sales Flow's card takes the same rule
+             * over every dated sale so far.
+             */
             of:
               share(withinWindow) === null
                 ? `the IRIS-assisted rule; ${floorWords}`
@@ -507,7 +513,7 @@ export function buildIrisLedSales(input: IrisLedInput): IrisLedSalesView {
   const frameNote =
     deals === null || total === 0
       ? null
-      : `The IRIS-assisted card on Sales Flow takes the same ${String(policy.windowHours)}-hour rule over every sale so far; these figures count this period's sales only.`;
+      : `The IRIS-assisted card on Sales Flow takes the same ${String(policy.windowHours)}-hour rule over every dated sale so far; these figures count this period's sales only.`;
 
   const windowStart = position(policy.windowHours / 24);
   return {

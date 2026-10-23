@@ -184,15 +184,15 @@ describe("which sales followed a showing", () => {
     expect(view.notShown).toBe(1);
     expect(view.shareDisplay).toBe("40%");
     expect(view.headline).toBe(
-      "2 of 5 sales so far (40%) followed an IRIS showing of the unit within 72 hours.",
+      "2 of 5 dated sales so far (40%) followed an IRIS showing of the unit within 72 hours.",
     );
   });
 
-  it("reads the early showings by their median, over every sale so far", () => {
+  it("reads the early showings by their median, over every dated sale so far", () => {
     /* The two early lags are 40 days and 3 days and a minute: median 21.5, printed as 22 days. */
     expect(view.note).toContain("2 more were shown earlier than that, a median of 22 days before");
     expect(view.note).toContain("1 was not opened in IRIS before the date at all.");
-    expect(view.note).toContain("over every sale so far");
+    expect(view.note).toContain("over every dated sale so far");
     expect(view.note).toContain("REALPAD");
   });
 
@@ -280,7 +280,7 @@ describe("what it refuses to say on too little", () => {
     if (view.source !== "crm") throw new Error("expected a connected view");
     expect(view.shareDisplay).toBeNull();
     expect(view.headline).toBe(
-      "1 of 1 sale so far followed an IRIS showing of the unit within 72 hours. 4 more dated sales are needed before a share is stated.",
+      "1 of 1 dated sale so far followed an IRIS showing of the unit within 72 hours. 4 more dated sales are needed before a share is stated.",
     );
     expect(view.sales[0]?.lagDisplay).toBe("24 hours before");
   });
