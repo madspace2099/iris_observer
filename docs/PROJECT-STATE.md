@@ -6981,3 +6981,51 @@ its print preview with background graphics on (white pages after the cover), the
 What needs attention, settings. Route the integrator list above. Run `a11y-contract`,
 `fejezet1`, `p221-render`, `agent-report`, `paper-register`, `frame-language`, `iris-led`,
 `project-switching`.
+
+## 2026-10-23 — Round 9, SHARED: the shared parts before the video (branch `r9-shared`)
+
+From `acce16ba`, the routed and still-open items of review round 8 whose cause is in the shared UI.
+
+- **Screens (`ScreenRail`).** Page Down, Page Up, Space, Shift+Space and the arrows go to the next or
+  previous screen's top and read a taller screen a view at a time (`pageTarget`); under reduced motion
+  the wheel steps too and every step is instant. A field, button, menu, popover or scrolling box keeps
+  its keys. With motion the snap had pulled an arrow back to where it started (measured in a hydrated
+  harness). `flow-screens.css`'s comment "record with animation effects on" is now stale (PAGES).
+- **Ranked lists.** "Show all" stays after the last row and reads "Show fewer" once open (the rest
+  stand before the `details`; `charts.css`). Unit test and the two R05-8 e2e checks updated.
+- **DrawIn.** A drawing taller than 400px also arrives once 80px of it is in view (60px waits, 100px
+  plays at 360×780).
+- **InfoTip.** The panel resets `white-space` (Project's explanations were one cut line); `.iris-titled`
+  never breaks between a title and its `i`; the `i` glyph is 12px; the shell hands the page's language
+  to every `i`, so a Slovak or Hungarian report's buttons read "Vysvetlenie: …" / "Magyarázat: …".
+- **Shell and header.** Audience is under Project. "by MADSPACE" is 12px, under the wordmark below
+  1200px. One "Demo data" in view on every project page from 1200px (`observer-product.css`; the
+  report's own rule folded in). The role line and the pill were already 12px at `acce16ba`.
+- **Findings.** The source line is an `i` first in each finding's foot; paper prints it.
+- **Root 404** wears the shell's header and the project 404's one-line empty state. **/projects**
+  opens the project for a one-project account (an administrator keeps the page). **Diagnostics** on a
+  phone: the label keeps up to 55% and the value wraps, no overprint. **Ask IRIS**: a member is no
+  longer told another person has not added an OpenAI key.
+
+**By design, left:** YTD verdict = QTD (ADR-0048), a developer not opening replays, client-657 /
+Valami (local data), slow first loads under QA load. **Other streams' causes, left:** SYN — "Ask
+Observer" in the history notice (`ask-history.ts:42`), presenters without portraits (`AskFigure` has
+no agent id; `ask-computed.ts:502, :557`), the stacking-plan "against 46" (`pulse.ts:603`), the
+read-model texts (findings' sources and baselines, InfoTip lengths, PairedRates `of`, "UE5 v2 event").
+PAGES — the InfoTip `max-height` that subtracts `--flow-top` when opening downward
+(`flow-screens.css:549`), `.sheet-titled` titles' lone `i` (`units/titled.css` or `sheet.css`), and
+the flow, unit, features, audience, agents and report page items.
+
+**Verified.** Typecheck clean; eslint and prettier on every changed file; touched suites green.
+Static renders in the real Shell at 1440×900, 1280×720, 390×844, 360×780 (and 320): no sideways
+scroll, no overflowing title row; Show all closed and open; Project's room-types panel wraps
+(300px, scrollWidth = clientWidth); no `i` alone at a title's line start (the same probe found four
+with the old wrapping); one Demo data; header with the real wordmark; Diagnostics with Valami's rows
+injected. Hydrated harnesses for the rail's keys and DrawIn. e2e not run; `p221-meres`,
+`p221-render` and `dark-surfaces` edited for the new structure. Full unit suite (after
+`pnpm release:wrappers`, committed tree): 297 files, 5433 passed, 1 skipped, 2 failed:
+`no-secret-recipes` (needs a web build) and a 30s timeout in `release-operation` under three
+parallel streams' load, green re-run alone.
+
+**Next recommended action.** Cherry-pick with SYN and PAGES; record at 1440×900 with reduced motion
+either way; route the lists above.
