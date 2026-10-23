@@ -9,6 +9,8 @@ import { presetFrom, withPeriod } from "@/lib/period";
 import { dynamicRoute } from "@/lib/href";
 import { maySeeSurface } from "@/lib/routes";
 import { AVAILABILITY_WORDS, Gaps, SourceChips } from "@/showroom/parts";
+import { AgentName } from "@/components/agents/Portrait";
+import { portraitSources } from "@/lib/portraits/server";
 import "./audience.css";
 
 export const metadata: Metadata = { title: "Audience" };
@@ -86,6 +88,10 @@ export default async function AudiencePage({
     },
     { rooms, favouritedOnly, placeCategory: category, minimumPlaceSeconds: seconds },
   );
+  // One address per presenter, reused by every match they gave (ADR-0054).
+  const portraits = await portraitSources(view.context.tenant, projectSlug, [
+    ...new Set(view.matches.map((m) => m.agentId)),
+  ]);
 
   const root = `/${tenantSlug}/${projectSlug}/audience`;
   const qs = (next: Record<string, string | null>) => {
@@ -211,7 +217,7 @@ export default async function AudiencePage({
                 <>
                   <span className="iris-matrix-code">{m.startedDisplay}</span>
                   <span className="iris-bar-label" title={m.agentName}>
-                    {m.agentName}
+                    <AgentName name={m.agentName} src={portraits[m.agentId] ?? null} />
                   </span>
                   <span className="iris-audience-why">
                     <span className="iris-bar-label" title={m.because}>

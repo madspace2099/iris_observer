@@ -58,6 +58,8 @@ import {
   REPORT_PARTIAL_SECTIONS,
   REPORT_WORDS,
 } from "@/components/report/words";
+import { AgentName } from "@/components/agents/Portrait";
+import { portraitSources } from "@/lib/portraits/server";
 import { ReportPlane } from "./ReportPlane";
 
 /**
@@ -121,6 +123,9 @@ export async function AgentReport({
   }
 
   const { viewer, tenantSlug, projectSlug, period, language } = query;
+  /* Their face beside their name in the heading, on screen; print draws none (ADR-0054). */
+  const portrait =
+    (await portraitSources(view.context.tenant, projectSlug, [view.agentId]))[view.agentId] ?? null;
   const words = AGENT_REPORT_WORDS[language];
   const reportWords = REPORT_WORDS[language];
   const root = `/${tenantSlug}/${projectSlug}`;
@@ -529,7 +534,7 @@ export async function AgentReport({
       head={
         <PageHead
           kicker={`${report.context.project.name} · ${words.kicker} · ${report.scope.label}`}
-          title={view.name}
+          title={<AgentName name={view.name} src={portrait} size="head" />}
           answer={answer}
           lede={words.lede(view.organisationName)}
           crumbs={[

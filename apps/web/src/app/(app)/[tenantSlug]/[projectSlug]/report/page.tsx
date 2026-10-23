@@ -21,6 +21,8 @@ import { repository } from "@/lib/repository";
 import { requireViewer } from "@/lib/session";
 import { AGENT_MIN_SAMPLE } from "@observer/metrics";
 import { Missing } from "@/components/agents";
+import { AgentName } from "@/components/agents/Portrait";
+import { portraitSources } from "@/lib/portraits/server";
 import { FlowLadder } from "@/components/flow";
 import {
   DataTable,
@@ -191,6 +193,25 @@ async function ProjectReport({
   });
   /* The longest share draws the full bar; the bar places a mark, the cell prints the figure. */
   const widestShare = Math.max(0, ...agents.teamSections.map((section) => section.teamShare));
+  /* Every presenter the report names wears their face on screen; print draws none (ADR-0054). */
+  const portraits = await portraitSources(report.context.tenant, projectSlug, [
+    ...new Set([
+      ...agents.agents.map((agent) => agent.agentId as string),
+      ...meetings.rows.slice(0, 5).map((row) => row.agentId),
+    ]),
+  ]);
+  const faced = (
+    agentId: string,
+    name: string,
+    cells: Readonly<Record<string, ReactNode>>,
+  ): Readonly<Record<string, ReactNode>> => ({
+    ...cells,
+    agent: (
+      <AgentName name={name} src={portraits[agentId] ?? null}>
+        {cells.agent}
+      </AgentName>
+    ),
+  });
 
   const content: Readonly<Record<string, ReactNode>> = {
     "period-summary": (
@@ -278,7 +299,7 @@ async function ProjectReport({
         ]}
         rows={agents.agents.map((agent) => ({
           key: agent.agentId,
-          cells: {
+          cells: faced(agent.agentId, agent.name, {
             agent: <Link href={link(agent.href)}>{agent.name}</Link>,
             meetings: String(agent.meetings),
             /*
@@ -305,7 +326,7 @@ async function ProjectReport({
             ) : (
               pct(agent.ring.progressedShare)
             ),
-          },
+          }),
         }))}
         period={period}
       />
@@ -377,7 +398,7 @@ async function ProjectReport({
             key: row.meetingId,
             cells: {
               meeting: <Link href={link(row.href)}>{row.label}</Link>,
-              agent: row.agentName,
+              agent: <AgentName name={row.agentName} src={portraits[row.agentId] ?? null} />,
               started: row.startedDisplay,
               outcome: row.outcomeLabel,
             },
@@ -586,13 +607,20 @@ async function MeetingReport({
   const printed: readonly ReportSection[] = printedSections(report.sections, omitted);
   const language = query.language;
   const words = REPORT_WORDS[language];
+  /* The presenter's face on screen; print draws none (ADR-0054). */
+  const portraits = await portraitSources(report.context.tenant, query.projectSlug, [
+    replay.agentId,
+  ]);
   const content: Readonly<Record<string, ReactNode>> = {
     "meeting-summary": (
       <>
         <Tally>
           <TallyItem label={words.started} value={replay.startedDisplay} />
           <TallyItem label={words.length} value={replay.durationDisplay} />
-          <TallyItem label={words.presentedBy} value={replay.agentName} />
+          <TallyItem
+            label={words.presentedBy}
+            value={<AgentName name={replay.agentName} src={portraits[replay.agentId] ?? null} />}
+          />
           <TallyItem label={words.recordedOutcome} value={replay.outcomeLabel} />
         </Tally>
         <ol className="ox-report-steps">
