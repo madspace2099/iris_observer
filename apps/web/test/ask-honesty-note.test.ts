@@ -138,9 +138,11 @@ const renderFrame = (modelNotice: string | null, keyNote: string | null) =>
 describe("the composer's notices", () => {
   const NOTE = "Clara Weiss has not added an OpenAI key for Shark Developments yet";
 
-  it("says a company has no key outside the AI notice", () => {
+  it("says a company has no key outside the AI notice, in the model picker", () => {
     const html = renderFrame(null, `${NOTE}; answers come from the read models.`);
-    expect(html).toContain(`<p class="ask-hint">${NOTE}`);
+    /* Beside what it is about, not as a line above every answer (the owner's review, 2026-10-23). */
+    expect(html).toContain(`<p class="ask-menu-note">${NOTE}`);
+    expect(html).not.toContain(`<p class="ask-hint">${NOTE}`);
     expect(html).not.toContain("data-ai-notice");
     expect(renderFrame(null, null)).not.toContain(NOTE);
   });

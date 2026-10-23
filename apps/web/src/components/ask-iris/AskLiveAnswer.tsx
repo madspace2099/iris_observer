@@ -8,6 +8,7 @@ import { dynamicRoute } from "@/lib/href";
 import { presetFrom, withPeriod } from "@/lib/period";
 import { useObserver } from "@/showroom/observer/useObserver";
 import type { ObserverContext } from "@/showroom/observer/types";
+import { InfoTip } from "@/components/iris/InfoTip";
 import { askLink } from "./ask-link";
 import { Info, Sparkle } from "./icons";
 
@@ -119,6 +120,15 @@ export function AskLiveAnswer({
   );
   const trace = arrived.length > 0 ? arrived : [{ key: "send", label: "Sending the question" }];
 
+  /* The read models' own interpretation and limits, for the headline's `i`. */
+  const behind =
+    answer === null || live
+      ? []
+      : [
+          ...(answer.interpretation.length > 0 ? [answer.interpretation] : []),
+          ...answer.limitations,
+        ];
+
   const followUps =
     answer !== null && answer.followUpQuestions.length > 0
       ? answer.followUpQuestions
@@ -145,7 +155,8 @@ export function AskLiveAnswer({
           {settled && answer !== null
             ? live
               ? `Worded by ${author}, a language model, from figures Observer's read models computed for ${context.projectLabel}, ${periodLabel.toLowerCase()}. Each figure it gives in digits was matched to one the read models returned before it was shown.`
-              : `Composed by Observer's read models for ${context.projectLabel}, ${periodLabel.toLowerCase()}. No language model wrote any of this.`
+              : /* One line: the pill names the project, the stamp the period (the owner's review, 2026-10-23). */
+                "Composed by Observer's read models. No language model wrote any of this."
             : (modelNotice ??
               "Answered by Observer's analysis tools from this project's read models. No language model is connected here, so the wording is the read models' own.")}
         </span>
@@ -224,7 +235,25 @@ export function AskLiveAnswer({
                   </>
                 ) : (
                   <div className="ask-live-answer">
-                    <p className="ask-headline">{answer.headline}</p>
+                    {/*
+                     * What the read models' own answer cannot say, and how it
+                     * was composed, stand behind the headline's `i` (the
+                     * owner's review, 2026-10-23: five lines said "no model"
+                     * and the caveats ran to four phone screens). The sample
+                     * and its evidence tier stay in sight on the chips below.
+                     * A model's own interpretation and limits stay in sight:
+                     * they are its answer.
+                     */}
+                    <div className="ask-headline-row">
+                      <p className="ask-headline">{answer.headline}</p>
+                      {behind.length === 0 ? null : (
+                        <InfoTip id="ask-answer-limits" label="what this answer cannot say">
+                          {behind.map((note) => (
+                            <p key={note}>{note}</p>
+                          ))}
+                        </InfoTip>
+                      )}
+                    </div>
                     <p className="ask-msg-text">{answer.answer}</p>
 
                     {answer.findings.length > 0 ? (
@@ -238,11 +267,11 @@ export function AskLiveAnswer({
                       </dl>
                     ) : null}
 
-                    {answer.interpretation.length > 0 ? (
+                    {live && answer.interpretation.length > 0 ? (
                       <p className="ask-msg-text ask-interpretation">{answer.interpretation}</p>
                     ) : null}
 
-                    {answer.limitations.length > 0 ? (
+                    {live && answer.limitations.length > 0 ? (
                       <ul className="ask-limits" aria-label="What this cannot say">
                         {answer.limitations.map((limit) => (
                           <li key={limit}>{limit}</li>

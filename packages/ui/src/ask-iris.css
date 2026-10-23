@@ -1843,6 +1843,48 @@
   }
 }
 
+/*
+ * THE ASK PAGE'S COMPOSER ON A PHONE (the owner's review, 2026-10-23).
+ *
+ * The pills and the tools take two rows here (above), 90px, and the card
+ * stayed 168px: an asked question's second and third lines ran under "Read
+ * models" and the scope pill, on every answer screen. The card is as tall as
+ * the field's three lines and the two rows. The pills' names were cut to
+ * "Read mode…" and "Shark Resi…" by a 30vw cap on a row they share with
+ * nothing: they take the room they have, and the pill's own inset gives some.
+ * Scoped to `.ask-page`: the dock is another composer.
+ */
+@media (width <= 48rem) {
+  .ask-root.ask-page {
+    --ask-hero-h: 212px;
+  }
+}
+
+@media (width <= 30rem) {
+  .ask-page .ask-model-name {
+    max-width: none;
+  }
+
+  .ask-page .ask-model {
+    gap: 6px;
+    padding: 0 8px 0 10px;
+    font-size: 13px;
+  }
+
+  .ask-page .ask-actions {
+    column-gap: 8px;
+  }
+
+  /* The model's pill as wide as its name; the project's takes the rest. */
+  .ask-page .ask-model-wrap {
+    flex: 0 0 auto;
+  }
+
+  .ask-page .ask-model-wrap .ask-model {
+    width: auto;
+  }
+}
+
 /* ============================================================================
  * 10. THE PARTS THE STRUCTURE NEEDED
  *
@@ -2473,6 +2515,18 @@ a.ask-evidence-link:hover {
   letter-spacing: -0.005em;
   color: var(--ask-ink);
   text-wrap: balance;
+}
+
+/* Under an asked question no hint stands between the card and the note: the note keeps the hint's gap. */
+.ask-page .ask-hero + .ask-note {
+  margin-top: 13px;
+}
+
+/* A read models' answer: its headline, and the `i` that holds what it cannot say. */
+.ask-headline-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .ask-interpretation {

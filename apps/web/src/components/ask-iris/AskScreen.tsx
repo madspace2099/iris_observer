@@ -285,7 +285,9 @@ export function AskFrame({
   readonly modelNotice?: string | null;
   /**
    * One quiet line when the reader's company has not added its OpenAI key yet
-   * (ADR-0043). Not a Gate 1 notice: it says no model answers here.
+   * (ADR-0043). Not a Gate 1 notice: it says no model answers here. It stands
+   * in the model picker, beside what it is about; under the prompt it read as
+   * an error above every answer (the owner's review, 2026-10-23).
    */
   readonly keyNote?: string | null;
   readonly root: string;
@@ -408,6 +410,7 @@ export function AskFrame({
                           ? "Answers here are composed by Observer’s own read models, not written by a language model."
                           : `${modelNotice} The other openings are answered in the read models’ own words.`}
                       </p>
+                      {keyNote === null ? null : <p className="ask-menu-note">{keyNote}</p>}
                       <span className="ask-model-option" aria-current="true">
                         <span>{composerLabel}</span>
                         <span className="ask-model-dot" aria-hidden="true" />
@@ -658,9 +661,11 @@ export function AskFrame({
          * linkable. Two of those a reader discovers by doing them, and the
          * paragraph took 38px out of the space the composition puts between the
          * composer and the openings. What is left is the one behaviour that is
-         * genuinely invisible: a textarea that sends on Enter.
+         * genuinely invisible: a textarea that sends on Enter. Before the
+         * first question only: above an answer it is the reader's own
+         * question that stands in the field (the owner's review, 2026-10-23).
          */}
-        <p className="ask-hint">Enter sends · Shift + Enter for a new line</p>
+        {asked ? null : <p className="ask-hint">Enter sends · Shift + Enter for a new line</p>}
         {/*
          * THE NOTICE GATE 1 ASKS FOR, AT THE PROMPT BOX.
          *
@@ -673,8 +678,6 @@ export function AskFrame({
             {modelNotice}
           </p>
         )}
-        {keyNote === null ? null : <p className="ask-hint">{keyNote}</p>}
-
         {children}
       </div>
     </div>
@@ -939,9 +942,9 @@ export function AskConversationPanel({
         <span className="ask-note-mark" aria-hidden="true">
           <Info />
         </span>
+        {/* The pill names the project and the stamp the period: one line (the owner's review, 2026-10-23). */}
         <span>
-          Composed by Observer&rsquo;s read models for {session.context.projectLabel},{" "}
-          {session.context.periodLabel.toLowerCase()}. No language model wrote any of this
+          Composed by Observer&rsquo;s read models. No language model wrote any of this
           {modelConnected ? "." : ", and none is connected to this account."}
         </span>
       </p>
