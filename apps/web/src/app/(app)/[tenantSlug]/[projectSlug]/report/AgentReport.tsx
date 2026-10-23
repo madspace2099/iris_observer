@@ -43,6 +43,7 @@ import {
 import { PrintPage } from "@/components/report";
 import { printedSections } from "@/components/report/omit";
 import { CellBar, OutcomeMix, OutcomeSwatch } from "@/components/report/ReportCharts";
+import { DrawIn } from "@/showroom/DrawIn";
 import {
   ReportCover,
   ReportDocument,
@@ -241,64 +242,67 @@ export async function AgentReport({
       </>
     ),
 
+    /* On screen the marks draw in as they arrive, as on the project's report (ADR-0062). */
     "agent-funnel": (
-      <>
+      <DrawIn kind="fill">
         <StageFunnel
           steps={view.funnel}
           period={period}
           label={words.funnelLabel(view.name)}
           language={language}
         />
-      </>
+      </DrawIn>
     ),
 
     "agent-presentation": (
-      <DataTable
-        captionHidden
-        caption={words.presentationCaption(
-          view.name,
-          view.belowMinimum,
-          view.sampleSize,
-          view.minimumSampleSize,
-        )}
-        columns={[
-          { key: "order", label: words.presentationColumns[0], numeric: true },
-          { key: "section", label: words.presentationColumns[1] },
-          { key: "dwell", label: words.presentationColumns[2], numeric: true },
-          ...shareColumns(words.presentationColumns[3]),
-          ...(view.belowMinimum
-            ? []
-            : [{ key: "team", label: words.presentationColumns[4], numeric: true }]),
-        ]}
-        rows={runningOrder.map((section) => ({
-          key: section.sectionId,
-          cells: {
-            order: String(section.order),
-            section: section.label,
-            dwell: isDash(section.dwellDisplay) ? (
-              <Missing what={words.notTimed} />
-            ) : (
-              <span className="ox-bar-value">
-                <CellBar value={section.medianDwellSeconds} max={longestStay} />
-                {section.dwellDisplay}
-              </span>
-            ),
-            share: (
-              <ShareFigure
-                share={section.timeShare}
-                {...floor}
-                qualifier={words.ofTimed(view.profile.timedMeetings)}
-              />
-            ),
-            team: isDash(section.teamDwellDisplay) ? (
-              <Missing what={words.notTimed} />
-            ) : (
-              section.teamDwellDisplay
-            ),
-          },
-        }))}
-        period={period}
-      />
+      <DrawIn kind="fill">
+        <DataTable
+          captionHidden
+          caption={words.presentationCaption(
+            view.name,
+            view.belowMinimum,
+            view.sampleSize,
+            view.minimumSampleSize,
+          )}
+          columns={[
+            { key: "order", label: words.presentationColumns[0], numeric: true },
+            { key: "section", label: words.presentationColumns[1] },
+            { key: "dwell", label: words.presentationColumns[2], numeric: true },
+            ...shareColumns(words.presentationColumns[3]),
+            ...(view.belowMinimum
+              ? []
+              : [{ key: "team", label: words.presentationColumns[4], numeric: true }]),
+          ]}
+          rows={runningOrder.map((section) => ({
+            key: section.sectionId,
+            cells: {
+              order: String(section.order),
+              section: section.label,
+              dwell: isDash(section.dwellDisplay) ? (
+                <Missing what={words.notTimed} />
+              ) : (
+                <span className="ox-bar-value">
+                  <CellBar value={section.medianDwellSeconds} max={longestStay} />
+                  {section.dwellDisplay}
+                </span>
+              ),
+              share: (
+                <ShareFigure
+                  share={section.timeShare}
+                  {...floor}
+                  qualifier={words.ofTimed(view.profile.timedMeetings)}
+                />
+              ),
+              team: isDash(section.teamDwellDisplay) ? (
+                <Missing what={words.notTimed} />
+              ) : (
+                section.teamDwellDisplay
+              ),
+            },
+          }))}
+          period={period}
+        />
+      </DrawIn>
     ),
 
     "agent-buyers": (
@@ -337,11 +341,13 @@ export async function AgentReport({
           period={period}
         />
         <div className="ox-report-chart">
-          <OutcomeMix
-            slices={view.outcomeMix}
-            id="agent-outcomes"
-            label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
-          />
+          <DrawIn kind="fill">
+            <OutcomeMix
+              slices={view.outcomeMix}
+              id="agent-outcomes"
+              label={REPORT_DOCUMENT_WORDS[language].outcomeChart}
+            />
+          </DrawIn>
           <DataTable
             captionHidden
             caption={words.outcomeCaption(
