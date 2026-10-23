@@ -1122,18 +1122,30 @@ export function RankedBars({
     </li>
   );
 
+  /*
+   * The rest of the rows stand before the control, so "Show all" stays after
+   * the last row and becomes "Show fewer" once open (review round 8: it was
+   * left between row 5 and row 6 with its first label). The stylesheet shows
+   * them while the `details` after them is open (`charts.css`); the label not
+   * in view is `display: none`, so it is out of the accessible name too.
+   */
   return (
     <DrawIn kind="sweep">
       <ol className={className} data-tone={tone}>
         {rows.slice(0, cut).map((r, i) => item(r, i + 1))}
       </ol>
       {cut === rows.length ? null : (
-        <details className="iris-ranked-more">
-          <summary className="iris-action">Show all</summary>
-          <ol className={className} data-tone={tone} start={cut + 1}>
+        <>
+          <ol className={`${className} iris-ranked-rest`} data-tone={tone} start={cut + 1}>
             {rows.slice(cut).map((r, i) => item(r, cut + i + 1))}
           </ol>
-        </details>
+          <details className="iris-ranked-more">
+            <summary className="iris-action">
+              <span data-when="closed">Show all</span>
+              <span data-when="open">Show fewer</span>
+            </summary>
+          </details>
+        </>
       )}
     </DrawIn>
   );

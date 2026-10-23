@@ -877,6 +877,21 @@ a.iris-orow-part:hover {
   display: none;
 }
 
+/*
+ * The rest stand before the control (`RankedBars`), shown while it is open, so
+ * "Show all" stays after the last row and reads "Show fewer" once open.
+ */
+.iris-ranked-rest:has(+ .iris-ranked-more:not([open])),
+.iris-ranked-more[open] [data-when="closed"],
+.iris-ranked-more:not([open]) [data-when="open"] {
+  display: none;
+}
+
+/* The second half continues the first: no rule-less seam where they meet. */
+.iris-ranked.iris-ranked-rest > li:first-child {
+  border-top: 1px solid var(--rule);
+}
+
 .iris-ranked li {
   display: grid;
   grid-template-columns: 1.5rem minmax(0, 12rem) minmax(0, 1fr) 5rem;

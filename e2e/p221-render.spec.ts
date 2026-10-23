@@ -199,10 +199,11 @@ test("R05-8 · the longest lists show five rows and keep the rest behind Show al
   page,
 }) => {
   await mainText(page, "Tomáš Varga", `${ROOT}/flow`);
-  const collapsed = page.locator("main details:has(> summary:text-is('Show all'))");
+  const collapsed = page.locator("main details.iris-ranked-more");
   expect(await collapsed.count()).toBeGreaterThan(0);
   for (const details of await collapsed.all()) {
     expect(await details.evaluate((el) => (el as HTMLDetailsElement).open)).toBe(false);
+    await expect(details.locator("summary")).toHaveText("Show all", { useInnerText: true });
   }
 });
 

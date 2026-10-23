@@ -37,12 +37,17 @@ const widths = (html: string) =>
   [...html.matchAll(/<i style="width:([\d.]+)%"><\/i>/g)].map((m) => Number(m[1]));
 
 describe("a ranked list, five rows and Show all", () => {
-  it("draws the first five, and the rest inside Show all", () => {
+  /* Review round 8: the control stood between row 5 and row 6 once open, still reading "Show all". */
+  it("draws the first five, then the rest, then the control after the last row", () => {
     const html = render(5);
-    const [before, after] = html.split("<details");
-    expect(places(before ?? "")).toEqual([1, 2, 3, 4, 5]);
-    expect(places(after ?? "")).toEqual([6, 7, 8]);
-    expect(after).toContain('<summary class="iris-action">Show all</summary>');
+    const [first, rest] = html.split('<ol class="iris-ranked iris-ranked-rest"');
+    expect(places(first ?? "")).toEqual([1, 2, 3, 4, 5]);
+    expect(places(rest ?? "")).toEqual([6, 7, 8]);
+    expect(rest).toContain('start="6"');
+    expect(rest?.indexOf("<details")).toBeGreaterThan(rest?.lastIndexOf("</li>") ?? Infinity);
+    expect(html).toContain(
+      '<summary class="iris-action"><span data-when="closed">Show all</span><span data-when="open">Show fewer</span></summary>',
+    );
   });
 
   it("keeps every row's place and every bar's scale", () => {
@@ -77,6 +82,6 @@ describe("a ranked list's tone", () => {
         tone: "late",
       }),
     );
-    expect([...html.matchAll(/<ol class="iris-ranked" data-tone="late"/g)]).toHaveLength(2);
+    expect([...html.matchAll(/<ol class="iris-ranked[^"]*" data-tone="late"/g)]).toHaveLength(2);
   });
 });

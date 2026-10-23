@@ -138,20 +138,24 @@ test("R05-8 · a long list shows five rows and keeps every other row, numbered o
   const folds = page.locator("main details.iris-ranked-more");
   expect(await folds.count()).toBeGreaterThan(0);
   for (const fold of await folds.all()) {
+    /* The rest stand before the control, so it stays after the last row (review round 8). */
     const shape = await fold.evaluate((d) => {
-      const shown = d.previousElementSibling;
-      const rest = d.querySelector("ol");
+      const rest = d.previousElementSibling;
+      const shown = rest?.previousElementSibling;
       return {
         shown: shown?.tagName === "OL" ? shown.querySelectorAll(":scope > li").length : -1,
-        start: rest?.getAttribute("start"),
+        start: rest?.tagName === "OL" ? rest.getAttribute("start") : null,
         rest: rest?.querySelectorAll(":scope > li").length ?? 0,
         open: (d as HTMLDetailsElement).open,
       };
     });
     expect(shape).toMatchObject({ shown: 5, start: "6", open: false });
     expect(shape.rest, "the folded rows are there, not dropped").toBeGreaterThan(0);
+    const rest = fold.locator("xpath=preceding-sibling::ol[1]");
+    await expect(rest).toBeHidden();
     await fold.locator("summary").click();
-    for (const row of await fold.locator("ol > li").all()) await expect(row).toBeVisible();
+    for (const row of await rest.locator(":scope > li").all()) await expect(row).toBeVisible();
+    await expect(fold.locator("summary")).toHaveText("Show fewer", { useInnerText: true });
   }
 });
 
